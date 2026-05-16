@@ -79,7 +79,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
           {onBack && (
             <button
               onClick={onBack}
-              className="px-4 py-2 border border-black hover:bg-gray-100"
+              className="px-4 py-2 border border-black hover:bg-zinc-100"
             >
               Back
             </button>
@@ -87,7 +87,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
           <button
             onClick={handleExportPDF}
             disabled={!summary}
-            className="px-4 py-2 border border-black hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 border border-black hover:bg-zinc-100 flex items-center gap-2 disabled:opacity-50"
           >
             <Download size={16} />
             Export PDF
@@ -102,21 +102,21 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
           <div className="flex gap-2">
             <button
               onClick={() => setShowAmendmentPanel(!showAmendmentPanel)}
-              className="px-3 py-1 border border-black text-sm hover:bg-gray-100 flex items-center gap-1"
+              className="px-3 py-1 border border-black text-sm hover:bg-zinc-100 flex items-center gap-1"
             >
               <Clock size={14} />
               Pending Amendments
             </button>
             <button
               onClick={() => setShowTDSPanel(!showTDSPanel)}
-              className="px-3 py-1 border border-black text-sm hover:bg-gray-100"
+              className="px-3 py-1 border border-black text-sm hover:bg-zinc-100"
             >
               TDS Tracking
             </button>
             {selectedWO && (
               <button
                 onClick={() => setSelectedWO(null)}
-                className="px-3 py-1 border border-black text-sm bg-gray-100"
+                className="px-3 py-1 border border-black text-sm bg-zinc-100"
               >
                 Show All
               </button>
@@ -126,7 +126,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
 
         <table className="ledger-table w-full border border-black">
           <thead>
-            <tr className="bg-gray-100">
+            <tr className="bg-zinc-100">
               <th className="border border-black p-2 text-left">WO NO</th>
               <th className="border border-black p-2 text-left">DESCRIPTION</th>
               <th className="border border-black p-2 text-right">VALUE</th>
@@ -142,7 +142,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
               return (
                 <tr
                   key={wo.id}
-                  className={`cursor-pointer hover:bg-gray-50 ${isSelected ? 'ledger-selected-row' : ''}`}
+                  className={`cursor-pointer hover:bg-zinc-50 ${isSelected ? 'ledger-selected-row' : ''}`}
                   onClick={() => setSelectedWO(isSelected ? null : wo.work_order_no)}
                 >
                   <td className="border border-black p-2 font-bold">{wo.work_order_no}</td>
@@ -155,7 +155,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
                         e.stopPropagation();
                         handleCreateAmendment(wo);
                       }}
-                      className="px-2 py-1 border border-black text-xs hover:bg-gray-100 flex items-center gap-1"
+                      className="px-2 py-1 border border-black text-xs hover:bg-zinc-100 flex items-center gap-1"
                     >
                       <Plus size={12} />
                       Amend
@@ -173,11 +173,11 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
               if (!isVisible) return null;
               
               return (
-                <tr key={amd.id} className="bg-gray-50 text-sm">
+                <tr key={amd.id} className="bg-zinc-50 text-sm">
                   <td className="border border-black p-2 pl-6">
                     └─ AMD-{String(amd.amendment_no).padStart(3, '0')}
                   </td>
-                  <td className="border border-black p-2 text-gray-600">{amd.work_description}</td>
+                  <td className="border border-black p-2 text-zinc-600">{amd.work_description}</td>
                   <td className="border border-black p-2 text-right">
                     {amd.total_amount > 0 ? '+' : ''}{formatCurrency(amd.total_amount)}
                   </td>
@@ -242,7 +242,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
             </div>
           </div>
           {summary.totalTDS > 0 && (
-            <div className="mt-4 p-3 border border-black bg-gray-50">
+            <div className="mt-4 p-3 border border-black bg-zinc-50">
               <span className="text-sm">Total TDS Deducted: </span>
               <span className="font-bold">{formatCurrency(summary.totalTDS)}</span>
             </div>
@@ -257,15 +257,15 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
         </h3>
         
         {filteredLedger.length === 0 ? (
-          <div className="text-center py-8 border border-black text-gray-500">
-            <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 border border-black text-zinc-500">
+            <FileText size={48} className="mx-auto mb-4 text-zinc-300" />
             <p>No transactions found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="ledger-table w-full border border-black">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-zinc-100">
                   <th className="border border-black p-2 text-left">DATE</th>
                   <th className="border border-black p-2 text-left">TYPE</th>
                   <th className="border border-black p-2 text-left">REFERENCE</th>
@@ -279,7 +279,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
                 {filteredLedger.map((entry, index) => (
                   <tr
                     key={`${entry.id}-${index}`}
-                    className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    className={index % 2 === 0 ? 'bg-white' : 'bg-zinc-50'}
                   >
                     <td className="border border-black p-2">{entry.date}</td>
                     <td className="border border-black p-2">

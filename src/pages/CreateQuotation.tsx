@@ -2249,7 +2249,7 @@ const itemsToInsert = items.map(item => ({
     <div>
       <div className="flex items-center justify-between mb-10 pb-2">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
           </h1>
           {editId && formData.revision_no > 1 && (
@@ -2260,7 +2260,7 @@ const itemsToInsert = items.map(item => ({
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 pr-4 border-r border-gray-200">
+          <div className="flex items-center gap-3 pr-4 border-r border-zinc-200">
             <label className="relative inline-flex items-center cursor-pointer group">
               <input
                 type="checkbox"
@@ -2286,16 +2286,16 @@ const itemsToInsert = items.map(item => ({
                       status: 'Under Negotiation'
                     }));
                   } else {
-                    setFormData({ 
-                      ...formData, 
+                    setFormData(prev => ({ 
+                      ...prev, 
                       negotiation_mode: e.target.checked, 
-                      status: e.target.checked ? 'Under Negotiation' : formData.status 
-                    });
+                      status: e.target.checked ? 'Under Negotiation' : prev.status 
+                    }));
                   }
                 }}
               />
-              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
-              <span className="ms-3 text-sm font-medium text-gray-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
+              <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+              <span className="ms-3 text-sm font-medium text-zinc-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
             </label>
             {(formData.revision_history?.length > 0) && (
               <button
@@ -2346,12 +2346,12 @@ const itemsToInsert = items.map(item => ({
           </div>
         </div>
       </div>
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
         </div>
 
         {/* Document Details Grid */}
-        <div className="bg-white border border-gray-200 mb-6 shadow-sm">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+        <div className="bg-white border border-zinc-200 mb-6 shadow-sm">
+          <div className="px-4 py-3 border-b border-zinc-200 flex items-center gap-2">
               <div className="w-1 h-4 bg-blue-600 rounded-sm"></div>
             </div>
             
@@ -2359,20 +2359,20 @@ const itemsToInsert = items.map(item => ({
               
               {/* Column 1: DOCUMENT */}
               <div className="space-y-4 pl-4">
-                <h3 className="text-[11px] font-semibold text-gray-500 mb-3">Document</h3>
+                <h3 className="text-[11px] font-semibold text-zinc-500 mb-3">Document</h3>
                 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-2 py-1.5 border border-gray-200 bg-gray-50 text-gray-600 text-xs font-medium focus:outline-none transition-colors min-h-[34px] flex items-center">
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Quotation No <span className="text-red-500">*</span></label>
+                    <div className="w-full px-2 py-1.5 border border-zinc-200 bg-zinc-50 text-zinc-600 text-xs font-medium focus:outline-none transition-colors min-h-[34px] flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Prepared By</label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Prepared By</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.prepared_by || ''} 
                       onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                       placeholder="Sales executive..."
@@ -2382,19 +2382,19 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Valid Till</label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Valid Till</label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.valid_till} 
                       onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                     />
@@ -2403,9 +2403,9 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Variant</label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Variant</label>
                     <select 
-                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.variant_id} 
                       onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                     >
@@ -2416,10 +2416,10 @@ const itemsToInsert = items.map(item => ({
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Reference</label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Reference</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.reference || ''} 
                       onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                       placeholder="Client RFQ No..."
@@ -2428,10 +2428,10 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Payment Terms</label>
+                  <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Payment Terms</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                     value={formData.payment_terms} 
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                     placeholder="Net 30 Days"
@@ -2441,15 +2441,15 @@ const itemsToInsert = items.map(item => ({
 
               {/* Column 2: CLIENT */}
               <div className="space-y-4">
-                <h3 className="text-[11px] font-semibold text-gray-500 mb-3">Client</h3>
+                <h3 className="text-[11px] font-semibold text-zinc-500 mb-3">Client</h3>
                 
                 <div className="flex flex-col client-dropdown-container space-y-4">
-                  <label className="text-[11px] font-semibold text-gray-600 mb-1">Client <span className="text-red-500">*</span></label>
+                  <label className="text-[11px] font-semibold text-zinc-600 mb-1">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[34px]"
+                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[34px]"
                         placeholder="Search or select..."
                         value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
                         onChange={(e) => {
@@ -2461,13 +2461,13 @@ const itemsToInsert = items.map(item => ({
                       />
                     </div>
                     {isClientDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-[300px] overflow-y-auto rounded-none">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-300 shadow-lg max-h-[300px] overflow-y-auto rounded-none">
                         {clients
                           .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
                           .map(c => (
                             <div 
                               key={c.id}
-                              className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
+                              className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm border-b border-zinc-100 last:border-0"
                               onClick={() => {
                               handleClientChange(c.id);
                               setClientSearch(c.client_name);
@@ -2479,7 +2479,7 @@ const itemsToInsert = items.map(item => ({
                             </div>
                           ))}
                         {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                          <div className="px-3 py-2 text-xs text-gray-500 italic text-center bg-gray-50">
+                          <div className="px-3 py-2 text-xs text-zinc-500 italic text-center bg-zinc-50">
                             No clients found matching "{clientSearch}"
                           </div>
                         )}
@@ -2489,10 +2489,10 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] font-semibold text-gray-600 mb-1">Contact</label>
+                  <label className="text-[11px] font-semibold text-zinc-600 mb-1">Contact</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                     value={formData.client_contact} 
                     onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                     placeholder="+91 98765 43210"
@@ -2500,9 +2500,9 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] font-semibold text-gray-600 mb-1">Billing Address</label>
+                  <label className="text-[11px] font-semibold text-zinc-600 mb-1">Billing Address</label>
                   <textarea 
-                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
                     value={formData.billing_address} 
                     onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
                     placeholder="Full billing address..."
@@ -2511,20 +2511,20 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1">GSTIN</label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1">GSTIN</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.gstin} 
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                       placeholder="27AABCU9603R1ZX"
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-gray-600 mb-1">State</label>
+                    <label className="text-[11px] font-semibold text-zinc-600 mb-1">State</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
+                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
                         value={formData.state} 
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       >
@@ -2532,7 +2532,7 @@ const itemsToInsert = items.map(item => ({
                         {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                       <div className="absolute right-2 top-2 pointer-events-none">
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <svg className="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                       </div>
                     </div>
                   </div>
@@ -2541,11 +2541,11 @@ const itemsToInsert = items.map(item => ({
 
               {/* Column 3: PROJECT & DISCOUNTS */}
               <div className="space-y-4">
-                <h3 className="text-[11px] font-semibold text-gray-500 mb-3">Project</h3>
+                <h3 className="text-[11px] font-semibold text-zinc-500 mb-3">Project</h3>
                 
                 <div className="space-y-4">
                   <select 
-                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
                     value={formData.project_id} 
                     onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                   >
@@ -2555,13 +2555,13 @@ const itemsToInsert = items.map(item => ({
                     ))}
                   </select>
                   <div className="absolute right-2 top-2 pointer-events-none">
-                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg className="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
 
                 <div className="pt-3">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[11px] font-semibold text-gray-500">Discounts</h3>
+                    <h3 className="text-[11px] font-semibold text-zinc-500">Discounts</h3>
                     {variants.length > 0 && (
                       <button 
                         type="button" 
@@ -2598,7 +2598,7 @@ const itemsToInsert = items.map(item => ({
                           const approvalDisplay = getApprovalDisplayStatus(variant.id);
                         
                           return (
-                            <div key={variant.id} className="flex items-center justify-between border border-gray-100 bg-white rounded-md h-[35px]">
+                            <div key={variant.id} className="flex items-center justify-between border border-zinc-100 bg-white rounded-md h-[35px]">
                               <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-none h-full`}>
                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${color.text} truncate`}>
                                   {variant.variant_name}
@@ -2612,7 +2612,7 @@ const itemsToInsert = items.map(item => ({
                                   </span>
                                 )}
                               </div>
-                              <div className={`flex items-center border border-gray-200 rounded-none bg-white shadow-sm`}>
+                              <div className={`flex items-center border border-zinc-200 rounded-none bg-white shadow-sm`}>
                                 <input
                                   type="number"
                                   className={`w-[60px] px-2 py-2 text-right text-[11px] font-bold ${color.text} bg-transparent outline-none`}
@@ -2632,21 +2632,21 @@ const itemsToInsert = items.map(item => ({
                                   max="100"
                                   step="0.01"
                                 />
-                                <div className={`px-2 py-2 text-[10px] font-bold ${color.percentText} border-l border-gray-200`}>
+                                <div className={`px-2 py-2 text-[10px] font-bold ${color.percentText} border-l border-zinc-200`}>
                                   %
                                 </div>
                               </div>
                             </div>
                           );
                         }) : (
-                          <div className="text-xs text-gray-500 italic p-2 border border-gray-100 bg-gray-50">
+                          <div className="text-xs text-zinc-500 italic p-2 border border-zinc-100 bg-zinc-50">
                             No variants available.
                           </div>
                         );
                       })()}
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-500 italic p-2 border border-gray-100 bg-gray-50">
+                    <div className="text-xs text-zinc-500 italic p-2 border border-zinc-100 bg-zinc-50">
                       Approval history shown below.
                     </div>
                   )}
@@ -2656,32 +2656,32 @@ const itemsToInsert = items.map(item => ({
 
             {/* Approval History Tab Content */}
             {activeTab === 'approval' && (
-              <div className="px-5 pb-5 pt-2 border-t border-gray-100">
+              <div className="px-5 pb-5 pt-2 border-t border-zinc-100">
                 {approvalHistory.length === 0 ? (
-                  <div className="py-6 text-center text-gray-500 italic text-xs">
+                  <div className="py-6 text-center text-zinc-500 italic text-xs">
                     No approval history found for this document.
                   </div>
                 ) : (
                   <table className="w-full text-[11px] text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
                       <tr>
-                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Variant</th>
-                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Event</th>
-                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">By</th>
-                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Remark</th>
+                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Variant</th>
+                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Event</th>
+                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">By</th>
+                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Date</th>
+                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Remark</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-zinc-50">
                       {approvalHistory.map((log) => {
                         const variant = variants.find(v => v.id === log.variant_id);
                         return (
-                          <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-3 py-2 font-bold text-gray-700">{variant?.variant_name || '-'}</td>
+                          <tr key={log.id} className="hover:bg-zinc-50 transition-colors">
+                            <td className="px-3 py-2 font-bold text-zinc-700">{variant?.variant_name || '-'}</td>
                             <td className="px-3 py-2 capitalize">{log.event_type}</td>
-                            <td className="px-3 py-2 text-gray-500">{log.performed_by_email || '-'}</td>
-                            <td className="px-3 py-2 text-gray-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
-                            <td className="px-3 py-2 text-gray-500 italic">{log.remark || '-'}</td>
+                            <td className="px-3 py-2 text-zinc-500">{log.performed_by_email || '-'}</td>
+                            <td className="px-3 py-2 text-zinc-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
+                            <td className="px-3 py-2 text-zinc-500 italic">{log.remark || '-'}</td>
                           </tr>
                         );
                       })}
@@ -2692,42 +2692,42 @@ const itemsToInsert = items.map(item => ({
             )}
 
             {/* Bottom Options (Erection Charges, Round Off) */}
-            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center gap-6">
+            <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/50 flex items-center gap-6">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input 
                   type="checkbox" 
-                  className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded-none focus:ring-0 focus:ring-offset-0"
+                  className="w-3.5 h-3.5 text-blue-600 border-zinc-300 rounded-none focus:ring-0 focus:ring-offset-0"
                   checked={formData.include_erection_charges}
                   onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
                 />
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-gray-700 transition-colors">Include Erection Charges</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Include Erection Charges</span>
               </label>
               
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input 
                   type="checkbox" 
-                  className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded-none focus:ring-0 focus:ring-offset-0"
+                  className="w-3.5 h-3.5 text-blue-600 border-zinc-300 rounded-none focus:ring-0 focus:ring-offset-0"
                   checked={formData.round_off_enabled}
                   onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })}
                 />
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-gray-700 transition-colors">Enable Round Off</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Enable Round Off</span>
               </label>
             </div>
           </div>
 
-      <div className="bg-white rounded-none border border-gray-200 shadow-sm overflow-hidden mb-6 mt-8" ref={itemsTableRef}>
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+      <div className="bg-white rounded-none border border-zinc-200 shadow-sm overflow-hidden mb-6 mt-8" ref={itemsTableRef}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
-            <h3 className="text-lg font-bold text-gray-900">Line Items</h3>
-            <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded-none">
+            <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
+            <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
               {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
             </span>
           </div>
           
           {/* Section Tabs */}
           <div className="px-5 py-[30px]">
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-zinc-200">
               <button
                 type="button"
                 className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
@@ -2762,7 +2762,7 @@ const itemsToInsert = items.map(item => ({
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
               Add Material
             </button>
-            <div className="w-px h-6 bg-gray-200 mx-2"></div>
+            <div className="w-px h-6 bg-zinc-200 mx-2"></div>
             <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
             <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
             <button className="h-[25px] min-w-[110px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#b45309] to-[#d97706] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={() => addSubtotal()}>+ Add Sub-total</button>
@@ -3349,15 +3349,15 @@ const itemsToInsert = items.map(item => ({
 
 
 
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-gray-100 mb-20">
-        <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-none px-6 py-4 shadow-sm w-full md:w-auto">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-zinc-100 mb-20">
+        <div className="flex items-center gap-4 bg-white border border-zinc-200 rounded-none px-6 py-4 shadow-sm w-full md:w-auto">
           <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
             <select 
-              className="bg-transparent border-none p-0 text-sm font-bold text-gray-800 focus:ring-0 cursor-pointer min-w-[200px]"
+              className="bg-transparent border-none p-0 text-sm font-bold text-zinc-800 focus:ring-0 cursor-pointer min-w-[200px]"
               value={formData.authorized_signatory_id ?? ''} 
               onChange={(e) => {
                 const val = e.target.value;
@@ -3385,7 +3385,7 @@ const itemsToInsert = items.map(item => ({
                 <button 
                   type="button"
                   onClick={() => console.log('Org signatures:', organisation?.signatures)}
-                  className="text-xs text-gray-400 ml-2"
+                  className="text-xs text-zinc-400 ml-2"
                 >
                   (debug)
                 </button>
@@ -3396,8 +3396,8 @@ const itemsToInsert = items.map(item => ({
         
         {/* Signature Preview */}
         {formData.authorized_signatory_id && formData.authorized_signatory_id !== null && (
-          <div className="bg-white border border-gray-200 rounded-none px-4 py-3 shadow-sm">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-2">Signature Preview</div>
+          <div className="bg-white border border-zinc-200 rounded-none px-4 py-3 shadow-sm">
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Signature Preview</div>
             <div className="h-16 flex items-center">
               {(() => {
                 const sigId = String(formData.authorized_signatory_id);
@@ -3412,7 +3412,7 @@ const itemsToInsert = items.map(item => ({
                     />
                   );
                 }
-                return <span className="text-gray-400 text-sm">No signature preview</span>;
+                return <span className="text-zinc-400 text-sm">No signature preview</span>;
               })()}
             </div>
           </div>

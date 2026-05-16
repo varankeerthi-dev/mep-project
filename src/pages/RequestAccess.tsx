@@ -11,11 +11,11 @@ type Props = {
 };
 
 const cardCn =
-  'rounded-2xl border border-slate-200 bg-white shadow-sm';
+  'rounded-2xl border border-zinc-200 bg-white shadow-sm';
 const labelCn =
-  'text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400';
+  'text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400';
 const inputCn =
-  'h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200';
+  'h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200';
 
 function statusBadge(status: string) {
   const s = (status || '').toLowerCase();
@@ -68,11 +68,11 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-zinc-50">
       <div className="mx-auto flex max-w-[980px] flex-col gap-5 px-6 py-8">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-zinc-400">
               <ShieldCheck size={14} />
               Access Control
             </div>
@@ -80,23 +80,23 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
               type="button"
               onClick={() => void handleLogout()}
               disabled={loggingOut}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-60"
             >
               <LogOut size={14} />
               {loggingOut ? 'Signing out...' : 'Sign out'}
             </button>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Request access</h1>
-          <p className="text-[13px] leading-6 text-slate-500">
-            You're signed in as <span className="font-medium text-slate-900">{user.email}</span>. Select an organisation and request approval from its admins.
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Request access</h1>
+          <p className="text-[13px] leading-6 text-zinc-500">
+            You're signed in as <span className="font-medium text-zinc-900">{user.email}</span>. Select an organisation and request approval from its admins.
           </p>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <section className={cardCn}>
-            <div className="border-b border-slate-200 px-5 py-4">
-              <div className="text-[13px] font-semibold text-slate-950">Request access</div>
-              <div className="mt-1 text-[12px] text-slate-500">Your email must exist as an active employee in the organisation.</div>
+            <div className="border-b border-zinc-200 px-5 py-4">
+              <div className="text-[13px] font-semibold text-zinc-950">Request access</div>
+              <div className="mt-1 text-[12px] text-zinc-500">Your email must exist as an active employee in the organisation.</div>
             </div>
             <div className="px-5 py-5 space-y-4">
               <label className="space-y-2">
@@ -132,7 +132,7 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                 type="button"
                 onClick={() => void submitRequest()}
                 disabled={!selectedOrgId || createReq.isPending}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {createReq.isPending ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
                 Submit request
@@ -141,7 +141,7 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
               <button
                 type="button"
                 onClick={() => void onRefreshMemberships()}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
                 <RefreshCw size={16} />
                 Refresh access
@@ -150,15 +150,15 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
           </section>
 
           <section className={cardCn}>
-            <div className="border-b border-slate-200 px-5 py-4 flex items-center justify-between">
+            <div className="border-b border-zinc-200 px-5 py-4 flex items-center justify-between">
               <div>
-                <div className="text-[13px] font-semibold text-slate-950">Requests</div>
-                <div className="mt-1 text-[12px] text-slate-500">Track approvals and rejections.</div>
+                <div className="text-[13px] font-semibold text-zinc-950">Requests</div>
+                <div className="mt-1 text-[12px] text-zinc-500">Track approvals and rejections.</div>
               </div>
               <button
                 type="button"
                 onClick={() => void myRequests.refetch()}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
                 <RefreshCw size={14} />
                 Refresh
@@ -167,22 +167,22 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
 
             <div className="px-5 py-5 space-y-3">
               {myRequests.isLoading && (
-                <div className="text-[12px] text-slate-500">Loading requests...</div>
+                <div className="text-[12px] text-zinc-500">Loading requests...</div>
               )}
 
               {!myRequests.isLoading && (myRequests.data ?? []).length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-[12px] text-slate-500">
+                <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-[12px] text-zinc-500">
                   No requests yet.
                 </div>
               )}
 
               {(myRequests.data ?? []).slice(0, 6).map((req) => (
-                <div key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div key={req.id} className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3">
                   <div className="min-w-0">
-                    <div className="text-[12px] font-semibold text-slate-900 truncate">
+                    <div className="text-[12px] font-semibold text-zinc-900 truncate">
                       {req.organisation?.name ?? 'Organisation'}
                     </div>
-                    <div className="mt-1 text-[11px] text-slate-500 truncate">{req.email}</div>
+                    <div className="mt-1 text-[11px] text-zinc-500 truncate">{req.email}</div>
                   </div>
                   <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadge(req.status)}`}>
                     {req.status}
@@ -200,17 +200,17 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
         </div>
 
         <section className={cardCn}>
-          <div className="border-b border-slate-200 px-5 py-4 flex items-center justify-between">
+          <div className="border-b border-zinc-200 px-5 py-4 flex items-center justify-between">
             <div>
-              <div className="text-[13px] font-semibold text-slate-950">Create a new organisation</div>
-              <div className="mt-1 text-[12px] text-slate-500">
+              <div className="text-[13px] font-semibold text-zinc-950">Create a new organisation</div>
+              <div className="mt-1 text-[12px] text-zinc-500">
                 If you're setting up a new workspace, create an organisation and you'll be the first admin.
               </div>
             </div>
             <button
               type="button"
               onClick={() => setCreateOrgMode((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 transition hover:bg-zinc-50"
             >
               <Building2 size={14} />
               {createOrgMode ? 'Cancel' : 'Create org'}
@@ -232,7 +232,7 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                 type="button"
                 onClick={() => void submitCreateOrg()}
                 disabled={!orgName.trim() || isCreatingOrg}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCreatingOrg ? <Loader2 className="animate-spin" size={16} /> : <Building2 size={16} />}
                 {isCreatingOrg ? 'Creating...' : 'Create'}

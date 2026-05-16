@@ -217,7 +217,7 @@ export const Bills: React.FC = () => {
         const colors: any = {
           'Paid': 'bg-emerald-50 text-emerald-700 border-emerald-200',
           'Partially Paid': 'bg-amber-50 text-amber-700 border-amber-200',
-          'Unpaid': 'bg-slate-50 text-slate-700 border-slate-200',
+          'Unpaid': 'bg-zinc-50 text-zinc-700 border-zinc-200',
         };
         return (
           <Badge variant={val === 'Paid' ? 'success' : val === 'Partially Paid' ? 'warning' : 'default'}>
@@ -234,7 +234,7 @@ export const Bills: React.FC = () => {
           {row.original.direct_supply_to_site ? (
             <Truck className="h-4 w-4 text-primary" />
           ) : (
-            <Warehouse className="h-4 w-4 text-slate-400" />
+            <Warehouse className="h-4 w-4 text-zinc-400" />
           )}
         </div>
       ),
@@ -254,7 +254,7 @@ export const Bills: React.FC = () => {
           <ShadcnButton
             variant="ghost"
             size="sm"
-            className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+            className="h-8 w-8 text-zinc-600 hover:bg-zinc-100"
           >
             <Edit className="h-4 w-4" />
           </ShadcnButton>
@@ -276,7 +276,7 @@ export const Bills: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-zinc-50/50">
       <Card className="border-none shadow-sm overflow-hidden text-sm">
         <CardHeader className="py-4 px-6 bg-white border-b">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -285,18 +285,18 @@ export const Bills: React.FC = () => {
                 <Receipt className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-lg font-bold text-slate-800">Purchase Bills</CardTitle>
-                <p className="text-xs text-slate-500 font-medium">Record and manage vendor invoices</p>
+                <CardTitle className="text-lg font-bold text-zinc-800">Purchase Bills</CardTitle>
+                <p className="text-xs text-zinc-500 font-medium">Record and manage vendor invoices</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <Input
                   placeholder="Search bills..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-xs border-slate-200 focus:ring-primary/20"
+                  className="pl-9 w-64 h-9 text-xs border-zinc-200 focus:ring-primary/20"
                 />
               </div>
               <ShadcnButton 
@@ -330,9 +330,9 @@ export const Bills: React.FC = () => {
           <div className="flex-1 overflow-auto p-6 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2 space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Vendor *</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500">Vendor *</Label>
                 <Select value={vendorId} onValueChange={setVendorId}>
-                  <SelectTrigger className="border-slate-200">
+                  <SelectTrigger className="border-zinc-200">
                     <SelectValue placeholder="Select Vendor" />
                   </SelectTrigger>
                   <SelectContent>
@@ -343,25 +343,25 @@ export const Bills: React.FC = () => {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Bill Number *</Label>
-                <Input value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="border-slate-200" />
+                <Label className="text-xs font-bold uppercase text-zinc-500">Bill Number *</Label>
+                <Input value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Vendor Inv#</Label>
-                <Input value={vendorInvoiceNo} onChange={(e) => setVendorInvoiceNo(e.target.value)} className="border-slate-200" />
+                <Label className="text-xs font-bold uppercase text-zinc-500">Vendor Inv#</Label>
+                <Input value={vendorInvoiceNo} onChange={(e) => setVendorInvoiceNo(e.target.value)} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Bill Date</Label>
-                <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className="border-slate-200" />
+                <Label className="text-xs font-bold uppercase text-zinc-500">Bill Date</Label>
+                <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="border-slate-200" />
+                <Label className="text-xs font-bold uppercase text-zinc-500">Due Date</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Currency</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500">Currency</Label>
                 <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger className="border-slate-200">
+                  <SelectTrigger className="border-zinc-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -370,31 +370,31 @@ export const Bills: React.FC = () => {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500">Exchange Rate</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500">Exchange Rate</Label>
                 <Input 
                   type="number" 
                   value={exchangeRate} 
                   onChange={(e) => setExchangeRate(Number(e.target.value))} 
                   disabled={currency === 'INR'} 
-                  className="border-slate-200"
+                  className="border-zinc-200"
                 />
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-zinc-800 border-b pb-2 flex items-center gap-2">
                 <Warehouse className="h-4 w-4 text-primary" />
                 Warehouse / Storage
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase text-slate-500">Warehouse</Label>
+                  <Label className="text-xs font-bold uppercase text-zinc-500">Warehouse</Label>
                   <Input 
                     value={warehouseId} 
                     onChange={(e) => setWarehouseId(e.target.value)} 
                     disabled={directSupply} 
                     placeholder="Storage location..."
-                    className="border-slate-200"
+                    className="border-zinc-200"
                   />
                 </div>
                 <div className="flex items-center space-x-2 bg-primary/5 p-4 rounded-lg border border-primary/10">
@@ -406,26 +406,26 @@ export const Bills: React.FC = () => {
               </div>
               {directSupply && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase text-slate-500">Site Address</Label>
+                  <Label className="text-xs font-bold uppercase text-zinc-500">Site Address</Label>
                   <Input 
                     value={siteAddress} 
                     onChange={(e) => setSiteAddress(e.target.value)} 
                     placeholder="Project site address where materials are delivered..."
-                    className="border-slate-200"
+                    className="border-zinc-200"
                   />
                 </div>
               )}
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-zinc-800 border-b pb-2 flex items-center gap-2">
                 <PlusCircle className="h-4 w-4 text-primary" />
                 Items & Costing
               </h3>
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="border border-zinc-200 rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500">
+                    <TableRow className="bg-zinc-50 text-[10px] uppercase font-bold text-zinc-500">
                       <TableHead className="w-10">#</TableHead>
                       <TableHead>Item Name</TableHead>
                       <TableHead className="w-24">Batch</TableHead>
@@ -441,24 +441,24 @@ export const Bills: React.FC = () => {
                   <TableBody>
                     {items.map((item, idx) => (
                       <TableRow key={idx} className="group">
-                        <TableCell className="text-[10px] text-slate-400 font-medium">{item.sr}</TableCell>
+                        <TableCell className="text-[10px] text-zinc-400 font-medium">{item.sr}</TableCell>
                         <TableCell>
-                          <Input className="h-8 text-xs border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} placeholder="Item name" />
+                          <Input className="h-8 text-xs border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} placeholder="Item name" />
                         </TableCell>
                         <TableCell>
-                          <Input className="h-8 text-xs border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.batch_no} onChange={(e) => updateItem(idx, 'batch_no', e.target.value)} />
+                          <Input className="h-8 text-xs border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.batch_no} onChange={(e) => updateItem(idx, 'batch_no', e.target.value)} />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" className="h-8 text-xs text-center border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} />
+                          <Input type="number" className="h-8 text-xs text-center border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} />
                         </TableCell>
                         <TableCell>
-                          <Input className="h-8 text-xs border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} />
+                          <Input className="h-8 text-xs border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" className="h-8 text-xs text-right border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value))} />
+                          <Input type="number" className="h-8 text-xs text-right border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value))} />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" className="h-8 text-xs text-right border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.discount_amount} onChange={(e) => updateItem(idx, 'discount_amount', Number(e.target.value))} />
+                          <Input type="number" className="h-8 text-xs text-right border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.discount_amount} onChange={(e) => updateItem(idx, 'discount_amount', Number(e.target.value))} />
                         </TableCell>
                         <TableCell>
                           <Select 
@@ -470,7 +470,7 @@ export const Bills: React.FC = () => {
                               updateItem(idx, 'igst_percent', gst); 
                             }}
                           >
-                            <SelectTrigger className="h-8 text-[10px] border-transparent group-hover:border-slate-200 bg-transparent shadow-none text-center px-1">
+                            <SelectTrigger className="h-8 text-[10px] border-transparent group-hover:border-zinc-200 bg-transparent shadow-none text-center px-1">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -478,7 +478,7 @@ export const Bills: React.FC = () => {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-right font-medium text-slate-700 text-xs">
+                        <TableCell className="text-right font-medium text-zinc-700 text-xs">
                           {item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
@@ -486,7 +486,7 @@ export const Bills: React.FC = () => {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { const updated = items.filter((_, i) => i !== idx); setItems(updated); calculateTotals(updated); }}
-                            className="h-7 w-7 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full"
+                            className="h-7 w-7 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-full"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </ShadcnButton>
@@ -495,7 +495,7 @@ export const Bills: React.FC = () => {
                     ))}
                   </TableBody>
                 </Table>
-                <div className="p-3 bg-slate-50 border-t flex justify-center">
+                <div className="p-3 bg-zinc-50 border-t flex justify-center">
                   <ShadcnButton variant="ghost" size="sm" onClick={addItem} className="text-primary font-bold gap-2 hover:bg-primary/5">
                     <Plus className="h-4 w-4" />
                     Add Item
@@ -505,7 +505,7 @@ export const Bills: React.FC = () => {
             </div>
 
             <div className="flex justify-end">
-              <div className="w-full max-w-sm bg-slate-900 text-white rounded-xl p-6 shadow-xl space-y-3">
+              <div className="w-full max-w-sm bg-zinc-900 text-white rounded-xl p-6 shadow-xl space-y-3">
                 <div className="flex justify-between text-xs opacity-70">
                   <span>Subtotal</span>
                   <span>₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
@@ -530,8 +530,8 @@ export const Bills: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
-            <ShadcnButton variant="outline" onClick={() => setOpenDialog(false)} className="px-8 border-slate-200 font-semibold">
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50 flex flex-row items-center justify-between">
+            <ShadcnButton variant="outline" onClick={() => setOpenDialog(false)} className="px-8 border-zinc-200 font-semibold">
               Cancel
             </ShadcnButton>
             <ShadcnButton 

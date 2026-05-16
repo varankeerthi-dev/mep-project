@@ -51,18 +51,18 @@ export function FinalPaymentModal({
         >
           <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
             <h3 className="text-lg font-bold">RETENTION ALREADY HELD</h3>
-            <button onClick={onClose} className="p-1 hover:bg-gray-100">
+            <button onClick={onClose} className="p-1 hover:bg-zinc-100">
               <X size={20} />
             </button>
           </div>
 
-          <div className="p-4 border border-black bg-gray-50 mb-4">
+          <div className="p-4 border border-black bg-zinc-50 mb-4">
             <div className="flex items-center gap-2 mb-2">
               <Lock size={20} className="text-orange-600" />
               <span className="font-bold">Retention Money Held</span>
             </div>
             <div className="text-2xl font-bold mb-1">{formatCurrency(existingRetention.retention_amount)}</div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-zinc-600">
               {existingRetention.retention_percentage}% of contract value
             </div>
             <div className="mt-2 text-sm">
@@ -81,7 +81,7 @@ export function FinalPaymentModal({
 
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 border border-black hover:bg-gray-100"
+            className="w-full px-4 py-2 border border-black hover:bg-zinc-100"
           >
             Close
           </button>
@@ -137,14 +137,14 @@ export function FinalPaymentModal({
       >
         <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
           <h3 className="text-lg font-bold">FINAL PAYMENT - {workOrderNo}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 hover:bg-zinc-100">
             <X size={20} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           {/* Summary */}
-          <div className="border border-black p-4 mb-4 bg-gray-50">
+          <div className="border border-black p-4 mb-4 bg-zinc-50">
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <div className="text-xs uppercase tracking-wider">Contract Value</div>
@@ -217,7 +217,7 @@ export function FinalPaymentModal({
                     className="w-full border border-black p-2"
                     required={applyRetention}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-zinc-500 mt-1">
                     Typically 6 months after work completion (defect liability period)
                   </p>
                 </div>
@@ -259,7 +259,7 @@ export function FinalPaymentModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-black hover:bg-gray-100"
+              className="px-4 py-2 border border-black hover:bg-zinc-100"
               disabled={isSubmitting}
             >
               Cancel

@@ -113,7 +113,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                 ...currentFilters[filter.id], 
                 start: e.target.value 
               })}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <input
               type="date"
@@ -123,7 +123,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                 ...currentFilters[filter.id], 
                 end: e.target.value 
               })}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         );
@@ -138,7 +138,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                 const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
                 handleFilterChange(filter.id, selectedOptions);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               size={4}
             >
               {filter.options?.map(option => (
@@ -147,7 +147,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                 </option>
               ))}
             </select>
-            <div className="mt-1 text-xs text-gray-500">
+            <div className="mt-1 text-xs text-zinc-500">
               {currentFilters[filter.id]?.length || 0} items selected
             </div>
           </div>
@@ -158,7 +158,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
           <select
             value={currentFilters[filter.id] || ''}
             onChange={(e) => handleFilterChange(filter.id, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">{filter.placeholder || 'Select an option'}</option>
             {filter.options?.map(option => (
@@ -176,7 +176,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             placeholder={filter.placeholder || 'Enter search term'}
             value={currentFilters[filter.id] || ''}
             onChange={(e) => handleFilterChange(filter.id, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         );
 
@@ -200,12 +200,12 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 ${className}`}>
+    <div className={`bg-white rounded-lg border border-zinc-200 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between p-4 border-b border-zinc-200">
         <div className="flex items-center gap-3">
-          <FunnelIcon className="w-5 h-5 text-gray-600" />
-          <h3 className="font-semibold text-gray-900">Filters</h3>
+          <FunnelIcon className="w-5 h-5 text-zinc-600" />
+          <h3 className="font-semibold text-zinc-900">Filters</h3>
           {activeFilterCount > 0 && (
             <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
               {activeFilterCount} active
@@ -217,13 +217,13 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowSavedFilters(!showSavedFilters)}
-                className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 px-3 py-1 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
               >
                 Saved
                 <ChevronDownIcon className="w-4 h-4" />
               </button>
               {showSavedFilters && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-10">
                   {savedFilters.map(filter => (
                     <button
                       key={filter.id}
@@ -231,7 +231,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                         onLoadFilter?.(filter.id);
                         setShowSavedFilters(false);
                       }}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 first:rounded-t-md last:rounded-b-md"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 first:rounded-t-md last:rounded-b-md"
                     >
                       {filter.name}
                     </button>
@@ -250,18 +250,18 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
           )}
           <button
             onClick={handleReset}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            className="px-3 py-1 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
           >
             Reset
           </button>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-zinc-100 rounded transition-colors"
           >
             {isExpanded ? (
-              <ChevronDownIcon className="w-4 h-4 text-gray-600 rotate-180" />
+              <ChevronDownIcon className="w-4 h-4 text-zinc-600 rotate-180" />
             ) : (
-              <ChevronDownIcon className="w-4 h-4 text-gray-600" />
+              <ChevronDownIcon className="w-4 h-4 text-zinc-600" />
             )}
           </button>
         </div>
@@ -275,8 +275,8 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             return (
               <div key={filter.id} className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Icon className="w-4 h-4 text-gray-500" />
-                  <label className="text-sm font-medium text-gray-700">
+                  <Icon className="w-4 h-4 text-zinc-500" />
+                  <label className="text-sm font-medium text-zinc-700">
                     {filter.title}
                   </label>
                 </div>
@@ -291,13 +291,13 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
       {showSaveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Save Filter Set</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-4">Save Filter Set</h3>
             <input
               type="text"
               placeholder="Enter filter name"
               value={filterName}
               onChange={(e) => setFilterName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
               autoFocus
             />
             <div className="flex justify-end gap-3">
@@ -306,7 +306,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
                   setShowSaveModal(false);
                   setFilterName('');
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
               >
                 Cancel
               </button>

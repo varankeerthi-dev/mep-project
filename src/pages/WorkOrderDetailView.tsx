@@ -152,19 +152,19 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
           <div>
             <button
               onClick={handleBack}
-              className="mb-2 flex items-center gap-1 text-sm hover:underline text-gray-600"
+              className="mb-2 flex items-center gap-1 text-sm hover:underline text-zinc-600"
             >
               <ArrowLeft size={16} /> Back to Work Orders
             </button>
             <h1 className="text-2xl font-bold">{workOrder.work_order_no}</h1>
-            <p className="text-sm text-gray-600 mt-1">{workOrder.work_description}</p>
+            <p className="text-sm text-zinc-600 mt-1">{workOrder.work_description}</p>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold">{formatCurrency(contractValue)}</div>
-            <div className="text-sm text-gray-600">Contract Value</div>
+            <div className="text-sm text-zinc-600">Contract Value</div>
             <button
               onClick={handleDownloadPDF}
-              className="mt-2 px-3 py-1 border border-black text-sm hover:bg-gray-100 flex items-center gap-1"
+              className="mt-2 px-3 py-1 border border-black text-sm hover:bg-zinc-100 flex items-center gap-1"
             >
               <Download size={14} /> Export PDF
             </button>

@@ -81,7 +81,7 @@ const CompactInput = (props: ComponentProps<typeof Input>) => (
 );
 
 const CompactTextarea = (props: ComponentProps<typeof Textarea>) => (
-  <Textarea {...props} className={cn("min-h-[100px] rounded-xl border-slate-200/80 bg-white p-4 text-[14px] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] transition-all focus-visible:ring-4 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-500 hover:border-slate-300 resize-y", props.className)} style={undefined} />
+  <Textarea {...props} className={cn("min-h-[100px] rounded-xl border-zinc-200/80 bg-white p-4 text-[14px] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] transition-all focus-visible:ring-4 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-500 hover:border-zinc-300 resize-y", props.className)} style={undefined} />
 );
 
 export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps) {
@@ -103,7 +103,7 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
       <div className="min-h-[80vh] flex items-center justify-center bg-[#f8fafc] p-6 md:p-10">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-          <p className="text-sm font-medium text-slate-500 tracking-wide uppercase">Initializing...</p>
+          <p className="text-sm font-medium text-zinc-500 tracking-wide uppercase">Initializing...</p>
         </div>
       </div>
     );
@@ -116,8 +116,8 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
              <Info className="h-6 w-6" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Error Loading Client</h3>
-          <p className="text-[14px] text-slate-500 mb-8 leading-relaxed">We could not retrieve the client profile. Please check the network or try again.</p>
+          <h3 className="text-lg font-bold text-zinc-900 mb-2">Error Loading Client</h3>
+          <p className="text-[14px] text-zinc-500 mb-8 leading-relaxed">We could not retrieve the client profile. Please check the network or try again.</p>
           <Button variant="secondary" className="h-11 rounded-xl px-8" onClick={onCancel}>Return to Directory</Button>
         </div>
       </div>
@@ -261,7 +261,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
                  <option value="Bulk">Bulk Schema (Variant Match)</option>
                  <option value="Special">Special Schema (Variant Match)</option>
                </select>
-               <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+               <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                </div>
             </div>
@@ -281,7 +281,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
                       <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}% Baseline)</option>
                     ))}
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                   </div>
                </div>
@@ -292,17 +292,17 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
 
       {/* Custom Overrides */}
       <section>
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-5 border-b border-slate-100 gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-5 border-b border-zinc-100 gap-4">
           <div>
-            <h3 className="text-[17px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <h3 className="text-[17px] font-bold text-zinc-900 tracking-tight flex items-center gap-2">
                <Settings className="w-5 h-5 text-indigo-500" />
                Customized Discounts
             </h3>
-            <p className="text-[13px] text-slate-500 mt-1 font-medium">Override default discounts for specific variants.</p>
+            <p className="text-[13px] text-zinc-500 mt-1 font-medium">Override default discounts for specific variants.</p>
           </div>
           <Button 
             type="button"
-            className="h-11 rounded-xl bg-slate-900 px-6 text-white text-[14px] font-semibold hover:bg-slate-800 focus:ring-4 focus:ring-slate-900/10 shadow-lg shadow-slate-900/20" 
+            className="h-11 rounded-xl bg-zinc-900 px-6 text-white text-[14px] font-semibold hover:bg-zinc-800 focus:ring-4 focus:ring-zinc-900/10 shadow-lg shadow-zinc-900/20" 
             onClick={handleSaveCustomDiscounts} 
             disabled={saving || !formData.id}
           >
@@ -325,26 +325,26 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden bg-white">
+        <div className="rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden bg-white">
           <div className="max-h-[380px] overflow-auto">
             <Table>
-              <TableHeader className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
-                <TableRow className="border-b-slate-200/80">
-                  <TableHead className="w-[60%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4">Variant Name</TableHead>
-                  <TableHead className="w-[40%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4 text-right">Discount %</TableHead>
+              <TableHeader className="bg-zinc-50/80 sticky top-0 z-10 backdrop-blur-md">
+                <TableRow className="border-b-zinc-200/80">
+                  <TableHead className="w-[60%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4">Variant Name</TableHead>
+                  <TableHead className="w-[40%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-right">Discount %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {variants.length === 0 ? (
-                  <TableRow><td colSpan={2} className="px-6 py-12 text-center text-[14px] text-slate-400 font-medium">System has no variants configured.</td></TableRow>
+                  <TableRow><td colSpan={2} className="px-6 py-12 text-center text-[14px] text-zinc-400 font-medium">System has no variants configured.</td></TableRow>
                 ) : (
                   variants.map((v: any) => (
-                    <TableRow key={v.id} className="border-b-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-semibold text-slate-700 py-3.5 px-4">{v.variant_name}</TableCell>
+                    <TableRow key={v.id} className="border-b-zinc-100 hover:bg-zinc-50/50 transition-colors">
+                      <TableCell className="font-semibold text-zinc-700 py-3.5 px-4">{v.variant_name}</TableCell>
                       <TableCell className="py-3.5 px-4 text-right">
                         <CompactInput
                           type="number"
-                          className="h-10 w-28 rounded-lg border-slate-200 bg-white px-3 text-right text-[14px] font-semibold text-indigo-700 shadow-inner ml-auto"
+                          className="h-10 w-28 rounded-lg border-zinc-200 bg-white px-3 text-right text-[14px] font-semibold text-indigo-700 shadow-inner ml-auto"
                           value={customDiscounts[v.id] || 0}
                           onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
                           min="0"
@@ -371,36 +371,36 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
          {formData.discount_type === 'Standard' ? (
             <div className="rounded-2xl bg-indigo-50/50 border border-indigo-100/60 px-8 py-8 shadow-sm text-center">
              <Info className="w-8 h-8 text-indigo-400 mx-auto mb-4" />
-             <h4 className="text-[17px] font-bold text-slate-900 tracking-tight">Active Matrix Enforced</h4>
-             <p className="text-[14px] text-slate-600 mt-2 max-w-lg mx-auto">
+             <h4 className="text-[17px] font-bold text-zinc-900 tracking-tight">Active Matrix Enforced</h4>
+             <p className="text-[14px] text-zinc-600 mt-2 max-w-lg mx-auto">
                This client is tethered to a fixed standard pricing list. They will receive <strong className="text-indigo-700">{pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}%</strong> baseline off list price across all variant items universally.
              </p>
            </div>
          ) : (
-           <div className="rounded-2xl border border-slate-200/80 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] overflow-hidden bg-white">
+           <div className="rounded-2xl border border-zinc-200/80 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] overflow-hidden bg-white">
              <Table>
-               <TableHeader className="bg-slate-50/80">
-                 <TableRow className="border-b-slate-200/80">
-                   <TableHead className="w-[40%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4">Linked Variant</TableHead>
-                   <TableHead className="w-[20%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4 text-center">Default</TableHead>
-                   <TableHead className="w-[20%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4 text-center">Min Floor</TableHead>
-                   <TableHead className="w-[20%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4 text-center">Max Ceiling</TableHead>
+               <TableHeader className="bg-zinc-50/80">
+                 <TableRow className="border-b-zinc-200/80">
+                   <TableHead className="w-[40%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4">Linked Variant</TableHead>
+                   <TableHead className="w-[20%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-center">Default</TableHead>
+                   <TableHead className="w-[20%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-center">Min Floor</TableHead>
+                   <TableHead className="w-[20%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-center">Max Ceiling</TableHead>
                  </TableRow>
                </TableHeader>
                <TableBody>
                  {loading ? (
-                   <TableRow><td colSpan={4} className="px-6 py-12 text-center text-[14px] font-medium text-slate-400">Loading projection models...</td></TableRow>
+                   <TableRow><td colSpan={4} className="px-6 py-12 text-center text-[14px] font-medium text-zinc-400">Loading projection models...</td></TableRow>
                  ) : previewSettings.length === 0 ? (
                    <TableRow><td colSpan={4} className="px-6 py-16 flex flex-col items-center justify-center text-center">
-                     <Archive className="h-10 w-10 text-slate-200 mb-3" />
-                     <p className="text-[14px] font-medium text-slate-500">No rule limits found for this structure.</p>
+                     <Archive className="h-10 w-10 text-zinc-200 mb-3" />
+                     <p className="text-[14px] font-medium text-zinc-500">No rule limits found for this structure.</p>
                    </td></TableRow>
                  ) : (
                    previewSettings.map((s: any) => (
-                     <TableRow key={s.id} className="border-b-slate-100/60">
-                       <TableCell className="font-semibold text-slate-700 py-4 text-[14px]">{s.variant?.variant_name}</TableCell>
-                       <TableCell className="text-center font-medium py-4 text-[14px] bg-slate-50/30">{s.default_discount_percent}%</TableCell>
-                       <TableCell className="text-center font-medium py-4 text-[14px] text-slate-500">{s.min_discount_percent}%</TableCell>
+                     <TableRow key={s.id} className="border-b-zinc-100/60">
+                       <TableCell className="font-semibold text-zinc-700 py-4 text-[14px]">{s.variant?.variant_name}</TableCell>
+                       <TableCell className="text-center font-medium py-4 text-[14px] bg-zinc-50/30">{s.default_discount_percent}%</TableCell>
+                       <TableCell className="text-center font-medium py-4 text-[14px] text-zinc-500">{s.min_discount_percent}%</TableCell>
                        <TableCell className="text-center font-bold py-4 text-[14px] text-indigo-700">{s.max_discount_percent}%</TableCell>
                      </TableRow>
                    ))
@@ -438,7 +438,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   useEffect(() => {
     if (clientData) {
       setFormData(clientData);
-      setTimeout(() => setIsDirty(false), 100);
+      const timer = setTimeout(() => setIsDirty(false), 100);
+      return () => clearTimeout(timer);
     }
   }, [clientData]);
 
@@ -660,16 +661,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="px-2 pb-8">
-            <TabsList className="h-14 w-full md:w-auto p-1.5 bg-slate-200/60 rounded-2xl">
+            <TabsList className="h-14 w-full md:w-auto p-1.5 bg-zinc-200/60 rounded-2xl">
               <TabsTrigger 
                  value="general" 
-                 className="rounded-xl h-full px-8 text-[14px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md transition-all duration-300"
+                 className="rounded-xl h-full px-8 text-[14px] font-bold text-zinc-500 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-md transition-all duration-300"
               >
                 General Info
               </TabsTrigger>
               <TabsTrigger 
                  value="pricing" 
-                 className="rounded-xl h-full px-8 text-[14px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md transition-all duration-300"
+                 className="rounded-xl h-full px-8 text-[14px] font-bold text-zinc-500 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-md transition-all duration-300"
               >
                 Discount Settings
               </TabsTrigger>
@@ -698,7 +699,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                               <option value="Prospect">Prospect</option>
                               <option value="Inactive">Inactive</option>
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                             </div>
                          </div>
@@ -723,7 +724,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                              <option value="SEZ Developer">SEZ Developer - Owners of SEZ infrastructure</option>
                              <option value="Input Service Distributor">Input Service Distributor - For distributing ITC across different branches</option>
                            </select>
-                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                            </div>
                         </div>
@@ -741,7 +742,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                              <option value="small">Small Enterprise</option>
                              <option value="macro">Macro Enterprise</option>
                            </select>
-                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                            </div>
                         </div>
@@ -770,7 +771,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         </div>
                       </div>
 
-                      <div className="border-t border-slate-100"></div>
+                      <div className="border-t border-zinc-100"></div>
 
                       <div>
                         <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Secondary Contact</p>
@@ -782,7 +783,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         </div>
                       </div>
 
-                      <div className="border-t border-slate-100"></div>
+                      <div className="border-t border-zinc-100"></div>
 
                       <div>
                         <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Purchase Contact</p>
@@ -802,8 +803,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                     <div className="grid grid-cols-1 max-w-4xl gap-8" style={{ paddingLeft: '16px' }}>
                       {/* Billing Address */}
-                      <div className="rounded-xl border border-slate-200 p-6">
-                        <h4 className="text-[15px] font-semibold text-slate-900 mb-4">Billing Address</h4>
+                      <div className="rounded-xl border border-zinc-200 p-6">
+                        <h4 className="text-[15px] font-semibold text-zinc-900 mb-4">Billing Address</h4>
                         <div className="space-y-4">
                           <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
                           <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
@@ -814,7 +815,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                                     <option value="">Select State</option>
                                     {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                                   </select>
-                                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                                   </div>
                                </div>
@@ -832,7 +833,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       {/* Shipping Addresses */}
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-[15px] font-semibold text-slate-900">Shipping Addresses</h4>
+                          <h4 className="text-[15px] font-semibold text-zinc-900">Shipping Addresses</h4>
                           {shippingAddresses.length > 0 && (
                             <Button type="button" variant="ghost" size="sm" onClick={copyBillingToShipping} className="text-indigo-600 font-semibold hover:bg-indigo-50">
                                <Copy className="w-4 h-4 mr-2" /> Copy from Billing
@@ -842,16 +843,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         
                         <div className="space-y-4">
                           {shippingAddresses.map((addr: any) => (
-                            <div key={addr.id} className="group flex items-start justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 transition-all hover:border-slate-300 hover:shadow-md">
+                            <div key={addr.id} className="group flex items-start justify-between gap-4 rounded-2xl border border-zinc-200/80 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-md">
                               <div className="min-w-0">
-                                <div className="flex items-center gap-3 text-[15px] font-bold text-slate-800 mb-1.5">
+                                <div className="flex items-center gap-3 text-[15px] font-bold text-zinc-800 mb-1.5">
                                   <span className="truncate">{addr.address_name || 'Unnamed Address'}</span>
                                   {addr.is_default && <Badge variant="default" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200">Default</Badge>}
                                 </div>
-                                <p className="text-[14px] font-medium text-slate-600 line-clamp-2 md:line-clamp-none">{addr.address_line1} {addr.address_line2}</p>
-                                <p className="text-[14px] text-slate-500 mt-0.5">{addr.city}, {addr.state} • {addr.pincode}</p>
+                                <p className="text-[14px] font-medium text-zinc-600 line-clamp-2 md:line-clamp-none">{addr.address_line1} {addr.address_line2}</p>
+                                <p className="text-[14px] text-zinc-500 mt-0.5">{addr.city}, {addr.state} • {addr.pincode}</p>
                               </div>
-                              <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="shrink-0 rounded-xl p-2.5 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-4 focus:ring-rose-500/20">
+                              <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="shrink-0 rounded-xl p-2.5 text-zinc-300 transition-colors hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-4 focus:ring-rose-500/20">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
@@ -885,7 +886,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                                         <option value="">Select State</option>
                                         {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                                       </select>
-                                      <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                                      <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                                       </div>
                                    </div>
@@ -908,7 +909,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                           {!showShippingForm && shippingAddresses.length === 0 && (
                             <button
                               type="button"
-                              className="w-full rounded-2xl border-2 border-dashed border-slate-200 py-10 text-[14px] font-bold tracking-wide text-slate-400 transition-all hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20"
+                              className="w-full rounded-2xl border-2 border-dashed border-zinc-200 py-10 text-[14px] font-bold tracking-wide text-zinc-400 transition-all hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20"
                               onClick={() => {
                                  copyBillingToShipping();
                                  setShowShippingForm(true);
@@ -923,7 +924,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                           {!showShippingForm && shippingAddresses.length > 0 && (
                             <button
                               type="button"
-                              className="w-full rounded-2xl border border-slate-200/80 bg-slate-50/50 py-5 text-[14px] font-bold tracking-wide text-slate-500 transition-all hover:border-slate-300 hover:text-slate-800 hover:bg-slate-100"
+                              className="w-full rounded-2xl border border-zinc-200/80 bg-zinc-50/50 py-5 text-[14px] font-bold tracking-wide text-zinc-500 transition-all hover:border-zinc-300 hover:text-zinc-800 hover:bg-zinc-100"
                               onClick={() => {
                                  setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '', is_default: false });
                                  setShowShippingForm(true);
@@ -955,7 +956,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 </div>
 
                 {/* Main Action Footer */}
-                <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4 gap-4">
+                <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-6 py-4 gap-4">
                   <div className="flex items-center gap-3">
                     <Button type="button" variant="ghost" className="h-11 rounded-xl px-5 text-[14px] font-semibold" onClick={onCancel as any}>
                       <ChevronLeft className="h-4 w-4 mr-1" />
@@ -963,7 +964,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     </Button>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-6 text-[14px] font-semibold hover:bg-slate-100" onClick={onCancel} disabled={saving}>Cancel</Button>
+                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-6 text-[14px] font-semibold hover:bg-zinc-100" onClick={onCancel} disabled={saving}>Cancel</Button>
                     {editMode && (
                       <Button type="button" variant="danger" className="h-11 rounded-xl px-6 text-[14px] font-semibold" onClick={deleteClient} disabled={saving}>Delete Client</Button>
                     )}
@@ -979,7 +980,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
           {/* ─── PRICING TAB ─── */}
 <TabsContent value="pricing" className="mt-0 ring-0 outline-none">
-<div className="rounded-xl border border-slate-200 bg-white">
+<div className="rounded-xl border border-zinc-200 bg-white">
                 <div className="p-6">
                   <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} organisation={organisation} />
                 </div>                

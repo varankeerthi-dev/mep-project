@@ -9,7 +9,7 @@ export function DataTablePagination({
 }: any) {
   return (
     <div className={cn("flex items-center justify-between px-2", className)}>
-      <div className="flex-1 text-sm text-slate-600">
+      <div className="flex-1 text-sm text-zinc-600">
         {table.getFilteredSelectedRowModel().rows.length > 0 && (
           <span>
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
@@ -25,7 +25,7 @@ export function DataTablePagination({
             onChange={(e) => {
               table.setPageSize(Number(e.target.value))
             }}
-            className="h-8 w-[70px] rounded-md border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-slate-400"
+            className="h-8 w-[70px] rounded-md border border-zinc-200 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-zinc-400"
           >
             {pageSizeOptions.map((pageSize: number) => (
               <option key={pageSize} value={pageSize}>

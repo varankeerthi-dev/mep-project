@@ -191,24 +191,24 @@ const ApprovalSettings: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="p-6 space-y-6 bg-zinc-50 min-h-screen">
       {/* Header */}
-      <div className="bg-white border border-gray-200 rounded-none py-5">
+      <div className="bg-white border border-zinc-200 rounded-none py-5">
         <div className="px-6">
-          <h1 className="text-2xl font-semibold text-gray-900">Approval Settings</h1>
-          <p className="text-gray-600 mt-2">Manage approvers and configure approval workflows</p>
+          <h1 className="text-2xl font-semibold text-zinc-900">Approval Settings</h1>
+          <p className="text-zinc-600 mt-2">Manage approvers and configure approval workflows</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border border-gray-200 rounded-none">
-        <div className="flex border-b border-gray-200">
+      <div className="bg-white border border-zinc-200 rounded-none">
+        <div className="flex border-b border-zinc-200">
           <button
             onClick={() => setActiveTab('approvers')}
             className={`px-6 py-3 font-medium text-sm border-b-2 ${
               activeTab === 'approvers'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700'
             }`}
           >
             Approvers
@@ -218,7 +218,7 @@ const ApprovalSettings: React.FC = () => {
             className={`px-6 py-3 font-medium text-sm border-b-2 ${
               activeTab === 'settings'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700'
             }`}
           >
             Settings
@@ -229,7 +229,7 @@ const ApprovalSettings: React.FC = () => {
         {activeTab === 'approvers' && (
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Approval Approvers</h2>
+              <h2 className="text-lg font-medium text-zinc-900">Approval Approvers</h2>
               <button
                 onClick={() => {
                   resetForm();
@@ -244,42 +244,42 @@ const ApprovalSettings: React.FC = () => {
 
             {/* Approvers Table */}
             <div className="overflow-x-auto">
-              <table className="w-full bg-white border border-gray-200 rounded-none">
-                <thead className="bg-gray-50">
+              <table className="w-full bg-white border border-zinc-200 rounded-none">
+                <thead className="bg-zinc-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Employee
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Designation
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Approval Types
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Max Amount
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-zinc-200">
                   {approvers.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
                         No approvers configured yet
                       </td>
                     </tr>
                   ) : (
                     approvers.map((approver) => (
-                      <tr key={approver.id} className="hover:bg-gray-50">
+                      <tr key={approver.id} className="hover:bg-zinc-50">
                         <td className="px-4 py-3">
                           <div className="flex items-center">
                             {approver.user_avatar && (
@@ -290,19 +290,19 @@ const ApprovalSettings: React.FC = () => {
                               />
                             )}
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-sm font-medium text-zinc-900">
                                 {approver.user_name}
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-zinc-500">
                                 {approver.user_email}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-zinc-900">
                           {approver.designation}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-zinc-900">
                           {approver.department || '-'}
                         </td>
                         <td className="px-4 py-3">
@@ -317,7 +317,7 @@ const ApprovalSettings: React.FC = () => {
                             ))}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-zinc-900">
                           {approver.max_approval_amount ? formatAmount(approver.max_approval_amount) : 'Unlimited'}
                         </td>
                         <td className="px-4 py-3">
@@ -335,7 +335,7 @@ const ApprovalSettings: React.FC = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleToggleStatus(approver.id, approver.is_active)}
-                              className="p-1 text-gray-400 hover:text-gray-600"
+                              className="p-1 text-zinc-400 hover:text-zinc-600"
                               title={approver.is_active ? 'Deactivate' : 'Activate'}
                             >
                               {approver.is_active ? (
@@ -346,7 +346,7 @@ const ApprovalSettings: React.FC = () => {
                             </button>
                             <button
                               onClick={() => openEditModal(approver)}
-                              className="p-1 text-gray-400 hover:text-gray-600"
+                              className="p-1 text-zinc-400 hover:text-zinc-600"
                               title="Edit"
                             >
                               <PencilIcon className="w-4 h-4" />
@@ -372,18 +372,18 @@ const ApprovalSettings: React.FC = () => {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="p-6 space-y-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-6">Approval System Settings</h2>
+            <h2 className="text-lg font-medium text-zinc-900 mb-6">Approval System Settings</h2>
             
             <div className="grid grid-cols-2 gap-6">
               {/* Enable/Disable Approval System */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-700">
                   Enable Approval System
                 </label>
                 <select
                   value={getSettingValue('approval_enabled')}
                   onChange={(e) => handleSettingChange('approval_enabled', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="true">Enabled</option>
                   <option value="false">Disabled</option>
@@ -392,13 +392,13 @@ const ApprovalSettings: React.FC = () => {
 
               {/* Email Notifications */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-700">
                   Email Notifications
                 </label>
                 <select
                   value={getSettingValue('email_notifications')}
                   onChange={(e) => handleSettingChange('email_notifications', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="true">Enabled</option>
                   <option value="false">Disabled</option>
@@ -407,13 +407,13 @@ const ApprovalSettings: React.FC = () => {
 
               {/* SMS Notifications */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-700">
                   SMS Notifications
                 </label>
                 <select
                   value={getSettingValue('sms_notifications')}
                   onChange={(e) => handleSettingChange('sms_notifications', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="true">Enabled</option>
                   <option value="false">Disabled</option>
@@ -422,14 +422,14 @@ const ApprovalSettings: React.FC = () => {
 
               {/* Auto Escalation Hours */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-700">
                   Auto Escalation Hours (for urgent approvals)
                 </label>
                 <input
                   type="number"
                   value={getSettingValue('auto_escalation_hours')}
                   onChange={(e) => handleSettingChange('auto_escalation_hours', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                   min="1"
                   max="168"
                 />
@@ -437,14 +437,14 @@ const ApprovalSettings: React.FC = () => {
 
               {/* Approval Timeout Hours */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-700">
                   Approval Timeout Hours
                 </label>
                 <input
                   type="number"
                   value={getSettingValue('approval_timeout_hours')}
                   onChange={(e) => handleSettingChange('approval_timeout_hours', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                   min="1"
                   max="168"
                 />
@@ -458,8 +458,8 @@ const ApprovalSettings: React.FC = () => {
       {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-none w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="p-6 border-b border-zinc-200">
+              <h3 className="text-lg font-semibold text-zinc-900">
                 {showEditModal ? 'Edit Approver' : 'Add New Approver'}
               </h3>
             </div>
@@ -468,13 +468,13 @@ const ApprovalSettings: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 {/* Employee Selection */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-700">
                     Select Employee *
                   </label>
                   <select
                     value={formData.user_id}
                     onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
                     <option value="">Select an employee</option>
@@ -488,13 +488,13 @@ const ApprovalSettings: React.FC = () => {
 
                 {/* Designation */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-700">
                     Designation *
                   </label>
                   <select
                     value={formData.designation}
                     onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
                     <option value="">Select designation</option>
@@ -508,56 +508,56 @@ const ApprovalSettings: React.FC = () => {
 
                 {/* Department */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-700">
                     Department
                   </label>
                   <input
                     type="text"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g., Operations, Finance"
                   />
                 </div>
 
                 {/* Email Address */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-700">
                     Email Address
                   </label>
                   <input
                     type="email"
                     value={formData.email_address}
                     onChange={(e) => setFormData({ ...formData, email_address: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Override employee email if needed"
                   />
                 </div>
 
                 {/* Phone Number */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-700">
                     Phone Number
                   </label>
                   <input
                     type="tel"
                     value={formData.phone_number}
                     onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                     placeholder="+91 98765 43210"
                   />
                 </div>
 
                 {/* Max Approval Amount */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-zinc-700">
                     Max Approval Amount (₹)
                   </label>
                   <input
                     type="number"
                     value={formData.max_approval_amount}
                     onChange={(e) => setFormData({ ...formData, max_approval_amount: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0 for unlimited"
                     min="0"
                   />
@@ -566,7 +566,7 @@ const ApprovalSettings: React.FC = () => {
 
               {/* Approval Types */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-zinc-700">
                   Approval Types *
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -588,9 +588,9 @@ const ApprovalSettings: React.FC = () => {
                             });
                           }
                         }}
-                        className="rounded border-gray-300 mr-2"
+                        className="rounded border-zinc-300 mr-2"
                       />
-                      <span className="text-sm text-gray-700">{type.label}</span>
+                      <span className="text-sm text-zinc-700">{type.label}</span>
                     </label>
                   ))}
                 </div>
@@ -603,22 +603,22 @@ const ApprovalSettings: React.FC = () => {
                     type="checkbox"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="rounded border-gray-300 mr-2"
+                    className="rounded border-zinc-300 mr-2"
                   />
-                  <span className="text-sm text-gray-700">Active</span>
+                  <span className="text-sm text-zinc-700">Active</span>
                 </label>
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-zinc-200 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setShowEditModal(false);
                   resetForm();
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-none hover:bg-gray-50"
+                className="px-4 py-2 border border-zinc-300 text-zinc-700 rounded-none hover:bg-zinc-50"
               >
                 Cancel
               </button>

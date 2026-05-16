@@ -53,11 +53,11 @@ export default function AcceptInvitation() {
 
   if (message && !invitation) {
     return (
-      <div className="min-h-screen bg-slate-50/80 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-zinc-50/80 flex items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardContent className="text-center">
             <h2 className="text-xl font-bold text-red-600 mb-4">Error</h2>
-            <p className="text-slate-600">{message}</p>
+            <p className="text-zinc-600">{message}</p>
           </CardContent>
         </Card>
       </div>
@@ -65,7 +65,7 @@ export default function AcceptInvitation() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/80 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-zinc-50/80 flex items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Organization Invitation</CardTitle>
@@ -73,20 +73,20 @@ export default function AcceptInvitation() {
         <CardContent className="text-center">
           {invitation ? (
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">
+              <h2 className="text-2xl font-bold text-zinc-800 mb-2">
                 You're invited to join {invitation.organisation?.name}
               </h2>
-              <p className="text-slate-600 mb-4">
+              <p className="text-zinc-600 mb-4">
                 You've been invited as a <span className="font-semibold capitalize">{invitation.role}</span>
               </p>
-              <div className="bg-slate-100 p-4 rounded-lg mb-6">
-                <p className="text-sm text-slate-600">
+              <div className="bg-zinc-100 p-4 rounded-lg mb-6">
+                <p className="text-sm text-zinc-600">
                   <strong>Organization:</strong> {invitation.organisation?.name}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-zinc-600">
                   <strong>Role:</strong> {invitation.role}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-zinc-600">
                   <strong>Invited by:</strong> {invitation.user?.full_name || 'System'}
                 </p>
               </div>
@@ -110,8 +110,8 @@ export default function AcceptInvitation() {
             </div>
           ) : (
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-200 border-t-slate-800"></div>
-              <p className="text-slate-600 mt-4">Loading invitation details...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-200 border-t-zinc-800"></div>
+              <p className="text-zinc-600 mt-4">Loading invitation details...</p>
             </div>
           )}
         </CardContent>

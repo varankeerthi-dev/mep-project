@@ -252,8 +252,8 @@ export default function InvoiceView() {
     <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
       {/* Sidebar List (300px) */}
       <div className="w-[300px] flex flex-col bg-white shadow-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
-        <div className="py-5 px-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-gray-700">All Invoices</h2>
+        <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
+          <h2 className="text-sm font-bold text-zinc-700">All Invoices</h2>
           <button
             onClick={() => navigate('/invoices/create')}
             className="p-1.5 bg-sky-500 text-white rounded hover:bg-sky-600 transition-colors"
@@ -263,11 +263,11 @@ export default function InvoiceView() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {invoicesQuery.isPending ? (
-            <div className="p-8 text-center text-gray-400 text-sm italic">Loading invoices...</div>
+            <div className="p-8 text-center text-zinc-400 text-sm italic">Loading invoices...</div>
           ) : invoices.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm italic">No invoices found</div>
+            <div className="p-8 text-center text-zinc-400 text-sm italic">No invoices found</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-zinc-100">
               {invoices.map((inv) => (
                 <div
                   key={inv.id}
@@ -278,17 +278,17 @@ export default function InvoiceView() {
                   style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] font-bold text-gray-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+                    <span className="text-[13px] font-bold text-zinc-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {inv.client?.name || 'Unknown Client'}
                     </span>
-                    <span className="text-[12px] font-bold text-gray-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+                    <span className="text-[12px] font-bold text-zinc-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {formatCurrency(inv.total)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-1 gap-4">
                     <div className="text-[11px] font-mono" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
-                      <span className="text-gray-700 font-medium">{inv.invoice_no}</span>
-                      <span className="mx-1 text-gray-300">•</span>
+                      <span className="text-zinc-700 font-medium">{inv.invoice_no}</span>
+                      <span className="mx-1 text-zinc-300">•</span>
                       <span className="text-blue-500">{formatDate(inv.created_at)}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -332,7 +332,7 @@ export default function InvoiceView() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-50 overflow-y-auto">
+      <div className="flex-1 bg-zinc-50 overflow-y-auto">
         <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
           {!selectedInvoice ? (
             <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
@@ -343,7 +343,7 @@ export default function InvoiceView() {
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                  <h1 className="text-2xl font-bold text-gray-900">{selectedInvoice.invoice_no}</h1>
+                  <h1 className="text-2xl font-bold text-zinc-900">{selectedInvoice.invoice_no}</h1>
                   {getStatusBadge(selectedInvoice.status)}
                 </div>
                 <div className="flex items-center gap-3">
@@ -361,7 +361,7 @@ export default function InvoiceView() {
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2 mb-6" style={{ paddingBottom: '16px' }}>
                 <button
-                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                   onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
                 >
                   <Edit className="w-[14px] h-[14px]" />
@@ -369,7 +369,7 @@ export default function InvoiceView() {
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                   onClick={handleDuplicate}
                 >
                   <Copy className="w-[14px] h-[14px]" />
@@ -389,14 +389,14 @@ export default function InvoiceView() {
                   </button>
 
                   {showPaymentMenu && (
-                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
                       <button
                         onClick={() => {
                           setEditingPayment(null);
                           setRecordPaymentOpen(true);
                           setShowPaymentMenu(false);
                         }}
-                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 transition-colors"
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-emerald-50 transition-colors"
                         style={{ padding: '12px' }}
                       >
                         <CreditCard className="w-4 h-4 text-emerald-600" />
@@ -407,13 +407,13 @@ export default function InvoiceView() {
                           setPaymentHistoryOpen(true);
                           setShowPaymentMenu(false);
                         }}
-                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                         style={{ padding: '12px' }}
                       >
                         <FileText className="w-4 h-4 text-sky-500" />
                         Payment History
                         {paymentsQuery.data && paymentsQuery.data.length > 0 && (
-                          <span className="ml-auto text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                          <span className="ml-auto text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">
                             {paymentsQuery.data.filter(p => p.status === 'paid').length}
                           </span>
                         )}
@@ -424,7 +424,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                     onClick={() => {
                       setShowConvertMenu(!showConvertMenu);
                       setShowPrintMenu(false);
@@ -437,14 +437,14 @@ export default function InvoiceView() {
                   </button>
 
                   {showConvertMenu && (
-                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[220px] bg-white border border-gray-200 shadow-xl p-1">
+                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[220px] bg-white border border-zinc-200 shadow-xl p-1">
                       <button
                         onClick={() => handleConvert('invoice')}
-                        className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50"
+                        className="block w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50"
                       >
                         New from this Invoice
                       </button>
-                      <div className="my-1 border-t border-gray-100" />
+                      <div className="my-1 border-t border-zinc-100" />
                       <button
                         onClick={() => {
                           window.location.href = `/credit-notes/create?from_invoice=${selectedInvoice.id}`;
@@ -460,7 +460,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                     onClick={() => {
                       setShowPrintMenu(!showPrintMenu);
                       setShowConvertMenu(false);
@@ -478,12 +478,12 @@ export default function InvoiceView() {
                   </button>
 
                   {showPrintMenu && (
-                    <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                    <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
                       {printMenuView === 'main' ? (
                         <>
                           <button
                             onClick={() => handlePrintAction('preview')}
-                            className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                            className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                             style={{ padding: '12px' }}
                           >
                             <Eye className="w-4 h-4 text-sky-500" />
@@ -491,7 +491,7 @@ export default function InvoiceView() {
                           </button>
                           <button
                             onClick={() => handlePrintAction('download')}
-                            className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                            className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                             style={{ padding: '12px' }}
                           >
                             <Download className="w-4 h-4 text-sky-500" />
@@ -499,35 +499,35 @@ export default function InvoiceView() {
                           </button>
                           <button
                             onClick={() => handlePrintAction('print')}
-                            className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                            className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                             style={{ padding: '12px' }}
                           >
                             <Printer className="w-4 h-4 text-sky-500" />
                             Print PDF
                           </button>
-                          <div className="h-px bg-gray-100 my-1" />
+                          <div className="h-px bg-zinc-100 my-1" />
                           <button
                             onClick={() => setPrintMenuView('templates')}
-                            className="flex items-center justify-between w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors group"
+                            className="flex items-center justify-between w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors group"
                             style={{ padding: '12px' }}
                           >
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-sky-500" />
                               Choose Template
                             </div>
-                            <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-sky-500 transition-colors" />
+                            <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-sky-500 transition-colors" />
                           </button>
                         </>
                       ) : (
                         <>
-                          <div className="flex items-center gap-2 p-2 mb-1 border-b border-gray-100">
+                          <div className="flex items-center gap-2 p-2 mb-1 border-b border-zinc-100">
                             <button
                               onClick={() => setPrintMenuView('main')}
-                              className="p-1 hover:bg-gray-100 rounded transition-colors"
+                              className="p-1 hover:bg-zinc-100 rounded transition-colors"
                             >
-                              <ChevronLeft className="w-4 h-4 text-gray-500" />
+                              <ChevronLeft className="w-4 h-4 text-zinc-500" />
                             </button>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Template</span>
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
                           </div>
                           <div className="max-h-[300px] overflow-y-auto">
                             {templates.map((t) => (
@@ -538,7 +538,7 @@ export default function InvoiceView() {
                                   setPrintMenuView('main');
                                 }}
                                 className={`block w-full text-left text-xs font-bold transition-colors ${
-                                  selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-sky-50/50'
+                                  selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'
                                 }`}
                                 style={{ padding: '10px 12px' }}
                               >
@@ -564,21 +564,21 @@ export default function InvoiceView() {
               </div>
 
               {/* Invoice Details */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+              <div className="bg-white rounded-lg shadow-sm border border-zinc-200 p-8">
                 {/* Client Info */}
                 <div className="grid grid-cols-2 gap-8 mb-8">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Bill To</h3>
-                    <p className="text-lg font-semibold text-gray-900">{selectedInvoice.client?.name || 'Unknown'}</p>
+                    <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Bill To</h3>
+                    <p className="text-lg font-semibold text-zinc-900">{selectedInvoice.client?.name || 'Unknown'}</p>
                     {(selectedInvoice.client as any)?.gstin && (
-                      <p className="text-sm text-gray-600">GSTIN: {(selectedInvoice.client as any).gstin}</p>
+                      <p className="text-sm text-zinc-600">GSTIN: {(selectedInvoice.client as any).gstin}</p>
                     )}
                   </div>
                   <div className="text-right">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Invoice Details</h3>
-                    <p className="text-sm text-gray-600">Date: {formatDate(selectedInvoice.created_at)}</p>
+                    <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Invoice Details</h3>
+                    <p className="text-sm text-zinc-600">Date: {formatDate(selectedInvoice.created_at)}</p>
                     {selectedInvoice.po_number && (
-                      <p className="text-sm text-gray-600">PO No: {selectedInvoice.po_number}</p>
+                      <p className="text-sm text-zinc-600">PO No: {selectedInvoice.po_number}</p>
                     )}
                   </div>
                 </div>
@@ -588,22 +588,22 @@ export default function InvoiceView() {
                   <div className="mb-8">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 font-semibold text-gray-600">#</th>
-                          <th className="text-left py-3 px-4 font-semibold text-gray-600">Description</th>
-                          <th className="text-right py-3 px-4 font-semibold text-gray-600">Qty</th>
-                          <th className="text-right py-3 px-4 font-semibold text-gray-600">Rate</th>
-                          <th className="text-right py-3 px-4 font-semibold text-gray-600">Amount</th>
+                        <tr className="border-b border-zinc-200">
+                          <th className="text-left py-3 px-4 font-semibold text-zinc-600">#</th>
+                          <th className="text-left py-3 px-4 font-semibold text-zinc-600">Description</th>
+                          <th className="text-right py-3 px-4 font-semibold text-zinc-600">Qty</th>
+                          <th className="text-right py-3 px-4 font-semibold text-zinc-600">Rate</th>
+                          <th className="text-right py-3 px-4 font-semibold text-zinc-600">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedInvoice.items.map((item: any, idx: number) => (
-                          <tr key={idx} className="border-b border-gray-100">
-                            <td className="py-3 px-4 text-gray-600">{idx + 1}</td>
-                            <td className="py-3 px-4 text-gray-900">{item.description}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{item.qty}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{formatCurrency(item.rate)}</td>
-                            <td className="py-3 px-4 text-right font-semibold text-gray-900">{formatCurrency(item.amount)}</td>
+                          <tr key={idx} className="border-b border-zinc-100">
+                            <td className="py-3 px-4 text-zinc-600">{idx + 1}</td>
+                            <td className="py-3 px-4 text-zinc-900">{item.description}</td>
+                            <td className="py-3 px-4 text-right text-zinc-600">{item.qty}</td>
+                            <td className="py-3 px-4 text-right text-zinc-600">{formatCurrency(item.rate)}</td>
+                            <td className="py-3 px-4 text-right font-semibold text-zinc-900">{formatCurrency(item.amount)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -615,28 +615,28 @@ export default function InvoiceView() {
                 <div className="flex justify-end">
                   <div className="w-64">
                     <div className="flex justify-between py-2 text-sm">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(selectedInvoice.subtotal)}</span>
+                      <span className="text-zinc-600">Subtotal</span>
+                      <span className="font-semibold text-zinc-900">{formatCurrency(selectedInvoice.subtotal)}</span>
                     </div>
                     {selectedInvoice.cgst > 0 && (
                       <div className="flex justify-between py-2 text-sm">
-                        <span className="text-gray-600">CGST</span>
-                        <span className="text-gray-900">{formatCurrency(selectedInvoice.cgst)}</span>
+                        <span className="text-zinc-600">CGST</span>
+                        <span className="text-zinc-900">{formatCurrency(selectedInvoice.cgst)}</span>
                       </div>
                     )}
                     {selectedInvoice.sgst > 0 && (
                       <div className="flex justify-between py-2 text-sm">
-                        <span className="text-gray-600">SGST</span>
-                        <span className="text-gray-900">{formatCurrency(selectedInvoice.sgst)}</span>
+                        <span className="text-zinc-600">SGST</span>
+                        <span className="text-zinc-900">{formatCurrency(selectedInvoice.sgst)}</span>
                       </div>
                     )}
                     {selectedInvoice.igst > 0 && (
                       <div className="flex justify-between py-2 text-sm">
-                        <span className="text-gray-600">IGST</span>
-                        <span className="text-gray-900">{formatCurrency(selectedInvoice.igst)}</span>
+                        <span className="text-zinc-600">IGST</span>
+                        <span className="text-zinc-900">{formatCurrency(selectedInvoice.igst)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between py-3 border-t border-gray-200 text-base font-bold">
+                    <div className="flex justify-between py-3 border-t border-zinc-200 text-base font-bold">
                       <span>Total</span>
                       <span>{formatCurrency(selectedInvoice.total)}</span>
                     </div>

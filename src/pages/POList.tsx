@@ -328,28 +328,28 @@ export default function POList() {
                 <table className="w-full border-separate border-spacing-0 table-fixed">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-blue-100/80 border-b border-blue-200">
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                         Date
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[160px] border-r border-zinc-200">
                         Client
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[140px] border-r border-zinc-200">
                         PO Number
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[140px] border-r border-zinc-200">
                         Amount
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[140px] border-r border-zinc-200">
                         Utilised
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[140px] border-r border-zinc-200">
                         Balance
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                         Status
                       </th>
-                      <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[80px]">
+                      <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[80px]">
                         Actions
                       </th>
                     </tr>
@@ -357,7 +357,7 @@ export default function POList() {
                   <tbody className="bg-white">
                     {paginatedPOs.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-5 py-16 text-center text-sm text-slate-500">
+                        <td colSpan={8} className="px-5 py-16 text-center text-sm text-zinc-500">
                           No matching purchase orders found
                         </td>
                       </tr>
@@ -365,47 +365,47 @@ export default function POList() {
                       paginatedPOs.map((po, index) => (
                         <tr
                           key={po.id}
-                          className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
-                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                          className={`hover:bg-zinc-50 cursor-pointer transition-all duration-150 ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
                           }`}
                         >
-                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                             {formatDateTable(po.po_date)}
                           </td>
-                          <td className="px-4 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                             <div className="max-w-[350px] truncate" title={po.clients?.client_name || '-'}>
                               {po.clients?.client_name || '-'}
                             </div>
                           </td>
-                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                             {po.po_number}
                           </td>
-                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap tabular-nums border-r border-zinc-100 border-t border-zinc-200/70">
                             {formatCurrency(po.po_total_value)}
                           </td>
-                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap tabular-nums border-r border-zinc-100 border-t border-zinc-200/70">
                             {formatCurrency(po.po_utilized_value)}
                           </td>
-                          <td className="px-4 py-6 align-middle text-sm font-semibold whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-sm font-semibold whitespace-nowrap tabular-nums border-r border-zinc-100 border-t border-zinc-200/70">
                             <span className={cn(
                               (po.po_available_value || 0) > 0 ? "text-emerald-600" : "text-rose-600"
                             )}>
                               {formatCurrency(po.po_available_value || 0)}
                             </span>
                           </td>
-                          <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                             {getStatusBadge(po.status)}
                           </td>
-                          <td className="px-4 py-6 align-middle text-center border-t border-slate-200/70">
+                          <td className="px-4 py-6 align-middle text-center border-t border-zinc-200/70">
                             <div className="relative inline-block action-dropdown">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenMenuId(openMenuId === po.id ? null : po.id);
                                 }}
-                                className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors"
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
                               >
-                                <MoreHorizontal className="w-4 h-4 text-slate-500" />
+                                <MoreHorizontal className="w-4 h-4 text-zinc-500" />
                               </button>
                               {openMenuId === po.id && (
                                 <div className="fixed bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[160px]" 

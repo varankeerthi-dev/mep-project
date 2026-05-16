@@ -56,19 +56,19 @@ export const PurchaseModule: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50/50">
+    <div className="flex flex-col h-screen bg-zinc-50/50">
       {/* Premium Header */}
-      <header className="px-6 py-5 bg-white border-b border-slate-200">
+      <header className="px-6 py-5 bg-white border-b border-zinc-200">
         <div className="flex flex-col">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Purchase Management</h1>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">
+          <h1 className="text-xl font-bold text-zinc-900 tracking-tight">Purchase Management</h1>
+          <p className="text-xs font-medium text-zinc-500 mt-0.5">
             {organisation?.name || 'No organization selected'}
           </p>
         </div>
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="bg-white px-2 border-b border-slate-200 shadow-sm z-10">
+        <div className="bg-white px-2 border-b border-zinc-200 shadow-sm z-10">
           <TabsList className="h-12 bg-transparent justify-start gap-4 p-0">
             {tabs.map((tab) => (
               <TabsTrigger 
@@ -77,7 +77,7 @@ export const PurchaseModule: React.FC = () => {
                 className={cn(
                   "relative h-full px-4 rounded-none border-b-2 border-transparent",
                   "data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:text-primary",
-                  "text-slate-500 font-semibold text-xs transition-all flex items-center gap-2"
+                  "text-zinc-500 font-semibold text-xs transition-all flex items-center gap-2"
                 )}
               >
                 <tab.icon className="h-4 w-4" />

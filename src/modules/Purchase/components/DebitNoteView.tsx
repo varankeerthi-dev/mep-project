@@ -141,25 +141,25 @@ export const DebitNoteView: React.FC = () => {
   }, [selectedDN, organisation]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full text-gray-400">Loading debit notes...</div>;
+    return <div className="flex items-center justify-center h-full text-zinc-400">Loading debit notes...</div>;
   }
 
   return (
     <div className="flex h-full gap-5">
       {/* Left Sidebar */}
       <div className="w-[300px] flex flex-col bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="py-4 px-5 border-b bg-gray-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-gray-700">All Debit Notes</h2>
+        <div className="py-4 px-5 border-b bg-zinc-50/50 flex justify-between items-center">
+          <h2 className="text-sm font-bold text-zinc-700">All Debit Notes</h2>
         </div>
         <div className="px-4 py-3 border-b">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
             <input
               type="text"
               placeholder="Search DN..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-rose-200"
+              className="w-full pl-8 pr-3 py-1.5 text-xs border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-rose-200"
             />
           </div>
         </div>
@@ -171,24 +171,24 @@ export const DebitNoteView: React.FC = () => {
               className={`px-5 py-3 cursor-pointer transition-colors border-l-4 ${
                 selectedDN?.id === dn.id
                   ? 'bg-rose-50 border-l-rose-500'
-                  : 'bg-white border-l-transparent hover:bg-gray-50'
+                  : 'bg-white border-l-transparent hover:bg-zinc-50'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-gray-900">{dn.dn_number}</span>
+                <span className="text-xs font-bold text-zinc-900">{dn.dn_number}</span>
                 <Badge variant={dn.approval_status === 'Approved' ? 'default' : dn.approval_status === 'Rejected' ? 'destructive' : 'secondary'} className="text-[9px] h-4 px-1.5">
                   {dn.approval_status}
                 </Badge>
               </div>
-              <div className="text-xs text-gray-500 truncate">{dn.vendor?.company_name ?? '—'}</div>
+              <div className="text-xs text-zinc-500 truncate">{dn.vendor?.company_name ?? '—'}</div>
               <div className="flex items-center justify-between mt-1">
-                <span className="text-[10px] text-gray-400">{formatDate(dn.dn_date)}</span>
-                <span className="text-xs font-semibold text-gray-900">{formatCurrency(dn.total_amount)}</span>
+                <span className="text-[10px] text-zinc-400">{formatDate(dn.dn_date)}</span>
+                <span className="text-xs font-semibold text-zinc-900">{formatCurrency(dn.total_amount)}</span>
               </div>
             </div>
           ))}
           {filteredDNs.length === 0 && (
-            <div className="px-5 py-12 text-center text-xs text-gray-400">
+            <div className="px-5 py-12 text-center text-xs text-zinc-400">
               {(dns as any[]).length === 0 ? 'No debit notes yet' : 'No matches'}
             </div>
           )}
@@ -198,13 +198,13 @@ export const DebitNoteView: React.FC = () => {
       {/* Right Detail Panel */}
       <div className="flex-1 bg-white rounded-lg shadow-sm overflow-y-auto">
         {!selectedDN ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">Select a debit note to view details</div>
+          <div className="flex items-center justify-center h-full text-zinc-400 text-sm">Select a debit note to view details</div>
         ) : (
           <div className="max-w-4xl mx-auto py-10 px-10">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">{selectedDN.dn_number}</h1>
+                <h1 className="text-2xl font-bold text-zinc-900">{selectedDN.dn_number}</h1>
                 <Badge variant={selectedDN.approval_status === 'Approved' ? 'default' : selectedDN.approval_status === 'Rejected' ? 'destructive' : 'secondary'}>
                   {selectedDN.approval_status}
                 </Badge>
@@ -223,7 +223,7 @@ export const DebitNoteView: React.FC = () => {
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('edit-dn', { detail: { dn: selectedDN } }));
                 }}
-                className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
               >
                 <Pencil className="w-[14px] h-[14px]" /> Edit
               </button>
@@ -231,19 +231,19 @@ export const DebitNoteView: React.FC = () => {
               <div className="relative" ref={printMenuRef}>
                 <button
                   onClick={() => setPrintMenuOpen(!printMenuOpen)}
-                  className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                 >
                   <FileText className="w-[14px] h-[14px]" /> Print Template <ChevronDown className="w-[12px] h-[12px]" />
                 </button>
                 {printMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
-                    <button onClick={() => { handlePreview(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded">
+                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
+                    <button onClick={() => { handlePreview(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded">
                       <Eye className="w-[14px] h-[14px]" /> Preview PDF
                     </button>
-                    <button onClick={() => { handleDownload(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded">
+                    <button onClick={() => { handleDownload(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded">
                       <Download className="w-[14px] h-[14px]" /> Download PDF
                     </button>
-                    <button onClick={() => { handlePrint(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded">
+                    <button onClick={() => { handlePrint(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded">
                       <Printer className="w-[14px] h-[14px]" /> Print PDF
                     </button>
                   </div>
@@ -261,21 +261,21 @@ export const DebitNoteView: React.FC = () => {
             </div>
 
             {/* Detail Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-8">
+            <div className="bg-white rounded-lg border border-zinc-200 p-8">
               <div className="grid grid-cols-2 gap-8 mb-8">
                 <div>
-                  <h3 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Vendor</h3>
-                  <p className="text-lg font-bold text-gray-900">{selectedDN.vendor?.company_name ?? '—'}</p>
-                  {selectedDN.vendor?.gstin && <p className="text-sm text-gray-500 mt-1">GSTIN: {selectedDN.vendor.gstin}</p>}
-                  {selectedDN.bill?.bill_number && <p className="text-sm text-gray-500">Bill: {selectedDN.bill.bill_number}</p>}
+                  <h3 className="text-xs font-bold uppercase text-zinc-400 tracking-wider mb-3">Vendor</h3>
+                  <p className="text-lg font-bold text-zinc-900">{selectedDN.vendor?.company_name ?? '—'}</p>
+                  {selectedDN.vendor?.gstin && <p className="text-sm text-zinc-500 mt-1">GSTIN: {selectedDN.vendor.gstin}</p>}
+                  {selectedDN.bill?.bill_number && <p className="text-sm text-zinc-500">Bill: {selectedDN.bill.bill_number}</p>}
                 </div>
                 <div className="text-right">
-                  <h3 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Debit Note Details</h3>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <p>Date: <span className="font-medium text-gray-900">{formatDate(selectedDN.dn_date)}</span></p>
-                    <p>Type: <span className="font-medium text-gray-900">{DN_TYPE_LABELS[selectedDN.dn_type] ?? selectedDN.dn_type}</span></p>
-                    {selectedDN.reason && <p>Reason: <span className="font-medium text-gray-900">{selectedDN.reason}</span></p>}
-                    {getSignatoryName() && <p>Signatory: <span className="font-medium text-gray-900">{getSignatoryName()}</span></p>}
+                  <h3 className="text-xs font-bold uppercase text-zinc-400 tracking-wider mb-3">Debit Note Details</h3>
+                  <div className="space-y-1 text-sm text-zinc-600">
+                    <p>Date: <span className="font-medium text-zinc-900">{formatDate(selectedDN.dn_date)}</span></p>
+                    <p>Type: <span className="font-medium text-zinc-900">{DN_TYPE_LABELS[selectedDN.dn_type] ?? selectedDN.dn_type}</span></p>
+                    {selectedDN.reason && <p>Reason: <span className="font-medium text-zinc-900">{selectedDN.reason}</span></p>}
+                    {getSignatoryName() && <p>Signatory: <span className="font-medium text-zinc-900">{getSignatoryName()}</span></p>}
                   </div>
                 </div>
               </div>
@@ -283,29 +283,29 @@ export const DebitNoteView: React.FC = () => {
               {/* Items */}
               <table className="w-full text-sm mb-8">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-gray-500">#</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-gray-500">Description</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-gray-500">HSN</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Qty</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Rate</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Taxable</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">GST</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Total</th>
+                  <tr className="border-b border-zinc-200">
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-zinc-500">#</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-zinc-500">Description</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-zinc-500">HSN</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Qty</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Rate</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Taxable</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">GST</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(selectedDN.items || []).map((item: any, idx: number) => {
                     const gst = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
                     return (
-                      <tr key={item.id || idx} className="border-b border-gray-100">
-                        <td className="py-2 px-3 text-gray-500">{idx + 1}</td>
-                        <td className="py-2 px-3 font-medium text-gray-900">{item.description}</td>
-                        <td className="py-2 px-3 text-gray-500">{item.hsn_code ?? '—'}</td>
+                      <tr key={item.id || idx} className="border-b border-zinc-100">
+                        <td className="py-2 px-3 text-zinc-500">{idx + 1}</td>
+                        <td className="py-2 px-3 font-medium text-zinc-900">{item.description}</td>
+                        <td className="py-2 px-3 text-zinc-500">{item.hsn_code ?? '—'}</td>
                         <td className="py-2 px-3 text-right">{item.quantity}</td>
                         <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.rate)}</td>
                         <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.taxable_value)}</td>
-                        <td className="py-2 px-3 text-right font-mono text-gray-500">{formatCurrency(gst)}</td>
+                        <td className="py-2 px-3 text-right font-mono text-zinc-500">{formatCurrency(gst)}</td>
                         <td className="py-2 px-3 text-right font-mono font-semibold">{formatCurrency(item.total_amount)}</td>
                       </tr>
                     );
@@ -316,15 +316,15 @@ export const DebitNoteView: React.FC = () => {
               {/* Totals */}
               <div className="flex justify-end">
                 <div className="w-72 space-y-2">
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-sm text-zinc-600">
                     <span>Taxable Amount</span>
                     <span className="font-mono">{formatCurrency(selectedDN.taxable_amount ?? 0)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-sm text-zinc-600">
                     <span>GST</span>
                     <span className="font-mono">{formatCurrency((selectedDN.cgst_amount ?? 0) + (selectedDN.sgst_amount ?? 0) + (selectedDN.igst_amount ?? 0))}</span>
                   </div>
-                  <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-3">
+                  <div className="flex justify-between text-base font-bold border-t border-zinc-200 pt-3">
                     <span>Total</span>
                     <span className="font-mono text-rose-600">{formatCurrency(selectedDN.total_amount ?? 0)}</span>
                   </div>

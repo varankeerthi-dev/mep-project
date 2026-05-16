@@ -91,14 +91,14 @@ export function RetentionReleasePanel({ subcontractorId }: RetentionReleasePanel
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <div className="font-bold">{retention.subcontractor_work_orders?.work_order_no || 'N/A'}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-zinc-600">
                       Retention: {retention.retention_percentage}%
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-xl font-bold">{formatCurrency(retention.retention_amount)}</div>
                     <div className={`text-xs ${
-                      isOverdue ? 'text-red-600 font-bold' : isDueSoon ? 'text-orange-600' : 'text-gray-500'
+                      isOverdue ? 'text-red-600 font-bold' : isDueSoon ? 'text-orange-600' : 'text-zinc-500'
                     }`}>
                       {isOverdue 
                         ? `Overdue by ${Math.abs(daysUntilRelease)} days` 
@@ -111,13 +111,13 @@ export function RetentionReleasePanel({ subcontractorId }: RetentionReleasePanel
                 </div>
 
                 {retention.notes && (
-                  <div className="text-sm text-gray-600 mb-2 border-t border-gray-300 pt-2">
+                  <div className="text-sm text-zinc-600 mb-2 border-t border-zinc-300 pt-2">
                     {retention.notes}
                   </div>
                 )}
 
                 {releasingId === retention.id ? (
-                  <div className="mt-3 space-y-2 border-t border-gray-300 pt-3">
+                  <div className="mt-3 space-y-2 border-t border-zinc-300 pt-3">
                     <div>
                       <label className="block text-xs font-bold mb-1">Payment Reference *</label>
                       <input
@@ -150,7 +150,7 @@ export function RetentionReleasePanel({ subcontractorId }: RetentionReleasePanel
                           setReleasingId(null);
                           setPaymentReference('');
                         }}
-                        className="px-3 py-2 border border-black text-sm hover:bg-gray-100"
+                        className="px-3 py-2 border border-black text-sm hover:bg-zinc-100"
                       >
                         <X size={14} />
                       </button>
@@ -171,7 +171,7 @@ export function RetentionReleasePanel({ subcontractorId }: RetentionReleasePanel
           })}
         </div>
       ) : (
-        <div className="text-center py-6 border border-dashed border-gray-300 text-gray-500">
+        <div className="text-center py-6 border border-dashed border-zinc-300 text-zinc-500">
           <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
           <p className="text-sm">No retention money held</p>
           <p className="text-xs mt-1">All retentions have been released</p>

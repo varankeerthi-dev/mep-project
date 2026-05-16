@@ -200,7 +200,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading Terms & Conditions...</div>
+        <div className="text-zinc-500">Loading Terms & Conditions...</div>
       </div>
     );
   }
@@ -209,7 +209,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
     <div className="p-6 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900" style={{ fontSize: '12px' }}>
+        <h3 className="text-lg font-bold text-zinc-900" style={{ fontSize: '12px' }}>
           Terms & Conditions
         </h3>
         <div className="flex items-center gap-2">
@@ -220,7 +220,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
             onClick={() => setEditing(!editing)}
             className={`px-3 py-1 text-xs font-medium rounded ${
               editing 
-                ? 'bg-gray-200 text-gray-700' 
+                ? 'bg-zinc-200 text-zinc-700' 
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
@@ -236,7 +236,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
               </button>
               <button
                 onClick={resetToDefault}
-                className="px-3 py-1 text-xs font-medium bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="px-3 py-1 text-xs font-medium bg-zinc-600 text-white rounded hover:bg-zinc-700"
               >
                 Reset
               </button>
@@ -258,14 +258,14 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
           <div
             key={section.id}
             className={`mb-6 border rounded-lg ${
-              editing ? 'border-gray-300' : 'border-transparent'
+              editing ? 'border-zinc-300' : 'border-transparent'
             }`}
           >
             {/* Section Header */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 border-b">
+            <div className="flex items-center justify-between p-4 bg-zinc-50 border-b">
               <div className="flex items-center gap-2">
                 {editing && (
-                  <div className="cursor-move text-gray-400">
+                  <div className="cursor-move text-zinc-400">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
                     </svg>
@@ -276,11 +276,11 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
                     type="text"
                     value={section.title}
                     onChange={(e) => updateSectionTitle(section.id, e.target.value)}
-                    className="font-bold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                    className="font-bold text-zinc-900 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-blue-500 focus:outline-none px-1"
                     style={{ fontSize: '12px' }}
                   />
                 ) : (
-                  <h4 className="font-bold text-gray-900" style={{ fontSize: '12px' }}>
+                  <h4 className="font-bold text-zinc-900" style={{ fontSize: '12px' }}>
                     {section.title}
                   </h4>
                 )}
@@ -314,10 +314,10 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
               {section.items.map((item, itemIndex) => (
                 <div key={item.id} className="flex items-start gap-2 mb-2 last:mb-0">
                   {item.item_type === 'bullet' && (
-                    <span className="text-gray-600 mt-1" style={{ fontSize: '10px' }}>•</span>
+                    <span className="text-zinc-600 mt-1" style={{ fontSize: '10px' }}>•</span>
                   )}
                   {item.item_type === 'number' && (
-                    <span className="text-gray-600 mt-1" style={{ fontSize: '10px' }}>
+                    <span className="text-zinc-600 mt-1" style={{ fontSize: '10px' }}>
                       {itemIndex + 1}.
                     </span>
                   )}
@@ -327,11 +327,11 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
                         type="text"
                         value={item.content}
                         onChange={(e) => updateItemContent(section.id, item.id, e.target.value)}
-                        className="w-full text-gray-700 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                        className="w-full text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-blue-500 focus:outline-none px-1"
                         style={{ fontSize: '10px' }}
                       />
                     ) : (
-                      <p className="text-gray-700" style={{ fontSize: '10px' }}>
+                      <p className="text-zinc-700" style={{ fontSize: '10px' }}>
                         {item.content}
                       </p>
                     )}
@@ -350,7 +350,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
                 </div>
               ))}
               {section.items.length === 0 && editing && (
-                <div className="text-center py-4 text-gray-400 text-sm">
+                <div className="text-center py-4 text-zinc-400 text-sm">
                   No items. Click "Add item" to add content.
                 </div>
               )}
@@ -360,7 +360,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
       </div>
 
       {sections.length === 0 && !editing && (
-        <div className="text-center py-8 text-gray-400">
+        <div className="text-center py-8 text-zinc-400">
           No terms and conditions available.
         </div>
       )}

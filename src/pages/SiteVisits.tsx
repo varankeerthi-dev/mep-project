@@ -90,19 +90,19 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
   };
   
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between p-6 border-b border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-900">
+    <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+      <div className="flex items-center justify-between p-6 border-b border-zinc-200">
+        <h2 className="text-2xl font-bold text-zinc-900">
           {format(currentMonth, 'MMMM yyyy')}
         </h2>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-lg">
+          <button onClick={prevMonth} className="p-2 hover:bg-zinc-100 rounded-lg">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg">
+          <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 rounded-lg">
             Today
           </button>
-          <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-lg">
+          <button onClick={nextMonth} className="p-2 hover:bg-zinc-100 rounded-lg">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -110,7 +110,7 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
       <div className="p-4">
         <div className="grid grid-cols-7 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-2 text-center text-sm font-medium text-slate-500">
+            <div key={day} className="py-2 text-center text-sm font-medium text-zinc-500">
               {day}
             </div>
           ))}
@@ -124,8 +124,8 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
               <div 
                 key={day.toString()} 
                 className={cn(
-                  "min-h-[100px] p-2 rounded-lg border cursor-pointer hover:bg-slate-50 transition-colors",
-                  !isCurrentMonth ? "bg-slate-50 border-slate-100 opacity-50" : "bg-white border-slate-200",
+                  "min-h-[100px] p-2 rounded-lg border cursor-pointer hover:bg-zinc-50 transition-colors",
+                  !isCurrentMonth ? "bg-zinc-50 border-zinc-100 opacity-50" : "bg-white border-zinc-200",
                   isTodayDay ? "border-blue-500 ring-2 ring-blue-200" : ""
                 )}
                 onClick={() => onDateClick(day)}
@@ -133,11 +133,11 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
                 <div className="flex justify-between items-start mb-2">
                   <span className={cn(
                     "text-sm font-medium",
-                    isTodayDay ? "text-blue-600" : isCurrentMonth ? "text-slate-900" : "text-slate-400"
+                    isTodayDay ? "text-blue-600" : isCurrentMonth ? "text-zinc-900" : "text-zinc-400"
                   )}>
                     {format(day, 'd')}
                   </span>
-                  <Plus className="w-4 h-4 text-slate-400" />
+                  <Plus className="w-4 h-4 text-zinc-400" />
                 </div>
                 <div className="space-y-1">
                   {dayVisits.map((visit: any) => (
@@ -149,7 +149,7 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
                         visit.status === 'scheduled' ? "bg-blue-100 text-blue-800" :
                         visit.status === 'in_progress' ? "bg-purple-100 text-purple-800" :
                         visit.status === 'cancelled' ? "bg-red-100 text-red-800" :
-                        "bg-slate-100 text-slate-800"
+                        "bg-zinc-100 text-zinc-800"
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -171,64 +171,64 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
 
 const SiteVisitUpdatesView = ({ visits, onEdit, onDelete }: any) => {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-[13px]">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200">
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200 w-[120px]">Date</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Client</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Purpose</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200 w-[140px]">In / Out</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Technical Details (Measurements)</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Discussion & Notes</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Next Action</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Status</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 w-[120px]">Actions</th>
+            <tr className="bg-zinc-50/80 border-b border-zinc-200">
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200 w-[120px]">Date</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Client</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Purpose</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200 w-[140px]">In / Out</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Technical Details (Measurements)</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Discussion & Notes</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Next Action</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Status</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 w-[120px]">Actions</th>
             </tr>
           </thead>
           <tbody>
             {visits?.map((v: any) => (
-              <tr key={v.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top whitespace-nowrap text-slate-500 font-medium">
+              <tr key={v.id} className="border-b border-zinc-100 hover:bg-blue-50/30 transition-colors group">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top whitespace-nowrap text-zinc-500 font-medium">
                   {v.visit_date ? format(parseISO(v.visit_date), 'dd MMM yyyy') : '--'}
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top font-semibold text-slate-900">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top font-semibold text-zinc-900">
                   {v.clients?.client_name || 'N/A'}
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600">
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
                     {v.purpose_of_visit}
                   </div>
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600 font-mono text-[12px]">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600 font-mono text-[12px]">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-emerald-600">↑ {v.visit_time || '--:--'}</span>
                     <span className="text-rose-600">↓ {v.out_time || '--:--'}</span>
                   </div>
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600 max-w-[200px]">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600 max-w-[200px]">
                   <div className="line-clamp-3 whitespace-pre-wrap">{v.measurements || '--'}</div>
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600 max-w-[300px]">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600 max-w-[300px]">
                   <div className="line-clamp-3 whitespace-pre-wrap">{v.discussion_points || '--'}</div>
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top">
-                  <div className="text-slate-900 font-medium">{v.next_step || '--'}</div>
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top">
+                  <div className="text-zinc-900 font-medium">{v.next_step || '--'}</div>
                   {v.follow_up_date && (
                     <div className="text-[10px] text-blue-600 mt-1.5 bg-blue-50 px-2 py-0.5 rounded-full inline-block border border-blue-100">
                       Follow-up: {format(parseISO(v.follow_up_date), 'dd MMM')}
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-[8px] border-r border-slate-100 align-top">
+                <td className="px-4 py-[8px] border-r border-zinc-100 align-top">
                    <div className={cn(
                      "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider",
                      v.status === 'completed' ? 'bg-green-100 text-green-700' :
                      v.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
                      v.status === 'postponed' ? 'bg-amber-100 text-amber-700' :
-                     'bg-slate-100 text-slate-600'
+                     'bg-zinc-100 text-zinc-600'
                    )}>
                     {v.status}
                    </div>
@@ -244,7 +244,7 @@ const SiteVisitUpdatesView = ({ visits, onEdit, onDelete }: any) => {
                     </button>
                     <button 
                       onClick={() => window.print()} 
-                      className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                      className="p-1.5 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
                       title="Print PDF"
                     >
                       <FileText size={16} />
@@ -341,6 +341,11 @@ export function SiteVisits() {
     saveTimeoutRef.current = setTimeout(() => {
       localStorage.setItem('siteVisitColumns', JSON.stringify(visibleColumns));
     }, 500);
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [visibleColumns]);
 
   const queryClient = useQueryClient();
@@ -689,7 +694,7 @@ export function SiteVisits() {
       case 'cancelled':
         return 'bg-red-100 text-red-700 border border-red-200';
       default:
-        return 'bg-gray-100 text-gray-700 border border-gray-200';
+        return 'bg-zinc-100 text-zinc-700 border border-zinc-200';
     }
   };
 
@@ -724,37 +729,37 @@ export function SiteVisits() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className="min-h-screen bg-zinc-50/50">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Site Visits</h1>
-            <p className="text-sm text-slate-600 mt-1">Manage and track all site visits efficiently</p>
+            <h1 className="text-3xl font-bold text-zinc-900">Site Visits</h1>
+            <p className="text-sm text-zinc-600 mt-1">Manage and track all site visits efficiently</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
               <Input
                 placeholder="Search by client, engineer, location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-[320px] bg-white border-slate-200"
+                className="pl-10 w-[320px] bg-white border-zinc-200"
               />
             </div>
           <div className="flex flex-wrap items-center gap-3">
                 <Button 
                   onClick={() => setIsUpdateModalOpen(true)}
                   variant="outline"
-                  className="h-11 px-6 rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-sm flex items-center gap-2"
+                  className="h-11 px-6 rounded-xl border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-sm flex items-center gap-2"
                 >
                   <RefreshCcw className="w-4 h-4 text-blue-500" />
                   Site Visit Update
                 </Button>
                 <Button 
                   onClick={() => setIsFormOpen(true)}
-                  className="h-11 px-6 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                  className="h-11 px-6 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-lg shadow-zinc-900/10 flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   New Site Visit
@@ -766,7 +771,7 @@ export function SiteVisits() {
         {/* Stats Cards */}
         <div className="grid grid-cols-5 gap-4">
           {/* Total Visits */}
-          <Card className="p-6 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-shadow">
+          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
@@ -774,8 +779,8 @@ export function SiteVisits() {
                     <CalendarDays className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{stats.total}</div>
-                <div className="text-sm text-slate-600 font-medium">Total Visits</div>
+                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.total}</div>
+                <div className="text-sm text-zinc-600 font-medium">Total Visits</div>
                 <div className="flex items-center gap-1 mt-2">
                   <TrendingUp className="w-3 h-3 text-green-600" />
                   <span className="text-xs text-green-600 font-medium">12% from last month</span>
@@ -785,7 +790,7 @@ export function SiteVisits() {
           </Card>
 
           {/* Scheduled */}
-          <Card className="p-6 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-shadow">
+          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
@@ -793,8 +798,8 @@ export function SiteVisits() {
                     <Clock className="w-6 h-6 text-orange-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{stats.scheduled}</div>
-                <div className="text-sm text-slate-600 font-medium">Scheduled</div>
+                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.scheduled}</div>
+                <div className="text-sm text-zinc-600 font-medium">Scheduled</div>
                 <div className="text-xs text-orange-600 font-medium mt-2 cursor-pointer hover:underline">
                   View upcoming
                 </div>
@@ -803,7 +808,7 @@ export function SiteVisits() {
           </Card>
 
           {/* In Progress */}
-          <Card className="p-6 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-shadow">
+          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
@@ -811,8 +816,8 @@ export function SiteVisits() {
                     <RefreshCcw className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{stats.in_progress}</div>
-                <div className="text-sm text-slate-600 font-medium">In Progress</div>
+                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.in_progress}</div>
+                <div className="text-sm text-zinc-600 font-medium">In Progress</div>
                 <div className="text-xs text-purple-600 font-medium mt-2">
                   Currently ongoing
                 </div>
@@ -821,7 +826,7 @@ export function SiteVisits() {
           </Card>
 
           {/* Completed */}
-          <Card className="p-6 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-shadow">
+          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
@@ -829,8 +834,8 @@ export function SiteVisits() {
                     <CheckCircle2 className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{stats.completed}</div>
-                <div className="text-sm text-slate-600 font-medium">Completed</div>
+                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.completed}</div>
+                <div className="text-sm text-zinc-600 font-medium">Completed</div>
                 <div className="flex items-center gap-1 mt-2">
                   <TrendingUp className="w-3 h-3 text-green-600" />
                   <span className="text-xs text-green-600 font-medium">8% from last month</span>
@@ -840,7 +845,7 @@ export function SiteVisits() {
           </Card>
 
           {/* Cancelled */}
-          <Card className="p-6 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-shadow">
+          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
@@ -848,8 +853,8 @@ export function SiteVisits() {
                     <XCircle className="w-6 h-6 text-red-600" />
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{stats.cancelled}</div>
-                <div className="text-sm text-slate-600 font-medium">Cancelled</div>
+                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.cancelled}</div>
+                <div className="text-sm text-zinc-600 font-medium">Cancelled</div>
                 <div className="flex items-center gap-1 mt-2">
                   <TrendingDown className="w-3 h-3 text-red-600" />
                   <span className="text-xs text-red-600 font-medium">4% from last month</span>
@@ -860,7 +865,7 @@ export function SiteVisits() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-1.5 inline-flex gap-1">
+        <div className="bg-white border border-zinc-200 rounded-2xl p-1.5 inline-flex gap-1">
           <button
             onClick={() => {
               setActiveTab('all');
@@ -869,8 +874,8 @@ export function SiteVisits() {
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
               activeTab === 'all' && viewMode === 'table'
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-700"
             )}
           >
             <CalendarDays className="w-4 h-4" />
@@ -880,7 +885,7 @@ export function SiteVisits() {
             onClick={() => setViewMode('calendar')}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              viewMode === 'calendar' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              viewMode === 'calendar' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
             )}
           >
             <CalendarIcon className="w-4 h-4" />
@@ -890,7 +895,7 @@ export function SiteVisits() {
             onClick={() => setViewMode('updates')}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              viewMode === 'updates' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              viewMode === 'updates' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
             )}
           >
             <FileText className="w-4 h-4" />
@@ -900,23 +905,23 @@ export function SiteVisits() {
 
         {/* Filters & Table */}
         {viewMode === 'table' && (
-          <Card className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          <Card className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
           {/* Filter Controls */}
-          <div className="p-5 border-b border-slate-200 bg-slate-50/50">
+          <div className="p-5 border-b border-zinc-200 bg-zinc-50/50">
             <div className="flex items-center gap-3 flex-wrap">
               {/* Search */}
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
                 <Input
                   placeholder="Search by client, engineer, address..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-12 bg-white border-slate-200 text-sm"
+                  className="pl-10 h-12 bg-white border-zinc-200 text-sm"
                 />
               </div>
 
               {/* Date Range */}
-              <button className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700 h-12">
+              <button className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 flex items-center gap-2 text-sm text-zinc-700 h-12">
                 <CalendarIcon className="w-4 h-4" />
                 Select date range
               </button>
@@ -925,7 +930,7 @@ export function SiteVisits() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700 h-12"
+                className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 text-sm text-zinc-700 h-12"
               >
                 <option value="all">All Status</option>
                 <option value="scheduled">Scheduled</option>
@@ -938,7 +943,7 @@ export function SiteVisits() {
               <select
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
-                className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700 h-12"
+                className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 text-sm text-zinc-700 h-12"
               >
                 <option value="all">All Projects</option>
                 {clients?.map((client: any) => (
@@ -950,7 +955,7 @@ export function SiteVisits() {
               <select
                 value={engineerFilter}
                 onChange={(e) => setEngineerFilter(e.target.value)}
-                className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700 h-12"
+                className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 text-sm text-zinc-700 h-12"
               >
                 <option value="all">All Engineers</option>
                 {engineers.map((engineer: string) => (
@@ -959,7 +964,7 @@ export function SiteVisits() {
               </select>
 
               {/* Filters Button */}
-              <button className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700 h-12">
+              <button className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 flex items-center gap-2 text-sm text-zinc-700 h-12">
                 <Filter className="w-4 h-4" />
                 Filters
               </button>
@@ -983,13 +988,13 @@ export function SiteVisits() {
 
           {/* Bulk Actions */}
           {selectedVisits.length > 0 && (
-            <div className="px-4 py-3 border-b border-slate-200 bg-blue-50 flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-zinc-200 bg-blue-50 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Checkbox
                   checked={selectedVisits.length === paginatedVisits.length}
                   onCheckedChange={toggleSelectAll}
                 />
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-zinc-700">
                   {selectedVisits.length} selected
                 </span>
               </div>
@@ -1007,32 +1012,32 @@ export function SiteVisits() {
           <div className="overflow-x-auto pt-4">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/50">
+                <TableRow className="bg-zinc-50/50">
                   <TableHead className="w-12">
                     <Checkbox
                       checked={selectedVisits.length === paginatedVisits.length && paginatedVisits.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
                     Visit ID & Purpose
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
                     Client
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
                     Location
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
                     Date & Time
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
                     Status
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
                     Assigned To
                   </TableHead>
-                  <TableHead className="font-semibold text-slate-700 uppercase text-xs tracking-wide text-right">
+                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide text-right">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -1042,15 +1047,15 @@ export function SiteVisits() {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12">
                       <div className="flex flex-col items-center gap-2">
-                        <CalendarDays className="w-12 h-12 text-slate-300" />
-                        <p className="text-slate-600 font-medium">No site visits found</p>
-                        <p className="text-sm text-slate-500">Try adjusting your filters or create a new visit</p>
+                        <CalendarDays className="w-12 h-12 text-zinc-300" />
+                        <p className="text-zinc-600 font-medium">No site visits found</p>
+                        <p className="text-sm text-zinc-500">Try adjusting your filters or create a new visit</p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedVisits.map((visit: any) => (
-                    <TableRow key={visit.id} className="hover:bg-slate-50/50">
+                    <TableRow key={visit.id} className="hover:bg-zinc-50/50">
                       <TableCell>
                         <Checkbox
                           checked={selectedVisits.includes(visit.id)}
@@ -1066,13 +1071,13 @@ export function SiteVisits() {
                             visit.purpose_of_visit?.toLowerCase().includes('measurement') ? 'bg-blue-100 text-blue-600' :
                             visit.purpose_of_visit?.toLowerCase().includes('follow') ? 'bg-orange-100 text-orange-600' :
                             visit.purpose_of_visit?.toLowerCase().includes('inspection') ? 'bg-green-100 text-green-600' :
-                            'bg-slate-100 text-slate-600'
+                            'bg-zinc-100 text-zinc-600'
                           )}>
                             {getPurposeIcon(visit.purpose_of_visit)}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900">SV-{visit.id.slice(0, 6)}</div>
-                            <div className="text-xs text-slate-600">{visit.purpose_of_visit || 'Site Measurement'}</div>
+                            <div className="font-semibold text-zinc-900">SV-{visit.id.slice(0, 6)}</div>
+                            <div className="text-xs text-zinc-600">{visit.purpose_of_visit || 'Site Measurement'}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -1080,16 +1085,16 @@ export function SiteVisits() {
                       {/* Client */}
                       <TableCell>
                         <div>
-                          <div className="font-medium text-slate-900">{visit.clients?.client_name || 'N/A'}</div>
-                          <div className="text-xs text-slate-500">{visit.clients?.phone || ''}</div>
+                          <div className="font-medium text-zinc-900">{visit.clients?.client_name || 'N/A'}</div>
+                          <div className="text-xs text-zinc-500">{visit.clients?.phone || ''}</div>
                         </div>
                       </TableCell>
 
                       {/* Location */}
                       <TableCell>
                         <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                          <div className="text-sm text-slate-700 line-clamp-2 max-w-[200px]">
+                          <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-zinc-700 line-clamp-2 max-w-[200px]">
                             {visit.site_address || 'No address'}
                           </div>
                         </div>
@@ -1098,13 +1103,13 @@ export function SiteVisits() {
                       {/* Date & Time */}
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-sm text-slate-900">
-                            <CalendarIcon className="w-4 h-4 text-slate-400" />
+                          <div className="flex items-center gap-2 text-sm text-zinc-900">
+                            <CalendarIcon className="w-4 h-4 text-zinc-400" />
                             {format(parseISO(visit.visit_date), 'd MMM yyyy')}
                           </div>
                           {visit.visit_time && (
-                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                              <Clock className="w-3 h-3 text-slate-400" />
+                            <div className="flex items-center gap-2 text-xs text-zinc-600">
+                              <Clock className="w-3 h-3 text-zinc-400" />
                               {visit.visit_time}
                             </div>
                           )}
@@ -1129,8 +1134,8 @@ export function SiteVisits() {
                             {(visit.engineer || visit.visited_by || 'U').charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-slate-900">{visit.engineer || visit.visited_by || 'Unassigned'}</div>
-                            <div className="text-xs text-slate-500">Engineer</div>
+                            <div className="text-sm font-medium text-zinc-900">{visit.engineer || visit.visited_by || 'Unassigned'}</div>
+                            <div className="text-xs text-zinc-500">Engineer</div>
                           </div>
                         </div>
                       </TableCell>
@@ -1140,9 +1145,9 @@ export function SiteVisits() {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => handleEditVisit(visit)}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
                           >
-                            <Edit2 className="w-4 h-4 text-slate-600" />
+                            <Edit2 className="w-4 h-4 text-zinc-600" />
                           </button>
                           <button
                             onClick={() => handleDeleteVisit(visit)}
@@ -1161,8 +1166,8 @@ export function SiteVisits() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between">
-              <span className="text-sm text-slate-600">
+            <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50/50 flex items-center justify-between">
+              <span className="text-sm text-zinc-600">
                 Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredVisits.length)} of {filteredVisits.length} entries
               </span>
               
@@ -1173,8 +1178,8 @@ export function SiteVisits() {
                   className={cn(
                     "p-2 rounded-lg border transition-colors",
                     currentPage === 1
-                      ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                      ? "border-zinc-200 text-zinc-400 cursor-not-allowed"
+                      : "border-zinc-300 text-zinc-700 hover:bg-zinc-100"
                   )}
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -1209,7 +1214,7 @@ export function SiteVisits() {
                           "w-8 h-8 rounded-lg text-sm font-medium transition-colors",
                           pageNum === currentPage
                             ? "bg-blue-600 text-white"
-                            : "text-slate-700 hover:bg-slate-100"
+                            : "text-zinc-700 hover:bg-zinc-100"
                         )}
                       >
                         {pageNum}
@@ -1224,8 +1229,8 @@ export function SiteVisits() {
                   className={cn(
                     "p-2 rounded-lg border transition-colors",
                     currentPage === totalPages
-                      ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                      ? "border-zinc-200 text-zinc-400 cursor-not-allowed"
+                      : "border-zinc-300 text-zinc-700 hover:bg-zinc-100"
                   )}
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -1235,7 +1240,7 @@ export function SiteVisits() {
                 <select
                   value={itemsPerPage}
                   onChange={(e) => setCurrentPage(1)}
-                  className="ml-3 px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-sm text-slate-700"
+                  className="ml-3 px-3 py-1.5 border border-zinc-200 rounded-lg bg-white text-sm text-zinc-700"
                 >
                   <option value={5}>5 / page</option>
                   <option value={10}>10 / page</option>

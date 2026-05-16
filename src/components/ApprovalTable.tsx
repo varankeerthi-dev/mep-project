@@ -78,22 +78,22 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
   if (loading) {
     return (
-      <div className="w-full bg-white border border-gray-200 rounded-none">
+      <div className="w-full bg-white border border-zinc-200 rounded-none">
         <div className="p-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading approvals...</p>
+          <p className="mt-2 text-zinc-600">Loading approvals...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-white border border-gray-200 rounded-none">
+    <div className="w-full bg-white border border-zinc-200 rounded-none">
       {/* Bulk Actions */}
       {selectedApprovals.length > 0 && (
-        <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
+        <div className="border-b border-zinc-200 px-4 py-3 bg-zinc-50">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-zinc-700">
               {selectedApprovals.length} approval{selectedApprovals.length > 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
@@ -111,7 +111,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
               </button>
               <button
                 onClick={() => setSelectedApprovals([])}
-                className="px-3 py-1 text-sm bg-gray-600 text-white rounded-none hover:bg-gray-700"
+                className="px-3 py-1 text-sm bg-zinc-600 text-white rounded-none hover:bg-zinc-700"
               >
                 Clear Selection
               </button>
@@ -121,43 +121,43 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
       )}
 
       <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
+        <thead className="bg-zinc-50 border-b border-zinc-200">
           <tr>
             <th className="px-4 py-3 w-12">
               <input
                 type="checkbox"
                 checked={selectedApprovals.length === approvals.length && approvals.length > 0}
                 onChange={(e) => handleSelectAll(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-zinc-300"
               />
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Date
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Type
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Reference No
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Amount
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Status
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-zinc-200">
           {approvals.length === 0 ? (
             <tr>
-              <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+              <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                 No approvals found
               </td>
             </tr>
@@ -168,16 +168,16 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
               const priorityConfig = APPROVAL_PRIORITY_CONFIG[approval.priority];
               
               return (
-                <tr key={approval.id} className="hover:bg-gray-50">
+                <tr key={approval.id} className="hover:bg-zinc-50">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selectedApprovals.includes(approval.id)}
                       onChange={(e) => handleSelectApproval(approval.id, e.target.checked)}
-                      className="rounded border-gray-300"
+                      className="rounded border-zinc-300"
                     />
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
+                  <td className="px-4 py-3 text-sm text-zinc-900">
                     {format(new Date(approval.created_at), 'dd/MM/yyyy')}
                   </td>
                   <td className="px-4 py-3">
@@ -186,7 +186,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                         className="w-3 h-3 rounded-full mr-2"
                         style={{ backgroundColor: typeConfig.color }}
                       />
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-zinc-900">
                         {typeConfig.label}
                       </span>
                       {approval.priority !== 'NORMAL' && (
@@ -200,19 +200,19 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900">
+                    <div className="text-sm text-zinc-900">
                       <div className="font-medium">{approval.title}</div>
                       {approval.description && (
-                        <div className="text-gray-500 text-xs mt-1">
+                        <div className="text-zinc-500 text-xs mt-1">
                           {approval.description}
                         </div>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
+                  <td className="px-4 py-3 text-sm text-zinc-900">
                     {getReferenceNumber(approval)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                  <td className="px-4 py-3 text-sm text-zinc-900 font-medium">
                     {formatAmount(approval.amount)}
                   </td>
                   <td className="px-4 py-3">
@@ -226,7 +226,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                       {statusConfig.label}
                     </span>
                     {approval.current_level < approval.max_levels && approval.status === 'PENDING' && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-zinc-500 mt-1">
                         Level {approval.current_level} of {approval.max_levels}
                       </div>
                     )}
@@ -236,7 +236,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                       {/* View Button */}
                       <button
                         onClick={() => onView(approval)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
+                        className="p-1 text-zinc-400 hover:text-zinc-600"
                         title="View Details"
                       >
                         <EyeIcon className="w-4 h-4" />
@@ -255,7 +255,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                                 ...actionComments,
                                 [approval.id]: e.target.value
                               })}
-                              className="w-24 px-2 py-1 text-xs border border-gray-300 rounded-none"
+                              className="w-24 px-2 py-1 text-xs border border-zinc-300 rounded-none"
                             />
                           </div>
 
@@ -299,7 +299,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
                       {/* View Document Button */}
                       <button
-                        className="p-1 text-gray-400 hover:text-gray-600"
+                        className="p-1 text-zinc-400 hover:text-zinc-600"
                         title="View Document"
                       >
                         <DocumentIcon className="w-4 h-4" />

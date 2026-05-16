@@ -82,7 +82,7 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
     <div className="fixed inset-0 z-[100] flex items-center justify-center isolate p-4">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[-1] transition-all duration-300 animate-in fade-in" 
+        className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[-1] transition-all duration-300 animate-in fade-in" 
         onClick={onClose}
       />
       
@@ -99,10 +99,10 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-[22px] font-bold text-slate-900 tracking-tight leading-none mb-1.5">
+              <h2 className="text-[22px] font-bold text-zinc-900 tracking-tight leading-none mb-1.5">
                 Register Client Form
               </h2>
-              <p className="text-[14px] text-slate-500 font-medium">
+              <p className="text-[14px] text-zinc-500 font-medium">
                 Rapidly onboard a new enterprise node.
               </p>
             </div>
@@ -110,20 +110,20 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
           
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+            className="w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Diagonal Separator element (Aesthetic Detail) */}
-        <div className="px-8"><div className="w-full h-[1px] bg-gradient-to-r from-slate-200 via-slate-100 to-transparent" /></div>
+        <div className="px-8"><div className="w-full h-[1px] bg-gradient-to-r from-zinc-200 via-zinc-100 to-transparent" /></div>
 
         <form onSubmit={handleSubmit} className="px-8 py-8 space-y-6">
           <div className="space-y-5">
             {/* Field: Client Name */}
              <div className="group">
-                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                   <Building2 className="w-3.5 h-3.5" /> Corporation Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -133,14 +133,14 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                   value={formData.client_name}
                   onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
                   placeholder="Acme Industries LLC"
-                  className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[15px] font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                  className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[15px] font-semibold text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                 />
              </div>
 
              {/* Split Grid row */}
              <div className="grid grid-cols-2 gap-5">
                 <div className="group">
-                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                     <User className="w-3.5 h-3.5" /> POC
                   </label>
                   <input
@@ -148,11 +148,11 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                     value={formData.contact_person}
                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
                     placeholder="Primary Agent"
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                   />
                 </div>
                 <div className="group">
-                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                     <Tags className="w-3.5 h-3.5" /> Type
                   </label>
                   <input
@@ -160,14 +160,14 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                     value={formData.client_type}
                     onChange={(e) => setFormData({ ...formData, client_type: e.target.value })}
                     placeholder="e.g. Architect, Builder"
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                   />
                 </div>
              </div>
 
              <div className="grid grid-cols-2 gap-5">
                 <div className="group">
-                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                     <PhoneCall className="w-3.5 h-3.5" /> Phone Trunk
                   </label>
                   <input
@@ -175,11 +175,11 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+91..."
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] font-mono text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] font-mono text-zinc-700 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                   />
                 </div>
                 <div className="group">
-                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                     <MapPin className="w-3.5 h-3.5" /> Region Hub
                   </label>
                   <input
@@ -187,13 +187,13 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     placeholder="City Node"
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                   />
                 </div>
              </div>
              
              <div className="group">
-                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                   <Mail className="w-3.5 h-3.5" /> Digital Inbox
                 </label>
                 <div className="relative">
@@ -202,7 +202,7 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="domain@com"
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white pl-4"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] font-mono text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white pl-4"
                   />
                   {formData.email.includes('@') && (
                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
@@ -213,13 +213,13 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
              </div>
 
              <div className="group">
-                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                   <Tags className="w-3.5 h-3.5" /> GST Treatment
                 </label>
                 <select
                   value={formData.gst_treatment}
                   onChange={(e) => setFormData({ ...formData, gst_treatment: e.target.value })}
-                  className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                  className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                 >
                   <option value="">Select GST Treatment</option>
                   <option value="Registered Business Regular">Registered Business Regular - Standard GST registered business</option>
@@ -237,13 +237,13 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
 
              <div className="grid grid-cols-2 gap-5">
                 <div className="group">
-                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                     <Tags className="w-3.5 h-3.5" /> MSME Type
                   </label>
                   <select
                     value={formData.msme_register_type}
                     onChange={(e) => setFormData({ ...formData, msme_register_type: e.target.value })}
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
                   >
                     <option value="">Select Type</option>
                     <option value="micro">Micro Enterprise</option>
@@ -252,7 +252,7 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                   </select>
                 </div>
                 <div className="group">
-                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-zinc-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
                     <Tags className="w-3.5 h-3.5" /> MSME Number
                   </label>
                   <input
@@ -260,28 +260,28 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                     value={formData.msme_number}
                     onChange={(e) => setFormData({ ...formData, msme_number: e.target.value.toUpperCase() })}
                     placeholder="UDYAM Number"
-                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white uppercase"
+                    className="w-full h-12 bg-zinc-50/50 border border-zinc-200 rounded-xl px-4 text-[14px] font-mono text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white uppercase"
                   />
                 </div>
              </div>
           </div>
 
-          <div className="pt-6 mt-6 flex items-center justify-between border-t border-slate-100">
-            <span className="text-[12px] font-medium text-slate-400">
+          <div className="pt-6 mt-6 flex items-center justify-between border-t border-zinc-100">
+            <span className="text-[12px] font-medium text-zinc-400">
               ESC to dismiss
             </span>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 h-12 rounded-xl text-[14px] font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                className="px-6 h-12 rounded-xl text-[14px] font-bold text-zinc-500 hover:bg-zinc-100 transition-colors"
               >
                 Abort
               </button>
               <button
                 type="submit"
                 disabled={addClientMutation.isPending}
-                className="px-8 h-12 rounded-xl text-[14px] font-bold text-white bg-slate-900 shadow-xl shadow-slate-900/20 hover:bg-slate-800 focus:ring-4 focus:ring-slate-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-8 h-12 rounded-xl text-[14px] font-bold text-white bg-zinc-900 shadow-xl shadow-zinc-900/20 hover:bg-zinc-800 focus:ring-4 focus:ring-zinc-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {addClientMutation.isPending ? 'Provisioning...' : 'Inject Client'}
               </button>

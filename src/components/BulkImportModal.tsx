@@ -223,7 +223,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
       case 'create': return 'bg-emerald-100 text-emerald-700';
       case 'update': return 'bg-blue-100 text-blue-700';
       case 'error': return 'bg-rose-100 text-rose-700';
-      default: return 'bg-slate-100 text-slate-700';
+      default: return 'bg-zinc-100 text-zinc-700';
     }
   };
 
@@ -237,18 +237,18 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">Bulk Import/Update Items</h2>
-          <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-zinc-900">Bulk Import/Update Items</h2>
+          <button onClick={handleClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-zinc-600">
             <CloseIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-100 px-6">
+        <div className="flex border-b border-zinc-100 px-6">
           {['Upload', 'Preview & Validate', 'Results'].map((tab, idx) => (
             <button
               key={tab}
@@ -258,7 +258,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
                 "px-6 py-4 text-sm font-bold border-b-2 transition-all",
                 activeTab === idx 
                   ? "border-blue-600 text-blue-600" 
-                  : "border-transparent text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                  : "border-transparent text-zinc-400 hover:text-zinc-600 disabled:opacity-30"
               )}
             >
               {tab}
@@ -290,7 +290,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
                 <button onClick={handleDownloadSample} className="btn btn-outline flex items-center gap-2 text-sm font-bold">
                   <DownloadIcon className="w-4 h-4" /> Download Current Items ({materials.length})
                 </button>
-                <button onClick={() => fileInputRef.current?.click()} className="btn flex items-center gap-2 text-sm font-bold bg-slate-900 text-white hover:bg-slate-800">
+                <button onClick={() => fileInputRef.current?.click()} className="btn flex items-center gap-2 text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800">
                   <UploadIcon className="w-4 h-4" /> Upload File
                 </button>
                 <input type="file" ref={fileInputRef} className="hidden" accept=".txt,.csv,.tsv,.xlsx" onChange={handleFileUpload} />
@@ -305,7 +305,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
 
               <div className="space-y-2">
                 <textarea
-                  className="w-full h-80 p-4 font-mono text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50"
+                  className="w-full h-80 p-4 font-mono text-xs border border-zinc-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-zinc-50"
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder={`Paste your data here (tab-separated or comma-separated)...
@@ -334,7 +334,7 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">{validationResult.summary.total} Total</span>
+                  <span className="px-3 py-1 rounded-lg bg-zinc-100 text-zinc-700 text-xs font-bold border border-zinc-200">{validationResult.summary.total} Total</span>
                   <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200">{validationResult.summary.toCreate} to Create</span>
                   <span className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200">{validationResult.summary.toUpdate} to Update</span>
                   {validationResult.summary.errors > 0 && (
@@ -347,7 +347,7 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                 
                 <div className="flex gap-2">
                   <button onClick={handleSelectAll} className="text-xs font-bold text-blue-600 hover:underline">Select All</button>
-                  <button onClick={handleDeselectAll} className="text-xs font-bold text-slate-400 hover:underline">Deselect All</button>
+                  <button onClick={handleDeselectAll} className="text-xs font-bold text-zinc-400 hover:underline">Deselect All</button>
                 </div>
               </div>
 
@@ -360,9 +360,9 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                 </div>
               )}
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto max-h-[400px]">
+              <div className="border border-zinc-200 rounded-xl overflow-hidden overflow-x-auto max-h-[400px]">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                  <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0 z-10">
                     <tr>
                       <th className="p-3 w-10">
                         <input
@@ -371,20 +371,20 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                           onChange={(e) => e.target.checked ? handleSelectAll() : handleDeselectAll()}
                         />
                       </th>
-                      <th className="p-3 font-bold text-slate-600">Row</th>
-                      <th className="p-3 font-bold text-slate-600">Action</th>
-                      <th className="p-3 font-bold text-slate-600">Item Code</th>
-                      <th className="p-3 font-bold text-slate-600">Name</th>
-                      <th className="p-3 font-bold text-slate-600">Category</th>
-                      <th className="p-3 font-bold text-slate-600">Sale Price</th>
-                      <th className="p-3 font-bold text-slate-600">Purchase Price</th>
-                      <th className="p-3 font-bold text-slate-600">Stock</th>
-                      <th className="p-3 font-bold text-slate-600">Status</th>
+                      <th className="p-3 font-bold text-zinc-600">Row</th>
+                      <th className="p-3 font-bold text-zinc-600">Action</th>
+                      <th className="p-3 font-bold text-zinc-600">Item Code</th>
+                      <th className="p-3 font-bold text-zinc-600">Name</th>
+                      <th className="p-3 font-bold text-zinc-600">Category</th>
+                      <th className="p-3 font-bold text-zinc-600">Sale Price</th>
+                      <th className="p-3 font-bold text-zinc-600">Purchase Price</th>
+                      <th className="p-3 font-bold text-zinc-600">Stock</th>
+                      <th className="p-3 font-bold text-zinc-600">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-zinc-100">
                     {validationResult.validRows.map((row) => (
-                      <tr key={row.rowNo} className={cn("hover:bg-slate-50", selectedRows.has(row.rowNo) && "bg-blue-50/30")}>
+                      <tr key={row.rowNo} className={cn("hover:bg-zinc-50", selectedRows.has(row.rowNo) && "bg-blue-50/30")}>
                         <td className="p-3">
                           <input
                             type="checkbox"
@@ -392,18 +392,18 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                             onChange={() => handleRowToggle(row.rowNo)}
                           />
                         </td>
-                        <td className="p-3 text-slate-500">{row.rowNo}</td>
+                        <td className="p-3 text-zinc-500">{row.rowNo}</td>
                         <td className="p-3">
                           <span className={cn("px-2 py-0.5 rounded text-[10px] uppercase font-black", getActionClass(row.action))}>
                             {getActionLabel(row.action)}
                           </span>
                         </td>
                         <td className="p-3 font-mono">{row.data.item_code || row.item?.item_code || '-'}</td>
-                        <td className="p-3 font-medium text-slate-900">{row.data.name || row.item?.name || row.item?.display_name || '-'}</td>
-                        <td className="p-3 text-slate-500">{row.data.main_category || row.item?.main_category || '-'}</td>
-                        <td className="p-3 text-slate-600">{row.data.sale_price ?? row.item?.sale_price ?? '-'}</td>
-                        <td className="p-3 text-slate-600">{row.data.purchase_price ?? row.item?.purchase_price ?? '-'}</td>
-                        <td className="p-3 text-slate-600">{row.data.current_stock ?? '-'}</td>
+                        <td className="p-3 font-medium text-zinc-900">{row.data.name || row.item?.name || row.item?.display_name || '-'}</td>
+                        <td className="p-3 text-zinc-500">{row.data.main_category || row.item?.main_category || '-'}</td>
+                        <td className="p-3 text-zinc-600">{row.data.sale_price ?? row.item?.sale_price ?? '-'}</td>
+                        <td className="p-3 text-zinc-600">{row.data.purchase_price ?? row.item?.purchase_price ?? '-'}</td>
+                        <td className="p-3 text-zinc-600">{row.data.current_stock ?? '-'}</td>
                         <td className="p-3">
                           {row.warnings.length > 0 && (
                             <span title={row.warnings.join(', ')}>
@@ -418,8 +418,8 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
               </div>
 
               <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
-                  <span className="text-sm font-bold text-slate-600">{selectedRows.size} of {validationResult.validRows.length} rows selected</span>
+                <div className="flex justify-between items-center bg-zinc-50 p-4 rounded-xl">
+                  <span className="text-sm font-bold text-zinc-600">{selectedRows.size} of {validationResult.validRows.length} rows selected</span>
                   <button
                     onClick={handleApplyImport}
                     disabled={selectedRows.size === 0 || isProcessing}
@@ -432,10 +432,10 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
 
                 {isProcessing && (
                   <div className="space-y-2">
-                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="w-full h-3 bg-zinc-100 rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-600 transition-all duration-300" style={{ width: `${progress}%` }} />
                     </div>
-                    <p className="text-center text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    <p className="text-center text-xs font-bold text-zinc-500 uppercase tracking-widest">
                       Importing data... {Math.round(progress)}%
                     </p>
                   </div>
@@ -456,8 +456,8 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                 )}>
                   {result.failed === 0 ? <CheckIcon className="w-8 h-8" /> : <WarningIcon className="w-8 h-8" />}
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Import Complete</h3>
-                <p className="text-slate-600 font-bold">
+                <h3 className="text-2xl font-black text-zinc-900 mb-2">Import Complete</h3>
+                <p className="text-zinc-600 font-bold">
                   {result.success} items processed successfully
                   {result.failed > 0 && <span className="text-rose-600"> | {result.failed} items failed</span>}
                 </p>
@@ -478,7 +478,7 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
               )}
 
               <div className="flex justify-center pt-8">
-                <button onClick={handleClose} className="btn bg-slate-900 text-white px-12 py-4 rounded-2xl font-bold shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all">
+                <button onClick={handleClose} className="btn bg-zinc-900 text-white px-12 py-4 rounded-2xl font-bold shadow-xl shadow-zinc-900/10 hover:bg-zinc-800 transition-all">
                   Close Dashboard
                 </button>
               </div>

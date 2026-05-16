@@ -94,13 +94,13 @@ const DEFAULT_TERMS = [
 // Status dot component - Grey style
 function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    'Draft': 'bg-gray-400',
-    'Issued': 'bg-slate-500',
-    'In Progress': 'bg-slate-600',
-    'Completed': 'bg-slate-700',
+    'Draft': 'bg-zinc-400',
+    'Issued': 'bg-zinc-500',
+    'In Progress': 'bg-zinc-600',
+    'Completed': 'bg-zinc-700',
     'Cancelled': 'bg-red-500',
   };
-  return <span className={`w-2 h-2 rounded-full ${colors[status] || 'bg-gray-400'}`} />;
+  return <span className={`w-2 h-2 rounded-full ${colors[status] || 'bg-zinc-400'}`} />;
 }
 
 // Status pill component - Grey style
@@ -108,7 +108,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <div className="flex items-center gap-2">
       <StatusDot status={status} />
-      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-slate-700">
+      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">
         {status}
       </span>
     </div>
@@ -443,14 +443,14 @@ export function WorkOrderCreateModal({
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            className="rounded-lg px-5 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={saveMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
           >
             <Save size={16} />
             {saveMutation.isPending ? 'Saving...' : editMode ? 'Update' : 'Save'}
@@ -468,8 +468,8 @@ export function WorkOrderCreateModal({
         {/* Work Order Details */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Work Order No <span className="text-slate-400">*</span>
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Work Order No <span className="text-zinc-400">*</span>
             </label>
             <input
               type="text"
@@ -481,8 +481,8 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Subcontractor <span className="text-slate-400">*</span>
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Subcontractor <span className="text-zinc-400">*</span>
             </label>
             <select
               value={formData.subcontractor_id}
@@ -500,7 +500,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Issue Date
             </label>
             <input
@@ -512,7 +512,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Valid Until
             </label>
             <input
@@ -524,7 +524,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Work Description
             </label>
             <textarea
@@ -537,7 +537,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Site Location
             </label>
             <input
@@ -550,7 +550,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Status
             </label>
             <select
@@ -568,14 +568,14 @@ export function WorkOrderCreateModal({
         </div>
 
         {/* Line Items */}
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+          <div className="border-b border-zinc-100 px-5 py-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 tracking-tight">Line Items</h3>
+              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Line Items</h3>
               <button
                 type="button"
                 onClick={addLineItem}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-200"
               >
                 <Plus size={16} />
                 Add Item
@@ -584,7 +584,7 @@ export function WorkOrderCreateModal({
           </div>
           <div className="p-5">
             {formData.line_items.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-zinc-400">
                 <FileText className="mx-auto mb-2" size={32} />
                 <p className="text-sm">No line items added yet</p>
               </div>
@@ -593,39 +593,39 @@ export function WorkOrderCreateModal({
                 {formData.line_items.map((item, idx) => (
                   <div
                     key={item.id}
-                    className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4 sm:grid-cols-12"
+                    className="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-4 sm:grid-cols-12"
                   >
                     <div className="sm:col-span-5">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                         Description
                       </label>
                       <input
                         type="text"
                         value={item.description}
                         onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                         placeholder="Item description"
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                         Qty
                       </label>
                       <input
                         type="number"
                         value={item.quantity}
                         onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                         Unit
                       </label>
                       <select
                         value={item.unit}
                         onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       >
                         <option>Nos</option>
                         <option>MT</option>
@@ -636,21 +636,21 @@ export function WorkOrderCreateModal({
                       </select>
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                         Rate (₹)
                       </label>
                       <input
                         type="number"
                         value={item.rate}
                         onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       />
                     </div>
                     <div className="sm:col-span-1 flex items-end">
                       <button
                         type="button"
                         onClick={() => removeLineItem(item.id)}
-                        className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                        className="rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -665,16 +665,16 @@ export function WorkOrderCreateModal({
         {/* Totals */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Subtotal
             </label>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-800">
               ₹{formData.subtotal.toFixed(2)}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               CGST ({formData.cgst_percent}%)
             </label>
             <input
@@ -683,11 +683,11 @@ export function WorkOrderCreateModal({
               onChange={(e) => setFormData({ ...formData, cgst_percent: parseFloat(e.target.value) || 0 })}
               className={inputClass}
             />
-            <div className="text-xs text-slate-500">₹{formData.cgst_amount.toFixed(2)}</div>
+            <div className="text-xs text-zinc-500">₹{formData.cgst_amount.toFixed(2)}</div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               SGST ({formData.sgst_percent}%)
             </label>
             <input
@@ -696,28 +696,28 @@ export function WorkOrderCreateModal({
               onChange={(e) => setFormData({ ...formData, sgst_percent: parseFloat(e.target.value) || 0 })}
               className={inputClass}
             />
-            <div className="text-xs text-slate-500">₹{formData.sgst_amount.toFixed(2)}</div>
+            <div className="text-xs text-zinc-500">₹{formData.sgst_amount.toFixed(2)}</div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Total Amount
             </label>
-            <div className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-900">
+            <div className="rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2.5 text-sm font-bold text-zinc-900">
               ₹{formData.total_amount.toFixed(2)}
             </div>
           </div>
         </div>
 
         {/* Terms & Conditions */}
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+          <div className="border-b border-zinc-100 px-5 py-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 tracking-tight">Terms & Conditions</h3>
+              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Terms & Conditions</h3>
               <button
                 type="button"
                 onClick={addTerm}
-                className="inline-flex items-center gap-2 rounded-lg bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-white border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
               >
                 <Plus size={16} />
                 Add Term
@@ -733,28 +733,28 @@ export function WorkOrderCreateModal({
                   onDragStart={() => handleDragStart(idx)}
                   onDragOver={(e) => handleDragOver(e, idx)}
                   onDragEnd={handleDragEnd}
-                  className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-3"
+                  className="flex items-start gap-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-3"
                 >
                   <button
                     type="button"
-                    className="mt-1 cursor-move text-slate-400"
+                    className="mt-1 cursor-move text-zinc-400"
                   >
                     <GripVertical size={16} />
                   </button>
-                  <span className="mt-2 text-xs font-medium text-slate-400">
+                  <span className="mt-2 text-xs font-medium text-zinc-400">
                     {idx + 1}.
                   </span>
                   <textarea
                     value={term.text}
                     onChange={(e) => updateTerm(term.id, e.target.value)}
                     rows={2}
-                    className="flex-1 resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                    className="flex-1 resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                     placeholder="Enter term condition"
                   />
                   <button
                     type="button"
                     onClick={() => removeTerm(term.id)}
-                    className="mt-1 rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                    className="mt-1 rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -767,7 +767,7 @@ export function WorkOrderCreateModal({
         {/* Payment & Delivery Terms */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Payment Terms
             </label>
             <input
@@ -779,7 +779,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Delivery Terms
             </label>
             <input
@@ -791,7 +791,7 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Advance %
             </label>
             <input
@@ -800,13 +800,13 @@ export function WorkOrderCreateModal({
               onChange={(e) => setFormData({ ...formData, advance_percent: parseFloat(e.target.value) || 0 })}
               className={inputClass}
             />
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-zinc-500">
               Advance: ₹{formData.advance_amount.toFixed(2)}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Remarks
             </label>
             <textarea
@@ -964,10 +964,10 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
           {/* Title Row */}
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+              <h1 className="text-xl font-extrabold tracking-tight text-zinc-900">
                 Work Orders
               </h1>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-zinc-500">
                 Manage subcontractor work orders and track progress
               </p>
             </div>
@@ -976,7 +976,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                 setSelectedWO(null);
                 setIsModalOpen(true);
               }}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
               <Plus size={16} />
               New Work Order
@@ -984,19 +984,19 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
             <div className="px-5 py-4">
               <div className="flex flex-wrap items-center gap-3">
                 {/* Search */}
                 <div className="flex-1 min-w-[280px]">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search by WO number, subcontractor, or description..."
-                      className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20 transition-all"
+                      className="w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20 transition-all"
                     />
                   </div>
                 </div>
@@ -1006,14 +1006,14 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                   onClick={() => setShowFilters(!showFilters)}
                   className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${
                     showFilters
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      ? 'bg-zinc-900 text-white'
+                      : 'bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50'
                   }`}
                 >
                   <Filter size={16} />
                   Filters
                   {hasActiveFilters && (
-                    <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-900">
+                    <span className="ml-1 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-900">
                       Active
                     </span>
                   )}
@@ -1023,7 +1023,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                 {hasActiveFilters && (
                   <button
                     onClick={clearFilters}
-                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-700 hover:bg-slate-100"
+                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-500 transition hover:text-zinc-700 hover:bg-zinc-100"
                   >
                     Clear all
                   </button>
@@ -1032,17 +1032,17 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
 
               {/* Expanded Filters */}
               {showFilters && (
-                <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-4 grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
                   {/* Status Filter */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       Status
                     </label>
                     <div className="relative">
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       >
                         <option value="all">All Status</option>
                         <option value="Draft">Draft</option>
@@ -1051,20 +1051,20 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
                     </div>
                   </div>
 
                   {/* Subcontractor Filter */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       Subcontractor
                     </label>
                     <div className="relative">
                       <select
                         value={subcontractorFilter}
                         onChange={(e) => setSubcontractorFilter(e.target.value)}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       >
                         <option value="all">All Subcontractors</option>
                         {subcontractors.map((sub: any) => (
@@ -1079,7 +1079,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
 
                   {/* Date From */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       From Date
                     </label>
                     <div className="relative">
@@ -1087,15 +1087,15 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                         type="date"
                         value={dateRange.from}
                         onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       />
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
                     </div>
                   </div>
 
                   {/* Date To */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       To Date
                     </label>
                     <div className="relative">
@@ -1103,9 +1103,9 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                         type="date"
                         value={dateRange.to}
                         onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-400/20"
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
                       />
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
                     </div>
                   </div>
                 </div>
@@ -1115,27 +1115,27 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
 
           {/* Results Count */}
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing <span className="font-semibold text-slate-900">{filteredWorkOrders.length}</span> of{' '}
-              <span className="font-semibold text-slate-900">{workOrders.length}</span> work orders
+            <p className="text-sm text-zinc-500">
+              Showing <span className="font-semibold text-zinc-900">{filteredWorkOrders.length}</span> of{' '}
+              <span className="font-semibold text-zinc-900">{workOrders.length}</span> work orders
             </p>
           </div>
 
           {/* Table */}
-          <div className="mt-4 rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="mt-4 rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="animate-pulse text-slate-400">Loading work orders...</div>
+                <div className="animate-pulse text-zinc-400">Loading work orders...</div>
               </div>
             ) : filteredWorkOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
-                <div className="rounded-full bg-slate-100 p-4 mb-4">
-                  <FileText className="text-slate-400" size={32} />
+                <div className="rounded-full bg-zinc-100 p-4 mb-4">
+                  <FileText className="text-zinc-400" size={32} />
                 </div>
-                <h3 className="text-sm font-bold text-slate-800 tracking-tight">
+                <h3 className="text-sm font-bold text-zinc-800 tracking-tight">
                   {hasActiveFilters ? 'No matching work orders' : 'No work orders yet'}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500 text-center max-w-sm">
+                <p className="mt-1 text-sm text-zinc-500 text-center max-w-sm">
                   {hasActiveFilters
                     ? 'Try adjusting your filters to see more results'
                     : 'Create your first work order to get started with subcontractor management'}
@@ -1146,7 +1146,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                       setSelectedWO(null);
                       setIsModalOpen(true);
                     }}
-                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-200"
                   >
                     <Plus size={16} />
                     Create Work Order
@@ -1157,34 +1157,34 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
+                    <tr className="border-b border-zinc-200 bg-zinc-50/50">
                       <th className="px-4 py-3 text-left">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Work Order
                         </span>
                       </th>
                       <th className="px-4 py-3 text-left">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Subcontractor
                         </span>
                       </th>
                       <th className="px-4 py-3 text-left">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Status
                         </span>
                       </th>
                       <th className="px-4 py-3 text-left">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Issue Date
                         </span>
                       </th>
                       <th className="px-4 py-3 text-right">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Total Amount
                         </span>
                       </th>
                       <th className="px-4 py-3 text-center">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Actions
                         </span>
                       </th>
@@ -1195,21 +1195,21 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                       <tr
                         key={wo.id}
                         onClick={() => onNavigate?.(`/subcontractors/workorders/${wo.id}`)}
-                        className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                        className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-4">
                           <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-slate-900">
+                            <span className="text-sm font-semibold text-zinc-900">
                               {wo.work_order_no}
                             </span>
-                            <span className="text-xs text-slate-500 mt-0.5 truncate max-w-[200px]">
+                            <span className="text-xs text-zinc-500 mt-0.5 truncate max-w-[200px]">
                               {wo.work_description?.substring(0, 60)}
                               {wo.work_description?.length > 60 ? '...' : ''}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="text-sm text-slate-700">
+                          <span className="text-sm text-zinc-700">
                             {wo.subcontractors?.company_name || '-'}
                           </span>
                         </td>
@@ -1217,7 +1217,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                           <StatusPill status={wo.status} />
                         </td>
                         <td className="px-4 py-4">
-                          <span className="text-sm text-slate-600">
+                          <span className="text-sm text-zinc-600">
                             {wo.issue_date ? new Date(wo.issue_date).toLocaleDateString('en-IN', {
                               day: '2-digit',
                               month: 'short',
@@ -1226,8 +1226,8 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                           </span>
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1 text-sm font-semibold text-slate-900">
-                            <IndianRupee size={14} className="text-slate-500" />
+                          <div className="flex items-center justify-end gap-1 text-sm font-semibold text-zinc-900">
+                            <IndianRupee size={14} className="text-zinc-500" />
                             {parseFloat(wo.total_amount || 0).toLocaleString('en-IN', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2
@@ -1241,7 +1241,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                                 e.stopPropagation();
                                 onNavigate?.(`/subcontractors/workorders/${wo.id}`);
                               }}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
                               title="View Details"
                             >
                               <FileText size={16} />
@@ -1252,7 +1252,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                                 setSelectedWO(wo);
                                 setIsModalOpen(true);
                               }}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
                               title="Edit"
                             >
                               <ArrowUpDown size={16} />
@@ -1262,7 +1262,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                                 e.stopPropagation();
                                 handleDownloadPDF(wo);
                               }}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
                               title="Download PDF"
                             >
                               <Download size={16} />

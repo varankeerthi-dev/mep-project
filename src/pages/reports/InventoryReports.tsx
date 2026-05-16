@@ -144,7 +144,7 @@ const InventoryReports = () => {
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-none h-34px">
+              <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 rounded-b-none h-34px">
                 <button className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors" onClick={() => handleGenerateReport(report.id)}>
                   <DocumentTextIcon className="w-4 h-4" />
                   Generate Report
@@ -157,11 +157,11 @@ const InventoryReports = () => {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">1,247</p>
+              <p className="text-sm text-zinc-600">Total Items</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">1,247</p>
               <p className="text-sm text-green-600 mt-2">+23 new items</p>
             </div>
             <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
@@ -169,11 +169,11 @@ const InventoryReports = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Stock Value</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">$845,678</p>
+              <p className="text-sm text-zinc-600">Stock Value</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">$845,678</p>
               <p className="text-sm text-green-600 mt-2">+5.2% from last month</p>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
@@ -181,11 +181,11 @@ const InventoryReports = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Low Stock Items</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">12</p>
+              <p className="text-sm text-zinc-600">Low Stock Items</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">12</p>
               <p className="text-sm text-yellow-600 mt-2">Requires reorder</p>
             </div>
             <div className="w-12 h-12 bg-yellow-50 rounded-lg flex items-center justify-center">
@@ -193,11 +193,11 @@ const InventoryReports = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Suppliers</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">89</p>
+              <p className="text-sm text-zinc-600">Suppliers</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">89</p>
               <p className="text-sm text-blue-600 mt-2">3 new this month</p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">

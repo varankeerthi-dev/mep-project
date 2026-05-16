@@ -490,7 +490,7 @@ export default function DCList() {
       case 'quoted': return 'bg-blue-100 text-blue-700 font-bold';
       case 'not sent': return 'bg-amber-100 text-amber-700 font-bold';
       case 'cancelled': return 'bg-rose-100 text-rose-700 font-bold';
-      default: return 'bg-slate-100 text-slate-700 font-bold';
+      default: return 'bg-zinc-100 text-zinc-700 font-bold';
     }
   };
 
@@ -564,22 +564,22 @@ export default function DCList() {
           <table className="w-full border-separate border-spacing-0 table-fixed">
             <thead className="sticky top-0 z-10">
               <tr className="bg-blue-100/80 border-b border-blue-200">
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                   Date
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[160px] border-r border-zinc-200">
                   DC No
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[300px]">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[300px]">
                   Client
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[180px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[180px] border-r border-zinc-200">
                   Amount
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                   Status
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[70px]">
+                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px]">
                   Action
                 </th>
               </tr>
@@ -587,13 +587,13 @@ export default function DCList() {
             <tbody className="bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="px-5 py-16 text-center text-sm text-zinc-500">
                     Loading delivery challans...
                   </td>
                 </tr>
               ) : paginationData.currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="px-5 py-16 text-center text-sm text-zinc-500">
                     No delivery challans found
                   </td>
                 </tr>
@@ -601,26 +601,26 @@ export default function DCList() {
                 paginationData.currentItems.map((dc: any, index) => (
                   <tr
                     key={dc.id}
-                    className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                    className={`hover:bg-zinc-50 cursor-pointer transition-all duration-150 ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
                     }`}
                     onClick={() => navigate(`/dc/view/${dc.id}`)}
                   >
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       {formatDate(dc.dc_date)}
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       {dc.dc_number}
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                       <div className="max-w-[250px] truncate" title={dc.client_name || '-'}>
                         {dc.client_name || '-'}
                       </div>
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap tabular-nums border-r border-zinc-100 border-t border-zinc-200/70">
                       {formatCurrency(calculateTotal(dc.items))}
                     </td>
-                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       <span
                         className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
                         style={{
@@ -632,14 +632,14 @@ export default function DCList() {
                         {dc.status || 'Active'}
                       </span>
                     </td>
-                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-slate-200/70">
+                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-zinc-200/70">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePreview(dc);
                           }}
-                          className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
                         >
                           View
                         </button>
@@ -649,19 +649,19 @@ export default function DCList() {
                               e.stopPropagation();
                               setOpenMenuId(openMenuId === dc.id ? null : dc.id);
                             }}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
                           >
-                            <MoreHorizontalIcon className="w-4 h-4 text-slate-500" />
+                            <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                           </button>
                         {openMenuId === dc.id && (
-                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-slate-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
+                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
                             {/* Section 1: Read actions */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handlePreview(dc);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-zinc-100/60 hover:text-zinc-900"
                               style={{ padding: '8px' }}
                             >
                               View Details
@@ -672,13 +672,13 @@ export default function DCList() {
                                 setPrintMenuDC(dc);
                                 setShowPrintMenu(true);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-zinc-100/60 hover:text-zinc-900"
                               style={{ padding: '8px' }}
                             >
                               Download PDF
                             </button>
 
-                            <div className="my-1 border-t border-slate-100" />
+                            <div className="my-1 border-t border-zinc-100" />
 
                             {/* Section 2: Convert actions */}
                             <button
@@ -687,7 +687,7 @@ export default function DCList() {
                                 setConvertDC(dc);
                                 setShowConvertModal(true);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-zinc-100/60 hover:text-zinc-900"
                               style={{ padding: '8px' }}
                             >
                               Convert to Quotation
@@ -697,13 +697,13 @@ export default function DCList() {
                                 e.stopPropagation();
                                 navigate(`/proforma-invoices/create?convertFrom=dc-to-proforma&sourceId=${dc.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-zinc-100/60 hover:text-zinc-900"
                               style={{ padding: '8px' }}
                             >
                               Convert to Proforma
                             </button>
 
-                            <div className="my-1 border-t border-slate-100" />
+                            <div className="my-1 border-t border-zinc-100" />
 
                             {/* Section 3: Modify actions */}
                             <button
@@ -711,7 +711,7 @@ export default function DCList() {
                                 e.stopPropagation();
                                 navigate(`/dc/edit/${dc.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-zinc-100/60 hover:text-zinc-900"
                               style={{ padding: '8px' }}
                             >
                               Edit
@@ -721,7 +721,7 @@ export default function DCList() {
                                 e.stopPropagation();
                                 handleDelete(dc.id, dc.dc_number);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-red-50 hover:text-red-600"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600"
                               style={{ padding: '8px' }}
                             >
                               Delete
@@ -741,8 +741,8 @@ export default function DCList() {
       
       {/* Pagination Controls */}
       {paginationData.totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/50">
-          <div className="text-base text-slate-600">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+          <div className="text-base text-zinc-600">
             Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} delivery challans
           </div>
           <div className="flex items-center gap-2">
@@ -752,8 +752,8 @@ export default function DCList() {
               disabled={!paginationData.hasPrevPage}
               className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
                 paginationData.hasPrevPage
-                  ? 'text-slate-700 hover:bg-slate-100'
-                  : 'text-slate-300 cursor-not-allowed'
+                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-300 cursor-not-allowed'
               }`}
             >
               Previous
@@ -779,8 +779,8 @@ export default function DCList() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[36px] ${
                       currentPage === pageNum
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-700 hover:bg-slate-100'
+                        ? 'bg-zinc-900 text-white'
+                        : 'text-zinc-700 hover:bg-zinc-100'
                     }`}
                   >
                     {pageNum}
@@ -795,8 +795,8 @@ export default function DCList() {
               disabled={!paginationData.hasNextPage}
               className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
                 paginationData.hasNextPage
-                  ? 'text-slate-700 hover:bg-slate-100'
-                  : 'text-slate-300 cursor-not-allowed'
+                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-300 cursor-not-allowed'
               }`}
             >
               Next
@@ -807,43 +807,43 @@ export default function DCList() {
 
       {/* Convert Modal */}
       {showConvertModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="text-xl font-black text-slate-900">Convert DC</h3>
-              <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">DC No: {convertDC?.dc_number}</p>
+            <div className="px-8 py-6 border-b border-zinc-100 bg-zinc-50/50">
+              <h3 className="text-xl font-black text-zinc-900">Convert DC</h3>
+              <p className="text-sm font-bold text-zinc-400 mt-1 uppercase tracking-widest">DC No: {convertDC?.dc_number}</p>
             </div>
             <div className="p-8 space-y-4">
               <button 
                 onClick={handleConvertToQuotation}
-                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all rounded-[24px]"
+                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-zinc-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all rounded-[24px]"
               >
                 <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div className="text-center">
-                  <p className="font-black text-slate-900 uppercase text-xs tracking-widest">Convert to Quotation</p>
-                  <p className="text-xs font-bold text-slate-500 mt-1">Generate a new quotation from this DC</p>
+                  <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">Convert to Quotation</p>
+                  <p className="text-xs font-bold text-zinc-500 mt-1">Generate a new quotation from this DC</p>
                 </div>
               </button>
               
               <button
                 onClick={handleConvertToProforma}
-                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-slate-100 hover:border-emerald-600 hover:bg-emerald-50/50 transition-all rounded-[24px]"
+                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-zinc-100 hover:border-emerald-600 hover:bg-emerald-50/50 transition-all rounded-[24px]"
               >
                 <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <LocalShippingIcon className="w-6 h-6" />
                 </div>
                 <div className="text-center">
-                  <p className="font-black text-slate-900 uppercase text-xs tracking-widest">Convert to Proforma</p>
-                  <p className="text-xs font-bold text-slate-500 mt-1">Generate proforma invoice from this DC</p>
+                  <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">Convert to Proforma</p>
+                  <p className="text-xs font-bold text-zinc-500 mt-1">Generate proforma invoice from this DC</p>
                 </div>
               </button>
             </div>
-            <div className="px-8 py-6 border-t border-slate-100 flex justify-end">
+            <div className="px-8 py-6 border-t border-zinc-100 flex justify-end">
               <button 
                 onClick={() => { setShowConvertModal(false); setConvertDC(null); }}
-                className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all"
+                className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 transition-all"
               >
                 Cancel Conversion
               </button>
@@ -854,26 +854,26 @@ export default function DCList() {
 
       {/* Preview Modal */}
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-zinc-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-5xl h-full flex flex-col overflow-hidden">
-            <div className="px-10 py-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-2xl font-black text-slate-900">Document Preview</h3>
+            <div className="px-10 py-6 border-b border-zinc-100 flex items-center justify-between">
+              <h3 className="text-2xl font-black text-zinc-900">Document Preview</h3>
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => window.print()}
-                  className="px-6 py-2 bg-slate-900 text-white rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all"
+                  className="px-6 py-2 bg-zinc-900 text-white rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-zinc-800 transition-all"
                 >
                   Print Document
                 </button>
                 <button 
                   onClick={() => setShowPreview(false)}
-                  className="p-3 hover:bg-rose-50 rounded-full text-slate-400 hover:text-rose-600 transition-all"
+                  className="p-3 hover:bg-rose-50 rounded-full text-zinc-400 hover:text-rose-600 transition-all"
                 >
                   <CloseIcon className="w-6 h-6" />
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-slate-50 p-10">
+            <div className="flex-1 overflow-auto bg-zinc-50 p-10">
               <div 
                 className="preview-content shadow-2xl"
                 dangerouslySetInnerHTML={{ __html: previewHtml }} 
@@ -885,22 +885,22 @@ export default function DCList() {
 
       {/* Print Options Modal */}
       {showPrintMenu && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-             <div className="p-8 border-b border-slate-50">
-                <h3 className="text-xl font-black text-slate-900 mb-1">Print Options</h3>
-                <p className="text-sm font-bold text-slate-400 tracking-widest uppercase">Select DC Template</p>
+             <div className="p-8 border-b border-zinc-50">
+                <h3 className="text-xl font-black text-zinc-900 mb-1">Print Options</h3>
+                <p className="text-sm font-bold text-zinc-400 tracking-widest uppercase">Select DC Template</p>
              </div>
              <div className="p-8 space-y-3">
                 {templates.map((t: any) => (
                    <button
                       key={t.id}
                       onClick={() => handlePrintDC(printMenuDC, t.id)}
-                      className="w-full p-5 text-left rounded-2xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition-all group"
+                      className="w-full p-5 text-left rounded-2xl border-2 border-zinc-100 hover:border-indigo-600 hover:bg-indigo-50 transition-all group"
                    >
                       <div className="flex flex-col">
-                         <span className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase text-xs tracking-widest">{t.template_name}</span>
-                         <span className="text-[10px] font-bold text-slate-400 mt-1">{t.template_code} • {t.orientation}</span>
+                         <span className="font-black text-zinc-900 group-hover:text-indigo-600 transition-colors uppercase text-xs tracking-widest">{t.template_name}</span>
+                         <span className="text-[10px] font-bold text-zinc-400 mt-1">{t.template_code} • {t.orientation}</span>
                       </div>
                    </button>
                 ))}
@@ -914,8 +914,8 @@ export default function DCList() {
                    </div>
                 </button>
              </div>
-             <div className="px-8 py-6 bg-slate-50 flex justify-end">
-                <button onClick={() => {setShowPrintMenu(false); setPrintMenuDC(null);}} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Close</button>
+             <div className="px-8 py-6 bg-zinc-50 flex justify-end">
+                <button onClick={() => {setShowPrintMenu(false); setPrintMenuDC(null);}} className="text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors">Close</button>
              </div>
           </div>
         </div>

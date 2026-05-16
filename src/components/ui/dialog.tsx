@@ -84,5 +84,5 @@ export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElem
 }
 
 export function DialogDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-sm text-slate-500', className)} {...props} />
+  return <p className={cn('text-sm text-zinc-500', className)} {...props} />
 }

@@ -93,7 +93,7 @@ export function AppTable<T extends Record<string, any>>({
               type="checkbox"
               checked={table.getIsAllPageRowsSelected()}
               onChange={table.getToggleAllPageRowsSelectedHandler()}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
             />
           );
         },
@@ -103,7 +103,7 @@ export function AppTable<T extends Record<string, any>>({
             checked={row.getIsSelected()}
             disabled={!row.getCanSelect()}
             onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           />
         ),
@@ -139,9 +139,9 @@ export function AppTable<T extends Record<string, any>>({
                   e.stopPropagation();
                   setOpen(!open);
                 }}
-                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors"
               >
-                <MoreHorizontal className="w-4 h-4 text-gray-500" />
+                <MoreHorizontal className="w-4 h-4 text-zinc-500" />
               </button>
               {open && (
                 <>
@@ -149,7 +149,7 @@ export function AppTable<T extends Record<string, any>>({
                     className="fixed inset-0 z-40"
                     onClick={() => setOpen(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 py-1">
                     {actions.map((action, i) => (
                       <button
                         key={i}
@@ -159,8 +159,8 @@ export function AppTable<T extends Record<string, any>>({
                           action.onClick(row.original);
                         }}
                         className={cn(
-                          'w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2',
-                          action.variant === 'danger' ? 'text-red-600' : 'text-gray-700'
+                          'w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 flex items-center gap-2',
+                          action.variant === 'danger' ? 'text-red-600' : 'text-zinc-700'
                         )}
                       >
                         {action.label}
@@ -233,7 +233,7 @@ export function AppTable<T extends Record<string, any>>({
             value={value ?? ''}
             onChange={(e) => col.setFilterValue(e.target.value)}
             placeholder="Filter..."
-            className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full px-2 py-1 text-xs border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           {value && (
             <button
@@ -253,7 +253,7 @@ export function AppTable<T extends Record<string, any>>({
         <select
           value={value ?? ''}
           onChange={(e) => col.setFilterValue(e.target.value || undefined)}
-          className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full px-2 py-1 text-xs border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">All</option>
           {options?.map((opt) => (
@@ -271,7 +271,7 @@ export function AppTable<T extends Record<string, any>>({
           type="date"
           value={value ?? ''}
           onChange={(e) => col.setFilterValue(e.target.value)}
-          className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full px-2 py-1 text-xs border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       );
     }
@@ -283,10 +283,10 @@ export function AppTable<T extends Record<string, any>>({
 
   if (loading) {
     return (
-      <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden', className)}>
+      <div className={cn('bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden', className)}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-zinc-50">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -306,7 +306,7 @@ export function AppTable<T extends Record<string, any>>({
                 <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors">
                   {columns.map((_, j) => (
                     <td key={j} className="px-3 py-1.5 align-middle">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse w-full max-w-[200px]" />
+                      <div className="h-4 bg-zinc-100 rounded animate-pulse w-full max-w-[200px]" />
                     </td>
                   ))}
                 </tr>
@@ -319,7 +319,7 @@ export function AppTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden', className)}>
+    <div className={cn('bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden', className)}>
       {enableColumnFilters && hasColumnFilters && (
         <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50/80 flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
@@ -337,7 +337,7 @@ export function AppTable<T extends Record<string, any>>({
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-zinc-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -349,7 +349,7 @@ export function AppTable<T extends Record<string, any>>({
                     {header.column.columnDef.enableSorting !== false && enableSorting ? (
                       <div
                         className={cn(
-                          'flex items-center gap-1 cursor-pointer select-none hover:text-gray-900',
+                          'flex items-center gap-1 cursor-pointer select-none hover:text-zinc-900',
                           header.column.getCanSort() ? 'cursor-pointer' : 'cursor-default'
                         )}
                         onClick={header.column.getToggleSortingHandler()}
@@ -387,7 +387,7 @@ export function AppTable<T extends Record<string, any>>({
               <tr>
                 <td
                   colSpan={visibleColumnsCount}
-                  className="px-4 py-12 text-center text-gray-500"
+                  className="px-4 py-12 text-center text-zinc-500"
                 >
                   {emptyMessage}
                 </td>
@@ -446,28 +446,28 @@ export function AppTable<T extends Record<string, any>>({
             <button
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
-              className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
               disabled={!table.getCanNextPage()}
-              className="p-1.5 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-md hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

@@ -171,7 +171,7 @@ export default function TransferToolSelectionComponent({
   };
 
   const getToolStatus = (availableQuantity: number, issuedQuantity: number) => {
-    if (availableQuantity === 0) return { status: 'FULLY RETURNED', color: 'text-gray-600' };
+    if (availableQuantity === 0) return { status: 'FULLY RETURNED', color: 'text-zinc-600' };
     if (availableQuantity === issuedQuantity) return { status: 'FULLY AVAILABLE', color: 'text-green-600' };
     return { status: 'PARTIALLY RETURNED', color: 'text-orange-600' };
   };

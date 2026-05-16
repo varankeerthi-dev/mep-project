@@ -97,7 +97,7 @@ export const ProGridInvoiceButton: React.FC<ProGridInvoiceButtonProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700"
+              className="h-8 w-8 rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
               disabled={pdfLoading}
               title={label}
             >

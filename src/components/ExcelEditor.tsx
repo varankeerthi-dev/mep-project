@@ -337,12 +337,12 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
-      <div className="p-4 mb-4 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+      <div className="p-4 mb-4 bg-white rounded-xl shadow-sm border border-zinc-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-slate-900">Excel Edit Mode</h2>
+          <h2 className="text-lg font-bold text-zinc-900">Excel Edit Mode</h2>
           <span className={cn(
             "px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider",
-            dirtyCount > 0 || newItems.length > 0 || deletedItems.size > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+            dirtyCount > 0 || newItems.length > 0 || deletedItems.size > 0 ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-500"
           )}>
             {dirtyCount} changes {newItems.length > 0 && `+ ${newItems.length} new`} {deletedItems.size > 0 && `+ ${deletedItems.size} deleted`}
           </span>
@@ -359,14 +359,14 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
           <button
             onClick={onCancel}
             disabled={isSaving}
-            className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"
+            className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-zinc-600 hover:bg-zinc-50 transition-colors flex items-center gap-2"
           >
             <CancelIcon className="w-4 h-4" /> Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={dirtyCount === 0 && newItems.length === 0 && deletedItems.size === 0 || isSaving}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-bold hover:bg-zinc-800 transition-all flex items-center gap-2 disabled:opacity-50"
           >
             <SaveIcon className="w-4 h-4" /> {isSaving ? 'Saving...' : `Save ${dirtyCount + newItems.length + deletedItems.size} Changes`}
           </button>
@@ -384,20 +384,20 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
       </div>
 
       {/* Spreadsheet Grid */}
-      <div className="flex-1 bg-white border border-slate-200 rounded-xl overflow-auto relative">
+      <div className="flex-1 bg-white border border-zinc-200 rounded-xl overflow-auto relative">
         <table className="w-full border-collapse text-left text-[13px]">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="p-2 border-r border-slate-200 w-12 text-center font-bold text-slate-500 bg-slate-50">#</th>
+            <tr className="bg-zinc-50 border-b border-zinc-200">
+              <th className="p-2 border-r border-zinc-200 w-12 text-center font-bold text-zinc-500 bg-zinc-50">#</th>
               {selectedFields.includes('_delete') && (
-                <th className="p-2 border-r border-slate-200 w-12 text-center font-bold text-slate-500 bg-slate-50"></th>
+                <th className="p-2 border-r border-zinc-200 w-12 text-center font-bold text-zinc-500 bg-zinc-50"></th>
               )}
               {getColumnConfig.map(col => (
                 <th 
                   key={col.key} 
                   className={cn(
-                    "p-3 border-r border-slate-200 font-bold text-slate-700",
-                    col.editable ? "bg-blue-50/50" : "bg-slate-50"
+                    "p-3 border-r border-zinc-200 font-bold text-zinc-700",
+                    col.editable ? "bg-blue-50/50" : "bg-zinc-50"
                   )}
                   style={{ width: col.width, minWidth: col.width }}
                 >
@@ -407,20 +407,20 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-zinc-100">
             {paginatedRows.map((row, rowIndex) => (
               <tr key={row.id} className={cn(
-                rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30',
+                rowIndex % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30',
                 isNewItem(row.id) && 'bg-green-50/30'
               )}>
                 <td className={cn(
-                  "p-2 border-r border-slate-200 text-center bg-slate-50/50",
-                  isNewItem(row.id) ? "text-green-600 font-bold" : "text-slate-400"
+                  "p-2 border-r border-zinc-200 text-center bg-zinc-50/50",
+                  isNewItem(row.id) ? "text-green-600 font-bold" : "text-zinc-400"
                 )}>
                   {isNewItem(row.id) ? 'NEW' : startIndex + rowIndex + 1}
                 </td>
                 {selectedFields.includes('_delete') && (
-                  <td className="p-2 border-r border-slate-200 text-center bg-slate-50/50">
+                  <td className="p-2 border-r border-zinc-200 text-center bg-zinc-50/50">
                     <button
                       onClick={() => handleDeleteRow(row.id)}
                       className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1 transition-colors"
@@ -442,7 +442,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
                       key={col.key}
                       onClick={() => isEditable && handleCellClick(row.id, col.key, col)}
                       className={cn(
-                        "p-0 border-r border-slate-200 relative group",
+                        "p-0 border-r border-zinc-200 relative group",
                         col.editable ? "cursor-cell" : "cursor-default",
                         isActive ? "bg-amber-50" : isDirty ? "bg-amber-50/50" : "bg-transparent"
                       )}
@@ -507,15 +507,15 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between bg-white rounded-xl border border-slate-200 p-3">
-          <div className="text-sm text-slate-600">
+        <div className="mt-4 flex items-center justify-between bg-white rounded-xl border border-zinc-200 p-3">
+          <div className="text-sm text-zinc-600">
             Showing {startIndex + 1} to {Math.min(endIndex, rows.length)} of {rows.length} items
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -526,8 +526,8 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
                 className={cn(
                   "px-3 py-1.5 text-sm font-medium rounded-lg border",
                   currentPage === page
-                    ? "bg-slate-900 text-white border-slate-900"
-                    : "border-slate-200 hover:bg-slate-50"
+                    ? "bg-zinc-900 text-white border-zinc-900"
+                    : "border-zinc-200 hover:bg-zinc-50"
                 )}
               >
                 {page}
@@ -536,7 +536,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -546,11 +546,11 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
 
       {/* Preview Modal */}
       {showPreview && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-3">
+            <div className="px-8 py-6 border-b border-zinc-100 flex items-center gap-3">
               <HistoryIcon className="w-6 h-6 text-indigo-600" />
-              <h3 className="text-xl font-black text-slate-900">Review Changes</h3>
+              <h3 className="text-xl font-black text-zinc-900">Review Changes</h3>
             </div>
             
             <div className="flex-1 overflow-y-auto p-8">
@@ -589,24 +589,24 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
               )}
 
               {dirtyCount > 0 && (
-                <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                <div className="border border-zinc-100 rounded-2xl overflow-hidden">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 border-b border-slate-100">
+                    <thead className="bg-zinc-50 border-b border-zinc-100">
                       <tr>
-                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Item Code</th>
-                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Item Name</th>
-                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Field</th>
-                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Old Value</th>
-                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">New Value</th>
+                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Item Code</th>
+                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Item Name</th>
+                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Field</th>
+                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Old Value</th>
+                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">New Value</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-[13px]">
+                    <tbody className="divide-y divide-zinc-100 text-[13px]">
                       {generateChangeLog().map((change, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="p-4 font-mono text-slate-500 uppercase">{change.itemCode}</td>
-                          <td className="p-4 font-bold text-slate-700">{change.itemName}</td>
-                          <td className="p-4 text-slate-600">{change.field}</td>
-                          <td className="p-4 text-slate-400 line-through decoration-slate-300 font-mono italic">{String(change.oldValue)}</td>
+                        <tr key={idx} className="hover:bg-zinc-50/50">
+                          <td className="p-4 font-mono text-zinc-500 uppercase">{change.itemCode}</td>
+                          <td className="p-4 font-bold text-zinc-700">{change.itemName}</td>
+                          <td className="p-4 text-zinc-600">{change.field}</td>
+                          <td className="p-4 text-zinc-400 line-through decoration-zinc-300 font-mono italic">{String(change.oldValue)}</td>
                           <td className="p-4 text-blue-600 font-black font-mono">{String(change.newValue)}</td>
                         </tr>
                       ))}
@@ -616,11 +616,11 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
               )}
             </div>
 
-            <div className="px-8 py-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+            <div className="px-8 py-6 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50/50">
               <button 
                 onClick={() => setShowPreview(false)} 
                 disabled={isSaving}
-                className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-white border border-slate-200 transition-all font-bold"
+                className="px-6 py-3 rounded-xl font-bold text-zinc-600 hover:bg-white border border-zinc-200 transition-all font-bold"
               >
                 Back to Editing
               </button>
@@ -680,14 +680,14 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center px-4">
-        <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest">Select Fields to Edit</h3>
+        <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest">Select Fields to Edit</h3>
         <button onClick={handleSelectAll} className="text-xs font-bold text-blue-600 hover:underline">Select All</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {fieldGroups.map(group => (
-          <div key={group.title} className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">{group.title}</h4>
+          <div key={group.title} className="p-6 bg-zinc-50 rounded-2xl border border-zinc-100">
+            <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-4">{group.title}</h4>
             <div className="grid grid-cols-1 gap-3">
               {group.fields.map(field => (
                 <label key={field.key} className="flex items-center gap-3 cursor-pointer group">
@@ -695,9 +695,9 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
                     type="checkbox"
                     checked={selectedFields.includes(field.key)}
                     onChange={() => handleToggle(field.key)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">{field.label}</span>
+                  <span className="text-sm font-bold text-zinc-600 group-hover:text-zinc-900 transition-colors">{field.label}</span>
                 </label>
               ))}
             </div>
@@ -705,8 +705,8 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
         ))}
 
         {warehouses.length > 0 && (
-          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Stock by Warehouse</h4>
+          <div className="p-6 bg-zinc-50 rounded-2xl border border-zinc-100">
+            <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-4">Stock by Warehouse</h4>
             <div className="grid grid-cols-1 gap-3">
               {warehouses.map(wh => (
                 <label key={wh.id} className="flex items-center gap-3 cursor-pointer group">
@@ -714,9 +714,9 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
                     type="checkbox"
                     checked={selectedFields.includes(`stock_${wh.id}`)}
                     onChange={() => handleToggle(`stock_${wh.id}`)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Stock: {wh.warehouse_name || wh.name}</span>
+                  <span className="text-sm font-bold text-zinc-600 group-hover:text-zinc-900 transition-colors">Stock: {wh.warehouse_name || wh.name}</span>
                 </label>
               ))}
             </div>

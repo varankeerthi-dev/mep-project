@@ -35,7 +35,7 @@ const SOURCE_CONFIG: Record<string, { label: string, color: string, bg: string }
   boq:       { label: 'BOQ Ref',   color: '#d97706', bg: '#fffbeb' },
 };
 
-const inputClass = "w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] text-slate-900 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 placeholder:text-slate-400";
+const inputClass = "w-full rounded-lg border border-zinc-200 bg-white px-4 py-2 text-[13px] text-zinc-900 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 placeholder:text-zinc-400";
 
 type ProcurementListType = {
   id: string;
@@ -233,9 +233,9 @@ export default function ProcurementList() {
       size: 300,
       cell: ({ row }) => (
         <div className="flex flex-col gap-0.5" onClick={() => navigate(`/procurement/detail?id=${row.original.id}`)}>
-          <span className="font-semibold text-slate-900 leading-tight">{row.original.title}</span>
+          <span className="font-semibold text-zinc-900 leading-tight">{row.original.title}</span>
           {row.original.notes && (
-            <span className="text-[11px] text-slate-400 line-clamp-1">{row.original.notes}</span>
+            <span className="text-[11px] text-zinc-400 line-clamp-1">{row.original.notes}</span>
           )}
         </div>
       )
@@ -259,8 +259,8 @@ export default function ProcurementList() {
       accessorKey: 'client_name',
       size: 200,
       cell: ({ getValue }) => (
-        <div className="flex items-center gap-1.5 text-slate-600">
-          <User size={13} className="text-slate-400" />
+        <div className="flex items-center gap-1.5 text-zinc-600">
+          <User size={13} className="text-zinc-400" />
           <span>{getValue() || '—'}</span>
         </div>
       )
@@ -272,8 +272,8 @@ export default function ProcurementList() {
       cell: ({ row }) => {
         const ref = row.original.boq_no || row.original.quotation_no;
         return (
-          <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-            <Hash size={13} className="text-slate-400" />
+          <div className="flex items-center gap-1.5 text-zinc-500 font-medium">
+            <Hash size={13} className="text-zinc-400" />
             <span>{ref || '—'}</span>
           </div>
         );
@@ -284,8 +284,8 @@ export default function ProcurementList() {
       accessorKey: 'created_at',
       size: 120,
       cell: ({ getValue }) => (
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <Calendar size={13} className="text-slate-400" />
+        <div className="flex items-center gap-1.5 text-zinc-500">
+          <Calendar size={13} className="text-zinc-400" />
           <span>{getValue() ? new Date(getValue() as string).toLocaleDateString('en-IN') : '—'}</span>
         </div>
       )
@@ -299,7 +299,7 @@ export default function ProcurementList() {
           "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors",
           getValue() === 'Active' 
             ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-            : "bg-slate-50 text-slate-500 border border-slate-100"
+            : "bg-zinc-50 text-zinc-500 border border-zinc-100"
         )}>
           {getValue() as string}
         </span>
@@ -312,8 +312,8 @@ export default function ProcurementList() {
       {/* Header */}
       <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Procurement</h1>
-          <p className="mt-2 text-slate-500 max-w-2xl font-medium">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">Procurement</h1>
+          <p className="mt-2 text-zinc-500 max-w-2xl font-medium">
             Manage your sourcing workflows, track warehouse status, and handle dispatch logistics in one unified dashboard.
           </p>
         </div>
@@ -321,7 +321,7 @@ export default function ProcurementList() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => refetch()}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-all hover:bg-zinc-50 hover:text-zinc-900 active:scale-95"
             title="Refresh"
           >
             <RefreshCcw size={18} className={cn(isFetching && "animate-spin")} />
@@ -333,7 +333,7 @@ export default function ProcurementList() {
               "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-[13px] font-semibold shadow-sm transition-all active:scale-95",
               showArchived 
                 ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" 
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
             )}
           >
             <Archive size={16} />
@@ -351,14 +351,14 @@ export default function ProcurementList() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-8 flex gap-2 border-b border-slate-200 animate-in fade-in duration-700 delay-100">
+      <div className="mb-8 flex gap-2 border-b border-zinc-200 animate-in fade-in duration-700 delay-100">
         <button
           onClick={() => setActiveSubTab('lists')}
           className={cn(
             "relative flex items-center gap-2.5 px-6 py-4 text-sm font-bold transition-all",
             activeSubTab === 'lists' 
               ? "text-blue-600" 
-              : "text-slate-500 hover:text-slate-700"
+              : "text-zinc-500 hover:text-zinc-700"
           )}
         >
           <Package size={18} />
@@ -373,7 +373,7 @@ export default function ProcurementList() {
             "relative flex items-center gap-2.5 px-6 py-4 text-sm font-bold transition-all",
             activeSubTab === 'dispatch' 
               ? "text-blue-600" 
-              : "text-slate-500 hover:text-slate-700"
+              : "text-zinc-500 hover:text-zinc-700"
           )}
         >
           <Truck size={18} />
@@ -387,9 +387,9 @@ export default function ProcurementList() {
       {/* Main Content Area */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
         {activeSubTab === 'dispatch' ? (
-          <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-              <div className="flex items-center gap-3 font-semibold text-slate-900">
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-xl shadow-zinc-200/50">
+            <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-6 py-4">
+              <div className="flex items-center gap-3 font-semibold text-zinc-900">
                 <ExternalLink size={18} className="text-blue-500" />
                 <span>Google Sheets Integration</span>
               </div>
@@ -397,12 +397,12 @@ export default function ProcurementList() {
                 href={DISPATCH_EDIT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-lg bg-white border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-95"
               >
                 Edit in Browser
               </a>
             </div>
-            <div className="h-[700px] w-full bg-slate-50">
+            <div className="h-[700px] w-full bg-zinc-50">
               <iframe
                 src={DISPATCH_SHEET_URL}
                 className="h-full w-full"
@@ -415,7 +415,7 @@ export default function ProcurementList() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:max-w-md">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                 <input
                   type="text"
                   placeholder="Search by title, client, or reference..."
@@ -429,7 +429,7 @@ export default function ProcurementList() {
                 {filtered.length > 0 && (
                   <button
                     onClick={exportToPDF}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
                   >
                     <FileDown size={16} className="text-emerald-500" />
                     Export PDF
@@ -442,7 +442,7 @@ export default function ProcurementList() {
               data={filtered}
               columns={columns}
               loading={isLoading}
-              className="rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/40"
+              className="rounded-2xl border border-zinc-200 shadow-xl shadow-zinc-200/40"
               emptyMessage={search ? "No matches found for your search." : "No procurement lists available."}
               enableActions={true}
               actions={[
@@ -479,7 +479,7 @@ export default function ProcurementList() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowNewModal(false)}
-              className="px-4 py-2 text-[13px] font-semibold text-slate-600 hover:text-slate-900"
+              className="px-4 py-2 text-[13px] font-semibold text-zinc-600 hover:text-zinc-900"
             >
               Cancel
             </button>
@@ -509,7 +509,7 @@ export default function ProcurementList() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">List Title *</label>
+            <label className="text-[12px] font-bold text-zinc-700 uppercase tracking-wider">List Title *</label>
             <input
               type="text"
               value={newTitle}
@@ -521,7 +521,7 @@ export default function ProcurementList() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Internal Notes</label>
+            <label className="text-[12px] font-bold text-zinc-700 uppercase tracking-wider">Internal Notes</label>
             <textarea
               value={newNotes}
               onChange={(e) => setNewNotes(e.target.value)}
@@ -529,7 +529,7 @@ export default function ProcurementList() {
               rows={4}
               className={cn(inputClass, "resize-none h-32 py-3")}
             />
-            <p className="text-[11px] text-slate-400">Notes will be displayed in the dashboard and exported documents.</p>
+            <p className="text-[11px] text-zinc-400">Notes will be displayed in the dashboard and exported documents.</p>
           </div>
         </div>
       </Modal>

@@ -474,22 +474,22 @@ export default function QuotationList() {
           <table className="w-full border-separate border-spacing-0 table-fixed">
             <thead className="sticky top-0 z-10">
               <tr className="bg-blue-100/80 border-b border-blue-200">
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                   Date
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[160px] border-r border-zinc-200">
                   Quote No
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[500px]">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[500px]">
                   Client
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[180px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[180px] border-r border-zinc-200">
                   Amount
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                   Status
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[70px]">
+                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px]">
                   Action
                 </th>
               </tr>
@@ -497,13 +497,13 @@ export default function QuotationList() {
             <tbody className="bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-zinc-500">
                     Loading quotations...
                   </td>
                 </tr>
               ) : paginationData.currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-zinc-500">
                     No quotations found
                   </td>
                 </tr>
@@ -511,26 +511,26 @@ export default function QuotationList() {
                 paginationData.currentItems.map((q: any, index) => (
                   <tr
                     key={q.id}
-                    className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                    className={`hover:bg-zinc-50 cursor-pointer transition-all duration-150 ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
                     }`}
 onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                   >
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       {formatDate(q.date)}
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       {q.quotation_no}
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                       <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
                         {q.client?.client_name || '-'}
                       </div>
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap tabular-nums border-r border-zinc-100 border-t border-zinc-200/70">
                       {formatCurrency(q.grand_total)}
                     </td>
-                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       <span
                         className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
                         style={{
@@ -542,7 +542,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                         {q.status}
                       </span>
                     </td>
-                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-slate-200/70">
+                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-zinc-200/70">
                       <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                         <button
                           onClick={(e) => {
@@ -551,17 +551,17 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                           }}
                           className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-amber-100 hover:bg-amber-200 transition-colors"
                         >
-                          <MoreHorizontalIcon className="w-4 h-4 text-slate-500" />
+                          <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                         </button>
                       {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-slate-200/60 bg-gray-200 p-1.5 shadow-lg shadow-black/5">
+                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200/60 bg-zinc-200 p-1.5 shadow-lg shadow-black/5">
                           {/* Section 1: Read actions */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/quotation/view?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             View Details
@@ -571,13 +571,13 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               e.stopPropagation();
                               downloadQuotationPDF(q.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             Download PDF
                           </button>
 
-                          <div className="my-1 border-t border-slate-100" />
+                          <div className="my-1 border-t border-zinc-100" />
 
                           {/* Section 2: Convert actions */}
                           <button
@@ -586,7 +586,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             Convert to Invoice
@@ -597,7 +597,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             Convert to Proforma
@@ -609,13 +609,13 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             Convert to Delivery
                           </button>
 
-                          <div className="my-1 border-t border-slate-100" />
+                          <div className="my-1 border-t border-zinc-100" />
 
                           {/* Section 3: Modify actions */}
                           <button
@@ -624,7 +624,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/quotation/edit?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             Edit
@@ -748,13 +748,13 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                                 alert('Error: ' + err.message);
                               }
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
                             Duplicate
                           </button>
 
-                          <div className="my-1 border-t border-slate-100" />
+                          <div className="my-1 border-t border-zinc-100" />
 
                           {/* Section 3: Destructive */}
                           <button
@@ -767,7 +767,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                                 });
                               }
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-red-50 hover:text-red-600"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600"
                             style={{ padding: '8px' }}
                           >
                             Delete
@@ -786,8 +786,8 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
       
       {/* Pagination Controls */}
       {paginationData.totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/50">
-          <div className="text-base text-slate-600">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+          <div className="text-base text-zinc-600">
             Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
           </div>
           <div className="flex items-center gap-2">
@@ -797,8 +797,8 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
               disabled={!paginationData.hasPrevPage}
               className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
                 paginationData.hasPrevPage
-                  ? 'text-slate-700 hover:bg-slate-100'
-                  : 'text-slate-300 cursor-not-allowed'
+                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-300 cursor-not-allowed'
               }`}
             >
               Previous
@@ -824,8 +824,8 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                     onClick={() => setCurrentPage(pageNum)}
                     className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[36px] ${
                       currentPage === pageNum
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-700 hover:bg-slate-100'
+                        ? 'bg-zinc-900 text-white'
+                        : 'text-zinc-700 hover:bg-zinc-100'
                     }`}
                   >
                     {pageNum}
@@ -840,8 +840,8 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
               disabled={!paginationData.hasNextPage}
               className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
                 paginationData.hasNextPage
-                  ? 'text-slate-700 hover:bg-slate-100'
-                  : 'text-slate-300 cursor-not-allowed'
+                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-300 cursor-not-allowed'
               }`}
             >
               Next

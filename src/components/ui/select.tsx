@@ -82,11 +82,11 @@ export function Select({
   return (
     <div style={{ width: '100%' }}>
       {label && (
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+        <label className="block text-sm font-medium text-zinc-700 mb-1.5">{label}</label>
       )}
       <select
         className={cn(
-          'h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50',
+          'h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50',
           error && 'border-red-400 focus:ring-red-500',
           triggerClass,
           className

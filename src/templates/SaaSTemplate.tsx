@@ -94,22 +94,22 @@ export default function DocumentPreview({
   const title = DOCUMENT_LABELS[data.document_type] || "DOCUMENT";
 
   return (
-    <div className="min-h-[297mm] flex flex-col bg-white text-[11px] text-gray-800 p-6">
+    <div className="min-h-[297mm] flex flex-col bg-white text-[11px] text-zinc-800 p-6">
       <style>{`
         .bg-blue-700 { background-color: #1d4ed8 !important; }
-        .bg-gray-100 { background-color: #f3f4f6 !important; }
-        .bg-gray-50 { background-color: #f9fafb !important; }
+        .bg-zinc-100 { background-color: #f3f4f6 !important; }
+        .bg-zinc-50 { background-color: #f9fafb !important; }
         .text-blue-700 { color: #1d4ed8 !important; }
-        .text-gray-500 { color: #6b7280 !important; }
-        .text-gray-600 { color: #4b5563 !important; }
-        .text-gray-800 { color: #1f2937 !important; }
+        .text-zinc-500 { color: #6b7280 !important; }
+        .text-zinc-600 { color: #4b5563 !important; }
+        .text-zinc-800 { color: #1f2937 !important; }
       `}</style>
 
       {/* ---------------- HEADER ---------------- */}
       <div className="flex justify-between items-start border-b pb-3">
         <div>
           <div className="text-lg font-bold">{organisation.name}</div>
-          <div className="text-[10px] text-gray-500">
+          <div className="text-[10px] text-zinc-500">
             {organisation.address}
           </div>
         </div>
@@ -119,14 +119,14 @@ export default function DocumentPreview({
           <div className="text-xs font-semibold">
             {getDocumentNumber(data)}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-zinc-500">
             {data.date}
           </div>
         </div>
       </div>
 
       {/* ---------------- INFO ---------------- */}
-      <div className="grid grid-cols-3 gap-4 py-2 border-b text-[10px] text-gray-600">
+      <div className="grid grid-cols-3 gap-4 py-2 border-b text-[10px] text-zinc-600">
         <div>PO No: {data.po_no || "-"}</div>
         <div>Valid Till: {data.valid_till || "-"}</div>
         <div>Payment: {data.payment_terms || "-"}</div>
@@ -137,7 +137,7 @@ export default function DocumentPreview({
         <div className="border p-2">
           <div className="text-blue-700 font-semibold text-[10px]">BILL TO</div>
           <div className="font-medium">{data.client?.client_name}</div>
-          <div className="text-[10px] text-gray-500">
+          <div className="text-[10px] text-zinc-500">
             {data.billing_address}
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function DocumentPreview({
         <div className="border p-2">
           <div className="text-blue-700 font-semibold text-[10px]">SHIP TO</div>
           <div className="font-medium">{data.client?.client_name}</div>
-          <div className="text-[10px] text-gray-500">
+          <div className="text-[10px] text-zinc-500">
             {data.shipping_address || data.billing_address}
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function DocumentPreview({
             return (
               <div
                 key={i}
-                className="bg-gray-100 font-semibold px-2 py-1 text-[10px]"
+                className="bg-zinc-100 font-semibold px-2 py-1 text-[10px]"
               >
                 {item.description}
               </div>
@@ -190,7 +190,7 @@ export default function DocumentPreview({
           return (
             <div
               key={i}
-              className={`grid border-t ${i % 2 === 0 ? "bg-white" : "bg-gray-50"
+              className={`grid border-t ${i % 2 === 0 ? "bg-white" : "bg-zinc-50"
                 }`}
               style={{ gridTemplateColumns: gridTemplate }}
             >

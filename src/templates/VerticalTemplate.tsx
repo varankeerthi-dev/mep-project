@@ -233,24 +233,24 @@ export default function VerticalTemplate({
         }
 
         /* Hex-based Color Fallbacks for html2canvas (OKLCH not supported) */
-        .txt-slate-900 { color: #0f172a !important; }
-        .txt-slate-800 { color: #1e293b !important; }
-        .txt-slate-700 { color: #334155 !important; }
-        .txt-slate-600 { color: #475569 !important; }
-        .txt-slate-500 { color: #64748b !important; }
-        .txt-slate-400 { color: #94a3b8 !important; }
+        .txt-zinc-900 { color: #0f172a !important; }
+        .txt-zinc-800 { color: #1e293b !important; }
+        .txt-zinc-700 { color: #334155 !important; }
+        .txt-zinc-600 { color: #475569 !important; }
+        .txt-zinc-500 { color: #64748b !important; }
+        .txt-zinc-400 { color: #94a3b8 !important; }
         .txt-blue-600 { color: #2563eb !important; }
         .txt-blue-700 { color: #1d4ed8 !important; }
         .txt-red-600 { color: #dc2626 !important; }
         
-        .bg-slate-50 { background-color: #f8fafc !important; }
-        .bg-slate-100 { background-color: #f1f5f9 !important; }
-        .bg-slate-900 { background-color: #0f172a !important; }
+        .bg-zinc-50 { background-color: #f8fafc !important; }
+        .bg-zinc-100 { background-color: #f1f5f9 !important; }
+        .bg-zinc-900 { background-color: #0f172a !important; }
         
-        .brd-slate-100 { border-color: #f1f5f9 !important; }
-        .brd-slate-200 { border-color: #e2e8f0 !important; }
-        .brd-slate-300 { border-color: #cbd5e1 !important; }
-        .brd-slate-900 { border-color: #0f172a !important; }
+        .brd-zinc-100 { border-color: #f1f5f9 !important; }
+        .brd-zinc-200 { border-color: #e2e8f0 !important; }
+        .brd-zinc-300 { border-color: #cbd5e1 !important; }
+        .brd-zinc-900 { border-color: #0f172a !important; }
         
         /* Force Hex on SVGs for html2canvas */
         svg {
@@ -338,7 +338,7 @@ export default function VerticalTemplate({
         {/* Header */}
         <div className="dense-header flex justify-between items-start pt-2">
           <div className="flex gap-5">
-            <div className="w-20 h-20 bg-slate-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden border brd-slate-200">
+            <div className="w-20 h-20 bg-zinc-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden border brd-zinc-200">
               {organisation.logo_url ? (
                 <img src={organisation.logo_url} alt="Logo" className="w-full h-full object-contain bg-white p-1" />
               ) : (
@@ -346,29 +346,29 @@ export default function VerticalTemplate({
               )}
             </div>
             <div className="flex flex-col justify-center">
-              <div className="text-2xl font-black txt-slate-900 tracking-tight leading-tight org-name-font">
+              <div className="text-2xl font-black txt-zinc-900 tracking-tight leading-tight org-name-font">
                 {organisation.name}
               </div>
               <div className="text-[10px] txt-blue-600 font-bold uppercase tracking-widest mb-2">
                 {organisation.subtitle || organisation.description || "Engineering & Manufacturing Solutions"}
               </div>
-              <div className="grid grid-cols-1 gap-1 txt-slate-600 text-[10px]">
+              <div className="grid grid-cols-1 gap-1 txt-zinc-600 text-[10px]">
                 <div className="flex items-center gap-1.5" style={{ minHeight: '16px' }}>
-                  <MapPin size={10} className="txt-slate-400 flex-shrink-0" />
+                  <MapPin size={10} className="txt-zinc-400 flex-shrink-0" />
                   <span className="max-w-[450px]">{organisation.address}</span>
                 </div>
                 <div className="flex gap-4" style={{ minHeight: '16px' }}>
                   <div className="flex items-center gap-1.5">
-                    <Phone size={10} className="txt-slate-400 flex-shrink-0" />
+                    <Phone size={10} className="txt-zinc-400 flex-shrink-0" />
                     <span className="font-bold">{organisation.phone}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 font-bold txt-slate-800 uppercase">
-                    <span className="txt-slate-400 flex-shrink-0">GSTIN:</span>
+                  <div className="flex items-center gap-1.5 font-bold txt-zinc-800 uppercase">
+                    <span className="txt-zinc-400 flex-shrink-0">GSTIN:</span>
                     <span>{organisation.gstin}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5" style={{ minHeight: '16px' }}>
-                  <Mail size={10} className="txt-slate-400 flex-shrink-0" />
+                  <Mail size={10} className="txt-zinc-400 flex-shrink-0" />
                   <span className="font-bold">{organisation.email}</span>
                 </div>
               </div>
@@ -376,7 +376,7 @@ export default function VerticalTemplate({
           </div>
 
           <div className="text-right">
-            <div className="text-4xl font-black txt-slate-900 tracking-tighter leading-none">
+            <div className="text-4xl font-black txt-zinc-900 tracking-tighter leading-none">
               {docType.toUpperCase()}
             </div>
           </div>
@@ -384,15 +384,15 @@ export default function VerticalTemplate({
 
         {/* Info Bar - Clean Layout */}
         {infoFields.length > 0 && (
-          <div className="mt-0 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-1 text-[11px] font-bold">
+          <div className="mt-0 grid grid-cols-3 divide-x divide-zinc-200 border-y border-zinc-200 py-1 text-[11px] font-bold">
           <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
-            <div className="txt-slate-500 font-bold uppercase text-[9px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
-            <div className="txt-slate-500 font-bold uppercase text-[9px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
+            <div className="txt-zinc-500 font-bold uppercase text-[9px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
+            <div className="txt-zinc-500 font-bold uppercase text-[9px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
           </div>
           <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
             {infoFields.slice(0, 2).map((f, i) => (
               <React.Fragment key={i}>
-                <div className="txt-slate-500 font-bold uppercase text-[9px]">{f.label}</div>
+                <div className="txt-zinc-500 font-bold uppercase text-[9px]">{f.label}</div>
                 <div className="font-bold">: {f.value || "-"}</div>
               </React.Fragment>
             ))}
@@ -400,7 +400,7 @@ export default function VerticalTemplate({
           <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
             {infoFields.slice(2).map((f, i) => (
               <React.Fragment key={i}>
-                <div className="txt-slate-500 font-bold uppercase text-[9px]">{f.label}</div>
+                <div className="txt-zinc-500 font-bold uppercase text-[9px]">{f.label}</div>
                 <div className="font-bold">: {f.value || "-"}</div>
               </React.Fragment>
             ))}
@@ -412,32 +412,32 @@ export default function VerticalTemplate({
         {(optional.bill_to !== false || optional.ship_to !== false) && (
           <div className="mt-1 grid grid-cols-2 gap-4">
             {optional.bill_to !== false && (
-              <div className="bg-slate-50 p-2 border-l-2 brd-slate-900" style={{ backgroundColor: '#f8fafc' }}>
-                <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Bill To</div>
-                <div className="font-extrabold txt-slate-900 text-[12px] leading-tight mb-1">
+              <div className="bg-zinc-50 p-2 border-l-2 brd-zinc-900" style={{ backgroundColor: '#f8fafc' }}>
+                <div className="text-[10px] font-black uppercase txt-zinc-900 mb-1 tracking-widest">Bill To</div>
+                <div className="font-extrabold txt-zinc-900 text-[12px] leading-tight mb-1">
                   {data.client?.client_name || data.client?.name}
                 </div>
-                <div className="text-[11px] txt-slate-600 leading-relaxed mb-2">
+                <div className="text-[11px] txt-zinc-600 leading-relaxed mb-2">
                   {data.billing_address || [data.client?.address, data.client?.city, data.client?.state, data.client?.pincode].filter(Boolean).join(", ")}
                 </div>
                 <div className="mt-auto grid grid-cols-1 gap-0.5 text-[10px] font-bold">
-                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">GSTIN</span><span className="txt-slate-900">: {data.client?.gstin || data.gstin || "-"}</span></div>
-                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">Contact</span><span className="txt-slate-900">: {data.client?.phone || data.client_contact || "-"}</span></div>
+                  <div className="flex gap-2"><span className="txt-zinc-400 uppercase w-12">GSTIN</span><span className="txt-zinc-900">: {data.client?.gstin || data.gstin || "-"}</span></div>
+                  <div className="flex gap-2"><span className="txt-zinc-400 uppercase w-12">Contact</span><span className="txt-zinc-900">: {data.client?.phone || data.client_contact || "-"}</span></div>
                 </div>
               </div>
             )}
             {optional.ship_to !== false && (
-              <div className="bg-slate-50 p-2 border-l-2 brd-slate-300" style={{ backgroundColor: '#f8fafc' }}>
-                <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Ship To / Project</div>
-                <div className="font-extrabold txt-slate-900 text-[12px] leading-tight mb-1">
+              <div className="bg-zinc-50 p-2 border-l-2 brd-zinc-300" style={{ backgroundColor: '#f8fafc' }}>
+                <div className="text-[10px] font-black uppercase txt-zinc-900 mb-1 tracking-widest">Ship To / Project</div>
+                <div className="font-extrabold txt-zinc-900 text-[12px] leading-tight mb-1">
                   {data.shipping_company_name || data.client?.client_name || data.client?.name}
                 </div>
-                <div className="text-[11px] txt-slate-600 leading-relaxed mb-2">
+                <div className="text-[11px] txt-zinc-600 leading-relaxed mb-2">
                   {data.shipping_address || data.billing_address || [data.client?.address, data.client?.city, data.client?.state, data.client?.pincode].filter(Boolean).join(", ")}
                 </div>
                 <div className="mt-auto grid grid-cols-1 gap-0.5 text-[10px] font-bold">
-                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">GSTIN</span><span className="txt-slate-900">: {data.client?.gstin || data.gstin || "-"}</span></div>
-                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">Contact</span><span className="txt-slate-900">: {data.client?.phone || data.client_contact || "-"}</span></div>
+                  <div className="flex gap-2"><span className="txt-zinc-400 uppercase w-12">GSTIN</span><span className="txt-zinc-900">: {data.client?.gstin || data.gstin || "-"}</span></div>
+                  <div className="flex gap-2"><span className="txt-zinc-400 uppercase w-12">Contact</span><span className="txt-zinc-900">: {data.client?.phone || data.client_contact || "-"}</span></div>
                   {optional.project_name !== false && data.project_name && <div className="txt-blue-700 mt-1 uppercase text-[9px] tracking-tight font-black">Project: {data.project_name}</div>}
                 </div>
               </div>
@@ -464,7 +464,7 @@ export default function VerticalTemplate({
                 return (
                   <React.Fragment key={idx}>
                   {item.type === 'header' ? (
-                    <tr className="bg-slate-50">
+                    <tr className="bg-zinc-50">
                       <td colSpan={columns.length} className="font-black text-blue-900 uppercase tracking-tight py-1 text-[10px]">
                         {item.group_no}. {item.description}
                       </td>
@@ -474,11 +474,11 @@ export default function VerticalTemplate({
                       {columns.map((col: any) => (
                         <td key={col.key} style={{ textAlign: col.align || 'left' }}>
                           {col.key === 'sno' ? (
-                            <span className="font-bold text-slate-400 text-[10px]">{item.sno_display}</span>
+                            <span className="font-bold text-zinc-400 text-[10px]">{item.sno_display}</span>
                           ) : col.key === 'item' ? (
                             <div>
-                              <div className="font-bold text-slate-900">{getCellValue(item, col.key, idx, data)}</div>
-                              {item.description && <div className="text-[9px] text-slate-500 mt-0.5 leading-none">{mapping?.client_description || item.description}</div>}
+                              <div className="font-bold text-zinc-900">{getCellValue(item, col.key, idx, data)}</div>
+                              {item.description && <div className="text-[9px] text-zinc-500 mt-0.5 leading-none">{mapping?.client_description || item.description}</div>}
                             </div>
                           ) : (
                             <span className={col.align === 'right' ? 'font-bold' : ''}>
@@ -515,26 +515,26 @@ export default function VerticalTemplate({
           <div className="flex justify-between items-start gap-8">
             {/* Left Column: Amount in Words and Bank Details */}
             <div className="flex-grow flex flex-col justify-between self-stretch py-0">
-              <div className="brd-slate-200 border-t border-b py-1 mb-2">
+              <div className="brd-zinc-200 border-t border-b py-1 mb-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[8px] font-black uppercase txt-slate-400 tracking-widest">Amount in Words</span>
-                  <div className="h-px bg-slate-100 flex-grow"></div>
+                  <span className="text-[8px] font-black uppercase txt-zinc-400 tracking-widest">Amount in Words</span>
+                  <div className="h-px bg-zinc-100 flex-grow"></div>
                 </div>
-                <div className="text-[12px] font-black txt-slate-900 italic uppercase">
+                <div className="text-[12px] font-black txt-zinc-900 italic uppercase">
                   Indian Rupees {numberToWords(data.grand_total)} Only
                 </div>
               </div>
 
               <div>
-                <div className="text-[10px] font-black uppercase txt-slate-400 mb-1 tracking-widest flex items-center gap-2">
+                <div className="text-[10px] font-black uppercase txt-zinc-400 mb-1 tracking-widest flex items-center gap-2">
                   <span>Bank Details</span>
-                  <div className="h-px bg-slate-100 flex-grow"></div>
+                  <div className="h-px bg-zinc-100 flex-grow"></div>
                 </div>
-                <div className="grid grid-cols-[80px_1fr] gap-x-2 text-[12px] border brd-slate-100 p-2 rounded" style={{ backgroundColor: '#fafbfc' }}>
-                  <div className="txt-slate-500 font-bold uppercase text-[8px]">Bank</div><div className="font-bold text-slate-900">: {organisation.bank_details?.bank_name}</div>
-                  <div className="txt-slate-500 font-bold uppercase text-[8px]">A/C No</div><div className="font-bold text-slate-900">: {organisation.bank_details?.account_no}</div>
-                  <div className="txt-slate-500 font-bold uppercase text-[8px]">IFSC</div><div className="font-bold text-slate-900">: {organisation.bank_details?.ifsc_code}</div>
-                  <div className="txt-slate-500 font-bold uppercase text-[8px]">Branch</div><div className="font-bold text-slate-900">: {organisation.bank_details?.branch_name || organisation.bank_details?.branch}</div>
+                <div className="grid grid-cols-[80px_1fr] gap-x-2 text-[12px] border brd-zinc-100 p-2 rounded" style={{ backgroundColor: '#fafbfc' }}>
+                  <div className="txt-zinc-500 font-bold uppercase text-[8px]">Bank</div><div className="font-bold text-zinc-900">: {organisation.bank_details?.bank_name}</div>
+                  <div className="txt-zinc-500 font-bold uppercase text-[8px]">A/C No</div><div className="font-bold text-zinc-900">: {organisation.bank_details?.account_no}</div>
+                  <div className="txt-zinc-500 font-bold uppercase text-[8px]">IFSC</div><div className="font-bold text-zinc-900">: {organisation.bank_details?.ifsc_code}</div>
+                  <div className="txt-zinc-500 font-bold uppercase text-[8px]">Branch</div><div className="font-bold text-zinc-900">: {organisation.bank_details?.branch_name || organisation.bank_details?.branch}</div>
                 </div>
               </div>
             </div>
@@ -543,7 +543,7 @@ export default function VerticalTemplate({
             <div className="w-[300px] shrink-0">
               <div className="space-y-1.5 p-1">
                 {optional.subtotal !== false && (
-                  <div className="flex justify-between txt-slate-600 text-[11px]">
+                  <div className="flex justify-between txt-zinc-600 text-[11px]">
                     <span className="font-bold uppercase">Sub-Total</span>
                     <span className="font-bold">{formatCurrency(data.subtotal)}</span>
                   </div>
@@ -559,11 +559,11 @@ export default function VerticalTemplate({
                     {Object.keys(taxGroups).length > 0 ? (
                       Object.entries(taxGroups).map(([rate, taxes]) => (
                         <React.Fragment key={rate}>
-                          <div className="flex justify-between txt-slate-500 text-[10px] border-t brd-slate-100 mt-1 pt-1">
+                          <div className="flex justify-between txt-zinc-500 text-[10px] border-t brd-zinc-100 mt-1 pt-1">
                             <span className="font-bold uppercase">SGST {Number(rate) / 2}%</span>
                             <span className="font-bold">{formatCurrency(taxes.sgst)}</span>
                           </div>
-                          <div className="flex justify-between txt-slate-500 text-[10px]">
+                          <div className="flex justify-between txt-zinc-500 text-[10px]">
                             <span className="font-bold uppercase">CGST {Number(rate) / 2}%</span>
                             <span className="font-bold">{formatCurrency(taxes.cgst)}</span>
                           </div>
@@ -571,11 +571,11 @@ export default function VerticalTemplate({
                       ))
                     ) : (
                       <>
-                        <div className="flex justify-between txt-slate-500 text-[10px] border-t brd-slate-100 mt-1 pt-1">
+                        <div className="flex justify-between txt-zinc-500 text-[10px] border-t brd-zinc-100 mt-1 pt-1">
                           <span className="font-bold uppercase">SGST</span>
                           <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
                         </div>
-                        <div className="flex justify-between txt-slate-500 text-[10px]">
+                        <div className="flex justify-between txt-zinc-500 text-[10px]">
                           <span className="font-bold uppercase">CGST</span>
                           <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
                         </div>
@@ -584,25 +584,25 @@ export default function VerticalTemplate({
                   </>
                 )}
                 {optional.round_off !== false && (
-                  <div className="flex justify-between txt-slate-400 text-[10px]">
+                  <div className="flex justify-between txt-zinc-400 text-[10px]">
                     <span className="font-bold uppercase">Round Off</span>
                     <span className="font-bold">{formatCurrency(data.round_off || 0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-slate-900 pt-2 mt-2">
-                  <span className="font-black uppercase text-[12px] txt-slate-900">Grand Total</span>
-                  <span className="font-black text-xl txt-slate-900 leading-none">{formatCurrency(data.grand_total)}</span>
+                <div className="flex justify-between border-t border-zinc-900 pt-2 mt-2">
+                  <span className="font-black uppercase text-[12px] txt-zinc-900">Grand Total</span>
+                  <span className="font-black text-xl txt-zinc-900 leading-none">{formatCurrency(data.grand_total)}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="mt-1 flex justify-between items-end">
-            <div className="text-[9px] txt-slate-400 font-bold uppercase italic">
+            <div className="text-[9px] txt-zinc-400 font-bold uppercase italic">
               * This is a computer generated document.
             </div>
             <div className="text-right">
-              <div className="font-black uppercase text-[11px] txt-slate-900 mb-[5px]">
+              <div className="font-black uppercase text-[11px] txt-zinc-900 mb-[5px]">
                 FOR {organisation.name}
               </div>
               <div className="h-8 flex items-center justify-end mb-[2px]">
@@ -622,7 +622,7 @@ export default function VerticalTemplate({
                   <div className="h-6"></div>
                 )}
               </div>
-              <div className="font-black uppercase text-[11px] txt-slate-900 border-t-2 brd-slate-900 pt-0.5 px-4 inline-block">
+              <div className="font-black uppercase text-[11px] txt-zinc-900 border-t-2 brd-zinc-900 pt-0.5 px-4 inline-block">
                 Authorised Signature
               </div>
             </div>
@@ -633,11 +633,11 @@ export default function VerticalTemplate({
       {/* ---------------- PAGE 2: TERMS ---------------- */}
       <div className="a4-page">
         <div className="dense-header flex justify-between items-center">
-          <div className="text-lg font-black txt-slate-900 uppercase tracking-tighter">Terms & Conditions</div>
-          <div className="txt-slate-400 font-bold text-[10px]">Annexure to {docNo}</div>
+          <div className="text-lg font-black txt-zinc-900 uppercase tracking-tighter">Terms & Conditions</div>
+          <div className="txt-zinc-400 font-bold text-[10px]">Annexure to {docNo}</div>
         </div>
         
-        <div className="mt-4 flex-1 text-[11px] leading-relaxed txt-slate-700 font-medium">
+        <div className="mt-4 flex-1 text-[11px] leading-relaxed txt-zinc-700 font-medium">
           <div dangerouslySetInnerHTML={{ 
             __html: (() => {
               let termsText = '';
@@ -708,7 +708,7 @@ export default function VerticalTemplate({
         </div>
 
         <div className="footer-fixed text-center pt-2">
-          <div className="text-slate-400 font-bold uppercase text-[9px]">End of Document</div>
+          <div className="text-zinc-400 font-bold uppercase text-[9px]">End of Document</div>
         </div>
       </div>
     </div>

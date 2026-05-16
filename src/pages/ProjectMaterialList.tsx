@@ -183,7 +183,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-semibold">Project Material List</h2>
-          <p className="text-sm text-gray-600">Add materials to track planned quantities and rates</p>
+          <p className="text-sm text-zinc-600">Add materials to track planned quantities and rates</p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
@@ -195,7 +195,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
       </div>
 
       {showAddForm && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6 border">
+        <div className="bg-zinc-50 p-4 rounded-lg mb-6 border">
           <h3 className="font-medium mb-4">Add New Material</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
@@ -317,7 +317,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
             </button>
             <button
               onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+              className="px-4 py-2 border rounded-lg hover:bg-zinc-100"
             >
               Cancel
             </button>

@@ -94,7 +94,7 @@ export default function VendorLedgerDialog({
       key: 'remarks',
       header: 'Remarks',
       render: (entry: any) => (
-        <span className="text-sm text-slate-500 line-clamp-1 max-w-xs">{entry.remarks}</span>
+        <span className="text-sm text-zinc-500 line-clamp-1 max-w-xs">{entry.remarks}</span>
       ),
     },
     {
@@ -134,11 +134,11 @@ export default function VendorLedgerDialog({
     >
       <div className="space-y-6">
         {/* Header Info */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{vendor?.company_name || 'Select a vendor'}</h2>
-            <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
-              <span className="px-2 py-0.5 bg-slate-200 rounded text-slate-700 font-mono text-xs">{vendor?.vendor_code || '-'}</span>
+            <h2 className="text-lg font-bold text-zinc-900">{vendor?.company_name || 'Select a vendor'}</h2>
+            <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500">
+              <span className="px-2 py-0.5 bg-zinc-200 rounded text-zinc-700 font-mono text-xs">{vendor?.vendor_code || '-'}</span>
               <span>•</span>
               <div className="flex items-center gap-1">
                 <FileText className="w-4 h-4" />
@@ -158,10 +158,10 @@ export default function VendorLedgerDialog({
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm">
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1.5 min-w-[180px]">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">From Date</label>
+              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">From Date</label>
               <div className="relative">
                 <Input
                   type="date"
@@ -172,7 +172,7 @@ export default function VendorLedgerDialog({
               </div>
             </div>
             <div className="space-y-1.5 min-w-[180px]">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">To Date</label>
+              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">To Date</label>
               <Input
                 type="date"
                 value={draftEndDate}
@@ -204,7 +204,7 @@ export default function VendorLedgerDialog({
               </Button>
             </div>
             {(appliedStartDate || appliedEndDate) && (
-              <div className="flex-1 text-right italic text-sm text-slate-400">
+              <div className="flex-1 text-right italic text-sm text-zinc-400">
                 Range filter active
               </div>
             )}
@@ -246,16 +246,16 @@ export default function VendorLedgerDialog({
         </div>
 
         {/* Table */}
-        <Card className="p-0 overflow-hidden border-slate-200 shadow-sm">
+        <Card className="p-0 overflow-hidden border-zinc-200 shadow-sm">
           <AppTable
             columns={columns}
             data={entries}
             isLoading={isLoading}
             emptyMessage={
               <div className="py-12 text-center">
-                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-slate-900">No ledger entries found</h3>
-                <p className="text-slate-500 max-w-xs mx-auto">
+                <FileText className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-zinc-900">No ledger entries found</h3>
+                <p className="text-zinc-500 max-w-xs mx-auto">
                   Bills, payments, and approved debit notes for this vendor will appear here.
                 </p>
               </div>

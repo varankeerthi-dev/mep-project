@@ -69,9 +69,9 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   const getVariantClasses = () => {
     switch (variant) {
       case 'secondary':
-        return 'bg-gray-600 text-white hover:bg-gray-700 disabled:bg-gray-400';
+        return 'bg-zinc-600 text-white hover:bg-zinc-700 disabled:bg-zinc-400';
       case 'outline':
-        return 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500';
+        return 'border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-50 disabled:bg-zinc-100 disabled:text-zinc-500';
       default:
         return 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400';
     }
@@ -116,56 +116,56 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           />
           
           {/* Dropdown */}
-          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg border border-gray-200 shadow-lg z-20">
+          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg border border-zinc-200 shadow-lg z-20">
             <div className="p-2">
               {/* Quick Actions */}
               <div className="space-y-1">
                 <button
                   onClick={() => handleGeneratePDF({ download: true })}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-md transition-colors"
                 >
-                  <DocumentArrowDownIcon className="w-4 h-4 text-gray-500" />
+                  <DocumentArrowDownIcon className="w-4 h-4 text-zinc-500" />
                   <div className="text-left">
                     <div className="font-medium">Download PDF</div>
-                    <div className="text-xs text-gray-500">Save to your device</div>
+                    <div className="text-xs text-zinc-500">Save to your device</div>
                   </div>
                 </button>
 
                 <button
                   onClick={() => handleGeneratePDF({ openInNewTab: true })}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-md transition-colors"
                 >
-                  <EyeIcon className="w-4 h-4 text-gray-500" />
+                  <EyeIcon className="w-4 h-4 text-zinc-500" />
                   <div className="text-left">
                     <div className="font-medium">Open in New Tab</div>
-                    <div className="text-xs text-gray-500">Preview before downloading</div>
+                    <div className="text-xs text-zinc-500">Preview before downloading</div>
                   </div>
                 </button>
 
                 <button
                   onClick={() => handleGeneratePDF({ download: true, openInNewTab: true })}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-md transition-colors"
                 >
-                  <ArrowDownTrayIcon className="w-4 h-4 text-gray-500" />
+                  <ArrowDownTrayIcon className="w-4 h-4 text-zinc-500" />
                   <div className="text-left">
                     <div className="font-medium">Download & Open</div>
-                    <div className="text-xs text-gray-500">Save and preview</div>
+                    <div className="text-xs text-zinc-500">Save and preview</div>
                   </div>
                 </button>
               </div>
 
-              <div className="border-t border-gray-200 my-2"></div>
+              <div className="border-t border-zinc-200 my-2"></div>
 
               {/* Custom Filename */}
               <div className="px-3 py-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-zinc-700 mb-1">
                   Custom Filename
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder={`${reportData.report_name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
-                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 px-2 py-1 text-sm border border-zinc-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         const input = e.target as HTMLInputElement;
@@ -195,24 +195,24 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 my-2"></div>
+              <div className="border-t border-zinc-200 my-2"></div>
 
               {/* Advanced Options */}
               <button
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-md transition-colors"
                 disabled
               >
-                <Cog6ToothIcon className="w-4 h-4 text-gray-500" />
+                <Cog6ToothIcon className="w-4 h-4 text-zinc-500" />
                 <div className="text-left">
                   <div className="font-medium">Advanced Options</div>
-                  <div className="text-xs text-gray-500">Coming soon</div>
+                  <div className="text-xs text-zinc-500">Coming soon</div>
                 </div>
               </button>
             </div>
 
             {/* Error Display */}
             {state.error && (
-              <div className="border-t border-gray-200 p-3 bg-red-50">
+              <div className="border-t border-zinc-200 p-3 bg-red-50">
                 <div className="text-sm text-red-700">
                   {state.error}
                 </div>
@@ -221,17 +221,17 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
 
             {/* Progress Bar */}
             {state.isGenerating && (
-              <div className="border-t border-gray-200 p-3">
+              <div className="border-t border-zinc-200 p-3">
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-zinc-200 rounded-full h-2">
                       <div 
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${state.progress}%` }}
                       ></div>
                     </div>
                   </div>
-                  <span className="text-sm text-gray-600 min-w-[3rem] text-right">
+                  <span className="text-sm text-zinc-600 min-w-[3rem] text-right">
                     {state.progress}%
                   </span>
                 </div>

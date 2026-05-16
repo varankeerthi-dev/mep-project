@@ -27,7 +27,7 @@ import { supabase } from '../supabase'
 import { useAuth } from '../App'
 
 const STATUSES = [
-  { id: 'To Do', label: 'To Do', icon: <Circle size={16} className="text-gray-400" />, bgColor: 'bg-transparent' },
+  { id: 'To Do', label: 'To Do', icon: <Circle size={16} className="text-zinc-400" />, bgColor: 'bg-transparent' },
   { id: 'In Progress', label: 'In Progress', icon: <PlayCircle size={16} className="text-blue-500" />, bgColor: 'bg-transparent' },
   { id: 'On Hold', label: 'On Hold', icon: <Clock size={16} className="text-orange-500" />, bgColor: 'bg-transparent' },
   { id: 'Review', label: 'Review', icon: <CheckCircle size={16} className="text-purple-500" />, bgColor: 'bg-transparent' },
@@ -145,8 +145,8 @@ export default function TodoList() {
       })
       
       if (!error) {
-        setInlineInputs({ ...inlineInputs, [status]: '' })
-        setInlineDates({ ...inlineDates, [status]: null })
+        setInlineInputs(prev => ({ ...prev, [status]: '' }))
+        setInlineDates(prev => ({ ...prev, [status]: null }))
         fetchTasks()
       }
     }
@@ -235,13 +235,13 @@ export default function TodoList() {
   }
 
   const getDueDateColor = (date) => {
-    if (!date) return 'text-gray-400'
+    if (!date) return 'text-zinc-400'
     const d = new Date(date)
     const now = new Date()
     if (d < now) return 'text-red-500 bg-red-50'
     const diff = d - now
     if (diff < 86400000) return 'text-amber-500 bg-amber-50'
-    return 'text-gray-500 bg-gray-50'
+    return 'text-zinc-500 bg-zinc-50'
   }
 
   const renderBoardView = () => (
@@ -249,36 +249,36 @@ export default function TodoList() {
       {STATUSES.map(status => (
         <div 
           key={status.id} 
-          className="flex flex-col min-w-[300px] flex-1 border-r border-gray-100 last:border-0"
+          className="flex flex-col min-w-[300px] flex-1 border-r border-zinc-100 last:border-0"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, status.id)}
         >
-          <div className="px-3 py-3 flex items-center justify-between bg-gray-50/50 border-b border-gray-100">
+          <div className="px-3 py-3 flex items-center justify-between bg-zinc-50/50 border-b border-zinc-100">
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0">{status.icon}</span>
-              <span className="text-sm font-semibold text-gray-800">{status.label}</span>
-              <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200 font-medium">
+              <span className="text-sm font-semibold text-zinc-800">{status.label}</span>
+              <span className="text-xs text-zinc-500 bg-white px-2 py-0.5 rounded border border-zinc-200 font-medium">
                 {filteredTasks.filter(t => t.status === status.id).length}
               </span>
             </div>
-            <button className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors">
+            <button className="text-zinc-400 hover:text-zinc-600 p-1 hover:bg-zinc-100 rounded transition-colors">
               <MoreHorizontal size={14} />
             </button>
           </div>
 
           <div className="flex-1 p-2 space-y-2 min-h-[400px] overflow-y-auto">
-            <div className="group relative space-y-2 bg-transparent p-1 rounded-lg border border-transparent hover:border-gray-100 transition-all mb-2">
+            <div className="group relative space-y-2 bg-transparent p-1 rounded-lg border border-transparent hover:border-zinc-100 transition-all mb-2">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Quick add task..."
-                  className="w-full bg-transparent border-none focus:ring-0 rounded px-2 py-2 text-sm outline-none transition-all placeholder:text-gray-400"
+                  className="w-full bg-transparent border-none focus:ring-0 rounded px-2 py-2 text-sm outline-none transition-all placeholder:text-zinc-400"
                   value={inlineInputs[status.id] || ''}
                   onChange={(e) => setInlineInputs({ ...inlineInputs, [status.id]: e.target.value })}
                   onKeyDown={(e) => handleInlineCreate(status.id, e)}
                 />
                 {!inlineInputs[status.id] && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300 pointer-events-none transition-opacity group-focus-within:opacity-0">
                     <Plus size={14} />
                   </div>
                 )}
@@ -290,7 +290,7 @@ export default function TodoList() {
                     type="date"
                     value={inlineDates[status.id] || ''}
                     onChange={(e) => setInlineDates({ ...inlineDates, [status.id]: e.target.value })}
-                    className="flex-1 px-2 py-1 bg-white border border-gray-100 rounded text-[10px] focus:ring-1 focus:ring-blue-100 focus:border-blue-200 outline-none cursor-pointer hover:border-gray-200"
+                    className="flex-1 px-2 py-1 bg-white border border-zinc-100 rounded text-[10px] focus:ring-1 focus:ring-blue-100 focus:border-blue-200 outline-none cursor-pointer hover:border-zinc-200"
                   />
                   <button
                     onClick={() => handleInlineCreate(status.id)}
@@ -310,23 +310,23 @@ export default function TodoList() {
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id)}
                   onDragEnd={handleDragEnd}
-                  className="group bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-grab active:cursor-grabbing relative"
+                  className="group bg-white border border-zinc-200 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-grab active:cursor-grabbing relative"
                 >
                   <div className="flex gap-2">
                     <button 
                       onClick={() => toggleStatus(task)}
-                      className={`mt-1 flex-shrink-0 transition-colors ${task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'}`}
+                      className={`mt-1 flex-shrink-0 transition-colors ${task.status === 'Completed' ? 'text-green-500' : 'text-zinc-300 hover:text-zinc-500'}`}
                     >
                       {task.status === 'Completed' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                     </button>
                     
                     <div className="flex-1 min-w-0">
-                      <h4 className={`text-[13px] font-500 text-gray-900 leading-snug break-words mb-2 ${task.status === 'Completed' ? 'line-through text-gray-400' : ''}`}>
+                      <h4 className={`text-[13px] font-500 text-zinc-900 leading-snug break-words mb-2 ${task.status === 'Completed' ? 'line-through text-zinc-400' : ''}`}>
                         {task.title}
                       </h4>
                       
                       {task.description && (
-                        <p className="text-[12px] text-gray-600 line-clamp-1 leading-tight mb-2">
+                        <p className="text-[12px] text-zinc-600 line-clamp-1 leading-tight mb-2">
                           {task.description}
                         </p>
                       )}
@@ -344,14 +344,14 @@ export default function TodoList() {
                           )}
 
                           {task.due_date && (
-                            <div className={`flex items-center gap-1 text-[9px] ${getDueDateColor(task.due_date).includes('red') ? 'text-red-500' : 'text-gray-400'} font-medium`}>
+                            <div className={`flex items-center gap-1 text-[9px] ${getDueDateColor(task.due_date).includes('red') ? 'text-red-500' : 'text-zinc-400'} font-medium`}>
                               <CalendarIcon size={10} />
                               <span>{formatDueDate(task.due_date)}</span>
                             </div>
                           )}
 
                           {(task.client_name || task.client_type) && (
-                            <div className="flex items-center gap-1 text-[9px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                            <div className="flex items-center gap-1 text-[9px] text-zinc-400 bg-zinc-50 px-1.5 py-0.5 rounded border border-zinc-100">
                               <span className="text-[8px]">{task.client_type ? CLIENT_TYPES.find(ct => ct.id === task.client_type)?.icon : '👤'}</span>
                               <span className="truncate max-w-[60px]">{task.client_name || 'Client'}</span>
                             </div>
@@ -362,7 +362,7 @@ export default function TodoList() {
                       <div className="flex items-center justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => deleteTask(task.id)}
-                          className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
+                          className="text-zinc-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -378,23 +378,23 @@ export default function TodoList() {
   )
 
   const renderTableView = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden font-sans">
+    <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden font-sans">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
-            <tr className="bg-gray-50/50 border-b border-gray-100">
-              <th className="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider">Task Title</th>
-              <th className="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider text-center">Priority</th>
-              <th className="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider">Due Date</th>
-              <th className="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider">Client Info</th>
-              <th className="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider text-right">Actions</th>
+            <tr className="bg-zinc-50/50 border-b border-zinc-100">
+              <th className="px-6 py-4 text-[11px] text-zinc-500 uppercase tracking-wider">Task Title</th>
+              <th className="px-6 py-4 text-[11px] text-zinc-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-4 text-[11px] text-zinc-500 uppercase tracking-wider text-center">Priority</th>
+              <th className="px-6 py-4 text-[11px] text-zinc-500 uppercase tracking-wider">Due Date</th>
+              <th className="px-6 py-4 text-[11px] text-zinc-500 uppercase tracking-wider">Client Info</th>
+              <th className="px-6 py-4 text-[11px] text-zinc-500 uppercase tracking-wider text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100/80">
+          <tbody className="divide-y divide-zinc-100/80">
             {filteredTasks.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-16 text-center text-gray-400 italic font-medium">No tasks found</td>
+                <td colSpan="6" className="px-6 py-16 text-center text-zinc-400 italic font-medium">No tasks found</td>
               </tr>
             ) : (
               filteredTasks.map(task => {
@@ -407,11 +407,11 @@ export default function TodoList() {
                       <div className="flex items-center gap-3">
                         <button 
                           onClick={() => toggleStatus(task)}
-                          className={`flex-shrink-0 transition-colors ${task.status === 'Completed' ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'}`}
+                          className={`flex-shrink-0 transition-colors ${task.status === 'Completed' ? 'text-green-500' : 'text-zinc-300 hover:text-zinc-500'}`}
                         >
                           {task.status === 'Completed' ? <CheckCircle size={18} /> : <Circle size={18} />}
                         </button>
-                        <span className={`text-[13px] text-gray-800 ${task.status === 'Completed' ? 'line-through text-gray-400' : ''}`}>
+                        <span className={`text-[13px] text-zinc-800 ${task.status === 'Completed' ? 'line-through text-zinc-400' : ''}`}>
                           {task.title}
                         </span>
                       </div>
@@ -447,20 +447,20 @@ export default function TodoList() {
                       {task.client_name ? (
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[12px] text-gray-800 truncate max-w-[120px]">{task.client_name}</span>
+                            <span className="text-[12px] text-zinc-800 truncate max-w-[120px]">{task.client_name}</span>
                             {clientType && <span className="text-sm grayscale-0" title={clientType.label}>{clientType.icon}</span>}
                           </div>
-                          <span className="text-[10px] text-gray-400">{clientType?.label || 'Direct Client'}</span>
+                          <span className="text-[10px] text-zinc-400">{clientType?.label || 'Direct Client'}</span>
                         </div>
                       ) : (
-                        <span className="text-[11px] text-gray-300 tracking-widest">- - -</span>
+                        <span className="text-[11px] text-zinc-300 tracking-widest">- - -</span>
                       )}
                     </td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => deleteTask(task.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete Task"
                         >
                           <Trash2 size={14} />
@@ -479,15 +479,15 @@ export default function TodoList() {
 
   const renderIdeaTabView = () => (
     <div className="space-y-6">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border-2 border-gray-900 p-8">
-        <h3 className="text-xl font-google-sans text-gray-900 mb-6 uppercase tracking-tight">Add New Idea</h3>
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border-2 border-zinc-900 p-8">
+        <h3 className="text-xl font-google-sans text-zinc-900 mb-6 uppercase tracking-tight">Add New Idea</h3>
         <form onSubmit={handleCreateTask} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2 md:col-span-2">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Idea Title</label>
+            <label className="text-xs text-zinc-500 uppercase tracking-widest">Idea Title</label>
             <input
               type="text"
               placeholder="What's the core idea?"
-              className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm transition-all outline-none"
+              className="w-full bg-zinc-50 border-2 border-zinc-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm transition-all outline-none"
               value={newTask.title}
               onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
               required
@@ -495,22 +495,22 @@ export default function TodoList() {
           </div>
           
           <div className="space-y-2">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Description</label>
+            <label className="text-xs text-zinc-500 uppercase tracking-widest">Description</label>
             <textarea
               placeholder="Describe the idea in detail..."
               rows="3"
-              className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm transition-all outline-none resize-none"
+              className="w-full bg-zinc-50 border-2 border-zinc-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm transition-all outline-none resize-none"
               value={newTask.description}
               onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs text-gray-500 uppercase tracking-widest">Remarks</label>
+            <label className="text-xs text-zinc-500 uppercase tracking-widest">Remarks</label>
             <textarea
               placeholder="Any additional remarks or context?"
               rows="3"
-              className="w-full bg-gray-50 border-2 border-gray-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm transition-all outline-none resize-none"
+              className="w-full bg-zinc-50 border-2 border-zinc-100 focus:border-indigo-500 focus:ring-0 rounded-lg px-4 py-3 text-sm transition-all outline-none resize-none"
               value={newTask.notes}
               onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
             />
@@ -538,36 +538,36 @@ export default function TodoList() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="bg-gray-50 border-b-2 border-indigo-200">
-                <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider w-32">Date</th>
-                <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider">Ideas</th>
-                <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider">Remarks</th>
-                <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider text-right w-24">Actions</th>
+              <tr className="bg-zinc-50 border-b-2 border-indigo-200">
+                <th className="px-6 py-4 text-[11px] text-zinc-900 uppercase tracking-wider w-32">Date</th>
+                <th className="px-6 py-4 text-[11px] text-zinc-900 uppercase tracking-wider">Ideas</th>
+                <th className="px-6 py-4 text-[11px] text-zinc-900 uppercase tracking-wider">Remarks</th>
+                <th className="px-6 py-4 text-[11px] text-zinc-900 uppercase tracking-wider text-right w-24">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-gray-100">
+            <tbody className="divide-y-2 divide-zinc-100">
               {filteredTasks.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-gray-400 italic font-medium">No ideas captured yet</td>
+                  <td colSpan="4" className="px-6 py-12 text-center text-zinc-400 italic font-medium">No ideas captured yet</td>
                 </tr>
               ) : (
                 filteredTasks.map(idea => (
                   <tr key={idea.id} className="hover:bg-purple-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-xs text-gray-900">
+                        <span className="text-xs text-zinc-900">
                           {idea.created_at ? new Date(idea.created_at).toLocaleDateString() : 'Today'}
                         </span>
-                        <span className="text-[10px] text-gray-400 uppercase">
+                        <span className="text-[10px] text-zinc-400 uppercase">
                           {idea.created_at ? formatDistanceToNow(new Date(idea.created_at), { addSuffix: true }) : ''}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
-                        <span className="text-sm text-gray-900 leading-tight">{idea.title}</span>
+                        <span className="text-sm text-zinc-900 leading-tight">{idea.title}</span>
                         {idea.description && (
-                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{idea.description}</p>
+                          <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">{idea.description}</p>
                         )}
                       </div>
                     </td>
@@ -582,7 +582,7 @@ export default function TodoList() {
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => deleteTask(idea.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                           title="Delete Idea"
                         >
                           <Trash2 size={16} />
@@ -617,31 +617,31 @@ export default function TodoList() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Total Tasks</p>
+          <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <p className="text-xs text-zinc-400 uppercase tracking-widest mb-2">Total Tasks</p>
             <div className="flex items-end gap-2">
-              <span className="text-3xl text-gray-900">{stats.total}</span>
+              <span className="text-3xl text-zinc-900">{stats.total}</span>
               <span className="text-sm text-indigo-500 mb-1">active</span>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Completion Rate</p>
+          <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <p className="text-xs text-zinc-400 uppercase tracking-widest mb-2">Completion Rate</p>
             <div className="flex items-end gap-2">
               <span className="text-3xl text-green-600">{completionRate}%</span>
-              <div className="flex-1 h-2 bg-gray-100 rounded-full mb-2 overflow-hidden">
+              <div className="flex-1 h-2 bg-zinc-100 rounded-full mb-2 overflow-hidden">
                 <div className="h-full bg-green-500" style={{ width: `${completionRate}%` }} />
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Urgent Tasks</p>
+          <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <p className="text-xs text-zinc-400 uppercase tracking-widest mb-2">Urgent Tasks</p>
             <div className="flex items-end gap-2">
               <span className="text-3xl text-red-600">{stats.urgent}</span>
               <span className="text-sm text-red-400 mb-1">needs attention</span>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Overdue</p>
+          <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <p className="text-xs text-zinc-400 uppercase tracking-widest mb-2">Overdue</p>
             <div className="flex items-end gap-2">
               <span className="text-3xl text-amber-600">{stats.overdue}</span>
               <span className="text-sm text-amber-400 mb-1">past due</span>
@@ -650,8 +650,8 @@ export default function TodoList() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h4 className="text-sm text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <h4 className="text-sm text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-indigo-500" />
               Status Breakdown
             </h4>
@@ -662,10 +662,10 @@ export default function TodoList() {
                 return (
                   <div key={status.id} className="space-y-1.5">
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-600 uppercase tracking-wider">{status.label}</span>
-                      <span className="text-gray-900">{count}</span>
+                      <span className="text-zinc-600 uppercase tracking-wider">{status.label}</span>
+                      <span className="text-zinc-900">{count}</span>
                     </div>
-                    <div className="h-2.5 bg-gray-50 rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-zinc-50 rounded-full overflow-hidden">
                       <div 
                         className={`h-full transition-all duration-1000 ${
                           status.id === 'Completed' ? 'bg-green-500' :
@@ -683,8 +683,8 @@ export default function TodoList() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h4 className="text-sm text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+            <h4 className="text-sm text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-amber-500" />
               Priority Distribution
             </h4>
@@ -694,7 +694,7 @@ export default function TodoList() {
                 const height = stats.total > 0 ? (count / stats.total) * 100 : 5
                 return (
                   <div key={p} className="flex-1 flex flex-col items-center gap-2 max-w-[60px]">
-                    <span className="text-[10px] text-gray-500 uppercase">{count}</span>
+                    <span className="text-[10px] text-zinc-500 uppercase">{count}</span>
                     <div 
                       className={`w-full rounded-t-lg transition-all duration-1000 ${
                         p === 'urgent' ? 'bg-red-500 shadow-lg shadow-red-100' :
@@ -703,7 +703,7 @@ export default function TodoList() {
                       }`}
                       style={{ height: `${height}%`, minHeight: '4px' }}
                     />
-                    <span className="text-[10px] text-gray-400 uppercase tracking-widest">{p}</span>
+                    <span className="text-[10px] text-zinc-400 uppercase tracking-widest">{p}</span>
                   </div>
                 )
               })}
@@ -721,14 +721,14 @@ export default function TodoList() {
   )
 
   return (
-    <div className="flex flex-col h-full bg-white text-gray-900 font-sans">
+    <div className="flex flex-col h-full bg-white text-zinc-900 font-sans">
       {/* Header - Fixed structure with proper alignment */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-white">
+      <div className="px-6 py-4 border-b border-zinc-200 bg-white">
         {/* Row 1: Title and Add Button */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Manage your tasks and ideas</p>
+            <h1 className="text-xl font-semibold text-zinc-900">Tasks</h1>
+            <p className="text-xs text-zinc-500 mt-0.5">Manage your tasks and ideas</p>
           </div>
           <button 
             onClick={() => {
@@ -749,7 +749,7 @@ export default function TodoList() {
         {/* Row 2: Tabs and View Mode */}
         <div className="flex items-center justify-between gap-4">
           {/* Tabs - Left aligned */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-zinc-100 rounded-lg p-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
@@ -757,7 +757,7 @@ export default function TodoList() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md whitespace-nowrap ${
                   activeTab === tab.id 
                     ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
                 }`}
               >
                 {React.cloneElement(tab.icon, { size: 14 })}
@@ -768,11 +768,11 @@ export default function TodoList() {
 
           {/* View Mode Buttons - Right aligned */}
           {activeTab !== 'reminders' && activeTab !== 'idea' && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 shrink-0">
+            <div className="flex items-center gap-1 bg-zinc-100 rounded-lg p-1 shrink-0">
               <button
                 onClick={() => setViewMode('board')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md ${
-                  viewMode === 'board' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                  viewMode === 'board' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
                 }`}
               >
                 <Layout size={14} />
@@ -781,7 +781,7 @@ export default function TodoList() {
               <button
                 onClick={() => setViewMode('table')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md ${
-                  viewMode === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                  viewMode === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
                 }`}
               >
                 <Table size={14} />
@@ -790,7 +790,7 @@ export default function TodoList() {
               <button
                 onClick={() => setViewMode('dashboard')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md ${
-                  viewMode === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                  viewMode === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
                 }`}
               >
                 <BarChart2 size={14} />
@@ -802,17 +802,17 @@ export default function TodoList() {
       </div>
 
       {activeTab === 'team' && (
-        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50/50">
+        <div className="px-6 py-3 border-b border-zinc-200 bg-zinc-50/50">
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter size={16} className="text-gray-400 shrink-0" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide shrink-0">Filter:</span>
+            <Filter size={16} className="text-zinc-400 shrink-0" />
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wide shrink-0">Filter:</span>
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => setClientFilter('all')}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                   clientFilter === 'all'
                     ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                    : 'bg-white text-zinc-600 border border-zinc-200 hover:border-blue-300 hover:text-blue-600'
                 }`}
               >
                 All ({tasks.filter(t => !t.is_personal && t.category === 'task').length})
@@ -830,12 +830,12 @@ export default function TodoList() {
                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 border ${
                       clientFilter === type.id
                         ? `${type.bgColor} ${type.color} ${type.borderColor} shadow-sm`
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                        : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300'
                     }`}
                   >
                     <span>{type.icon}</span>
                     <span>{type.label}</span>
-                    <span className={`text-[10px] ${clientFilter === type.id ? type.color : 'text-gray-400'}`}>
+                    <span className={`text-[10px] ${clientFilter === type.id ? type.color : 'text-zinc-400'}`}>
                       {count}
                     </span>
                   </button>
@@ -845,8 +845,8 @@ export default function TodoList() {
                 onClick={() => setClientFilter('internal')}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all border ${
                   clientFilter === 'internal'
-                    ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-800 hover:text-gray-800'
+                    ? 'bg-zinc-800 text-white border-zinc-800 shadow-sm'
+                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-800 hover:text-zinc-800'
                 }`}
               >
                 🏠 Internal ({tasks.filter(t => !t.is_personal && t.category === 'task' && !t.client_name && !t.client_type).length})
@@ -856,16 +856,16 @@ export default function TodoList() {
         </div>
       )}
 
-      <div className="flex-1 overflow-x-auto p-4 bg-gray-50/30">
+      <div className="flex-1 overflow-x-auto p-4 bg-zinc-50/30">
         {activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-4">
             {reminders.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Bell className="text-gray-300" size={32} />
+              <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-zinc-200">
+                <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Bell className="text-zinc-300" size={32} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">No announcements yet</h3>
-                <p className="text-gray-500 max-w-xs mx-auto">
+                <h3 className="text-lg font-bold text-zinc-900 mb-1">No announcements yet</h3>
+                <p className="text-zinc-500 max-w-xs mx-auto">
                   Announcements and reminders for the team will appear here.
                 </p>
               </div>
@@ -874,7 +874,7 @@ export default function TodoList() {
                 {reminders.map(reminder => (
                   <div 
                     key={reminder.id}
-                    className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer"
+                    className="bg-white rounded-xl p-5 shadow-sm border border-zinc-100 hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer"
                   >
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
                       reminder.type === 'general' ? 'bg-indigo-500' : 
@@ -890,12 +890,12 @@ export default function TodoList() {
                           }`}>
                             {reminder.type}
                           </span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-zinc-400">
                             {reminder.created_at ? formatDistanceToNow(new Date(reminder.created_at), { addSuffix: true }) : 'just now'}
                           </span>
                         </div>
-                        <h4 className="text-lg font-bold text-gray-900 mb-1">{reminder.title}</h4>
-                        <p className="text-gray-600 text-sm whitespace-pre-wrap line-clamp-2">{reminder.content}</p>
+                        <h4 className="text-lg font-bold text-zinc-900 mb-1">{reminder.title}</h4>
+                        <p className="text-zinc-600 text-sm whitespace-pre-wrap line-clamp-2">{reminder.content}</p>
                       </div>
                     </div>
                   </div>
@@ -917,38 +917,38 @@ export default function TodoList() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h3 className="text-lg font-semibold text-zinc-900">
                 {activeTab === 'idea' ? 'New Idea' : 'New Task'}
               </h3>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className="text-zinc-400 hover:text-zinc-600 p-1.5 hover:bg-zinc-100 rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleCreateTask} className="p-6 space-y-4 flex-1">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">
                   {activeTab === 'idea' ? 'Idea Title' : 'Task Title'}
                 </label>
                 <input
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   placeholder={activeTab === 'idea' ? "What's your idea?" : "What needs to be done?"}
                   required
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Description</label>
                 <textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
                   rows={3}
                   placeholder="Add more details..."
                 />
@@ -958,21 +958,21 @@ export default function TodoList() {
                 <>
                   <div className="grid grid-cols-2 gap-4">
                   <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">Status</label>
                       <select
                         value={newTask.status}
                         onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">Priority</label>
                       <select
                         value={newTask.priority}
                         onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         <option value="normal">Normal</option>
                         <option value="high">High</option>
@@ -983,20 +983,20 @@ export default function TodoList() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Due Date</label>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">Due Date</label>
                       <input
                         type="date"
                         value={newTask.due_date || ''}
                         onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Client Type</label>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">Client Type</label>
                       <select
                         value={newTask.client_type || ''}
                         onChange={(e) => setNewTask({ ...newTask, client_type: e.target.value || null })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         <option value="">Internal</option>
                         {CLIENT_TYPES.map(ct => <option key={ct.id} value={ct.id}>{ct.label}</option>)}
@@ -1006,12 +1006,12 @@ export default function TodoList() {
 
                   {newTask.client_type && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Client Name</label>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">Client Name</label>
                       <input
                         type="text"
                         value={newTask.client_name}
                         onChange={(e) => setNewTask({ ...newTask, client_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                         placeholder="Enter client name"
                       />
                     </div>
@@ -1020,21 +1020,21 @@ export default function TodoList() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Notes</label>
                 <textarea
                   value={newTask.notes}
                   onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
                   rows={2}
                   placeholder="Additional notes..."
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+                  className="px-4 py-2 text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors font-medium"
                 >
                   Cancel
                 </button>

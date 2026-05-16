@@ -88,7 +88,7 @@ export function AmendmentApprovalPanel({ subcontractorId, onApprove }: Amendment
 
   if (!amendments || amendments.length === 0) {
     return (
-      <div className="text-gray-500 py-4 text-center" style={{ fontFamily: 'Courier New, monospace' }}>
+      <div className="text-zinc-500 py-4 text-center" style={{ fontFamily: 'Courier New, monospace' }}>
         <CheckCircle size={24} className="mx-auto mb-2 text-green-500" />
         No pending amendments
       </div>
@@ -103,7 +103,7 @@ export function AmendmentApprovalPanel({ subcontractorId, onApprove }: Amendment
       
       <table className="w-full border border-black text-sm">
         <thead>
-          <tr className="bg-gray-100">
+          <tr className="bg-zinc-100">
             <th className="border border-black p-2 text-left">AMD NO</th>
             <th className="border border-black p-2 text-left">WO REF</th>
             <th className="border border-black p-2 text-right">PREVIOUS</th>

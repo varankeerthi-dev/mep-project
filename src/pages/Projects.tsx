@@ -78,7 +78,7 @@ export default function Projects() {
     const tab = searchParams.get('tab') || 'list';
     setActiveTab(tab);
     loadComponent(tab);
-  }, [location.key]);
+  }, [searchParams]);
 
   const handleTabChange = (tabId: string) => {
     setSearchParams({ tab: tabId });

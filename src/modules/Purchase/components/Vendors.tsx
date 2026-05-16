@@ -330,7 +330,7 @@ export const Vendors: React.FC = () => {
           }, { onConflict: 'organisation_id' });
           
           // Update local state
-          setDocSettings({ ...docSettings, vendor_current_number: nextNum });
+          setDocSettings(prev => ({ ...prev, vendor_current_number: nextNum }));
         }
       }
       setOpenDialog(false);
@@ -358,7 +358,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'vendor_code',
       header: 'Code',
       cell: ({ row }: any) => (
-        <span className="font-mono text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-700 border border-slate-200">
+        <span className="font-mono text-xs font-semibold bg-zinc-100 px-2 py-1 rounded text-zinc-700 border border-zinc-200">
           {row.original.vendor_code}
         </span>
       ),
@@ -368,8 +368,8 @@ export const Vendors: React.FC = () => {
       header: 'Vendor Name',
       cell: ({ row }: any) => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-900 line-clamp-1">{row.original.company_name}</span>
-          <span className="text-xs text-slate-500">{row.original.contact_person}</span>
+          <span className="font-bold text-zinc-900 line-clamp-1">{row.original.company_name}</span>
+          <span className="text-xs text-zinc-500">{row.original.contact_person}</span>
         </div>
       ),
     },
@@ -377,7 +377,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'remarks',
       header: 'Material Type',
       cell: ({ row }: any) => (
-        <span className="text-sm text-slate-600 line-clamp-1 max-w-[150px]" title={row.original.remarks}>
+        <span className="text-sm text-zinc-600 line-clamp-1 max-w-[150px]" title={row.original.remarks}>
           {row.original.remarks || '-'}
         </span>
       ),
@@ -386,7 +386,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'gstin',
       header: 'GSTIN',
       cell: ({ getValue }: any) => (
-        <span className="text-xs font-medium text-slate-600 tracking-tight">
+        <span className="text-xs font-medium text-zinc-600 tracking-tight">
           {getValue() || '-'}
         </span>
       ),
@@ -404,7 +404,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'credit_limit',
       header: 'Credit Limit',
       cell: ({ getValue }: any) => (
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-sm font-semibold text-zinc-700">
           ¥{Number(getValue() || 0).toLocaleString('en-IN')}
         </span>
       ),
@@ -430,7 +430,7 @@ export const Vendors: React.FC = () => {
               variant="ghost" 
               size="sm" 
               onClick={() => handleOpenLedger(vendor)}
-              className="text-slate-500 hover:text-blue-600"
+              className="text-zinc-500 hover:text-blue-600"
               title="Vendor Ledger"
             >
               <BookOpen className="w-4 h-4" />
@@ -440,7 +440,7 @@ export const Vendors: React.FC = () => {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => handleViewParty360(vendor)}
-                className="text-slate-500 hover:text-purple-600"
+                className="text-zinc-500 hover:text-purple-600"
                 title="Party 360°"
               >
                 <Eye className="w-4 h-4" />
@@ -451,7 +451,7 @@ export const Vendors: React.FC = () => {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => handleAddAsClient(vendor)}
-                className="text-slate-500 hover:text-emerald-600"
+                className="text-zinc-500 hover:text-emerald-600"
                 title="Also a Client"
                 disabled={addingAsClient === vendor.id}
               >
@@ -466,7 +466,7 @@ export const Vendors: React.FC = () => {
               variant="ghost" 
               size="sm" 
               onClick={() => handleEdit(vendor)}
-              className="text-slate-500 hover:text-blue-600"
+              className="text-zinc-500 hover:text-blue-600"
               title="Edit Vendor"
             >
               <FileEdit className="w-4 h-4" />
@@ -480,34 +480,34 @@ export const Vendors: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 p-6 h-full animate-in fade-in duration-500">
       {/* Header Card */}
-      <Card className="rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden">
+      <Card className="rounded-[2rem] border-none shadow-xl shadow-zinc-200/50 bg-white overflow-hidden">
         <div className="p-8 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200 ring-4 ring-blue-50">
               <Building2 className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vendors</h1>
+              <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Vendors</h1>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="default">
                   {filteredVendors.length} Suppliers
                 </Badge>
-                <span className="text-slate-300">/</span>
-                <span className="text-sm font-medium text-slate-500">Directory & Ledger Management</span>
+                <span className="text-zinc-300">/</span>
+                <span className="text-sm font-medium text-zinc-500">Directory & Ledger Management</span>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
             <div className="relative group min-w-[300px]">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-zinc-400">
                 <Search className="w-5 h-5" />
               </div>
               <Input
                 placeholder="Search vendors by name, GST or material..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-100 transition-all rounded-2xl h-12"
+                className="pl-12 bg-zinc-50 border-zinc-200 focus:bg-white focus:ring-4 focus:ring-blue-100 transition-all rounded-2xl h-12"
               />
             </div>
             <Button 
@@ -522,7 +522,7 @@ export const Vendors: React.FC = () => {
       </Card>
 
       {/* Main Table Card */}
-      <Card className="flex-1 rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden p-0 relative">
+      <Card className="flex-1 rounded-[2rem] border-none shadow-xl shadow-zinc-200/50 bg-white overflow-hidden p-0 relative">
         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
         <AppTable
           columns={columns}
@@ -543,14 +543,14 @@ export const Vendors: React.FC = () => {
           {/* Left Column: Basic Info */}
           <div className="md:col-span-2 space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-100 pb-2">
                 <Building2 className="w-4 h-4 text-blue-600" />
                 <span>Basic Information</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Company Name *</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Company Name *</label>
                   <Input
                     value={formData.company_name}
                     onChange={(e) => {
@@ -564,7 +564,7 @@ export const Vendors: React.FC = () => {
                   {errors.company_name && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.company_name}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Contact Person</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Contact Person</label>
                   <Input
                     value={formData.contact_person}
                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
@@ -576,9 +576,9 @@ export const Vendors: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email Address</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Email Address</label>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-zinc-400 group-focus-within:text-blue-500" />
                     <Input
                       type="email"
                       value={formData.email}
@@ -591,9 +591,9 @@ export const Vendors: React.FC = () => {
                   {errors.email && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.email}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Phone Number</label>
                   <div className="relative group">
-                    <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
+                    <Phone className="absolute left-3 top-3 w-4 h-4 text-zinc-400 group-focus-within:text-blue-500" />
                     <Input
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -606,7 +606,7 @@ export const Vendors: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GSTIN</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">GSTIN</label>
                   <Input
                     value={formData.gstin}
                     onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
@@ -614,10 +614,10 @@ export const Vendors: React.FC = () => {
                     className="rounded-xl uppercase font-mono text-sm"
                     error={!!errors.gstin}
                   />
-                  {errors.gstin ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.gstin}</p> : <p className="text-[10px] text-slate-400 mt-1 ml-1">Format: 27AABCU9603R1ZM</p>}
+                  {errors.gstin ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.gstin}</p> : <p className="text-[10px] text-zinc-400 mt-1 ml-1">Format: 27AABCU9603R1ZM</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">PAN Number</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">PAN Number</label>
                   <Input
                     value={formData.pan}
                     onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
@@ -625,12 +625,12 @@ export const Vendors: React.FC = () => {
                     className="rounded-xl uppercase font-mono text-sm"
                     error={!!errors.pan}
                   />
-                  {errors.pan ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pan}</p> : <p className="text-[10px] text-slate-400 mt-1 ml-1">Format: ABCUP1234A</p>}
+                  {errors.pan ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pan}</p> : <p className="text-[10px] text-zinc-400 mt-1 ml-1">Format: ABCUP1234A</p>}
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GST Treatment</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">GST Treatment</label>
                 <Select
                   value={formData.gst_treatment}
                   onValueChange={(val) => setFormData({ ...formData, gst_treatment: val })}
@@ -655,7 +655,7 @@ export const Vendors: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">MSME Register Type</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">MSME Register Type</label>
                   <Select
                     value={formData.msme_register_type}
                     onValueChange={(val) => setFormData({ ...formData, msme_register_type: val })}
@@ -671,7 +671,7 @@ export const Vendors: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">MSME Number</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">MSME Number</label>
                   <Input
                     value={formData.msme_number}
                     onChange={(e) => setFormData({ ...formData, msme_number: e.target.value.toUpperCase() })}
@@ -683,12 +683,12 @@ export const Vendors: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-100 pb-2">
                 <MapPin className="w-4 h-4 text-blue-600" />
                 <span>Address & Location</span>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Full Address</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Full Address</label>
                 <Textarea
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -698,7 +698,7 @@ export const Vendors: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">State</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">State</label>
                   <Select
                     value={formData.state}
                     onValueChange={(val) => setFormData({ ...formData, state: val })}
@@ -714,7 +714,7 @@ export const Vendors: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Pincode</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Pincode</label>
                   <Input
                     value={formData.pincode}
                     onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
@@ -729,19 +729,19 @@ export const Vendors: React.FC = () => {
           </div>
 
           {/* Right Column: Financials & Bank */}
-          <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+          <div className="space-y-6 bg-zinc-50 p-6 rounded-3xl border border-zinc-100 shadow-inner">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-200 pb-2">
                 <CreditCard className="w-4 h-4 text-blue-600" />
                 <span>Financial Terms</span>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Default Currency</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Default Currency</label>
                 <Select
                   value={formData.default_currency}
                   onValueChange={(val) => setFormData({ ...formData, default_currency: val })}
                 >
-                  <SelectTrigger className="rounded-xl bg-white border-slate-200 shadow-sm">
+                  <SelectTrigger className="rounded-xl bg-white border-zinc-200 shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -752,12 +752,12 @@ export const Vendors: React.FC = () => {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Terms</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Payment Terms</label>
                 <Select
                   value={formData.payment_terms}
                   onValueChange={(val) => setFormData({ ...formData, payment_terms: val })}
                 >
-                  <SelectTrigger className="rounded-xl bg-white border-slate-200 shadow-sm">
+                  <SelectTrigger className="rounded-xl bg-white border-zinc-200 shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -768,24 +768,24 @@ export const Vendors: React.FC = () => {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Credit Limit</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Credit Limit</label>
                 <div className="relative group">
-                  <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
+                  <span className="absolute left-3 top-3 text-zinc-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
                   <Input
                     type="number"
                     value={formData.credit_limit}
                     onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-                    className="pl-8 rounded-xl bg-white border-slate-200 shadow-sm"
+                    className="pl-8 rounded-xl bg-white border-zinc-200 shadow-sm"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Status</label>
                 <Select
                   value={formData.status}
                   onValueChange={(val) => setFormData({ ...formData, status: val })}
                 >
-                  <SelectTrigger className="rounded-xl bg-white border-slate-200 shadow-sm">
+                  <SelectTrigger className="rounded-xl bg-white border-zinc-200 shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -796,65 +796,65 @@ export const Vendors: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+            <div className="space-y-4 pt-4 border-t border-zinc-200">
+              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-200 pb-2">
                 <Landmark className="w-4 h-4 text-blue-600" />
                 <span>Bank Details</span>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Account Holder Name</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Account Holder Name</label>
                 <Input
                   value={formData.account_holder_name}
                   onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
                   placeholder="Enter account holder name"
-                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Bank Name</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Bank Name</label>
                 <Input
                   value={formData.bank_name}
                   onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
                   placeholder="State Bank of India"
-                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Account Number</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Account Number</label>
                 <Input
                   value={formData.bank_account_no}
                   onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
                   placeholder="00000000000"
-                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Re-enter Account Number</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Re-enter Account Number</label>
                 <Input
                   value={formData.re_enter_account_number}
                   onChange={(e) => setFormData({ ...formData, re_enter_account_number: e.target.value })}
                   placeholder="Re-enter account number"
-                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">IFSC Code</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">IFSC Code</label>
                 <Input
                   value={formData.bank_ifsc}
                   onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
                   placeholder="SBIN0001234"
-                  className="rounded-xl bg-white border-slate-200 shadow-sm uppercase font-mono"
+                  className="rounded-xl bg-white border-zinc-200 shadow-sm uppercase font-mono"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Opening Balance</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Opening Balance</label>
                 <div className="relative group">
-                  <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
+                  <span className="absolute left-3 top-3 text-zinc-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
                   <Input
                     type="number"
                     value={formData.opening_balance}
                     onChange={(e) => setFormData({ ...formData, opening_balance: Number(e.target.value) })}
-                    className="pl-8 rounded-xl bg-white border-slate-200 shadow-sm"
+                    className="pl-8 rounded-xl bg-white border-zinc-200 shadow-sm"
                   />
                 </div>
               </div>
@@ -863,8 +863,8 @@ export const Vendors: React.FC = () => {
         </div>
 
         {/* Remarks Section (Full Width) */}
-        <div className="mt-8 pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-slate-900 font-bold mb-4">
+        <div className="mt-8 pt-6 border-t border-zinc-100">
+          <div className="flex items-center gap-2 text-zinc-900 font-bold mb-4">
             <AlertCircle className="w-4 h-4 text-blue-600" />
             <span>Material Type / Scope of Supply</span>
           </div>
@@ -872,14 +872,14 @@ export const Vendors: React.FC = () => {
             value={formData.remarks}
             onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
             placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.). This helps in discovery via search."
-            className="rounded-2xl min-h-[100px] border-slate-200 focus:ring-blue-100"
+            className="rounded-2xl min-h-[100px] border-zinc-200 focus:ring-blue-100"
           />
-          <p className="text-[11px] text-slate-400 mt-2 px-2 italic">This information is used by the system to categorize vendors and improve search relevancy.</p>
+          <p className="text-[11px] text-zinc-400 mt-2 px-2 italic">This information is used by the system to categorize vendors and improve search relevancy.</p>
         </div>
 
         {/* Modal Footer */}
         <div className="flex justify-end gap-3 mt-10">
-          <Button variant="ghost" onClick={() => setOpenDialog(false)} className="rounded-xl px-10 border border-slate-100 font-semibold tracking-wide">
+          <Button variant="ghost" onClick={() => setOpenDialog(false)} className="rounded-xl px-10 border border-zinc-100 font-semibold tracking-wide">
             Discard Changes
           </Button>
           <Button 

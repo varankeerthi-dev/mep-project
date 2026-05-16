@@ -153,16 +153,16 @@ export default function QuotationLineItemsSelector({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Select Quotation Items</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-lg font-semibold text-zinc-900">Select Quotation Items</h2>
+            <p className="text-sm text-zinc-500">
               {quotationHeader.quotation_no} • Total: {formatCurrency(quotationHeader.grand_total)}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-zinc-400 hover:text-zinc-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -172,20 +172,20 @@ export default function QuotationLineItemsSelector({
         <div className="flex-1 overflow-auto px-6 py-4">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200">
+              <tr className="border-b border-zinc-200">
                 <th className="w-10 pb-3 text-left">
                   <input
                     type="checkbox"
                     checked={selectedItems.size === items.length && items.length > 0}
                     onChange={handleSelectAll}
-                    className="rounded border-gray-300"
+                    className="rounded border-zinc-300"
                   />
                 </th>
-                <th className="pb-3 text-left text-sm font-medium text-gray-700">Description</th>
-                <th className="pb-3 text-right text-sm font-medium text-gray-700 w-24">Original Qty</th>
-                <th className="pb-3 text-right text-sm font-medium text-gray-700 w-24">Qty to Bill</th>
-                <th className="pb-3 text-right text-sm font-medium text-gray-700 w-28">Rate (₹)</th>
-                <th className="pb-3 text-right text-sm font-medium text-gray-700 w-32">Amount (₹)</th>
+                <th className="pb-3 text-left text-sm font-medium text-zinc-700">Description</th>
+                <th className="pb-3 text-right text-sm font-medium text-zinc-700 w-24">Original Qty</th>
+                <th className="pb-3 text-right text-sm font-medium text-zinc-700 w-24">Qty to Bill</th>
+                <th className="pb-3 text-right text-sm font-medium text-zinc-700 w-28">Rate (₹)</th>
+                <th className="pb-3 text-right text-sm font-medium text-zinc-700 w-32">Amount (₹)</th>
               </tr>
             </thead>
             <tbody>
@@ -198,7 +198,7 @@ export default function QuotationLineItemsSelector({
                 return (
                   <tr
                     key={item.id}
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                    className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors ${
                       isSelected ? 'bg-blue-50' : ''
                     }`}
                   >
@@ -207,16 +207,16 @@ export default function QuotationLineItemsSelector({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleItemToggle(item.id)}
-                        className="rounded border-gray-300"
+                        className="rounded border-zinc-300"
                       />
                     </td>
-                    <td className="py-3 text-sm text-gray-900">
+                    <td className="py-3 text-sm text-zinc-900">
                       <div className="font-medium">{item.description}</div>
                       {item.hsn_code && (
-                        <div className="text-xs text-gray-500">HSN: {item.hsn_code}</div>
+                        <div className="text-xs text-zinc-500">HSN: {item.hsn_code}</div>
                       )}
                     </td>
-                    <td className="py-3 text-right text-sm text-gray-600">
+                    <td className="py-3 text-right text-sm text-zinc-600">
                       {item.qty} {item.uom}
                     </td>
                     <td className="py-3">
@@ -227,7 +227,7 @@ export default function QuotationLineItemsSelector({
                         disabled={!isSelected}
                         className={`w-full text-right text-sm rounded border ${
                           isSelected
-                            ? 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                            ? 'border-zinc-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                             : 'border-transparent bg-transparent'
                         } px-2 py-1`}
                         min="0"
@@ -242,14 +242,14 @@ export default function QuotationLineItemsSelector({
                         disabled={!isSelected}
                         className={`w-full text-right text-sm rounded border ${
                           isSelected
-                            ? 'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                            ? 'border-zinc-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
                             : 'border-transparent bg-transparent'
                         } px-2 py-1`}
                         min="0"
                         step="0.01"
                       />
                     </td>
-                    <td className="py-3 text-right text-sm font-medium text-gray-900">
+                    <td className="py-3 text-right text-sm font-medium text-zinc-900">
                       {formatCurrency(amount)}
                     </td>
                   </tr>
@@ -260,14 +260,14 @@ export default function QuotationLineItemsSelector({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div className="text-sm text-gray-600">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50">
+          <div className="text-sm text-zinc-600">
             {selectedItems.size} of {items.length} items selected
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors"
             >
               Cancel
             </button>

@@ -31,6 +31,14 @@ type TransactionsTableProps = {
   emptyMessage?: string
 }
 
+const SortIcon = ({ column }: { column: any }) => {
+  const sorted = column.getIsSorted();
+  if (!column.getCanSort()) return null;
+  if (sorted === 'asc') return <ChevronUp size={12} style={{ display: 'inline', marginLeft: 4 }} />;
+  if (sorted === 'desc') return <ChevronDown size={12} style={{ display: 'inline', marginLeft: 4 }} />;
+  return <ChevronsUpDown size={12} style={{ display: 'inline', marginLeft: 4, opacity: 0.4 }} />;
+};
+
 function TransactionsTable({ rows, loading, onOpen, emptyMessage }: TransactionsTableProps) {
   const [sorting, setSorting] = useState<any[]>([]);
   const [columnFilters, setColumnFilters] = useState<any[]>([]);
@@ -103,14 +111,6 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
     }
   });
 
-  const SortIcon = ({ column }: { column: any }) => {
-    const sorted = column.getIsSorted();
-    if (!column.getCanSort()) return null;
-    if (sorted === 'asc') return <ChevronUp size={12} style={{ display: 'inline', marginLeft: 4 }} />;
-    if (sorted === 'desc') return <ChevronDown size={12} style={{ display: 'inline', marginLeft: 4 }} />;
-    return <ChevronsUpDown size={12} style={{ display: 'inline', marginLeft: 4, opacity: 0.4 }} />;
-  };
-
   const pageCount = table.getPageCount();
   const currentPage = table.getState().pagination.pageIndex;
 
@@ -118,26 +118,26 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
     <div className="w-full">
       <div className="flex items-center justify-between mb-4">
         <input
-          className="h-9 w-[280px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
+          className="h-9 w-[280px] rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2"
           placeholder="Search all columns..."
           value={globalFilter ?? ''}
           onChange={(e) => setGlobalFilter(e.target.value)}
         />
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-zinc-500">
           {table.getFilteredRowModel().rows.length} record{table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-white">
+      <div className="rounded-md border border-zinc-200 bg-white">
         <table className="w-full caption-bottom text-sm">
           <thead className="[&_tr]:border-b">
             {table.getHeaderGroups().map(headerGroup => (
               <React.Fragment key={headerGroup.id}>
-                <tr key={`${headerGroup.id}-sort`} className="border-b transition-colors hover:bg-slate-50/50">
+                <tr key={`${headerGroup.id}-sort`} className="border-b transition-colors hover:bg-zinc-50/50">
                   {headerGroup.headers.map(header => (
                     <th
                       key={header.id}
-                      className="h-12 px-4 text-left align-middle font-medium text-slate-500 [&:has([role=checkbox])]:pr-0"
+                      className="h-12 px-4 text-left align-middle font-medium text-zinc-500 [&:has([role=checkbox])]:pr-0"
                       style={{ cursor: header.column.getCanSort() ? 'pointer' : 'default', userSelect: 'none' }}
                       onClick={header.column.getToggleSortingHandler()}
                     >
@@ -151,12 +151,12 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
                   ))}
                 </tr>
                 {headerGroup.headers.some(header => header.column.getCanFilter() && header.id !== 'action' && header.id !== 'number') && (
-                  <tr key={`${headerGroup.id}-filter`} className="border-b bg-slate-50/50">
+                  <tr key={`${headerGroup.id}-filter`} className="border-b bg-zinc-50/50">
                     {headerGroup.headers.map(header => (
                       <th key={`${header.id}-filter`} className="h-10 px-4">
                         {header.column.getCanFilter() && header.id !== 'action' && header.id !== 'number' ? (
                           <input
-                            className="h-8 w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
+                            className="h-8 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2"
                             placeholder={`Filter ${typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : header.id}...`}
                             value={(header.column.getFilterValue() as string) ?? ''}
                             onChange={(e) => header.column.setFilterValue(e.target.value)}
@@ -172,13 +172,13 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
           <tbody className="[&_tr:last-child]:border-0">
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="p-8 text-center text-slate-500">
+                <td colSpan={columns.length} className="p-8 text-center text-zinc-500">
                   Loading...
                 </td>
               </tr>
             ) : table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="p-8 text-center text-slate-500">
+                <td colSpan={columns.length} className="p-8 text-center text-zinc-500">
                   {emptyMessage}
                 </td>
               </tr>
@@ -186,7 +186,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
               table.getRowModel().rows.map(row => (
                 <tr
                   key={row.id}
-                  className="border-b transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-100"
+                  className="border-b transition-colors hover:bg-zinc-50/50 data-[state=selected]:bg-zinc-100"
                 >
                   {row.getVisibleCells().map(cell => (
                     <td key={cell.id} className="p-4 align-middle">
@@ -201,11 +201,11 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-zinc-500">
           Page {currentPage + 1} of {pageCount || 1}
         </span>
         <button
-          className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium transition-colors hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
         >
@@ -220,10 +220,10 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
           return (
             <button
               key={pageIdx}
-              className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
                 currentPage === pageIdx
-                  ? 'bg-slate-900 text-white hover:bg-slate-900/90'
-                  : 'border border-slate-200 bg-white hover:bg-slate-100'
+                  ? 'bg-zinc-900 text-white hover:bg-zinc-900/90'
+                  : 'border border-zinc-200 bg-white hover:bg-zinc-100'
               }`}
               onClick={() => table.setPageIndex(pageIdx)}
             >
@@ -232,7 +232,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
           );
         })}
         <button
-          className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium transition-colors hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
         >

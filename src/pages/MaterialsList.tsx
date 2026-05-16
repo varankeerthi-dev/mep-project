@@ -1206,7 +1206,7 @@ function ItemsTab() {
         return;
       }
     }
-    setFormData({ ...formData, uses_variant: checked, sale_price: checked ? '0' : formData.sale_price });
+    setFormData(prev => ({ ...prev, uses_variant: checked, sale_price: checked ? '0' : prev.sale_price }));
     if (checked && variantPricing.length === 0) {
       addVariantPricingRow();
     }
@@ -1528,11 +1528,11 @@ function ItemsTab() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-2 mb-2 rounded-lg border border-gray-200 bg-white">
+      <div className="p-2 mb-2 rounded-lg border border-zinc-200 bg-white">
         <div className="flex justify-between items-center flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <InventoryIcon className="w-6 h-6 text-indigo-600" />
-            <span className="text-base font-semibold text-gray-900">Materials</span>
+            <span className="text-base font-semibold text-zinc-900">Materials</span>
             <Badge variant="outline" className="text-xs font-normal ml-1 font-sans">{filteredMaterials.length} items</Badge>
           </div>
           <div className="flex gap-1 flex-wrap items-center">
@@ -1547,7 +1547,7 @@ function ItemsTab() {
                 <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
               {showCategoryDropdown && (
-                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                <div className="absolute z-50 mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[160px]">
                   <button
                     className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100"
                     onClick={() => { setCategoryFilter('All'); setShowCategoryDropdown(false); }}
@@ -1580,7 +1580,7 @@ function ItemsTab() {
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
               {showMoreDropdown && (
-                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px] right-0">
+                <div className="absolute z-50 mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[180px] right-0">
                   <button
                     className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2"
                     onClick={() => { openBulkPriceModal(); setShowMoreDropdown(false); }}
@@ -3160,13 +3160,13 @@ function ServiceRatesTab() {
   );
 
   const handleMaterialSelect = (material) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       item_name: material.name,
       unit: material.unit || 'Mtrs',
       gst_rate: material.gst_rate || 18,
       sac_code: material.hsn_code || ''
-    });
+    }));
     setShowMaterialDropdown(false);
     setMaterialSearch('');
   };
@@ -4102,7 +4102,8 @@ function generateSelectiveTemplate(selectedFields: string[]) {
 export default function MaterialsList() {
   const location = useLocation();
   const navigate = useNavigate();
-  const activeTab = useMemo(() => getMaterialsTabFromSearch(location.search), [location.search]);
+  const locationSearch = location.search;
+  const activeTab = useMemo(() => getMaterialsTabFromSearch(locationSearch), [locationSearch]);
 
   const changeTab = (tab) => {
     navigate(`/store/materials?tab=${tab}`);

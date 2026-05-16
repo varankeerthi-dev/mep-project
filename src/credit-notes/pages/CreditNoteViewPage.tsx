@@ -135,20 +135,20 @@ export function CreditNoteViewPage() {
     <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
       {/* Left Sidebar */}
       <div className="w-[300px] flex flex-col bg-white shadow-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
-        <div className="py-5 px-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-gray-700">All Credit Notes</h2>
+        <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
+          <h2 className="text-sm font-bold text-zinc-700">All Credit Notes</h2>
           <button onClick={() => navigate('/credit-notes/create')} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
             <Plus className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-4 py-3 border-b border-gray-100">
+        <div className="px-4 py-3 border-b border-zinc-100">
           <input
             type="text"
             placeholder="Search CN..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full px-3 py-1.5 text-xs border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
 
@@ -160,22 +160,22 @@ export function CreditNoteViewPage() {
               className={`px-6 py-3 cursor-pointer transition-colors border-l-4 ${
                 cn.id === viewId
                   ? 'bg-blue-50 border-l-blue-500'
-                  : 'bg-white border-l-transparent hover:bg-gray-50'
+                  : 'bg-white border-l-transparent hover:bg-zinc-50'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-gray-900">{cn.cn_number}</span>
+                <span className="text-xs font-bold text-zinc-900">{cn.cn_number}</span>
                 <CNStatusBadge status={cn.approval_status} />
               </div>
-              <div className="text-xs text-gray-500 truncate">{cn.client?.name ?? '—'}</div>
+              <div className="text-xs text-zinc-500 truncate">{cn.client?.name ?? '—'}</div>
               <div className="flex items-center justify-between mt-1">
-                <span className="text-[10px] text-gray-400">{formatDate(cn.cn_date)}</span>
-                <span className="text-xs font-semibold text-gray-900">{formatCurrency(cn.total_amount)}</span>
+                <span className="text-[10px] text-zinc-400">{formatDate(cn.cn_date)}</span>
+                <span className="text-xs font-semibold text-zinc-900">{formatCurrency(cn.total_amount)}</span>
               </div>
             </div>
           ))}
           {filteredNotes.length === 0 && (
-            <div className="px-6 py-12 text-center text-xs text-gray-400">
+            <div className="px-6 py-12 text-center text-xs text-zinc-400">
               {creditNotes.length === 0 ? 'No credit notes yet' : 'No matches'}
             </div>
           )}
@@ -183,15 +183,15 @@ export function CreditNoteViewPage() {
       </div>
 
       {/* Right Detail Panel */}
-      <div className="flex-1 bg-gray-50 overflow-y-auto">
+      <div className="flex-1 bg-zinc-50 overflow-y-auto">
         {!selectedCN ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">Select a credit note to view details</div>
+          <div className="flex items-center justify-center h-full text-zinc-400 text-sm">Select a credit note to view details</div>
         ) : (
           <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">{selectedCN.cn_number}</h1>
+                <h1 className="text-2xl font-bold text-zinc-900">{selectedCN.cn_number}</h1>
                 <CNStatusBadge status={selectedCN.approval_status} />
               </div>
               <div className="flex items-center gap-3">
@@ -209,7 +209,7 @@ export function CreditNoteViewPage() {
             <div className="flex flex-wrap items-center gap-2 mb-6" style={{ paddingBottom: '16px' }}>
               <button
                 onClick={() => navigate(`/credit-notes/edit?id=${selectedCN.id}`)}
-                className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
               >
                 <Pencil className="w-[14px] h-[14px]" /> Edit
               </button>
@@ -217,27 +217,27 @@ export function CreditNoteViewPage() {
               <div className="relative" ref={printMenuRef}>
                 <button
                   onClick={() => setPrintMenuOpen(!printMenuOpen)}
-                  className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                 >
                   <FileText className="w-[14px] h-[14px]" /> Print Template <ChevronDown className="w-[12px] h-[12px]" />
                 </button>
                 {printMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
                     <button
                       onClick={() => { handlePreview(); setPrintMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded"
                     >
                       <Eye className="w-[14px] h-[14px]" /> Preview PDF
                     </button>
                     <button
                       onClick={() => { handleDownload(); setPrintMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded"
                     >
                       <Download className="w-[14px] h-[14px]" /> Download PDF
                     </button>
                     <button
                       onClick={() => { handlePrint(); setPrintMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded"
                     >
                       <Printer className="w-[14px] h-[14px]" /> Print PDF
                     </button>
@@ -256,22 +256,22 @@ export function CreditNoteViewPage() {
             </div>
 
             {/* Detail Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div className="bg-white rounded-lg shadow-sm border border-zinc-200 p-8">
               {/* CN Info + Client */}
               <div className="grid grid-cols-2 gap-8 mb-8">
                 <div>
-                  <h3 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Bill To</h3>
-                  <p className="text-lg font-bold text-gray-900">{selectedCN.client?.name ?? '—'}</p>
-                  {selectedCN.client?.gstin && <p className="text-sm text-gray-500 mt-1">GSTIN: {selectedCN.client.gstin}</p>}
-                  {selectedCN.client?.state && <p className="text-sm text-gray-500">State: {selectedCN.client.state}</p>}
+                  <h3 className="text-xs font-bold uppercase text-zinc-400 tracking-wider mb-3">Bill To</h3>
+                  <p className="text-lg font-bold text-zinc-900">{selectedCN.client?.name ?? '—'}</p>
+                  {selectedCN.client?.gstin && <p className="text-sm text-zinc-500 mt-1">GSTIN: {selectedCN.client.gstin}</p>}
+                  {selectedCN.client?.state && <p className="text-sm text-zinc-500">State: {selectedCN.client.state}</p>}
                 </div>
                 <div className="text-right">
-                  <h3 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Credit Note Details</h3>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <p>Date: <span className="font-medium text-gray-900">{formatDate(selectedCN.cn_date)}</span></p>
-                    <p>Type: <span className="font-medium text-gray-900">{CN_TYPE_LABELS[selectedCN.cn_type as keyof typeof CN_TYPE_LABELS] ?? selectedCN.cn_type}</span></p>
-                    {selectedCN.reason && <p>Reason: <span className="font-medium text-gray-900">{selectedCN.reason}</span></p>}
-                    {getSignatoryName() && <p>Signatory: <span className="font-medium text-gray-900">{getSignatoryName()}</span></p>}
+                  <h3 className="text-xs font-bold uppercase text-zinc-400 tracking-wider mb-3">Credit Note Details</h3>
+                  <div className="space-y-1 text-sm text-zinc-600">
+                    <p>Date: <span className="font-medium text-zinc-900">{formatDate(selectedCN.cn_date)}</span></p>
+                    <p>Type: <span className="font-medium text-zinc-900">{CN_TYPE_LABELS[selectedCN.cn_type as keyof typeof CN_TYPE_LABELS] ?? selectedCN.cn_type}</span></p>
+                    {selectedCN.reason && <p>Reason: <span className="font-medium text-zinc-900">{selectedCN.reason}</span></p>}
+                    {getSignatoryName() && <p>Signatory: <span className="font-medium text-zinc-900">{getSignatoryName()}</span></p>}
                   </div>
                 </div>
               </div>
@@ -279,29 +279,29 @@ export function CreditNoteViewPage() {
               {/* Items Table */}
               <table className="w-full text-sm mb-8">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-gray-500">#</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-gray-500">Description</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-gray-500">HSN</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Qty</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Rate</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Taxable</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">GST</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-gray-500">Total</th>
+                  <tr className="border-b border-zinc-200">
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-zinc-500">#</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-zinc-500">Description</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-zinc-500">HSN</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Qty</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Rate</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Taxable</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">GST</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-zinc-500">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedCN.items.map((item, idx) => {
                     const gst = item.cgst_amount + item.sgst_amount + item.igst_amount;
                     return (
-                      <tr key={item.id} className="border-b border-gray-100">
-                        <td className="py-2 px-3 text-gray-500">{idx + 1}</td>
-                        <td className="py-2 px-3 font-medium text-gray-900">{item.description}</td>
-                        <td className="py-2 px-3 text-gray-500">{item.hsn_code ?? '—'}</td>
+                      <tr key={item.id} className="border-b border-zinc-100">
+                        <td className="py-2 px-3 text-zinc-500">{idx + 1}</td>
+                        <td className="py-2 px-3 font-medium text-zinc-900">{item.description}</td>
+                        <td className="py-2 px-3 text-zinc-500">{item.hsn_code ?? '—'}</td>
                         <td className="py-2 px-3 text-right">{item.quantity}</td>
                         <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.rate)}</td>
                         <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.taxable_value)}</td>
-                        <td className="py-2 px-3 text-right font-mono text-gray-500">{formatCurrency(gst)}</td>
+                        <td className="py-2 px-3 text-right font-mono text-zinc-500">{formatCurrency(gst)}</td>
                         <td className="py-2 px-3 text-right font-mono font-semibold">{formatCurrency(item.total_amount)}</td>
                       </tr>
                     );
@@ -312,23 +312,23 @@ export function CreditNoteViewPage() {
               {/* Totals */}
               <div className="flex justify-end">
                 <div className="w-72 space-y-2">
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-sm text-zinc-600">
                     <span>Taxable Amount</span>
                     <span className="font-mono">{formatCurrency(selectedCN.taxable_amount)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-sm text-zinc-600">
                     <span>CGST</span>
                     <span className="font-mono">{formatCurrency(selectedCN.cgst_amount)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-sm text-zinc-600">
                     <span>SGST</span>
                     <span className="font-mono">{formatCurrency(selectedCN.sgst_amount)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-sm text-zinc-600">
                     <span>IGST</span>
                     <span className="font-mono">{formatCurrency(selectedCN.igst_amount)}</span>
                   </div>
-                  <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-3">
+                  <div className="flex justify-between text-base font-bold border-t border-zinc-200 pt-3">
                     <span>Total</span>
                     <span className="font-mono text-blue-600">{formatCurrency(selectedCN.total_amount)}</span>
                   </div>

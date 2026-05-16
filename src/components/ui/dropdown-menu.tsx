@@ -60,7 +60,7 @@ export function DropdownMenuContent({
     <div className="relative">
       <div
         className={cn(
-          'absolute z-50 mt-2 min-w-[160px] rounded-md border border-slate-200 bg-white p-1 shadow-lg',
+          'absolute z-50 mt-2 min-w-[160px] rounded-md border border-zinc-200 bg-white p-1 shadow-lg',
           alignment,
           className
         )}
@@ -77,7 +77,7 @@ export function DropdownMenuItem({ className, onClick, ...props }: HTMLAttribute
   return (
     <div
       className={cn(
-        'flex cursor-pointer items-center rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-100',
+        'flex cursor-pointer items-center rounded-md px-2 py-2 text-sm text-zinc-700 hover:bg-zinc-100',
         className
       )}
       onClick={(event) => {
@@ -102,7 +102,7 @@ export function DropdownMenuCheckboxItem({
   return (
     <div
       className={cn(
-        'flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-100',
+        'flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-zinc-700 hover:bg-zinc-100',
         className
       )}
       onClick={() => onCheckedChange?.(!checked)}
@@ -115,9 +115,9 @@ export function DropdownMenuCheckboxItem({
 }
 
 export function DropdownMenuLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-2 py-1 text-xs font-semibold text-slate-500', className)} {...props} />
+  return <div className={cn('px-2 py-1 text-xs font-semibold text-zinc-500', className)} {...props} />
 }
 
 export function DropdownMenuSeparator() {
-  return <div className="my-1 h-px bg-slate-200" />
+  return <div className="my-1 h-px bg-zinc-200" />
 }

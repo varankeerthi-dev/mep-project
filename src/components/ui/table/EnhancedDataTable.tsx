@@ -123,7 +123,7 @@ export function EnhancedDataTable<TData, TValue>({
   const toolbar = enableSearch ? (
     <DataTableToolbar>
       <div className="relative flex-1 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
         <Input
           placeholder="Search..."
           value={globalFilter ?? ''}
@@ -155,7 +155,7 @@ export function EnhancedDataTable<TData, TValue>({
             <TableRow key={i}>
               {columns.map((_, j) => (
                 <TableCell key={j}>
-                  <div className="h-4 bg-slate-100 rounded animate-pulse w-full max-w-[200px]" />
+                  <div className="h-4 bg-zinc-100 rounded animate-pulse w-full max-w-[200px]" />
                 </TableCell>
               ))}
             </TableRow>
@@ -164,7 +164,7 @@ export function EnhancedDataTable<TData, TValue>({
           <TableRow>
             <TableCell
               colSpan={columns.length}
-              className="h-24 text-center text-slate-500"
+              className="h-24 text-center text-zinc-500"
             >
               {emptyMessage}
             </TableCell>

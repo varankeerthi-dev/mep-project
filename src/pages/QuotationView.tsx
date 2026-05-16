@@ -1156,8 +1156,8 @@ export default function QuotationView() {
     <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
       {/* Sidebar List (300px) */}
       <div className="w-[300px] flex flex-col bg-white shadow-sm">
-        <div className="py-5 px-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-gray-700">All Quotes</h2>
+        <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
+          <h2 className="text-sm font-bold text-zinc-700">All Quotes</h2>
           <button 
             onClick={() => navigate('/quotation/create')}
             className="p-1.5 bg-sky-500 text-white rounded hover:bg-sky-600 transition-colors"
@@ -1167,11 +1167,11 @@ export default function QuotationView() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {quotationsQuery.isPending ? (
-            <div className="p-8 text-center text-gray-400 text-sm italic">Loading quotes...</div>
+            <div className="p-8 text-center text-zinc-400 text-sm italic">Loading quotes...</div>
           ) : quotations.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm italic">No quotations found</div>
+            <div className="p-8 text-center text-zinc-400 text-sm italic">No quotations found</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-zinc-100">
               {quotations.map((q) => (
                 <div 
                   key={q.id}
@@ -1180,16 +1180,16 @@ export default function QuotationView() {
                   style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] font-bold text-gray-900 truncate pr-2">
+                    <span className="text-[13px] font-bold text-zinc-900 truncate pr-2">
                       {q.client?.client_name || 'Walk-in Client'}
                     </span>
-                    <span className="text-[12px] font-bold text-gray-900">
+                    <span className="text-[12px] font-bold text-zinc-900">
                       {formatCurrency(q.grand_total)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-1 gap-4" style={{ paddingRight: '14px' }}>
-                    <div className="text-[11px] text-gray-500 font-mono">
-                      {q.quotation_no} <span className="mx-1 text-gray-300">•</span> {formatDate(q.date)}
+                    <div className="text-[11px] text-zinc-500 font-mono">
+                      {q.quotation_no} <span className="mx-1 text-zinc-300">•</span> {formatDate(q.date)}
                     </div>
                     <span 
                       className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
@@ -1209,11 +1209,11 @@ export default function QuotationView() {
       </div>
 
       {/* Main Content (70%) */}
-      <div className="flex-1 bg-gray-50 overflow-y-auto">
+      <div className="flex-1 bg-zinc-50 overflow-y-auto">
         <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-gray-900">{quotation.quotation_no}</h1>
+              <h1 className="text-2xl font-bold text-zinc-900">{quotation.quotation_no}</h1>
               <span 
                 className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
                 style={{ 
@@ -1238,7 +1238,7 @@ export default function QuotationView() {
 
           <div className="flex flex-wrap items-center gap-2 mb-6">
             {isEditable && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" onClick={handleEdit}>
+              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" onClick={handleEdit}>
                 <Edit className="w-[14px] h-[14px]" />
                 Edit
               </button>
@@ -1249,14 +1249,14 @@ export default function QuotationView() {
                 Approve
               </button>
             )}
-            <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" onClick={handleDuplicate}>
+            <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" onClick={handleDuplicate}>
               <Copy className="w-[14px] h-[14px]" />
               Duplicate
             </button>
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" 
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
                 onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); }}
               >
                 <FileText className="w-[14px] h-[14px]" />
@@ -1265,16 +1265,16 @@ export default function QuotationView() {
               </button>
 
               {showConvertMenu && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1">
-                  <button onClick={() => handleConvert('proforma-invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50">Proforma Invoice</button>
-                  <button onClick={() => handleConvert('invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50">Tax Invoice</button>
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1">
+                  <button onClick={() => handleConvert('proforma-invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50">Proforma Invoice</button>
+                  <button onClick={() => handleConvert('invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50">Tax Invoice</button>
                 </div>
               )}
             </div>
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" 
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
                 onClick={() => { 
                   setShowPrintMenu(!showPrintMenu); 
                   setShowConvertMenu(false); 
@@ -1292,12 +1292,12 @@ export default function QuotationView() {
               </button>
 
               {showPrintMenu && (
-                <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
                   {printMenuView === 'main' ? (
                     <>
                       <button 
                         onClick={() => handlePrintAction('preview')}
-                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                         style={{ padding: '12px' }}
                       >
                         <Eye className="w-4 h-4 text-sky-500" />
@@ -1305,35 +1305,35 @@ export default function QuotationView() {
                       </button>
                       <button 
                         onClick={() => handlePrintAction('download')}
-                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                         style={{ padding: '12px' }}
                       >
                         <Download className="w-4 h-4 text-sky-500" />
                         Download PDF
                       </button>
-                      <div className="h-px bg-gray-100 my-1" />
+                      <div className="h-px bg-zinc-100 my-1" />
                       <button 
                         onClick={() => setPrintMenuView('templates')}
-                        className="flex items-center justify-between w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors group"
+                        className="flex items-center justify-between w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors group"
                         style={{ padding: '12px' }}
                       >
                         <div className="flex items-center gap-3">
                           <FileText className="w-4 h-4 text-sky-500" />
                           Choose Template
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-sky-500 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-sky-500 transition-colors" />
                       </button>
                     </>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 p-2 mb-1 border-b border-gray-100">
+                      <div className="flex items-center gap-2 p-2 mb-1 border-b border-zinc-100">
                         <button 
                           onClick={() => setPrintMenuView('main')}
-                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="p-1 hover:bg-zinc-100 rounded transition-colors"
                         >
-                          <ChevronLeft className="w-4 h-4 text-gray-500" />
+                          <ChevronLeft className="w-4 h-4 text-zinc-500" />
                         </button>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Template</span>
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
                       </div>
                       <div className="max-h-[300px] overflow-y-auto">
                         {templates.map(t => (
@@ -1343,11 +1343,11 @@ export default function QuotationView() {
                               handleSelectTemplate(t.id);
                               setPrintMenuView('main');
                             }} 
-                            className={`block w-full text-left text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-sky-50/50'}`}
+                            className={`block w-full text-left text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'}`}
                             style={{ padding: '10px 12px' }}
                           >
                             {t.template_name}
-                            {t.is_default && <span className="ml-2 text-[10px] text-gray-400 font-normal italic">(Default)</span>}
+                            {t.is_default && <span className="ml-2 text-[10px] text-zinc-400 font-normal italic">(Default)</span>}
                           </button>
                         ))}
                       </div>
@@ -1358,7 +1358,7 @@ export default function QuotationView() {
             </div>
 
             {isCancellable && (
-<button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" onClick={handleCancel}>
+<button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" onClick={handleCancel}>
               <XCircle className="w-[14px] h-[14px]" />
               Cancel
             </button>
@@ -1372,50 +1372,50 @@ export default function QuotationView() {
             )}
           </div>
 
-          <div className="space-y-6 bg-white border border-gray-200 shadow-2xl min-h-[1120px] mb-12 rounded-none" style={{ padding: '14px' }}>
-            <div className="grid grid-cols-2 gap-[72px] border-b border-gray-100 pb-12">
+          <div className="space-y-6 bg-white border border-zinc-200 shadow-2xl min-h-[1120px] mb-12 rounded-none" style={{ padding: '14px' }}>
+            <div className="grid grid-cols-2 gap-[72px] border-b border-zinc-100 pb-12">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">General Information</h3>
+                <h3 className="text-lg font-bold text-zinc-900 mb-6">General Information</h3>
                 <dl className="space-y-8">
-                  <div className="flex justify-between border-b border-gray-50 pb-2">
-                    <dt className="text-[13px] text-gray-500">Date</dt>
-                    <dd className="text-[13px] font-bold text-gray-900">{formatDate(quotation.date)}</dd>
+                  <div className="flex justify-between border-b border-zinc-50 pb-2">
+                    <dt className="text-[13px] text-zinc-500">Date</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900">{formatDate(quotation.date)}</dd>
                   </div>
-                  <div className="flex justify-between border-b border-gray-50 pb-2">
-                    <dt className="text-[13px] text-gray-500">Valid Till</dt>
-                    <dd className="text-[13px] font-bold text-gray-900">{formatDate(quotation.valid_till)}</dd>
+                  <div className="flex justify-between border-b border-zinc-50 pb-2">
+                    <dt className="text-[13px] text-zinc-500">Valid Till</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900">{formatDate(quotation.valid_till)}</dd>
                   </div>
-                  <div className="flex justify-between border-b border-gray-50 pb-2">
-                    <dt className="text-[13px] text-gray-500">Payment Terms</dt>
-                    <dd className="text-[13px] font-bold text-gray-900">{quotation.payment_terms || '-'}</dd>
+                  <div className="flex justify-between border-b border-zinc-50 pb-2">
+                    <dt className="text-[13px] text-zinc-500">Payment Terms</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900">{quotation.payment_terms || '-'}</dd>
                   </div>
-                  <div className="flex justify-between border-b border-gray-50 pb-2">
-                    <dt className="text-[13px] text-gray-500">Contact No</dt>
-                    <dd className="text-[13px] font-bold text-gray-900">{quotation.contact_no || '-'}</dd>
+                  <div className="flex justify-between border-b border-zinc-50 pb-2">
+                    <dt className="text-[13px] text-zinc-500">Contact No</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900">{quotation.contact_no || '-'}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-[13px] text-gray-500">Remarks</dt>
-                    <dd className="text-[13px] font-bold text-gray-900 text-right">{quotation.remarks || quotation.reference || '-'}</dd>
+                    <dt className="text-[13px] text-zinc-500">Remarks</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 text-right">{quotation.remarks || quotation.reference || '-'}</dd>
                   </div>
                 </dl>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Client & Project</h3>
+                <h3 className="text-lg font-bold text-zinc-900 mb-6">Client & Project</h3>
                 <div className="space-y-4">
                   <div>
-                    <dt className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Client</dt>
-                    <dd className="text-[15px] font-bold text-gray-900">{quotation.client?.client_name || quotation.client?.name}</dd>
+                    <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Client</dt>
+                    <dd className="text-[15px] font-bold text-zinc-900">{quotation.client?.client_name || quotation.client?.name}</dd>
                   </div>
                   {quotation.project && (
                     <div>
-                      <dt className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Project</dt>
-                      <dd className="text-[13px] font-medium text-gray-700">{quotation.project.project_name}</dd>
+                      <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Project</dt>
+                      <dd className="text-[13px] font-medium text-zinc-700">{quotation.project.project_name}</dd>
                     </div>
                   )}
                   {quotation.billing_address && (
                     <div>
-                      <dt className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Billing Address</dt>
-                      <dd className="text-[13px] text-gray-500 leading-relaxed whitespace-pre-line">{quotation.billing_address}</dd>
+                      <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Billing Address</dt>
+                      <dd className="text-[13px] text-zinc-500 leading-relaxed whitespace-pre-line">{quotation.billing_address}</dd>
                     </div>
                   )}
                 </div>
@@ -1423,50 +1423,50 @@ export default function QuotationView() {
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Line Items</h3>
+              <h3 className="text-lg font-bold text-zinc-900 mb-6">Line Items</h3>
               {!quotation.items || quotation.items.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-zinc-500">
                   <div className="text-lg font-medium mb-2">No line items found</div>
                   <div className="text-sm">This quotation may not have any items saved yet.</div>
                 </div>
               ) : (
                 <div className="overflow-x-auto -mx-12">
-                  <table className="min-w-full border border-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr className="border-b border-gray-200">
+                  <table className="min-w-full border border-zinc-200">
+                  <thead className="bg-zinc-100">
+                    <tr className="border-b border-zinc-200">
                       {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">#</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">#</span></th>
                       )}
                       {quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">HSN/SAC</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">HSN/SAC</span></th>
                       )}
                       {quotation.items?.some(i => i.item?.item_code) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Part No</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Part No</span></th>
                       )}
                       {quotation.items?.some(i => i.make) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Make</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Make</span></th>
                       )}
-                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Description</span></th>
+                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Description</span></th>
                       {quotation.items?.some(i => i.variant_id) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Variant</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Variant</span></th>
                       )}
-                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Qty</span></th>
-                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Unit</span></th>
-                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Rate</span></th>
+                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
+                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Unit</span></th>
+                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Rate</span></th>
 
                       {quotation.items?.some(i => i.discount_percent > 0) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Disc %</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Disc %</span></th>
                       )}
                       {quotation.items?.some(i => i.tax_percent > 0) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Tax %</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Tax %</span></th>
                       )}
                       {quotation.items?.some(i => i.custom1) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</span></th>
                       )}
                       {quotation.items?.some(i => i.custom2) && (
-                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</span></th>
                       )}
-                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Total</span></th>
+                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Total</span></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -1484,31 +1484,31 @@ export default function QuotationView() {
                       const hasCustom2 = quotation.items?.some(i => i.custom2);
 
                       return (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors align-top">
-                          {optCols.sno !== false && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-gray-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
-                          {hasHSN && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
-                          {hasItemCode && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 block">{item.item?.item_code || '-'}</span></td>}
-                          {hasMake && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-400 italic block">{item.make || '-'}</span></td>}
-                          <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}>
-                            <div className="text-[12px] font-medium text-gray-900 leading-tight">{item.description || item.item?.display_name || item.item?.name}</div>
+                        <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">
+                          {optCols.sno !== false && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
+                          {hasHSN && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
+                          {hasItemCode && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.item?.item_code || '-'}</span></td>}
+                          {hasMake && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 italic block">{item.make || '-'}</span></td>}
+                          <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
+                            <div className="text-[12px] font-medium text-zinc-900 leading-tight">{item.description || item.item?.display_name || item.item?.name}</div>
                             {item.override_flag && (
                               <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
                             )}
                           </td>
                           {hasVariant && (
-                            <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}>
-                              <span className="text-[11px] text-gray-500 block">{allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}</span>
+                            <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
+                              <span className="text-[11px] text-zinc-500 block">{allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}</span>
                             </td>
                           )}
-                          <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-gray-900 text-right font-medium block">{item.qty}</span></td>
-                          <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-400 block">{item.uom}</span></td>
-                          <td className="border-l border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-gray-900 text-right block">{formatCurrency(item.rate)}</span></td>
+                          <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-medium block">{item.qty}</span></td>
+                          <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 block">{item.uom}</span></td>
+                          <td className="border-l border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right block">{formatCurrency(item.rate)}</span></td>
 
                           {hasDiscount && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-red-500 text-right font-medium block">{item.discount_percent}%</span></td>}
-                          {hasTax && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 text-right block">{item.tax_percent}%</span></td>}
-                          {hasCustom1 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 block">{item.custom1 || '-'}</span></td>}
-                          {hasCustom2 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 block">{item.custom2 || '-'}</span></td>}
-                          <td className="bg-gray-50" style={{ padding: '14px 7px' }}><span className="text-[11px] font-bold text-gray-900 text-right block">{formatCurrency(item.line_total)}</span></td>
+                          {hasTax && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 text-right block">{item.tax_percent}%</span></td>}
+                          {hasCustom1 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom1 || '-'}</span></td>}
+                          {hasCustom2 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom2 || '-'}</span></td>}
+                          <td className="bg-zinc-50" style={{ padding: '14px 7px' }}><span className="text-[11px] font-bold text-zinc-900 text-right block">{formatCurrency(item.line_total)}</span></td>
                         </tr>
                       );
                     })}
@@ -1518,57 +1518,57 @@ export default function QuotationView() {
               )}
             </div>
 
-            <div className="flex justify-end pt-12 border-t border-gray-100">
+            <div className="flex justify-end pt-12 border-t border-zinc-100">
               <div className="w-full max-w-sm space-y-4">
-                <div className="flex justify-between text-[13px] text-gray-500">
+                <div className="flex justify-between text-[13px] text-zinc-500">
                   <span>Subtotal</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(quotation.subtotal)}</span>
+                  <span className="font-bold text-zinc-900">{formatCurrency(quotation.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-[13px] text-gray-500">
+                <div className="flex justify-between text-[13px] text-zinc-500">
                   <span>Total Item Discount</span>
                   <span className="text-red-500 font-bold">- {formatCurrency(quotation.total_item_discount)}</span>
                 </div>
-                <div className="flex justify-between text-[13px] text-gray-500">
+                <div className="flex justify-between text-[13px] text-zinc-500">
                   <span>Extra Discount ({quotation.extra_discount_percent}%)</span>
                   <span className="text-red-500 font-bold">- {formatCurrency(quotation.extra_discount_amount)}</span>
                 </div>
                 
                 {quotation.state && (organisation?.state || 'Maharashtra') && 
                 quotation.state.trim().toLowerCase() !== (organisation?.state || 'Maharashtra').trim().toLowerCase() ? (
-                  <div className="flex justify-between text-[13px] text-gray-500">
+                  <div className="flex justify-between text-[13px] text-zinc-500">
                     <span>IGST</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(quotation.total_tax)}</span>
+                    <span className="font-bold text-zinc-900">{formatCurrency(quotation.total_tax)}</span>
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between text-[13px] text-gray-500">
+                    <div className="flex justify-between text-[13px] text-zinc-500">
                       <span>CGST</span>
-                      <span className="font-bold text-gray-900">{formatCurrency(quotation.total_tax / 2)}</span>
+                      <span className="font-bold text-zinc-900">{formatCurrency(quotation.total_tax / 2)}</span>
                     </div>
-                    <div className="flex justify-between text-[13px] text-gray-500">
+                    <div className="flex justify-between text-[13px] text-zinc-500">
                       <span>SGST</span>
-                      <span className="font-bold text-gray-900">{formatCurrency(quotation.total_tax / 2)}</span>
+                      <span className="font-bold text-zinc-900">{formatCurrency(quotation.total_tax / 2)}</span>
                     </div>
                   </>
                 )}
 
-                <div className="flex justify-between text-[13px] text-gray-500">
+                <div className="flex justify-between text-[13px] text-zinc-500">
                   <span>Round Off</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(quotation.round_off)}</span>
+                  <span className="font-bold text-zinc-900">{formatCurrency(quotation.round_off)}</span>
                 </div>
 
-                <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
-                  <span className="text-[15px] font-bold text-gray-900 uppercase">Grand Total</span>
-                  <span className="text-2xl font-black text-gray-900">{formatCurrency(quotation.grand_total)}</span>
+                <div className="pt-4 border-t-2 border-zinc-900 flex justify-between items-center">
+                  <span className="text-[15px] font-bold text-zinc-900 uppercase">Grand Total</span>
+                  <span className="text-2xl font-black text-zinc-900">{formatCurrency(quotation.grand_total)}</span>
                 </div>
               </div>
             </div>
 
           {/* Terms & Conditions Section */}
           {termsConditionsQuery.data?.custom_content && (
-            <div className="mt-8 border-t border-gray-200 pt-8">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Terms & Conditions</h3>
-              <div className="bg-gray-50 rounded-lg p-6">
+            <div className="mt-8 border-t border-zinc-200 pt-8">
+              <h3 className="text-lg font-bold text-zinc-900 mb-4">Terms & Conditions</h3>
+              <div className="bg-zinc-50 rounded-lg p-6">
                 {(() => {
                   try {
                     const termsData = typeof termsConditionsQuery.data.custom_content === 'string' 
@@ -1578,14 +1578,14 @@ export default function QuotationView() {
                     if (termsData && termsData.sections) {
                       return termsData.sections.map((section: any, sectionIndex: number) => (
                         <div key={sectionIndex} className="mb-4 last:mb-0">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                          <h4 className="text-sm font-semibold text-zinc-900 mb-2">
                             {sectionIndex + 1}. {section.title}
                           </h4>
                           {section.items && section.items.length > 0 && (
                             <div className="space-y-1">
                               {section.items.map((item: any, itemIndex: number) => (
-                                <div key={itemIndex} className="text-sm text-gray-600 flex items-start">
-                                  <span className="mr-2 text-gray-400">
+                                <div key={itemIndex} className="text-sm text-zinc-600 flex items-start">
+                                  <span className="mr-2 text-zinc-400">
                                     {item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`}
                                   </span>
                                   <span>{item.content}</span>
@@ -1599,7 +1599,7 @@ export default function QuotationView() {
                   } catch (error) {
                     // Fallback to plain text if JSON parsing fails
                     return (
-                      <div className="text-sm text-gray-600 whitespace-pre-line">
+                      <div className="text-sm text-zinc-600 whitespace-pre-line">
                         {String(termsConditionsQuery.data.custom_content)}
                       </div>
                     );
@@ -1618,13 +1618,13 @@ export default function QuotationView() {
       <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl">
           {/* Modal Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-lg">
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-zinc-50 rounded-t-lg">
             <div className="flex items-center gap-4">
-              <h3 className="font-semibold text-gray-800 text-lg">
+              <h3 className="font-semibold text-zinc-800 text-lg">
                 Preview - {quotation?.quotation_no || 'Quotation'}
               </h3>
               {previewLoading && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Loading...</span>
                 </div>
@@ -1657,7 +1657,7 @@ export default function QuotationView() {
               <button
                 onClick={printFromPreview}
                 disabled={previewLoading}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-zinc-600 text-white rounded hover:bg-zinc-700 transition-colors disabled:opacity-50"
               >
                 <Printer className="w-4 h-4" />
                 Print
@@ -1666,7 +1666,7 @@ export default function QuotationView() {
               {/* Close Button */}
               <button
                 onClick={() => setPreviewModalOpen(false)}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                className="p-2 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded transition-colors"
               >
                 <XCircle className="w-5 h-5" />
               </button>
@@ -1674,12 +1674,12 @@ export default function QuotationView() {
           </div>
           
           {/* Modal Content */}
-          <div className="flex-1 overflow-auto bg-gray-100 p-4">
+          <div className="flex-1 overflow-auto bg-zinc-100 p-4">
             {previewLoading ? (
               <div className="flex items-center justify-center h-full min-h-[400px]">
                 <div className="text-center">
                   <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-3" />
-                  <p className="text-gray-500">Generating preview...</p>
+                  <p className="text-zinc-500">Generating preview...</p>
                 </div>
               </div>
             ) : (

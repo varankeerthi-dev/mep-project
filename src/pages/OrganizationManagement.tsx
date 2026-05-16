@@ -79,11 +79,11 @@ export default function OrganizationManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/80 p-6">
+    <div className="min-h-screen bg-zinc-50/80 p-6">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-slate-800">Organization Management</h1>
+            <h1 className="text-2xl font-bold text-zinc-800">Organization Management</h1>
             <Button
               onClick={() => setShowCreateForm(!showCreateForm)}
               variant="primary"
@@ -105,8 +105,8 @@ export default function OrganizationManagement() {
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-semibold text-slate-800">{org.organisation?.name}</h3>
-                      <p className="text-sm text-slate-600">Role: {org.role}</p>
+                      <h3 className="font-semibold text-zinc-800">{org.organisation?.name}</h3>
+                      <p className="text-sm text-zinc-600">Role: {org.role}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -184,7 +184,7 @@ export default function OrganizationManagement() {
                       id="inviteRole"
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}
-                      className="w-full p-2 border border-slate-300 rounded-md"
+                      className="w-full p-2 border border-zinc-300 rounded-md"
                     >
                       <option value="member">Member</option>
                       <option value="manager">Manager</option>

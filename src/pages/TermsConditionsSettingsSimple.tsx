@@ -103,7 +103,7 @@ export const TermsConditionsSettings: React.FC = () => {
         .single();
 
       if (data) {
-        setTemplates([...templates, data]);
+        setTemplates(prev => [...prev, data]);
         setSelectedTemplate(data);
         setNewTemplateName('');
         setSections([]);
@@ -242,7 +242,7 @@ export const TermsConditionsSettings: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading Terms & Conditions Settings...</div>
+        <div className="text-zinc-500">Loading Terms & Conditions Settings...</div>
       </div>
     );
   }
@@ -250,21 +250,21 @@ export const TermsConditionsSettings: React.FC = () => {
   return (
     <div className="p-6 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Terms & Conditions Settings</h1>
-        <p className="text-gray-600">Manage your quotation terms and conditions templates</p>
+        <h1 className="text-2xl font-bold text-zinc-900 mb-2">Terms & Conditions Settings</h1>
+        <p className="text-zinc-600">Manage your quotation terms and conditions templates</p>
       </div>
 
       {/* Template Management */}
-      <div className="mb-8 p-6 bg-gray-50 rounded-lg">
+      <div className="mb-8 p-6 bg-zinc-50 rounded-lg">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Templates</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Templates</h2>
           <div className="flex items-center gap-2">
             <input
               type="text"
               placeholder="New template name"
               value={newTemplateName}
               onChange={(e) => setNewTemplateName(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="px-3 py-2 border border-zinc-300 rounded-md text-sm"
             />
             <button
               onClick={createNewTemplate}
@@ -284,7 +284,7 @@ export const TermsConditionsSettings: React.FC = () => {
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 selectedTemplate?.id === template.id
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50'
               }`}
             >
               {template.name}
@@ -303,9 +303,9 @@ export const TermsConditionsSettings: React.FC = () => {
         <div className="bg-white border rounded-lg">
           <div className="flex items-center justify-between p-4 border-b">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{selectedTemplate.name}</h3>
+              <h3 className="text-lg font-semibold text-zinc-900">{selectedTemplate.name}</h3>
               {selectedTemplate.description && (
-                <p className="text-sm text-gray-600 mt-1">{selectedTemplate.description}</p>
+                <p className="text-sm text-zinc-600 mt-1">{selectedTemplate.description}</p>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -336,16 +336,16 @@ export const TermsConditionsSettings: React.FC = () => {
                 key={section.id}
                 className="mb-6 border rounded-lg"
               >
-                <div className="flex items-center justify-between p-4 bg-gray-50 border-b">
+                <div className="flex items-center justify-between p-4 bg-zinc-50 border-b">
                   <div className="flex items-center gap-2">
-                    <div className="cursor-move text-gray-400">
+                    <div className="cursor-move text-zinc-400">
                       <Settings className="w-4 h-4" />
                     </div>
                     <input
                       type="text"
                       value={section.title}
                       onChange={(e) => updateSectionTitle(section.id, e.target.value)}
-                      className="font-bold text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                      className="font-bold text-zinc-900 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-blue-500 focus:outline-none px-1"
                       style={{ fontSize: '12px' }}
                     />
                   </div>
@@ -370,12 +370,12 @@ export const TermsConditionsSettings: React.FC = () => {
                 <div className="p-4">
                   {section.items.map((item, itemIndex) => (
                     <div key={item.id} className="flex items-start gap-2 mb-2 last:mb-0">
-                      <span className="text-gray-600 mt-1" style={{ fontSize: '10px' }}>•</span>
+                      <span className="text-zinc-600 mt-1" style={{ fontSize: '10px' }}>•</span>
                       <input
                         type="text"
                         value={item.content}
                         onChange={(e) => updateItemContent(section.id, item.id, e.target.value)}
-                        className="flex-1 text-gray-700 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                        className="flex-1 text-zinc-700 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-blue-500 focus:outline-none px-1"
                         style={{ fontSize: '10px' }}
                       />
                       <button
@@ -388,7 +388,7 @@ export const TermsConditionsSettings: React.FC = () => {
                     </div>
                   ))}
                   {section.items.length === 0 && (
-                    <div className="text-center py-4 text-gray-400 text-sm">
+                    <div className="text-center py-4 text-zinc-400 text-sm">
                       No items. Click "Add item" to add content.
                     </div>
                   )}
@@ -398,7 +398,7 @@ export const TermsConditionsSettings: React.FC = () => {
           </div>
 
           {sections.length === 0 && (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-zinc-400">
               No sections in this template. Click "Add Section" to get started.
             </div>
           )}

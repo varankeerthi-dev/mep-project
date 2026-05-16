@@ -109,24 +109,24 @@ const ReportsDashboard = () => {
       case 'down':
         return <span className="text-red-600">↓</span>;
       default:
-        return <span className="text-gray-600">→</span>;
+        return <span className="text-zinc-600">→</span>;
     }
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full">
+    <div className="p-6 bg-zinc-50 min-h-full">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Reports Dashboard</h1>
-            <p className="text-gray-600 mt-1">Generate and manage comprehensive business reports</p>
+            <h1 className="text-3xl font-bold text-zinc-900">Reports Dashboard</h1>
+            <p className="text-zinc-600 mt-1">Generate and manage comprehensive business reports</p>
           </div>
           <div className="flex items-center gap-3">
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 border border-zinc-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="this-month">This Month</option>
               <option value="last-month">Last Month</option>
@@ -144,16 +144,16 @@ const ReportsDashboard = () => {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {quickStats.map((stat, index) => (
-          <div key={index} className="bg-white p-6 rounded-xl border border-gray-200 border-12" style={{ height: '34px' }}>
+          <div key={index} className="bg-white p-6 rounded-xl border border-zinc-200 border-12" style={{ height: '34px' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                <p className="text-sm text-zinc-600">{stat.label}</p>
+                <p className="text-2xl font-bold text-zinc-900 mt-1">{stat.value}</p>
                 <div className="flex items-center gap-1 mt-2">
                   {getTrendIcon(stat.trend)}
                   <span className={`text-sm ${
                     stat.trend === 'up' ? 'text-green-600' : 
-                    stat.trend === 'down' ? 'text-red-600' : 'text-gray-600'
+                    stat.trend === 'down' ? 'text-red-600' : 'text-zinc-600'
                   }`}>
                     {stat.change}
                   </span>
@@ -169,7 +169,7 @@ const ReportsDashboard = () => {
 
       {/* Report Categories */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Report Categories</h2>
+        <h2 className="text-xl font-semibold text-zinc-900 mb-4">Report Categories</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {reportCategories.map((category) => {
             const Icon = category.icon;
@@ -177,18 +177,18 @@ const ReportsDashboard = () => {
               <button
                 key={category.id}
                 onClick={() => navigate(category.path)}
-                className="bg-white p-6 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all text-left group"
+                className="bg-white p-6 rounded-xl border border-zinc-200 hover:border-zinc-300 hover:shadow-lg transition-all text-left group"
               >
                 <div className={`w-12 h-12 ${category.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{category.title}</h3>
-                <p className="text-sm text-gray-600 mb-4">{category.description}</p>
+                <h3 className="font-semibold text-zinc-900 mb-2">{category.title}</h3>
+                <p className="text-sm text-zinc-600 mb-4">{category.description}</p>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500">{category.stats.total} total</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-500">{category.stats.thisMonth} this month</span>
+                    <span className="text-zinc-500">{category.stats.total} total</span>
+                    <span className="text-zinc-400">•</span>
+                    <span className="text-zinc-500">{category.stats.thisMonth} this month</span>
                   </div>
                   {getTrendIcon(category.stats.trend)}
                 </div>
@@ -201,24 +201,24 @@ const ReportsDashboard = () => {
       {/* Recent Reports */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl border border-zinc-200">
+            <div className="p-6 border-b border-zinc-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Recent Reports</h2>
+                <h2 className="text-xl font-semibold text-zinc-900">Recent Reports</h2>
                 <button className="text-sm text-blue-600 hover:text-blue-700">View All</button>
               </div>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-zinc-200">
               {recentReports.map((report) => (
-                <div key={report.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div key={report.id} className="p-4 hover:bg-zinc-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <DocumentTextIcon className="w-5 h-5 text-gray-600" />
+                      <div className="w-10 h-10 bg-zinc-100 rounded-lg flex items-center justify-center">
+                        <DocumentTextIcon className="w-5 h-5 text-zinc-600" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-gray-900">{report.name}</h4>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <h4 className="font-medium text-zinc-900">{report.name}</h4>
+                        <div className="flex items-center gap-2 text-sm text-zinc-500">
                           <span>{report.type}</span>
                           <span>•</span>
                           <span>{report.date}</span>
@@ -229,12 +229,12 @@ const ReportsDashboard = () => {
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         report.status === 'Completed' ? 'bg-green-100 text-green-700' :
                         report.status === 'In Progress' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
+                        'bg-zinc-100 text-zinc-700'
                       }`}>
                         {report.status}
                       </span>
-                      <button className="p-1 hover:bg-gray-100 rounded">
-                        <ArrowDownTrayIcon className="w-4 h-4 text-gray-600" />
+                      <button className="p-1 hover:bg-zinc-100 rounded">
+                        <ArrowDownTrayIcon className="w-4 h-4 text-zinc-600" />
                       </button>
                     </div>
                   </div>
@@ -245,34 +245,34 @@ const ReportsDashboard = () => {
         </div>
 
         <div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="bg-white rounded-xl border border-zinc-200 p-6">
+            <h2 className="text-xl font-semibold text-zinc-900 mb-4">Quick Actions</h2>
             <div className="space-y-3">
-              <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors">
+              <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-50 rounded-lg transition-colors">
                 <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
                   <FunnelIcon className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">Create Custom Report</div>
-                  <div className="text-sm text-gray-500">Build with custom filters</div>
+                  <div className="font-medium text-zinc-900">Create Custom Report</div>
+                  <div className="text-sm text-zinc-500">Build with custom filters</div>
                 </div>
               </button>
-              <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors">
+              <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-50 rounded-lg transition-colors">
                 <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
                   <CalendarDaysIcon className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">Schedule Reports</div>
-                  <div className="text-sm text-gray-500">Set up automated generation</div>
+                  <div className="font-medium text-zinc-900">Schedule Reports</div>
+                  <div className="text-sm text-zinc-500">Set up automated generation</div>
                 </div>
               </button>
-              <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors">
+              <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-50 rounded-lg transition-colors">
                 <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
                   <ArrowDownTrayIcon className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">Export All Reports</div>
-                  <div className="text-sm text-gray-500">Download as ZIP archive</div>
+                  <div className="font-medium text-zinc-900">Export All Reports</div>
+                  <div className="text-sm text-zinc-500">Download as ZIP archive</div>
                 </div>
               </button>
             </div>

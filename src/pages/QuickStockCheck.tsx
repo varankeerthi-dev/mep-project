@@ -209,7 +209,7 @@ export default function QuickStockCheck() {
       total_available: 0,
       pending_qty: 0
     };
-    setItems([...items, newItem]);
+    setItems(prev => [...prev, newItem]);
   };
 
   const handleItemChange = async (index, field, value) => {

@@ -73,9 +73,9 @@ function SortableColumnRow({
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`flex items-center gap-4 p-3 bg-white border ${isDragging ? 'border-primary shadow-lg' : 'border-gray-200'} rounded-lg mb-2`}
+      className={`flex items-center gap-4 p-3 bg-white border ${isDragging ? 'border-primary shadow-lg' : 'border-zinc-200'} rounded-lg mb-2`}
     >
-      <div {...attributes} {...listeners} className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing">
+      <div {...attributes} {...listeners} className="cursor-grab text-zinc-400 hover:text-zinc-600 active:cursor-grabbing">
         <GripVertical size={20} />
       </div>
       
@@ -84,11 +84,11 @@ function SortableColumnRow({
           type="checkbox" 
           checked={column.enabled}
           onChange={(e) => onChange(column.key, { enabled: e.target.checked })}
-          className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300 cursor-pointer"
+          className="w-4 h-4 rounded text-primary focus:ring-primary border-zinc-300 cursor-pointer"
         />
       </div>
 
-      <div className="w-24 text-sm font-mono text-gray-500 bg-gray-50 px-2 py-1 rounded">
+      <div className="w-24 text-sm font-mono text-zinc-500 bg-zinc-50 px-2 py-1 rounded">
         {column.key}
       </div>
 
@@ -97,7 +97,7 @@ function SortableColumnRow({
           type="text"
           value={column.label}
           onChange={(e) => onChange(column.key, { label: e.target.value })}
-          className="w-full text-sm border-gray-300 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+          className="w-full text-sm border-zinc-300 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
           placeholder="Column Label"
         />
       </div>
@@ -106,7 +106,7 @@ function SortableColumnRow({
         <select
           value={column.align || 'left'}
           onChange={(e) => onChange(column.key, { align: e.target.value as any })}
-          className="w-full text-sm border-gray-300 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
+          className="w-full text-sm border-zinc-300 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none bg-white"
         >
           <option value="left">Left</option>
           <option value="center">Center</option>
@@ -120,14 +120,14 @@ function SortableColumnRow({
           value={column.width || ''}
           onChange={(e) => onChange(column.key, { width: e.target.value ? Number(e.target.value) : undefined })}
           placeholder="auto"
-          className="w-full text-sm border-gray-300 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+          className="w-full text-sm border-zinc-300 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
         />
       </div>
       
       {onRemove && (
         <button 
           onClick={() => onRemove(column.key)}
-          className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
+          className="p-1.5 text-zinc-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
           title="Remove Custom Column"
         >
           <Trash2 size={16} />
@@ -269,18 +269,18 @@ export default function PrintTemplateBuilder() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50/50">
+    <div className="flex flex-col h-full bg-zinc-50/50">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-white">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Dynamic Column Builder</h1>
-          <p className="text-sm text-gray-500">Configure dynamic columns and layouts for PDF generation.</p>
+          <h1 className="text-lg font-semibold text-zinc-900">Dynamic Column Builder</h1>
+          <p className="text-sm text-zinc-500">Configure dynamic columns and layouts for PDF generation.</p>
         </div>
         
         <div className="flex items-center gap-3">
           <button 
             onClick={() => { setColumns(DEFAULT_COLUMNS); setIsFormDirty(true); }}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
           >
             <RefreshCw size={16} /> Reset
           </button>
@@ -288,7 +288,7 @@ export default function PrintTemplateBuilder() {
           <button 
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || (!isFormDirty && !!dbTemplate)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-md hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-md hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save Template'}
           </button>
@@ -300,14 +300,14 @@ export default function PrintTemplateBuilder() {
         <div className="max-w-4xl mx-auto space-y-6">
           
           {/* Controls Card */}
-          <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+          <div className="p-5 bg-white border border-zinc-200 rounded-xl shadow-sm">
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Document Type</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Document Type</label>
                 <select 
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                  className="w-full border-zinc-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
                 >
                   <option value="quotation">Quotation</option>
                   <option value="invoice">Tax Invoice</option>
@@ -317,12 +317,12 @@ export default function PrintTemplateBuilder() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Layout Configuration Name</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Layout Configuration Name</label>
                 <input 
                   type="text" 
                   value={templateName}
                   onChange={(e) => { setTemplateName(e.target.value); setIsFormDirty(true); }}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                  className="w-full border-zinc-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
                   placeholder="e.g. Standard Layout"
                 />
               </div>
@@ -330,9 +330,9 @@ export default function PrintTemplateBuilder() {
           </div>
 
           {/* Columns Editor Card */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-              <h3 className="font-semibold text-gray-800">Column Order & Sizing</h3>
+          <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50 flex justify-between items-center">
+              <h3 className="font-semibold text-zinc-800">Column Order & Sizing</h3>
               <button 
                 onClick={addCustomColumn}
                 className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
@@ -344,10 +344,10 @@ export default function PrintTemplateBuilder() {
             
             <div className="p-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
               {isLoading ? (
-                <div className="flex justify-center p-8 text-gray-500">Loading template data...</div>
+                <div className="flex justify-center p-8 text-zinc-500">Loading template data...</div>
               ) : (
                 <>
-                  <div className="flex items-center gap-4 px-3 pb-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b">
+                  <div className="flex items-center gap-4 px-3 pb-3 mb-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b">
                     <div className="w-5"></div> {/* Drag handle space */}
                     <div className="w-4">On</div>
                     <div className="w-24 px-2">Data Source</div>
@@ -382,9 +382,9 @@ export default function PrintTemplateBuilder() {
               )}
             </div>
             
-            <div className="px-5 py-4 bg-gray-50 border-t border-gray-200">
-              <div className="flex items-start gap-2 text-sm text-gray-600">
-                <Eye size={16} className="mt-0.5 text-gray-400" />
+            <div className="px-5 py-4 bg-zinc-50 border-t border-zinc-200">
+              <div className="flex items-start gap-2 text-sm text-zinc-600">
+                <Eye size={16} className="mt-0.5 text-zinc-400" />
                 <p>
                   Disabled columns will be saved but won't appear in the generated PDF. <br className="hidden sm:block" />
                   Drag rows to reorder columns exactly as you want them to appear from left to right.

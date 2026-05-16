@@ -445,7 +445,7 @@ export const DebitNotes: React.FC = () => {
         const val = row.original.approval_status;
         const colors: any = {
           Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          Pending: 'bg-slate-50 text-slate-700 border-slate-200',
+          Pending: 'bg-zinc-50 text-zinc-700 border-zinc-200',
           Rejected: 'bg-red-50 text-red-700 border-red-200',
         };
         return (
@@ -460,7 +460,7 @@ export const DebitNotes: React.FC = () => {
       header: 'Actions',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-1">
-          <ShadcnButton variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500 hover:bg-slate-50">
+          <ShadcnButton variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-500 hover:bg-zinc-50">
             <Eye className="h-4 w-4" />
           </ShadcnButton>
         </div>
@@ -469,7 +469,7 @@ export const DebitNotes: React.FC = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-zinc-50/50">
       <Card className="border-none shadow-sm overflow-hidden text-sm">
         <CardHeader className="py-4 px-6 bg-white border-b">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -478,18 +478,18 @@ export const DebitNotes: React.FC = () => {
                 <FileEdit className="h-5 w-5 text-rose-600" />
               </div>
               <div>
-                <CardTitle className="text-lg font-bold text-slate-800">Debit Notes</CardTitle>
-                <p className="text-xs text-slate-500 font-medium">Manage purchase returns and adjustments</p>
+                <CardTitle className="text-lg font-bold text-zinc-800">Debit Notes</CardTitle>
+                <p className="text-xs text-zinc-500 font-medium">Manage purchase returns and adjustments</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <Input
                   placeholder="Search DN..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-xs border-slate-200 focus:ring-rose-200"
+                  className="pl-9 w-64 h-9 text-xs border-zinc-200 focus:ring-rose-200"
                 />
               </div>
               <ShadcnButton
@@ -533,19 +533,19 @@ export const DebitNotes: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">DN Number</Label>
-                <Input value={dnNumber} readOnly className="border-slate-200 h-10 bg-slate-50" />
+                <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">DN Number</Label>
+                <Input value={dnNumber} readOnly className="border-zinc-200 h-10 bg-zinc-50" />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">DN Date</Label>
-                <Input type="date" value={dnDate} onChange={(e) => setDnDate(e.target.value)} className="border-slate-200 h-10" />
+                <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">DN Date</Label>
+                <Input type="date" value={dnDate} onChange={(e) => setDnDate(e.target.value)} className="border-zinc-200 h-10" />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">DN Type</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">DN Type</Label>
                 <Select value={dnType} onValueChange={setDnType}>
-                  <SelectTrigger className="border-slate-200 h-10">
+                  <SelectTrigger className="border-zinc-200 h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -557,17 +557,17 @@ export const DebitNotes: React.FC = () => {
               </div>
 
               <div className="md:col-span-2 space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">Original Bill *</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Original Bill *</Label>
                 <Select value={billId} onValueChange={setBillId}>
-                  <SelectTrigger className="border-slate-200 h-10">
+                  <SelectTrigger className="border-zinc-200 h-10">
                     <SelectValue placeholder="Select Original Bill" />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
                     {bills.map((b: any) => (
                       <SelectItem key={b.id} value={b.id}>
                         <div className="flex flex-col py-0.5">
-                          <span className="font-bold text-slate-900">{b.bill_number}</span>
-                          <span className="text-[10px] text-slate-500">{b.vendor?.company_name}</span>
+                          <span className="font-bold text-zinc-900">{b.bill_number}</span>
+                          <span className="text-[10px] text-zinc-500">{b.vendor?.company_name}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -576,9 +576,9 @@ export const DebitNotes: React.FC = () => {
               </div>
 
               <div className="md:col-span-3 space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">Reason *</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Reason *</Label>
                 <textarea
-                  className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20"
+                  className="flex min-h-[60px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Explain the reason for this debit note..."
@@ -618,7 +618,7 @@ export const DebitNotes: React.FC = () => {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">Line Items</Label>
+                <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Line Items</Label>
                 <ShadcnButton variant="secondary" size="sm" onClick={addItem} className="h-7 text-xs">
                   <Plus className="h-3 w-3 mr-1" /> Add Item
                 </ShadcnButton>
@@ -627,27 +627,27 @@ export const DebitNotes: React.FC = () => {
               <div className="border rounded-md overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-slate-50 border-b">
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-8">#</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600">MATERIAL</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-14">HSN</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-16">MAKE</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-20">VARIANT</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-20">WAREHOUSE</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-14">STOCK</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-16">Qty</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-20">Rate</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-16">GST%</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-20">Taxable</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-16">GST</th>
-                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-20">Total</th>
+                    <tr className="bg-zinc-50 border-b">
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600 w-8">#</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600">MATERIAL</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600 w-14">HSN</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600 w-16">MAKE</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600 w-20">VARIANT</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600 w-20">WAREHOUSE</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-14">STOCK</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-16">Qty</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-20">Rate</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-16">GST%</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-20">Taxable</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-16">GST</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600 w-20">Total</th>
                       <th className="px-3 py-2 w-8" />
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item, index) => (
                       <tr key={index} className="border-b last:border-b-0">
-                        <td className="px-3 py-1.5 text-center text-slate-400">{index + 1}</td>
+                        <td className="px-3 py-1.5 text-center text-zinc-400">{index + 1}</td>
                         <td className="px-3 py-1.5">
                           <select
                             value={item.material_id || ''}
@@ -685,7 +685,7 @@ export const DebitNotes: React.FC = () => {
                             value={item.hsn_code}
                             onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
                             placeholder="HSN"
-                            className="h-7 text-xs border-transparent focus:border-slate-200"
+                            className="h-7 text-xs border-transparent focus:border-zinc-200"
                           />
                         </td>
                         <td className="px-3 py-1.5">
@@ -744,19 +744,19 @@ export const DebitNotes: React.FC = () => {
                               ))}
                             </select>
                           ) : (
-                            <span className="text-[10px] text-slate-400">-</span>
+                            <span className="text-[10px] text-zinc-400">-</span>
                           )}
                         </td>
                         <td className="px-3 py-1.5 text-right">
                           {(() => {
-                            if (!item.material_id || !item.warehouse_id) return <span className="text-[10px] text-slate-400">-</span>;
+                            if (!item.material_id || !item.warehouse_id) return <span className="text-[10px] text-zinc-400">-</span>;
                             const sr = stockQuery.data?.find((s: any) =>
                               s.item_id === item.material_id &&
                               s.warehouse_id === item.warehouse_id &&
                               (item.variant_id ? s.company_variant_id === item.variant_id : s.company_variant_id === null)
                             );
                             const stock = sr?.current_stock || 0;
-                            return <span className={`text-[10px] font-semibold ${stock > 0 ? 'text-slate-800' : 'text-red-600'}`}>{stock}</span>;
+                            return <span className={`text-[10px] font-semibold ${stock > 0 ? 'text-zinc-800' : 'text-red-600'}`}>{stock}</span>;
                           })()}
                         </td>
                         <td className="px-3 py-1.5">
@@ -764,7 +764,7 @@ export const DebitNotes: React.FC = () => {
                             type="number"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="h-7 text-xs border-transparent focus:border-slate-200 text-right"
+                            className="h-7 text-xs border-transparent focus:border-zinc-200 text-right"
                           />
                         </td>
                         <td className="px-3 py-1.5">
@@ -772,7 +772,7 @@ export const DebitNotes: React.FC = () => {
                             type="number"
                             value={item.rate}
                             onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                            className="h-7 text-xs border-transparent focus:border-slate-200 text-right"
+                            className="h-7 text-xs border-transparent focus:border-zinc-200 text-right"
                           />
                         </td>
                         <td className="px-3 py-1.5">
@@ -780,7 +780,7 @@ export const DebitNotes: React.FC = () => {
                             type="number"
                             value={item.gst_percent}
                             onChange={(e) => updateItem(index, 'gst_percent', parseFloat(e.target.value) || 0)}
-                            className="h-7 text-xs border-transparent focus:border-slate-200 text-right"
+                            className="h-7 text-xs border-transparent focus:border-zinc-200 text-right"
                           />
                         </td>
                         <td className="px-3 py-1.5 text-right font-mono">{item.taxable_value.toFixed(2)}</td>
@@ -790,7 +790,7 @@ export const DebitNotes: React.FC = () => {
                           <button
                             onClick={() => removeItem(index)}
                             disabled={items.length <= 1}
-                            className="text-slate-400 hover:text-red-500 disabled:opacity-30"
+                            className="text-zinc-400 hover:text-red-500 disabled:opacity-30"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -803,11 +803,11 @@ export const DebitNotes: React.FC = () => {
 
               <div className="flex justify-end mt-3">
                 <div className="w-64 space-y-1">
-                  <div className="flex justify-between text-xs text-slate-600">
+                  <div className="flex justify-between text-xs text-zinc-600">
                     <span>Taxable Amount</span>
                     <span className="font-mono">₹{totals.taxable.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-slate-600">
+                  <div className="flex justify-between text-xs text-zinc-600">
                     <span>GST (IGST)</span>
                     <span className="font-mono">₹{totals.gst.toFixed(2)}</span>
                   </div>
@@ -820,8 +820,8 @@ export const DebitNotes: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
-            <ShadcnButton variant="secondary" onClick={() => setOpenDialog(false)} className="px-8 border-slate-200 font-semibold">
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50 flex flex-row items-center justify-between">
+            <ShadcnButton variant="secondary" onClick={() => setOpenDialog(false)} className="px-8 border-zinc-200 font-semibold">
               Cancel
             </ShadcnButton>
             <ShadcnButton

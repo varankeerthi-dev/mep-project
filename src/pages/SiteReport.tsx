@@ -585,7 +585,7 @@ export function SiteReport() {
 
   if (view === 'list') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50">
+      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50">
         <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 pt-0 pb-8">
           {/* Header */}
           <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -617,7 +617,7 @@ export function SiteReport() {
               </div>
               <Badge
                 variant="neutral"
-                className="text-[13px] h-8 font-bold px-3 bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-50 transition-all cursor-default"
+                className="text-[13px] h-8 font-bold px-3 bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-50 transition-all cursor-default"
               >
                 {reportsLoading ? "..." : `${reports?.length || 0} reports`}
               </Badge>
@@ -626,7 +626,7 @@ export function SiteReport() {
                   form.reset();
                   setView('create');
                 }}
-                className="h-9 px-4 text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10 transition-all active:scale-95"
+                className="h-9 px-4 text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 shadow-lg shadow-zinc-900/10 transition-all active:scale-95"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Report
@@ -635,7 +635,7 @@ export function SiteReport() {
                 variant="outline"
                 onClick={handlePrintPDF}
                 disabled={view !== 'edit'}
-                className="h-9 px-4 text-sm font-bold border-slate-200 text-slate-700 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
+                className="h-9 px-4 text-sm font-bold border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all active:scale-95 disabled:opacity-50"
               >
                 <FileText className="w-4 h-4 mr-2" />
                 Print PDF
@@ -644,11 +644,11 @@ export function SiteReport() {
           </div>
 
           {/* Table */}
-          <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-gray-200 bg-gray-50/80 hover:bg-gray-50/80">
+                  <TableRow className="border-b border-zinc-200 bg-zinc-50/80 hover:bg-zinc-50/80">
                     <TableHead className="w-12 px-4 align-middle">
                       <Checkbox 
                         checked={selectedReports.length === reports?.length && reports?.length > 0}
@@ -659,35 +659,35 @@ export function SiteReport() {
                             setSelectedReports([]);
                           }
                         }}
-                        className="h-4 w-4 border-2 border-gray-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                       />
                     </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[120px]">
-                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[120px]">
+                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
                         Date
                         <ChevronRight className="w-3 h-3 rotate-90" />
                       </button>
                     </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[160px]">
-                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[160px]">
+                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
                         Client
                         <ChevronRight className="w-3 h-3" />
                       </button>
                     </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[160px]">
-                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[160px]">
+                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
                         Project
                       </button>
                     </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[140px]">
-                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[140px]">
+                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
                         Engineer
                       </button>
                     </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[120px]">
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[120px]">
                       Status
                     </TableHead>
-                    <TableHead className="h-10 px-4 text-right align-middle text-[13px] font-semibold text-gray-600 w-[80px]">
+                    <TableHead className="h-10 px-4 text-right align-middle text-[13px] font-semibold text-zinc-600 w-[80px]">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -696,8 +696,8 @@ export function SiteReport() {
                   {reportsLoading ? (
                     <TableRow>
                       <TableCell colSpan={7} className="px-4 py-12 text-center">
-                        <div className="flex items-center justify-center gap-2 text-gray-500">
-                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                        <div className="flex items-center justify-center gap-2 text-zinc-500">
+                          <div className="w-4 h-4 border-2 border-zinc-300 border-t-blue-600 rounded-full animate-spin" />
                           <span className="text-sm">Loading reports...</span>
                         </div>
                       </TableCell>
@@ -706,11 +706,11 @@ export function SiteReport() {
                     <TableRow>
                       <TableCell colSpan={7} className="px-4 py-16 text-center">
                         <div className="mx-auto max-w-sm space-y-2">
-                          <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-gray-400" />
+                          <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-zinc-400" />
                           </div>
-                          <div className="text-sm font-semibold text-gray-900">No reports found</div>
-                          <div className="text-xs text-gray-500">Create your first site report to get started.</div>
+                          <div className="text-sm font-semibold text-zinc-900">No reports found</div>
+                          <div className="text-xs text-zinc-500">Create your first site report to get started.</div>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -719,8 +719,8 @@ export function SiteReport() {
                       <TableRow 
                         key={report.id} 
                         className={cn(
-                          "border-b border-gray-100 transition-colors duration-150",
-                          selectedReports.includes(report.id) ? "bg-blue-50/50" : "hover:bg-gray-50/60"
+                          "border-b border-zinc-100 transition-colors duration-150",
+                          selectedReports.includes(report.id) ? "bg-blue-50/50" : "hover:bg-zinc-50/60"
                         )}
                       >
                         <TableCell className="px-4 py-4 align-middle">
@@ -733,20 +733,20 @@ export function SiteReport() {
                                 setSelectedReports(prev => prev.filter(id => id !== report.id));
                               }
                             }}
-                            className="h-4 w-4 border-2 border-gray-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                            className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                           />
                         </TableCell>
                         <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm font-medium text-gray-900">{new Date(report.report_date).toLocaleDateString()}</span>
+                          <span className="text-sm font-medium text-zinc-900">{new Date(report.report_date).toLocaleDateString()}</span>
                         </TableCell>
                         <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm text-gray-700">{report.clients?.client_name || '-'}</span>
+                          <span className="text-sm text-zinc-700">{report.clients?.client_name || '-'}</span>
                         </TableCell>
                         <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm text-gray-700">{report.projects?.project_name || '-'}</span>
+                          <span className="text-sm text-zinc-700">{report.projects?.project_name || '-'}</span>
                         </TableCell>
                         <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm text-gray-700">{report.engineer_name || '-'}</span>
+                          <span className="text-sm text-zinc-700">{report.engineer_name || '-'}</span>
                         </TableCell>
                         <TableCell className="px-4 py-4 align-middle">
                           <Badge 
@@ -766,7 +766,7 @@ export function SiteReport() {
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all"
                               >
                                 <MoreHorizontal size={14} />
                               </button>
@@ -811,12 +811,12 @@ export function SiteReport() {
             
             {/* Bulk Actions Bar */}
             {selectedReports.length > 0 && (
-              <div className="sticky bottom-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 px-4 py-3 flex items-center justify-between">
+              <div className="sticky bottom-0 bg-zinc-900/95 backdrop-blur-sm border-t border-zinc-200 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Checkbox 
                     checked={true}
                     onCheckedChange={() => setSelectedReports([])}
-                    className="h-4 w-4 border-2 border-gray-300 rounded data-[state=checked]:bg-white data-[state=checked]:border-white"
+                    className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-white data-[state=checked]:border-white"
                   />
                   <span className="text-sm font-medium text-white">
                     {selectedReports.length} selected
@@ -826,7 +826,7 @@ export function SiteReport() {
                   <ShadcnButton 
                     size="sm" 
                     variant="ghost"
-                    className="h-8 text-white hover:bg-gray-800"
+                    className="h-8 text-white hover:bg-zinc-800"
                     onClick={() => console.log('Bulk download:', selectedReports)}
                   >
                     <Download className="w-4 h-4 mr-2" />
@@ -835,7 +835,7 @@ export function SiteReport() {
                   <ShadcnButton 
                     size="sm" 
                     variant="ghost"
-                    className="h-8 text-white hover:bg-gray-800"
+                    className="h-8 text-white hover:bg-zinc-800"
                     onClick={() => setSelectedReports([])}
                   >
                     Clear
@@ -850,9 +850,9 @@ export function SiteReport() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50 pt-0 pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50 pt-0 pb-20">
       {/* Sticky Top Header */}
-      <div className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 sm:px-8 lg:px-12 py-4 sticky top-0 z-20 shadow-lg">
+      <div className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 sm:px-8 lg:px-12 py-4 sticky top-0 z-20 shadow-lg">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <ShadcnButton 
@@ -865,18 +865,18 @@ export function SiteReport() {
                   setView('list');
                 }
               }}
-              className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200"
+              className="text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-all duration-200"
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </ShadcnButton>
-            <div className="h-6 w-px bg-slate-200" />
+            <div className="h-6 w-px bg-zinc-200" />
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
                 <FileSearch className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900 leading-none">Daily Site Report</h1>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Capturing progress for site operations</p>
+                <h1 className="text-xl font-bold text-zinc-900 leading-none">Daily Site Report</h1>
+                <p className="text-xs text-zinc-500 mt-1 font-medium">Capturing progress for site operations</p>
               </div>
             </div>
           </div>
@@ -885,7 +885,7 @@ export function SiteReport() {
               variant="outline" 
               size="sm" 
               onClick={() => setView('list')}
-              className="h-9 px-4 border-slate-300"
+              className="h-9 px-4 border-zinc-300"
             >
               Cancel
             </ShadcnButton>
@@ -913,9 +913,9 @@ export function SiteReport() {
       <div className="max-w-6xl mx-auto px-6 mt-2">
         <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
           {/* 1. Identification Section */}
-          <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
-            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+          <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
+            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-blue-500" />
                 Report Identification
               </CardTitle>
@@ -923,7 +923,7 @@ export function SiteReport() {
             <CardContent className="p-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Client <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs font-semibold text-zinc-700">Client <span className="text-red-500">*</span></Label>
                   <Select 
                     value={form.watch('client')} 
                     onValueChange={(val) => {
@@ -948,7 +948,7 @@ export function SiteReport() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Project <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs font-semibold text-zinc-700">Project <span className="text-red-500">*</span></Label>
                   <Select 
                     value={form.watch('projectName')} 
                     onValueChange={(val) => form.setValue('projectName', val)}
@@ -971,7 +971,7 @@ export function SiteReport() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Report Date <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs font-semibold text-zinc-700">Report Date <span className="text-red-500">*</span></Label>
                   <Input 
                     type="date" 
                     className={cn("h-9 text-sm bg-white", errors.date && "border-red-500")}
@@ -984,9 +984,9 @@ export function SiteReport() {
           </Card>
 
           {/* 2. Manpower Section */}
-          <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
-            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+          <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
+            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-500" />
                 Manpower Details
               </CardTitle>
@@ -994,23 +994,23 @@ export function SiteReport() {
             <CardContent className="p-5 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Skilled Force</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Skilled Force</Label>
                   <Input className="h-9 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Unskilled Force</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Unskilled Force</Label>
                   <Input className="h-9 bg-white text-sm" {...form.register('manpower.unskilled')} placeholder="0" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Total Force</Label>
-                  <Input className="h-9 bg-slate-50 font-bold text-sm" {...form.register('manpower.total')} placeholder="0" />
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Total Force</Label>
+                  <Input className="h-9 bg-zinc-50 font-bold text-sm" {...form.register('manpower.total')} placeholder="0" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">In Time</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">In Time</Label>
                   <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.startTime')} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Out Time</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Out Time</Label>
                   <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.endTime')} />
                 </div>
               </div>
@@ -1029,20 +1029,20 @@ export function SiteReport() {
                   </ShadcnButton>
                 </div>
                 
-                <div className="border border-slate-100 rounded-lg overflow-hidden shadow-inner bg-slate-50/20">
+                <div className="border border-zinc-100 rounded-lg overflow-hidden shadow-inner bg-zinc-50/20">
                   <Table>
-                    <TableHeader className="bg-slate-50/50">
+                    <TableHeader className="bg-zinc-50/50">
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-[10px] h-8 font-bold text-slate-500">Company/Vendor Name</TableHead>
-                        <TableHead className="text-[10px] h-8 font-bold text-slate-500 w-[100px]">Count</TableHead>
-                        <TableHead className="text-[10px] h-8 font-bold text-slate-500 w-[120px]">In</TableHead>
-                        <TableHead className="text-[10px] h-8 font-bold text-slate-500 w-[120px]">Out</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500">Company/Vendor Name</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[100px]">Count</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">In</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">Out</TableHead>
                         <TableHead className="w-[40px] h-8"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {subContractorFields.map((field, index) => (
-                        <TableRow key={field.id} className="bg-white border-b-slate-50 last:border-0 hover:bg-transparent">
+                        <TableRow key={field.id} className="bg-white border-b-zinc-50 last:border-0 hover:bg-transparent">
                           <TableCell className="p-1">
                             <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter vendor name..." />
                           </TableCell>
@@ -1060,7 +1060,7 @@ export function SiteReport() {
                               type="button" 
                               variant="ghost" 
                               size="icon" 
-                              className="h-7 w-7 text-slate-300 hover:text-red-500"
+                              className="h-7 w-7 text-zinc-300 hover:text-red-500"
                               onClick={() => removeSubContractor(index)}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1070,7 +1070,7 @@ export function SiteReport() {
                       ))}
                       {subContractorFields.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="h-12 text-center text-[11px] text-slate-400 italic">No sub-contractors added</TableCell>
+                          <TableCell colSpan={5} className="h-12 text-center text-[11px] text-zinc-400 italic">No sub-contractors added</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -1082,9 +1082,9 @@ export function SiteReport() {
 
           {/* 3. Work Carried Out & Milestones */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+            <Card className="border-zinc-200 shadow-sm bg-white">
+              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
                   <HardHat className="w-4 h-4 text-blue-500" />
                   Work Done Today
                 </CardTitle>
@@ -1099,7 +1099,7 @@ export function SiteReport() {
                       type="button" 
                       variant="ghost" 
                       size="icon" 
-                      className="h-9 w-9 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-9 w-9 text-zinc-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => removeWork(index)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1118,9 +1118,9 @@ export function SiteReport() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+            <Card className="border-zinc-200 shadow-sm bg-white">
+              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   Milestones Hit
                 </CardTitle>
@@ -1135,7 +1135,7 @@ export function SiteReport() {
                       type="button" 
                       variant="ghost" 
                       size="icon" 
-                      className="h-9 w-9 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-9 w-9 text-zinc-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => removeMilestone(index)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1158,40 +1158,40 @@ export function SiteReport() {
           {/* 4. Progress, Equipment, Safety (Three Columns) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Progress Tracking */}
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-slate-600">Progress Monitoring</CardTitle>
+            <Card className="border-zinc-200 shadow-sm bg-white">
+              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-zinc-600">Progress Monitoring</CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Planned for Today</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Planned for Today</Label>
                   <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.planned')} placeholder="..." />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Actual Progress</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Actual Progress</Label>
                   <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.actual')} placeholder="..." />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">% Complete</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">% Complete</Label>
                   <div className="relative">
                     <Input className="h-9 text-xs pr-8 font-bold" {...form.register('progress.percentComplete')} placeholder="0" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-[10px]">%</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Equipment Status */}
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+            <Card className="border-zinc-200 shadow-sm bg-white">
+              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-orange-500" />
                   Equipment
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Machines on Site</Label>
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Machines on Site</Label>
                   <Textarea className="min-h-[100px] text-xs bg-white" {...form.register('equipment.onSite')} placeholder="List tools/machinery..." />
                 </div>
                 <div className="space-y-1.5">
@@ -1202,30 +1202,30 @@ export function SiteReport() {
             </Card>
 
             {/* Safety & Quality */}
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+            <Card className="border-zinc-200 shadow-sm bg-white">
+              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
                   <ClipboardCheck className="w-4 h-4 text-emerald-500" />
                   Safety & Quality
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-5">
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
-                    <Label className="text-[11px] font-medium text-slate-700">Toolbox Meeting Conducted</Label>
+                  <div className="flex items-center justify-between p-2 bg-zinc-50 rounded border border-zinc-100">
+                    <Label className="text-[11px] font-medium text-zinc-700">Toolbox Meeting Conducted</Label>
                     <Checkbox checked={form.watch('safety.toolboxMeeting')} onCheckedChange={(c) => form.setValue('safety.toolboxMeeting', !!c)} />
                   </div>
-                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
-                    <Label className="text-[11px] font-medium text-slate-700">PPE Protocols Followed</Label>
+                  <div className="flex items-center justify-between p-2 bg-zinc-50 rounded border border-zinc-100">
+                    <Label className="text-[11px] font-medium text-zinc-700">PPE Protocols Followed</Label>
                     <Checkbox checked={form.watch('safety.ppe')} onCheckedChange={(c) => form.setValue('safety.ppe', !!c)} />
                   </div>
                 </div>
                 
-                <div className="h-px bg-slate-100 my-2" />
+                <div className="h-px bg-zinc-100 my-2" />
                 
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-slate-500 uppercase">Site Inspection</Label>
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Site Inspection</Label>
                     <Select value={form.watch('quality.inspection')} onValueChange={(val: any) => form.setValue('quality.inspection', val)}>
                       <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1236,7 +1236,7 @@ export function SiteReport() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-slate-500 uppercase">Satisfied %</Label>
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Satisfied %</Label>
                     <Input className="h-8 text-xs bg-white" {...form.register('quality.satisfiedPercent')} placeholder="0%" />
                   </div>
                 </div>
@@ -1245,13 +1245,13 @@ export function SiteReport() {
           </div>
 
           {/* 5. Reporting, Logistics & Logistics (Clean Aligned Row) */}
-          <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
-            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-2 px-5">
-              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Logistics & Internal Reporting</CardTitle>
+          <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
+            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-2 px-5">
+              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Logistics & Internal Reporting</CardTitle>
             </CardHeader>
             <CardContent className="p-5 grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase">Reported to PM</Label>
+                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Reported to PM</Label>
                 <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
                   <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1261,7 +1261,7 @@ export function SiteReport() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase">Material Arrangement</Label>
+                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Material Arrangement</Label>
                 <Select value={form.watch('reporting.materialArrangement')} onValueChange={(v: any) => form.setValue('reporting.materialArrangement', v)}>
                   <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1273,7 +1273,7 @@ export function SiteReport() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase">Site Photo Status</Label>
+                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Site Photo Status</Label>
                 <Select value={form.watch('documentation.sitePictures')} onValueChange={(v: any) => form.setValue('documentation.sitePictures', v)}>
                   <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1285,11 +1285,11 @@ export function SiteReport() {
               <div className="flex flex-col justify-end space-y-3">
                 <div className="flex items-center gap-3">
                   <Checkbox checked={form.watch('documentation.filed')} onCheckedChange={(c) => form.setValue('documentation.filed', !!c)} />
-                  <Label className="text-xs font-medium text-slate-700">Hardcopy Filed</Label>
+                  <Label className="text-xs font-medium text-zinc-700">Hardcopy Filed</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Checkbox checked={form.watch('documentation.toolsLocked')} onCheckedChange={(c) => form.setValue('documentation.toolsLocked', !!c)} />
-                  <Label className="text-xs font-medium text-slate-700">Tools/Materials Secured</Label>
+                  <Label className="text-xs font-medium text-zinc-700">Tools/Materials Secured</Label>
                 </div>
               </div>
             </CardContent>
@@ -1298,7 +1298,7 @@ export function SiteReport() {
           {/* 6. Issues, Plan, Instructions (Dynamic Lists) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Issues */}
-            <Card className="border-slate-200 shadow-sm bg-white">
+            <Card className="border-zinc-200 shadow-sm bg-white">
               <CardHeader className="bg-red-50/50 border-b border-red-100 py-3 px-5">
                 <CardTitle className="text-xs font-bold uppercase text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" /> Issues Encountered
@@ -1327,9 +1327,9 @@ export function SiteReport() {
             </Card>
 
             {/* Next Day Plan */}
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+            <Card className="border-zinc-200 shadow-sm bg-white">
+              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-blue-500" /> Work Plan (Next Day)
                 </CardTitle>
               </CardHeader>
@@ -1337,19 +1337,19 @@ export function SiteReport() {
                 {planFields.map((field, index) => (
                   <div key={field.id} className="flex gap-2 group">
                     <Input className="h-9 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
-                    <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-slate-200 hover:text-red-500" onClick={() => removePlan(index)}>
+                    <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-zinc-200 hover:text-red-500" onClick={() => removePlan(index)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </ShadcnButton>
                   </div>
                 ))}
-                <ShadcnButton type="button" variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 border-dashed border border-slate-200" onClick={() => appendPlan({ value: '' })}>
+                <ShadcnButton type="button" variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold text-zinc-500 bg-zinc-50 hover:bg-zinc-100 border-dashed border border-zinc-200" onClick={() => appendPlan({ value: '' })}>
                   <Plus className="w-3 h-3 mr-1" /> Add Task
                 </ShadcnButton>
               </CardContent>
             </Card>
 
             {/* Client Req */}
-            <Card className="border-slate-200 shadow-sm bg-white">
+            <Card className="border-zinc-200 shadow-sm bg-white">
               <CardHeader className="bg-amber-50/50 border-b border-amber-100 py-3 px-5">
                 <CardTitle className="text-xs font-bold uppercase text-amber-700">Client Side Requirements</CardTitle>
               </CardHeader>
@@ -1358,7 +1358,7 @@ export function SiteReport() {
                   {clientReqFields.map((field, index) => (
                     <div key={field.id} className="flex gap-2 group">
                       <Input className="h-9 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Deviation/Req..." />
-                      <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-slate-200 hover:text-red-500" onClick={() => removeClientReq(index)}>
+                      <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-zinc-200 hover:text-red-500" onClick={() => removeClientReq(index)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </ShadcnButton>
                     </div>
@@ -1370,11 +1370,11 @@ export function SiteReport() {
                 <div className="pt-2 flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <Checkbox checked={form.watch('clientRequirements.quoteToBe_sent')} onCheckedChange={(c) => form.setValue('clientRequirements.quoteToBe_sent', !!c)} />
-                    <Label className="text-xs font-medium text-slate-700">Quote to be sent</Label>
+                    <Label className="text-xs font-medium text-zinc-700">Quote to be sent</Label>
                   </div>
                   <div className="flex items-center gap-3">
                     <Checkbox checked={form.watch('clientRequirements.mailReceived')} onCheckedChange={(c) => form.setValue('clientRequirements.mailReceived', !!c)} />
-                    <Label className="text-xs font-medium text-slate-700">Mail Received from client</Label>
+                    <Label className="text-xs font-medium text-zinc-700">Mail Received from client</Label>
                   </div>
                 </div>
               </CardContent>
@@ -1382,9 +1382,9 @@ export function SiteReport() {
           </div>
 
           {/* 7. Photos Section */}
-          <Card className="border-slate-200 shadow-sm bg-white">
-            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+          <Card className="border-zinc-200 shadow-sm bg-white">
+            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-blue-500" /> Visual Documentation (Site Photos)
               </CardTitle>
               <Label className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</Label>
@@ -1392,7 +1392,7 @@ export function SiteReport() {
             <CardContent className="p-5">
               <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
                 {photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-slate-100 shadow-sm bg-slate-50 group">
+                  <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 shadow-sm bg-zinc-50 group">
                     <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
@@ -1401,9 +1401,9 @@ export function SiteReport() {
                     </div>
                   </div>
                 ))}
-                <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-slate-50/30">
-                  <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                  <span className="text-[9px] font-bold text-slate-500 uppercase">Upload</span>
+                <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-zinc-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-zinc-50/30">
+                  <Upload className="w-5 h-5 text-zinc-400 mb-1" />
+                  <span className="text-[9px] font-bold text-zinc-500 uppercase">Upload</span>
                   <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
                 </label>
               </div>
@@ -1411,14 +1411,14 @@ export function SiteReport() {
           </Card>
 
           {/* 8. Submission Footer */}
-          <div className="flex flex-col items-end gap-4 pt-10 border-t border-slate-200">
+          <div className="flex flex-col items-end gap-4 pt-10 border-t border-zinc-200">
             <div className="flex items-center gap-6 w-full max-w-2xl">
               <div className="flex-1 space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase">Engineer/Supervisor Name</Label>
+                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Engineer/Supervisor Name</Label>
                 <Input className="h-10 bg-white font-semibold" {...form.register('footer.engineer')} placeholder="Enter your name" />
               </div>
               <div className="flex-1 space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-500 uppercase">Signature Date</Label>
+                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Signature Date</Label>
                 <Input type="date" className="h-10 bg-white" {...form.register('footer.signatureDate')} />
               </div>
             </div>
@@ -1427,7 +1427,7 @@ export function SiteReport() {
               <ShadcnButton 
                 type="button" 
                 variant="outline" 
-                className="h-12 px-10 border-slate-300 text-slate-600 font-bold"
+                className="h-12 px-10 border-zinc-300 text-zinc-600 font-bold"
                 onClick={() => { if(confirm('Discard all entered data?')) form.reset(); }}
               >
                 Discard Form

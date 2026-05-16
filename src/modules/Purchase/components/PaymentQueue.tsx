@@ -65,7 +65,7 @@ export const PaymentQueue: React.FC = () => {
       id: 'bill_number',
       header: 'Bill #',
       cell: ({ row }: any) => (
-        <span className="font-semibold text-slate-800">
+        <span className="font-semibold text-zinc-800">
           {row.original.bill_number}
         </span>
       ),
@@ -82,7 +82,7 @@ export const PaymentQueue: React.FC = () => {
         const daysOverdue = calculateDaysOverdue(row.original.due_date);
         return (
           <div className="flex flex-col py-1">
-            <span className="text-slate-800">{new Date(row.original.due_date).toLocaleDateString('en-IN')}</span>
+            <span className="text-zinc-800">{new Date(row.original.due_date).toLocaleDateString('en-IN')}</span>
             {daysOverdue > 0 && (
               <span className="text-[10px] font-bold text-rose-600 uppercase flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
@@ -143,7 +143,7 @@ export const PaymentQueue: React.FC = () => {
         const left = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
         if (left <= 7) return <Badge className="bg-amber-500 text-white border-0 text-[10px] h-5 shadow-sm shadow-amber-200">CRITICAL</Badge>;
-        return <Badge variant="outline" className="text-slate-500 border-slate-200 text-[10px] h-5">NORMAL</Badge>;
+        return <Badge variant="outline" className="text-zinc-500 border-zinc-200 text-[10px] h-5">NORMAL</Badge>;
       },
     },
     {
@@ -175,14 +175,14 @@ export const PaymentQueue: React.FC = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col space-y-6 p-4 md:p-6 bg-slate-50/50">
+    <div className="h-full flex flex-col space-y-6 p-4 md:p-6 bg-zinc-50/50">
       {/* Header & Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryCards.map((card, i) => (
           <Card key={i} className="border-none shadow-sm overflow-hidden bg-white group hover:ring-2 hover:ring-rose-500/10 transition-all">
             <CardContent className="p-5 flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{card.label}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{card.label}</p>
                 <h4 className={cn("text-xl font-bold tracking-tight", card.color)}>{card.value}</h4>
               </div>
               <div className={cn("p-2.5 rounded-xl transition-colors", card.bg)}>
@@ -198,9 +198,9 @@ export const PaymentQueue: React.FC = () => {
           const tabMap: any = { 'all': 0, 'overdue': 1, '7days': 2, '30days': 3 };
           setActiveTab(tabMap[v]);
         }}>
-          <div className="px-6 border-b border-slate-100 bg-white z-10">
+          <div className="px-6 border-b border-zinc-100 bg-white z-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
-              <TabsList className="bg-slate-50/50 p-1 rounded-xl h-10 border border-slate-100">
+              <TabsList className="bg-zinc-50/50 p-1 rounded-xl h-10 border border-zinc-100">
                 <TabsTrigger value="all" className="px-4 text-[11px] font-bold uppercase tracking-wider rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
                   All Pending ({filteredBills.length})
                 </TabsTrigger>
@@ -215,12 +215,12 @@ export const PaymentQueue: React.FC = () => {
                 </TabsTrigger>
               </TabsList>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <Input
                   placeholder="Filter queue..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-xs border-slate-200"
+                  className="pl-9 w-64 h-9 text-xs border-zinc-200"
                 />
               </div>
             </div>

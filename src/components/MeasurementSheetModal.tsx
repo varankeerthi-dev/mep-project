@@ -129,7 +129,7 @@ export function MeasurementSheetModal({
             <h3 className="text-lg font-bold">MEASUREMENT SHEET</h3>
             <p className="text-sm">{workOrderNo} | Sheet No: {sheetNo}</p>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 hover:bg-zinc-100">
             <X size={20} />
           </button>
         </div>
@@ -178,7 +178,7 @@ export function MeasurementSheetModal({
               <button
                 type="button"
                 onClick={addLineItem}
-                className="px-3 py-1 border border-black text-sm hover:bg-gray-100 flex items-center gap-1"
+                className="px-3 py-1 border border-black text-sm hover:bg-zinc-100 flex items-center gap-1"
               >
                 <Plus size={14} />
                 Add Item
@@ -187,7 +187,7 @@ export function MeasurementSheetModal({
 
             <table className="w-full border border-black text-sm">
               <thead>
-                <tr className="bg-gray-100">
+                <tr className="bg-zinc-100">
                   <th className="border border-black p-2 text-left">Description</th>
                   <th className="border border-black p-2 text-center">Unit</th>
                   <th className="border border-black p-2 text-right">Contract Qty</th>
@@ -260,14 +260,14 @@ export function MeasurementSheetModal({
             </table>
 
             {lineItems.length === 0 && (
-              <div className="text-center py-4 border border-t-0 border-black text-gray-500">
+              <div className="text-center py-4 border border-t-0 border-black text-zinc-500">
                 No line items. Click "Add Item" to start.
               </div>
             )}
           </div>
 
           {/* Summary */}
-          <div className="border border-black p-4 mb-4 bg-gray-50">
+          <div className="border border-black p-4 mb-4 bg-zinc-50">
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-xs uppercase tracking-wider mb-1">Contract Value</div>
@@ -320,7 +320,7 @@ export function MeasurementSheetModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-black hover:bg-gray-100"
+              className="px-4 py-2 border border-black hover:bg-zinc-100"
               disabled={isSubmitting}
             >
               Cancel

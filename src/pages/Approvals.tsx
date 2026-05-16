@@ -100,11 +100,11 @@ const Approvals: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      <div className="bg-white border border-gray-200 rounded-none py-5">
+    <div className="p-6 space-y-6 bg-zinc-50 min-h-screen">
+      <div className="bg-white border border-zinc-200 rounded-none py-5">
         <div className="px-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-gray-900">Approvals</h1>
+            <h1 className="text-2xl font-semibold text-zinc-900">Approvals</h1>
             <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-none hover:bg-blue-700">
               <PlusIcon className="w-4 h-4" />
               New Approval Request
@@ -113,13 +113,13 @@ const Approvals: React.FC = () => {
           
           <div className="mt-4 flex items-center gap-4">
             <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
               <input
                 type="text"
                 placeholder="Search approvals..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-zinc-300 rounded-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             
@@ -128,7 +128,7 @@ const Approvals: React.FC = () => {
               className={`flex items-center gap-2 px-4 py-2 border rounded-none ${
                 getActiveFiltersCount() > 0 
                   ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  : 'border-zinc-300 text-zinc-700 hover:bg-zinc-50'
               }`}
             >
               <FunnelIcon className="w-4 h-4" />
@@ -144,10 +144,10 @@ const Approvals: React.FC = () => {
       </div>
 
       {showFilters && (
-        <div className="bg-white border border-gray-200 rounded-none p-4">
+        <div className="bg-white border border-zinc-200 rounded-none p-4">
           <div className="grid grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Status</label>
               <div className="space-y-2">
                 {Object.entries(APPROVAL_STATUS_CONFIG).map(([key, config]) => (
                   <label key={key} className="flex items-center">
@@ -162,16 +162,16 @@ const Approvals: React.FC = () => {
                           handleFilterChange('status', currentStatuses.filter(s => s !== key));
                         }
                       }}
-                      className="rounded border-gray-300 mr-2"
+                      className="rounded border-zinc-300 mr-2"
                     />
-                    <span className="text-sm text-gray-700">{config.label}</span>
+                    <span className="text-sm text-zinc-700">{config.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Type</label>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {APPROVAL_TYPES.map((type) => (
                   <label key={type.type} className="flex items-center">
@@ -186,16 +186,16 @@ const Approvals: React.FC = () => {
                           handleFilterChange('type', currentTypes.filter(t => t !== type.type));
                         }
                       }}
-                      className="rounded border-gray-300 mr-2"
+                      className="rounded border-zinc-300 mr-2"
                     />
-                    <span className="text-sm text-gray-700">{type.label}</span>
+                    <span className="text-sm text-zinc-700">{type.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Priority</label>
               <div className="space-y-2">
                 {Object.entries(APPROVAL_PRIORITY_CONFIG).map(([key, config]) => (
                   <label key={key} className="flex items-center">
@@ -210,32 +210,32 @@ const Approvals: React.FC = () => {
                           handleFilterChange('priority', currentPriorities.filter(p => p !== key));
                         }
                       }}
-                      className="rounded border-gray-300 mr-2"
+                      className="rounded border-zinc-300 mr-2"
                     />
-                    <span className="text-sm text-gray-700">{config.label}</span>
+                    <span className="text-sm text-zinc-700">{config.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Date Range</label>
               <div className="space-y-2">
                 <input
                   type="date"
                   value={filters.date_from || ''}
                   onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none text-sm"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none text-sm"
                 />
                 <input
                   type="date"
                   value={filters.date_to || ''}
                   onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-none text-sm"
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-none text-sm"
                 />
                 <button
                   onClick={clearFilters}
-                  className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-none text-sm hover:bg-gray-300"
+                  className="w-full px-3 py-2 bg-zinc-200 text-zinc-700 rounded-none text-sm hover:bg-zinc-300"
                 >
                   Clear Filters
                 </button>
@@ -247,38 +247,38 @@ const Approvals: React.FC = () => {
 
       {stats && (
         <div className="grid grid-cols-7 gap-4">
-          <div className="bg-white border border-gray-200 rounded-none p-4">
-            <div className="text-2xl font-bold text-gray-900">{stats.total_approvals}</div>
-            <div className="text-sm text-gray-600">Total Approvals</div>
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
+            <div className="text-2xl font-bold text-zinc-900">{stats.total_approvals}</div>
+            <div className="text-sm text-zinc-600">Total Approvals</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-none p-4">
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
             <div className="text-2xl font-bold text-yellow-600">{stats.pending_approvals}</div>
-            <div className="text-sm text-gray-600">Pending</div>
+            <div className="text-sm text-zinc-600">Pending</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-none p-4">
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
             <div className="text-2xl font-bold text-green-600">{stats.approved_approvals}</div>
-            <div className="text-sm text-gray-600">Approved</div>
+            <div className="text-sm text-zinc-600">Approved</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-none p-4">
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
             <div className="text-2xl font-bold text-red-600">{stats.rejected_approvals}</div>
-            <div className="text-sm text-gray-600">Rejected</div>
+            <div className="text-sm text-zinc-600">Rejected</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-none p-4">
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
             <div className="text-2xl font-bold text-orange-600">{stats.hold_approvals}</div>
-            <div className="text-sm text-gray-600">On Hold</div>
+            <div className="text-sm text-zinc-600">On Hold</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-none p-4">
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
             <div className="text-2xl font-bold text-blue-600">{stats.today_approvals}</div>
-            <div className="text-sm text-gray-600">Today</div>
+            <div className="text-sm text-zinc-600">Today</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-none p-4">
+          <div className="bg-white border border-zinc-200 rounded-none p-4">
             <div className="text-2xl font-bold text-purple-600">{stats.week_approvals}</div>
-            <div className="text-sm text-gray-600">This Week</div>
+            <div className="text-sm text-zinc-600">This Week</div>
           </div>
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-none">
+      <div className="bg-white border border-zinc-200 rounded-none">
         <ApprovalTable
           approvals={approvals}
           onAction={handleApprovalAction}
@@ -290,12 +290,12 @@ const Approvals: React.FC = () => {
       {showDetails && selectedApproval && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-none w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-zinc-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Approval Details</h2>
+                <h2 className="text-xl font-semibold text-zinc-900">Approval Details</h2>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-zinc-400 hover:text-zinc-600"
                 >
                   ×
                 </button>
@@ -305,13 +305,13 @@ const Approvals: React.FC = () => {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Type</label>
-                  <div className="mt-1 text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-zinc-700">Type</label>
+                  <div className="mt-1 text-sm text-zinc-900">
                     {APPROVAL_TYPES.find(t => t.type === selectedApproval.approval_type)?.label}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <label className="block text-sm font-medium text-zinc-700">Status</label>
                   <div className="mt-1">
                     <span
                       className="inline-flex px-2 py-1 text-xs font-medium rounded-full"
@@ -325,8 +325,8 @@ const Approvals: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Amount</label>
-                  <div className="mt-1 text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-zinc-700">Amount</label>
+                  <div className="mt-1 text-sm text-zinc-900">
                     {selectedApproval.amount 
                       ? new Intl.NumberFormat('en-IN', {
                           style: 'currency',
@@ -338,35 +338,35 @@ const Approvals: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Priority</label>
-                  <div className="mt-1 text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-zinc-700">Priority</label>
+                  <div className="mt-1 text-sm text-zinc-900">
                     {APPROVAL_PRIORITY_CONFIG[selectedApproval.priority].label}
                   </div>
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Title</label>
-                <div className="mt-1 text-sm text-gray-900">{selectedApproval.title}</div>
+                <label className="block text-sm font-medium text-zinc-700">Title</label>
+                <div className="mt-1 text-sm text-zinc-900">{selectedApproval.title}</div>
               </div>
               
               {selectedApproval.description && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <div className="mt-1 text-sm text-gray-900">{selectedApproval.description}</div>
+                  <label className="block text-sm font-medium text-zinc-700">Description</label>
+                  <div className="mt-1 text-sm text-zinc-900">{selectedApproval.description}</div>
                 </div>
               )}
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Requested Date</label>
-                  <div className="mt-1 text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-zinc-700">Requested Date</label>
+                  <div className="mt-1 text-sm text-zinc-900">
                     {new Date(selectedApproval.requested_at).toLocaleDateString()}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Approval Level</label>
-                  <div className="mt-1 text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-zinc-700">Approval Level</label>
+                  <div className="mt-1 text-sm text-zinc-900">
                     {selectedApproval.current_level} of {selectedApproval.max_levels}
                   </div>
                 </div>

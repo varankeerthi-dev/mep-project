@@ -386,9 +386,9 @@ export default function EmployeeCheckIn() {
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-slate-900">Employee Check-In</h1>
-        <p className="text-slate-500">{currentDate}</p>
-        <div className="flex items-center justify-center gap-2 text-3xl font-mono font-bold text-slate-800">
+        <h1 className="text-2xl font-bold text-zinc-900">Employee Check-In</h1>
+        <p className="text-zinc-500">{currentDate}</p>
+        <div className="flex items-center justify-center gap-2 text-3xl font-mono font-bold text-zinc-800">
           <Clock className="w-6 h-6" />
           {formatTime(currentTime)}
         </div>
@@ -404,11 +404,11 @@ export default function EmployeeCheckIn() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">
+              <label className="text-sm font-medium text-zinc-700 mb-1 block">
                 Select Site
               </label>
               <select
-                className="w-full h-10 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-10 px-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={selectedSite?.id || ''}
                 onChange={(e) => {
                   const site = sites.find(s => s.id === e.target.value)
@@ -428,17 +428,17 @@ export default function EmployeeCheckIn() {
             </div>
             
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">
+              <label className="text-sm font-medium text-zinc-700 mb-1 block">
                 Site Radius
               </label>
-              <div className="h-10 px-3 flex items-center border border-slate-300 rounded-lg bg-slate-50">
+              <div className="h-10 px-3 flex items-center border border-zinc-300 rounded-lg bg-zinc-50">
                 {selectedSite ? `${selectedSite.radius_meters} meters` : '-'}
               </div>
             </div>
           </div>
 
           {selectedSite && (
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-zinc-600">
               Site coordinates: {selectedSite.latitude.toFixed(6)}, {selectedSite.longitude.toFixed(6)}
             </div>
           )}
@@ -454,7 +454,7 @@ export default function EmployeeCheckIn() {
         </CardHeader>
         <CardContent className="space-y-4">
           {geolocation.loading && (
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-zinc-600">
               <Loader2 className="w-5 h-5 animate-spin" />
               Getting your location...
             </div>
@@ -481,11 +481,11 @@ export default function EmployeeCheckIn() {
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-slate-500">Latitude:</span>
+                  <span className="text-zinc-500">Latitude:</span>
                   <span className="ml-2 font-mono">{geolocation.latitude.toFixed(6)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Longitude:</span>
+                  <span className="text-zinc-500">Longitude:</span>
                   <span className="ml-2 font-mono">{geolocation.longitude.toFixed(6)}</span>
                 </div>
               </div>
@@ -560,12 +560,12 @@ export default function EmployeeCheckIn() {
           )}
 
           {voice.transcript && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-zinc-500">
               Last captured: "{voice.transcript.trim()}"
             </p>
           )}
 
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-zinc-500">
             Tip: Click the microphone and speak in any language. Your words will be automatically translated to English.
           </p>
         </CardContent>
@@ -580,7 +580,7 @@ export default function EmployeeCheckIn() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               {todayAttendance.check_in_time && (
                 <div>
-                  <span className="text-slate-500">Checked In:</span>
+                  <span className="text-zinc-500">Checked In:</span>
                   <p className="font-medium">
                     {new Date(todayAttendance.check_in_time).toLocaleTimeString('en-IN', {
                       hour: '2-digit',
@@ -591,7 +591,7 @@ export default function EmployeeCheckIn() {
               )}
               {todayAttendance.check_out_time && (
                 <div>
-                  <span className="text-slate-500">Checked Out:</span>
+                  <span className="text-zinc-500">Checked Out:</span>
                   <p className="font-medium">
                     {new Date(todayAttendance.check_out_time).toLocaleTimeString('en-IN', {
                       hour: '2-digit',
@@ -601,7 +601,7 @@ export default function EmployeeCheckIn() {
                 </div>
               )}
               <div>
-                <span className="text-slate-500">Status:</span>
+                <span className="text-zinc-500">Status:</span>
                 <Badge
                   variant={todayAttendance.status === 'checked_out' ? 'default' : 'secondary'}
                   className="ml-2"
@@ -611,7 +611,7 @@ export default function EmployeeCheckIn() {
               </div>
               {todayAttendance.site && (
                 <div>
-                  <span className="text-slate-500">Site:</span>
+                  <span className="text-zinc-500">Site:</span>
                   <p className="font-medium">{todayAttendance.site.site_name}</p>
                 </div>
               )}
@@ -663,7 +663,7 @@ export default function EmployeeCheckIn() {
       </div>
 
       {isCheckedIn && (
-        <p className="text-center text-sm text-slate-500">
+        <p className="text-center text-sm text-zinc-500">
           Don't forget to check out when you leave the site!
         </p>
       )}

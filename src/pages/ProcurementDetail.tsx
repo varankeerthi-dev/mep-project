@@ -56,7 +56,7 @@ type ProcurementItem = {
   _isNew?: boolean;
 };
 
-const inputClass = "w-full border-none bg-transparent px-2 py-1.5 text-[13px] text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:bg-white focus:ring-1 focus:ring-blue-500/20 rounded-md";
+const inputClass = "w-full border-none bg-transparent px-2 py-1.5 text-[13px] text-zinc-900 outline-none transition-all placeholder:text-zinc-300 focus:bg-white focus:ring-1 focus:ring-blue-500/20 rounded-md";
 
 export default function ProcurementDetail() {
   const [searchParams] = useSearchParams();
@@ -271,7 +271,7 @@ export default function ProcurementDetail() {
   if (isLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
-        <RefreshCcw className="h-8 w-8 animate-spin text-slate-300" />
+        <RefreshCcw className="h-8 w-8 animate-spin text-zinc-300" />
       </div>
     );
   }
@@ -283,14 +283,14 @@ export default function ProcurementDetail() {
         <div>
           <button
             onClick={() => navigate('/procurement')}
-            className="group mb-4 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition-colors hover:text-blue-600"
+            className="group mb-4 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-400 transition-colors hover:text-blue-600"
           >
             <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
             Back to Procurement
           </button>
           
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">{list?.title || 'Loading List...'}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{list?.title || 'Loading List...'}</h1>
             {list?.source && (
               <span className={cn(
                 "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
@@ -303,17 +303,17 @@ export default function ProcurementDetail() {
             )}
           </div>
           
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-[13px] font-medium text-slate-500">
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-[13px] font-medium text-zinc-500">
             {list?.client_name && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 shadow-sm border border-slate-100">
-                <span className="text-slate-300">Client:</span>
-                <span className="text-slate-700">{list.client_name}</span>
+              <div className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 shadow-sm border border-zinc-100">
+                <span className="text-zinc-300">Client:</span>
+                <span className="text-zinc-700">{list.client_name}</span>
               </div>
             )}
             {(list?.boq_no || list?.quotation_no) && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 shadow-sm border border-slate-100">
-                <span className="text-slate-300">Ref:</span>
-                <span className="text-slate-700">{list.boq_no || list.quotation_no}</span>
+              <div className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 shadow-sm border border-zinc-100">
+                <span className="text-zinc-300">Ref:</span>
+                <span className="text-zinc-700">{list.boq_no || list.quotation_no}</span>
               </div>
             )}
           </div>
@@ -322,14 +322,14 @@ export default function ProcurementDetail() {
         <div className="flex items-center gap-2">
           <button 
             onClick={addHeader} 
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
           >
             <Layout size={18} className="text-blue-500" />
             Add Section
           </button>
           <button 
             onClick={addRow} 
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
           >
             <Plus size={18} className="text-blue-500" />
             Add Row
@@ -341,7 +341,7 @@ export default function ProcurementDetail() {
               "inline-flex h-11 items-center gap-2 rounded-xl px-6 text-[13px] font-bold text-white shadow-lg transition-all active:scale-95",
               hasDirty 
                 ? "bg-blue-600 shadow-blue-500/20 hover:bg-blue-700" 
-                : "bg-slate-800 opacity-60 cursor-not-allowed"
+                : "bg-zinc-800 opacity-60 cursor-not-allowed"
             )}
           >
             {saving ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
@@ -364,7 +364,7 @@ export default function ProcurementDetail() {
           const Icon = s.icon;
           const isActive = filterStatus === s.filter;
           const colorMap: any = {
-            slate: "bg-slate-500",
+            slate: "bg-zinc-500",
             rose: "bg-rose-500",
             amber: "bg-amber-500",
             cyan: "bg-cyan-600",
@@ -380,51 +380,51 @@ export default function ProcurementDetail() {
                 "flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-all hover:translate-y-[-2px]",
                 isActive 
                   ? "border-blue-200 bg-white shadow-xl shadow-blue-500/5 ring-2 ring-blue-500/10" 
-                  : "border-slate-100 bg-white shadow-sm hover:shadow-md"
+                  : "border-zinc-100 bg-white shadow-sm hover:shadow-md"
               )}
             >
               <div className="flex w-full items-center justify-between">
                 <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-opacity-10", colorMap[s.color].replace('bg-', 'text-'))}>
                   <Icon size={18} />
                 </div>
-                <div className="text-xl font-black text-slate-900">{s.value}</div>
+                <div className="text-xl font-black text-zinc-900">{s.value}</div>
               </div>
-              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">{s.label}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400">{s.label}</div>
             </button>
           );
         })}
       </div>
 
       {/* Main Table Area */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+      <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-200/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 w-12">#</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[240px]">Item Description</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[120px]">Make</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[120px]">Variant</th>
-                <th className="px-2 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 w-20">UOM</th>
-                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">BOQ Qty</th>
-                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Stock</th>
-                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Local</th>
+              <tr className="border-b border-zinc-100 bg-zinc-50/50">
+                <th className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-zinc-400 w-12">#</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[240px]">Item Description</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[120px]">Make</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[120px]">Variant</th>
+                <th className="px-2 py-4 text-center text-[10px] font-black uppercase tracking-widest text-zinc-400 w-20">UOM</th>
+                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-zinc-400 w-24">BOQ Qty</th>
+                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-zinc-400 w-24">Stock</th>
+                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-zinc-400 w-24">Local</th>
                 <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-rose-400 w-24">Gap</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[160px]">Vendor</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[150px]">Current Status</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[150px]">Notes</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[160px]">Vendor</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[150px]">Current Status</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[150px]">Notes</th>
                 <th className="px-4 py-4 w-10"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-zinc-50">
               {filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={13} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-full bg-slate-50 p-4">
-                        <Package size={32} className="text-slate-200" />
+                      <div className="rounded-full bg-zinc-50 p-4">
+                        <Package size={32} className="text-zinc-200" />
                       </div>
-                      <p className="text-sm font-medium text-slate-400">No items found. Click "+ Add Row" to begin sourcing.</p>
+                      <p className="text-sm font-medium text-zinc-400">No items found. Click "+ Add Row" to begin sourcing.</p>
                     </div>
                   </td>
                 </tr>
@@ -432,7 +432,7 @@ export default function ProcurementDetail() {
                 filteredItems.map((item, idx) => {
                   if (item.is_header_row) {
                     return (
-                      <tr key={item.id} className="group bg-slate-50/80 transition-colors hover:bg-slate-100/80">
+                      <tr key={item.id} className="group bg-zinc-50/80 transition-colors hover:bg-zinc-100/80">
                         <td className="px-4 py-3 text-center">
                           <Layout size={14} className="mx-auto text-blue-400" />
                         </td>
@@ -441,7 +441,7 @@ export default function ProcurementDetail() {
                             type="text"
                             value={item.header_text || ''}
                             onChange={(e) => updateItem(item.id, 'header_text', e.target.value)}
-                            className="w-full border-none bg-transparent p-0 text-xs font-black uppercase tracking-widest text-slate-900 outline-none placeholder:text-slate-300"
+                            className="w-full border-none bg-transparent p-0 text-xs font-black uppercase tracking-widest text-zinc-900 outline-none placeholder:text-zinc-300"
                             placeholder="Section Title..."
                           />
                         </td>
@@ -467,12 +467,12 @@ export default function ProcurementDetail() {
                     <tr
                       key={item.id}
                       className={cn(
-                        "group transition-all hover:bg-slate-50/50",
+                        "group transition-all hover:bg-zinc-50/50",
                         item._dirty && "bg-amber-50/30",
                         isDispatched && "opacity-60 grayscale-[0.5]"
                       )}
                     >
-                      <td className="relative px-4 py-3 text-center text-[11px] font-bold text-slate-300">
+                      <td className="relative px-4 py-3 text-center text-[11px] font-bold text-zinc-300">
                         {item._dirty && (
                           <div className="absolute left-0 top-0 h-full w-1 bg-amber-400 animate-in fade-in slide-in-from-left-1 duration-300" />
                         )}
@@ -617,7 +617,7 @@ export default function ProcurementDetail() {
                         {!isDispatched && (
                           <button 
                             onClick={() => handleDeleteRow(item)} 
-                            className="text-slate-200 transition-colors hover:text-rose-500 group-hover:text-slate-400"
+                            className="text-zinc-200 transition-colors hover:text-rose-500 group-hover:text-zinc-400"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -634,7 +634,7 @@ export default function ProcurementDetail() {
 
       {/* Floating Save Notification */}
       {hasDirty && (
-        <div className="fixed bottom-10 left-1/2 flex -translate-x-1/2 items-center gap-6 rounded-full border border-blue-500/20 bg-slate-900/90 px-8 py-4 text-white shadow-2xl shadow-blue-500/20 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-10 duration-500">
+        <div className="fixed bottom-10 left-1/2 flex -translate-x-1/2 items-center gap-6 rounded-full border border-blue-500/20 bg-zinc-900/90 px-8 py-4 text-white shadow-2xl shadow-blue-500/20 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-10 duration-500">
           <div className="flex items-center gap-3">
             <div className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-[13px] font-bold tracking-tight">Unsaved changes detected</span>

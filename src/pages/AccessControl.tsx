@@ -10,12 +10,12 @@ const tabButton = (active: boolean) =>
   `inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-all duration-200 rounded-full ${
     active 
       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transform scale-105' 
-      : 'text-slate-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-slate-900'
+      : 'text-zinc-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-zinc-900'
   }`;
 
-const cardCn = 'rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300';
+const cardCn = 'rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300';
 const inputCn =
-  'h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 text-[13px] text-slate-900 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 placeholder:text-slate-400 focus:shadow-lg';
+  'h-11 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 text-[13px] text-zinc-900 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 placeholder:text-zinc-400 focus:shadow-lg';
 
 const employeeFormSchema = z.object({
   full_name: z.string().min(2, "Name needs at least 2 characters"),
@@ -26,7 +26,7 @@ type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 
 const StatusBadge = ({ status }: { status: string }) => {
   const variants: Record<string, string> = {
-    default: 'bg-slate-100 text-slate-700 border-slate-200',
+    default: 'bg-zinc-100 text-zinc-700 border-zinc-200',
     success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     warning: 'bg-amber-50 text-amber-700 border-amber-200',
     error: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -43,9 +43,9 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 const EmptyState = ({ icon: Icon, title, description }: { icon: any; title: string; description: string }) => (
   <div className="text-center py-12">
-    <Icon className="mx-auto mb-4 h-16 w-16 text-slate-300" />
-    <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
-    <p className="text-slate-600 mb-6 max-w-sm mx-auto">{description}</p>
+    <Icon className="mx-auto mb-4 h-16 w-16 text-zinc-300" />
+    <h3 className="text-lg font-semibold text-zinc-900 mb-2">{title}</h3>
+    <p className="text-zinc-600 mb-6 max-w-sm mx-auto">{description}</p>
   </div>
 );
 
@@ -115,9 +115,9 @@ export default function AccessControlPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-blue-50">
         <div className="mx-auto max-w-[980px] px-6 py-16">
-          <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-lg text-center">
+          <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-lg text-center">
             <div className="flex items-center justify-center mb-6">
               <div className="relative">
                 <div className="h-12 w-12 bg-gradient-to-br from-purple-200 to-indigo-300 rounded-full flex items-center justify-center mb-4">
@@ -125,8 +125,8 @@ export default function AccessControlPage() {
                 </div>
               </div>
             </div>
-            <p className="text-slate-600 font-medium mb-2">Access Restricted</p>
-            <p className="text-sm text-slate-500 mb-4">Only admins can access this page.</p>
+            <p className="text-zinc-600 font-medium mb-2">Access Restricted</p>
+            <p className="text-sm text-zinc-500 mb-4">Only admins can access this page.</p>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <p className="text-amber-800 text-sm">
                 <strong>Tip:</strong> Contact your organization admin to get access to employee management.
@@ -139,23 +139,23 @@ export default function AccessControlPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-zinc-50">
       <div className="mx-auto max-w-[1200px] px-6 py-6">
         <div className="flex flex-col gap-2 mb-6">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
+          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-zinc-400">
             <Shield className="h-4 w-4" />
             Access Control Center
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-zinc-600">
               <Crown className="h-4 w-4 text-amber-500" />
               <span className="text-sm">Admin Mode</span>
             </div>
-            <p className="text-[12px] text-slate-500">Managing permissions for <span className="font-semibold text-slate-700">{organisation?.name}</span></p>
+            <p className="text-[12px] text-zinc-500">Managing permissions for <span className="font-semibold text-zinc-700">{organisation?.name}</span></p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 mb-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-2 mb-6 shadow-sm">
           <button 
             type="button" 
             onClick={() => setTab('employees')} 
@@ -200,13 +200,13 @@ export default function AccessControlPage() {
         {tab === 'employees' && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
             <section className={cardCn}>
-              <div className="border-b border-slate-200 bg-slate-50/50 px-6 py-4">
+              <div className="border-b border-zinc-200 bg-zinc-50/50 px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-[14px] font-bold text-slate-900">Team Members</h3>
-                    <div className="text-[12px] text-slate-500">Your organization's workforce</div>
+                    <h3 className="text-[14px] font-bold text-zinc-900">Team Members</h3>
+                    <div className="text-[12px] text-zinc-500">Your organization's workforce</div>
                   </div>
-                  <div className="text-[11px] font-medium text-slate-500">
+                  <div className="text-[11px] font-medium text-zinc-500">
                     {(employees.data ?? []).length} total
                   </div>
                 </div>
@@ -216,17 +216,17 @@ export default function AccessControlPage() {
                   <div className="px-6 py-10 text-center">
                     <div className="inline-flex items-center gap-3">
                       <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                      <span className="text-slate-600">Loading...</span>
+                      <span className="text-zinc-600">Loading...</span>
                     </div>
                   </div>
                 ) : (employees.data ?? []).length === 0 ? (
                   <div className="px-6 py-16 text-center">
-                    <Users className="mx-auto h-16 w-16 text-slate-300 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">No team members yet</h3>
-                    <p className="text-slate-600 mb-6">Add your first employee to get started.</p>
+                    <Users className="mx-auto h-16 w-16 text-zinc-300 mb-4" />
+                    <h3 className="text-lg font-bold text-zinc-900 mb-2">No team members yet</h3>
+                    <p className="text-zinc-600 mb-6">Add your first employee to get started.</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-zinc-100">
                     {(employees.data ?? []).map((emp) => (
                       <div key={emp.id} className="p-4">
                         <div className="flex items-center justify-between">
@@ -235,12 +235,12 @@ export default function AccessControlPage() {
                               <Users size={18} />
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-900">{emp.full_name}</div>
-                              <div className="text-sm text-slate-500">{emp.email}</div>
+                              <div className="font-semibold text-zinc-900">{emp.full_name}</div>
+                              <div className="text-sm text-zinc-500">{emp.email}</div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {emp.phone && <span className="text-sm text-slate-500">{emp.phone}</span>}
+                            {emp.phone && <span className="text-sm text-zinc-500">{emp.phone}</span>}
                             <StatusBadge status={emp.status} />
                           </div>
                         </div>
@@ -252,24 +252,24 @@ export default function AccessControlPage() {
             </section>
 
             <section className={cardCn}>
-              <div className="border-b border-slate-200 bg-slate-50/50 px-5 py-4">
-                <div className="text-[14px] font-bold text-slate-900">Add employee</div>
-                <div className="text-[12px] text-slate-500">Use the same email they'll use for login.</div>
+              <div className="border-b border-zinc-200 bg-zinc-50/50 px-5 py-4">
+                <div className="text-[14px] font-bold text-zinc-900">Add employee</div>
+                <div className="text-[12px] text-zinc-500">Use the same email they'll use for login.</div>
               </div>
               <form
                 onSubmit={employeeForm.handleSubmit((values) => void handleCreateEmployee(values))}
                 className="px-5 py-5 space-y-4"
               >
                 <label className="space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Full name</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Full name</div>
                   <input className={inputCn} {...employeeForm.register('full_name')} placeholder="John Doe" />
                 </label>
                 <label className="space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Email</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Email</div>
                   <input className={inputCn} {...employeeForm.register('email')} placeholder="name@company.com" />
                 </label>
                 <label className="space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Phone (optional)</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Phone (optional)</div>
                   <input className={inputCn} {...employeeForm.register('phone')} placeholder="+1 (555) 000-0000" />
                 </label>
 
@@ -282,7 +282,7 @@ export default function AccessControlPage() {
                 <button
                   type="submit"
                   disabled={upsertEmployee.isPending}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {upsertEmployee.isPending ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
                   Add employee
@@ -294,13 +294,13 @@ export default function AccessControlPage() {
 
         {tab === 'requests' && (
           <section className={cardCn}>
-            <div className="border-b border-slate-200 bg-slate-50/50 px-5 py-4">
+            <div className="border-b border-zinc-200 bg-zinc-50/50 px-5 py-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[14px] font-bold text-slate-900">Access requests</div>
-                  <p className="text-[12px] text-slate-500">Review and approve team member requests</p>
+                  <div className="text-[14px] font-bold text-zinc-900">Access requests</div>
+                  <p className="text-[12px] text-zinc-500">Review and approve team member requests</p>
                 </div>
-                <div className="text-[11px] font-medium text-slate-500">
+                <div className="text-[11px] font-medium text-zinc-500">
                   {pendingRequests.length} pending
                 </div>
               </div>
@@ -319,14 +319,14 @@ export default function AccessControlPage() {
               ) : (
                 <div className="space-y-3">
                   {pendingRequests.map((req) => (
-                    <div key={req.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div key={req.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                           <Mail size={18} />
                         </div>
                         <div>
-                          <div className="font-medium text-slate-900">{req.email}</div>
-                          <div className="text-[12px] text-slate-500">
+                          <div className="font-medium text-zinc-900">{req.email}</div>
+                          <div className="text-[12px] text-zinc-500">
                             Requested {req.requested_at ? new Date(req.requested_at).toLocaleDateString() : '-'}
                           </div>
                         </div>
@@ -355,9 +355,9 @@ export default function AccessControlPage() {
 
         {tab === 'roles' && (
           <section className={cardCn}>
-            <div className="border-b border-slate-200 bg-slate-50/50 px-5 py-4">
-              <div className="text-[14px] font-bold text-slate-900">Roles & Permissions</div>
-              <div className="text-[12px] text-slate-500">Manage team access levels</div>
+            <div className="border-b border-zinc-200 bg-zinc-50/50 px-5 py-4">
+              <div className="text-[14px] font-bold text-zinc-900">Roles & Permissions</div>
+              <div className="text-[12px] text-zinc-500">Manage team access levels</div>
             </div>
             <div className="p-5">
               {roles.isLoading ? (
@@ -373,18 +373,18 @@ export default function AccessControlPage() {
               ) : (
                 <div className="space-y-3">
                   {(roles.data ?? []).map((role) => (
-                    <div key={role.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                    <div key={role.id} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm">
                       <div className="flex items-center gap-3">
                         <Crown className="h-4 w-4 text-amber-500" />
-                        <span className="font-medium text-slate-900">{role.name}</span>
+                        <span className="font-medium text-zinc-900">{role.name}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="mt-8 text-center border-t border-slate-200 pt-6">
-                <Sparkles className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <div className="text-slate-600 font-medium">More role features coming soon...</div>
+              <div className="mt-8 text-center border-t border-zinc-200 pt-6">
+                <Sparkles className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
+                <div className="text-zinc-600 font-medium">More role features coming soon...</div>
               </div>
             </div>
           </section>

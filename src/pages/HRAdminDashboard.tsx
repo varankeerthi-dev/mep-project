@@ -311,8 +311,8 @@ export default function HRAdminDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">HR Admin Dashboard</h1>
-          <p className="text-slate-500">Manage attendance and work sites</p>
+          <h1 className="text-2xl font-bold text-zinc-900">HR Admin Dashboard</h1>
+          <p className="text-zinc-500">Manage attendance and work sites</p>
         </div>
       </div>
 
@@ -397,11 +397,11 @@ export default function HRAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">Attendance Report</h2>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-zinc-500">
                     {organisation?.name} | {dateRange.startDate} to {dateRange.endDate}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Users className="w-4 h-4" />
                   <span>{attendanceLogs.length} records</span>
                 </div>
@@ -430,7 +430,7 @@ export default function HRAdminDashboard() {
                     </TableRow>
                   ) : attendanceLogs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-zinc-500">
                         No attendance records found for this period
                       </TableCell>
                     </TableRow>
@@ -467,7 +467,7 @@ export default function HRAdminDashboard() {
                         <TableCell>
                           {getStatusBadge(log.status)}
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-sm text-slate-600">
+                        <TableCell className="max-w-[200px] truncate text-sm text-zinc-600">
                           {log.remarks || '-'}
                         </TableCell>
                       </TableRow>
@@ -561,7 +561,7 @@ export default function HRAdminDashboard() {
                     value={siteForm.radius_meters}
                     onChange={(e) => setSiteForm(prev => ({ ...prev, radius_meters: e.target.value }))}
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-zinc-500">
                     Employees must be within this distance to check in
                   </p>
                 </div>
@@ -599,7 +599,7 @@ export default function HRAdminDashboard() {
               </CardHeader>
               <CardContent>
                 {sites.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
+                  <div className="text-center py-8 text-zinc-500">
                     <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>No sites configured yet</p>
                     <p className="text-sm">Add your first work site using the form</p>
@@ -609,11 +609,11 @@ export default function HRAdminDashboard() {
                     {sites.map(site => (
                       <div
                         key={site.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-zinc-50"
                       >
                         <div className="flex-1">
                           <p className="font-medium">{site.site_name}</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="text-sm text-zinc-500">
                             {site.latitude.toFixed(6)}, {site.longitude.toFixed(6)}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
@@ -621,7 +621,7 @@ export default function HRAdminDashboard() {
                               {site.radius_meters}m radius
                             </Badge>
                             {site.address && (
-                              <span className="text-xs text-slate-400">
+                              <span className="text-xs text-zinc-400">
                                 {site.address.slice(0, 30)}...
                               </span>
                             )}
@@ -652,8 +652,8 @@ export default function HRAdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[400px] bg-slate-100 rounded-lg flex items-center justify-center">
-                <div className="text-center text-slate-500">
+              <div className="h-[400px] bg-zinc-100 rounded-lg flex items-center justify-center">
+                <div className="text-center text-zinc-500">
                   <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>Interactive map placeholder</p>
                   <p className="text-sm">

@@ -217,7 +217,7 @@ export function CreateSubcontractorModal({
         type="button"
         onClick={onClose}
         disabled={saveSubcontractorMutation.isPending}
-        className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+        className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
       >
         Cancel
       </button>
@@ -225,7 +225,7 @@ export function CreateSubcontractorModal({
         type="submit"
         form="subcontractor-form"
         disabled={saveSubcontractorMutation.isPending || !formData.company_name.trim()}
-        className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {saveSubcontractorMutation.isPending ? (
           <>
@@ -259,7 +259,7 @@ export function CreateSubcontractorModal({
 
         {/* Company Information */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
             <Building2 size={14} />
             Company Information
           </div>
@@ -268,18 +268,18 @@ export function CreateSubcontractorModal({
             {/* Sub Number - Read Only */}
             {formData.sub_number && (
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-slate-700">Sub Number</label>
+                <label className="text-[12px] font-medium text-zinc-700">Sub Number</label>
                 <input
                   type="text"
                   value={formData.sub_number}
                   disabled
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-700 outline-none cursor-not-allowed"
+                  className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-[13px] text-zinc-700 outline-none cursor-not-allowed"
                 />
               </div>
             )}
 
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[12px] font-medium text-slate-700">
+              <label className="text-[12px] font-medium text-zinc-700">
                 Company Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -287,71 +287,71 @@ export function CreateSubcontractorModal({
                 value={formData.company_name}
                 onChange={(e) => setFormData({...formData, company_name: e.target.value})}
                 placeholder="Enter company name"
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Contact Person</label>
+              <label className="text-[12px] font-medium text-zinc-700">Contact Person</label>
               <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="text"
                   value={formData.contact_person}
                   onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
                   placeholder="Contact person name"
-                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Phone</label>
+              <label className="text-[12px] font-medium text-zinc-700">Phone</label>
               <div className="relative">
-                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
                   placeholder="Phone number"
-                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Email</label>
+              <label className="text-[12px] font-medium text-zinc-700">Email</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   placeholder="email@company.com"
-                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">GSTIN</label>
+              <label className="text-[12px] font-medium text-zinc-700">GSTIN</label>
               <input
                 type="text"
                 value={formData.gstin}
                 onChange={(e) => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
                 placeholder="15 character GSTIN"
                 maxLength={15}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">State</label>
+              <label className="text-[12px] font-medium text-zinc-700">State</label>
               <select
                 value={formData.state}
                 onChange={(e) => setFormData({...formData, state: e.target.value})}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
               >
                 <option value="">Select State</option>
                 {indianStates.map(st => (
@@ -361,92 +361,92 @@ export function CreateSubcontractorModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">PIN Code</label>
+              <label className="text-[12px] font-medium text-zinc-700">PIN Code</label>
               <input
                 type="text"
                 value={formData.pincode}
                 onChange={(e) => setFormData({...formData, pincode: e.target.value})}
                 placeholder="6 digit PIN code"
                 maxLength={6}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Address</label>
+            <label className="text-[12px] font-medium text-zinc-700">Address</label>
             <div className="relative">
-              <MapPin size={16} className="absolute left-3 top-3 text-slate-400" />
+              <MapPin size={16} className="absolute left-3 top-3 text-zinc-400" />
               <textarea
                 value={formData.address}
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
                 placeholder="Full address"
                 rows={2}
-                className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 resize-none"
+                className="w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400 resize-none"
               />
             </div>
           </div>
 
           {/* PAN & Bank Details */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="space-y-4 pt-4 border-t border-zinc-100">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               <FileText size={14} />
               PAN & Bank Details
             </div>
             
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-slate-700">PAN Card</label>
+                <label className="text-[12px] font-medium text-zinc-700">PAN Card</label>
                 <input
                   type="text"
                   value={formData.pan_card}
                   onChange={(e) => setFormData({...formData, pan_card: e.target.value.toUpperCase()})}
                   placeholder="ABCDE1234F"
                   maxLength={10}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-slate-700">Bank Name</label>
+                <label className="text-[12px] font-medium text-zinc-700">Bank Name</label>
                 <input
                   type="text"
                   value={formData.bank_name}
                   onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
                   placeholder="e.g., State Bank of India"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-slate-700">Account Number</label>
+                <label className="text-[12px] font-medium text-zinc-700">Account Number</label>
                 <input
                   type="text"
                   value={formData.bank_account_number}
                   onChange={(e) => setFormData({...formData, bank_account_number: e.target.value})}
                   placeholder="Bank account number"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-slate-700">IFSC Code</label>
+                <label className="text-[12px] font-medium text-zinc-700">IFSC Code</label>
                 <input
                   type="text"
                   value={formData.bank_ifsc_code}
                   onChange={(e) => setFormData({...formData, bank_ifsc_code: e.target.value.toUpperCase()})}
                   placeholder="SBIN0001234"
                   maxLength={11}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
                 />
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[12px] font-medium text-slate-700">Account Type</label>
+                <label className="text-[12px] font-medium text-zinc-700">Account Type</label>
                 <select
                   value={formData.bank_account_type}
                   onChange={(e) => setFormData({...formData, bank_account_type: e.target.value})}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
                 >
                   <option value="">Select Account Type</option>
                   <option value="Savings">Savings</option>
@@ -460,30 +460,30 @@ export function CreateSubcontractorModal({
         </div>
 
         {/* Work Details */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="space-y-4 pt-4 border-t border-zinc-100">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
             <Briefcase size={14} />
             Work Details
           </div>
           
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Nature of Work</label>
+              <label className="text-[12px] font-medium text-zinc-700">Nature of Work</label>
               <input
                 type="text"
                 value={formData.nature_of_work}
                 onChange={(e) => setFormData({...formData, nature_of_work: e.target.value})}
                 placeholder="e.g., Electrical, Plumbing, HVAC"
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Status</label>
+              <label className="text-[12px] font-medium text-zinc-700">Status</label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value})}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -491,21 +491,21 @@ export function CreateSubcontractorModal({
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[12px] font-medium text-slate-700">Previous Projects</label>
+              <label className="text-[12px] font-medium text-zinc-700">Previous Projects</label>
               <textarea
                 value={formData.previous_projects}
                 onChange={(e) => setFormData({...formData, previous_projects: e.target.value})}
                 placeholder="List previous projects completed by this subcontractor..."
                 rows={3}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 resize-none"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400 resize-none"
               />
             </div>
           </div>
         </div>
 
         {/* Documents & Agreements */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="space-y-4 pt-4 border-t border-zinc-100">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
             <FileText size={14} />
             Documents & Agreements
           </div>
@@ -513,14 +513,14 @@ export function CreateSubcontractorModal({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-[12px] font-medium text-slate-700">NDA Signed</label>
+                <label className="text-[12px] font-medium text-zinc-700">NDA Signed</label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData({...formData, nda_signed: !formData.nda_signed})}
                     className={cn(
                       "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                      formData.nda_signed ? 'bg-emerald-500' : 'bg-slate-200'
+                      formData.nda_signed ? 'bg-emerald-500' : 'bg-zinc-200'
                     )}
                   >
                     <span className={cn(
@@ -528,19 +528,19 @@ export function CreateSubcontractorModal({
                       formData.nda_signed ? 'translate-x-6' : 'translate-x-1'
                     )} />
                   </button>
-                  <span className="text-[12px] text-slate-600 font-medium w-8">
+                  <span className="text-[12px] text-zinc-600 font-medium w-8">
                     {formData.nda_signed ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>
               {formData.nda_signed && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-[12px] font-medium text-slate-700">NDA Date</label>
+                  <label className="text-[12px] font-medium text-zinc-700">NDA Date</label>
                   <input
                     type="date"
                     value={formData.nda_date}
                     onChange={(e) => setFormData({...formData, nda_date: e.target.value})}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
                   />
                 </div>
               )}
@@ -548,14 +548,14 @@ export function CreateSubcontractorModal({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-[12px] font-medium text-slate-700">Contract Signed</label>
+                <label className="text-[12px] font-medium text-zinc-700">Contract Signed</label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData({...formData, contract_signed: !formData.contract_signed})}
                     className={cn(
                       "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                      formData.contract_signed ? 'bg-emerald-500' : 'bg-slate-200'
+                      formData.contract_signed ? 'bg-emerald-500' : 'bg-zinc-200'
                     )}
                   >
                     <span className={cn(
@@ -563,19 +563,19 @@ export function CreateSubcontractorModal({
                       formData.contract_signed ? 'translate-x-6' : 'translate-x-1'
                     )} />
                   </button>
-                  <span className="text-[12px] text-slate-600 font-medium w-8">
+                  <span className="text-[12px] text-zinc-600 font-medium w-8">
                     {formData.contract_signed ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>
               {formData.contract_signed && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-[12px] font-medium text-slate-700">Contract Date</label>
+                  <label className="text-[12px] font-medium text-zinc-700">Contract Date</label>
                   <input
                     type="date"
                     value={formData.contract_date}
                     onChange={(e) => setFormData({...formData, contract_date: e.target.value})}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
                   />
                 </div>
               )}
@@ -584,15 +584,15 @@ export function CreateSubcontractorModal({
         </div>
 
         {/* Internal Remarks */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
+        <div className="space-y-4 pt-4 border-t border-zinc-100">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Internal Remarks</label>
+            <label className="text-[12px] font-medium text-zinc-700">Internal Remarks</label>
             <textarea
               value={formData.internal_remarks}
               onChange={(e) => setFormData({...formData, internal_remarks: e.target.value})}
               placeholder="Any internal notes or remarks..."
               rows={3}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 resize-none"
+              className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-[13px] text-zinc-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-zinc-400 resize-none"
             />
           </div>
         </div>
@@ -661,8 +661,8 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
       accessorKey: 'company_name',
       cell: (info) => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-900">{info.getValue()}</span>
-          <span className="text-xs text-slate-400 font-medium">{info.row.original.contact_person || 'No contact person'}</span>
+          <span className="font-bold text-zinc-900">{info.getValue()}</span>
+          <span className="text-xs text-zinc-400 font-medium">{info.row.original.contact_person || 'No contact person'}</span>
         </div>
       )
     },
@@ -672,12 +672,12 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
       accessorKey: 'phone',
       cell: (info) => (
         <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-            <Phone size={10} className="text-slate-300" />
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600">
+            <Phone size={10} className="text-zinc-300" />
             {info.getValue() || '-'}
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-            <Mail size={10} className="text-slate-300" />
+          <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-400">
+            <Mail size={10} className="text-zinc-300" />
             {info.row.original.email || '-'}
           </div>
         </div>
@@ -689,8 +689,8 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
       accessorKey: 'nature_of_work',
       cell: (info) => (
         <div className="flex items-center gap-1.5">
-          <Briefcase size={12} className="text-slate-300" />
-          <span className="truncate max-w-[150px] font-medium text-slate-600">{info.getValue() || '-'}</span>
+          <Briefcase size={12} className="text-zinc-300" />
+          <span className="truncate max-w-[150px] font-medium text-zinc-600">{info.getValue() || '-'}</span>
         </div>
       )
     },
@@ -701,9 +701,9 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
       cell: (info) => (
         <div className={cn(
           "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
-          info.getValue() === 'Active' ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+          info.getValue() === 'Active' ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"
         )}>
-          <div className={cn("h-1.5 w-1.5 rounded-full", info.getValue() === 'Active' ? "bg-emerald-500" : "bg-slate-400")} />
+          <div className={cn("h-1.5 w-1.5 rounded-full", info.getValue() === 'Active' ? "bg-emerald-500" : "bg-zinc-400")} />
           {info.getValue()}
         </div>
       )
@@ -719,7 +719,7 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
               <ShieldCheck size={14} />
             </div>
           ) : (
-            <div title="NDA Missing" className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-300">
+            <div title="NDA Missing" className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-50 text-zinc-300">
               <ShieldCheck size={14} />
             </div>
           )}
@@ -728,7 +728,7 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
               <FileSignature size={14} />
             </div>
           ) : (
-            <div title="Contract Missing" className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-300">
+            <div title="Contract Missing" className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-50 text-zinc-300">
               <FileSignature size={14} />
             </div>
           )}
@@ -742,7 +742,7 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
         <div className="flex justify-end">
           <button
             onClick={() => { window.subToView = row.original; onNavigate('/subcontractors/view?id=' + row.original.id) }}
-            className="flex h-8 w-12 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:border-blue-200 hover:text-blue-600 hover:shadow-md active:scale-95"
+            className="flex h-8 w-12 items-center justify-center rounded-xl border border-zinc-100 bg-white text-zinc-400 shadow-sm transition-all hover:border-blue-200 hover:text-blue-600 hover:shadow-md active:scale-95"
           >
             <Eye size={16} />
           </button>
@@ -2434,9 +2434,9 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
                 data={workOrders}
                 columns={[
                   { header: 'Order #', accessorKey: 'work_order_no', cell: (i:any)=><span className="font-black text-blue-600">{i.getValue()}</span> },
-                  { header: 'Description', accessorKey: 'work_description', cell:(i:any)=><span className="font-bold text-slate-900 line-clamp-1">{i.getValue()}</span> },
-                  { header: 'Timeline', accessorKey: 'start_date', cell: ({row}:any) => <span className="text-xs font-bold text-slate-400">{row.original.start_date} → {row.original.end_date}</span> },
-                  { header: 'Value', accessorKey: 'contract_value', cell: (i:any)=><span className="font-black text-slate-900">₹{i.getValue()}</span> },
+                  { header: 'Description', accessorKey: 'work_description', cell:(i:any)=><span className="font-bold text-zinc-900 line-clamp-1">{i.getValue()}</span> },
+                  { header: 'Timeline', accessorKey: 'start_date', cell: ({row}:any) => <span className="text-xs font-bold text-zinc-400">{row.original.start_date} → {row.original.end_date}</span> },
+                  { header: 'Value', accessorKey: 'contract_value', cell: (i:any)=><span className="font-black text-zinc-900">₹{i.getValue()}</span> },
                   { header: 'Status', accessorKey: 'status', cell: (i:any)=><span className="text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">{i.getValue()}</span> }
                 ]}
                 emptyMessage="No work orders issued yet."
@@ -2454,10 +2454,10 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
               <AppTable
                 data={attendance}
                 columns={[
-                  { header: 'Date', accessorKey: 'attendance_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
-                  { header: 'Workers', accessorKey: 'workers_count', cell:(i:any)=><div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 font-bold text-white text-[11px]">{i.getValue()}</div> },
-                  { header: 'Supervisor', accessorKey: 'supervisor_name', cell:(i:any)=><span className="font-bold text-slate-600">{i.getValue() || '-'}</span> },
-                  { header: 'Remarks', accessorKey: 'remarks', cell:(i:any)=><span className="text-xs font-bold text-slate-400 line-clamp-1 italic">{i.getValue() || '-'}</span> }
+                  { header: 'Date', accessorKey: 'attendance_date', cell:(i:any)=><span className="font-black text-zinc-900">{i.getValue()}</span> },
+                  { header: 'Workers', accessorKey: 'workers_count', cell:(i:any)=><div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 font-bold text-white text-[11px]">{i.getValue()}</div> },
+                  { header: 'Supervisor', accessorKey: 'supervisor_name', cell:(i:any)=><span className="font-bold text-zinc-600">{i.getValue() || '-'}</span> },
+                  { header: 'Remarks', accessorKey: 'remarks', cell:(i:any)=><span className="text-xs font-bold text-zinc-400 line-clamp-1 italic">{i.getValue() || '-'}</span> }
                 ]}
                 emptyMessage="No daily records found."
               />
@@ -2474,11 +2474,11 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
               <AppTable
                 data={dailyLogs}
                 columns={[
-                  { header: 'Log Date', accessorKey: 'log_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
-                  { header: 'Work Progress', accessorKey: 'work_done', cell:(i:any)=><span className="font-bold text-slate-700">{i.getValue()}</span> },
+                  { header: 'Log Date', accessorKey: 'log_date', cell:(i:any)=><span className="font-black text-zinc-900">{i.getValue()}</span> },
+                  { header: 'Work Progress', accessorKey: 'work_done', cell:(i:any)=><span className="font-bold text-zinc-700">{i.getValue()}</span> },
                   { header: 'Safety/Issues', accessorKey: 'safety_incidents', cell:({row}:any)=><div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-400">{row.original.delays || 'No Delays'}</span>
-                    <span className="mx-2 text-slate-200">|</span>
+                    <span className="text-xs font-bold text-zinc-400">{row.original.delays || 'No Delays'}</span>
+                    <span className="mx-2 text-zinc-200">|</span>
                     <span className={cn("text-xs font-bold", row.original.safety_incidents ? "text-red-500":"text-emerald-500")}>{row.original.safety_incidents || 'No Incidents'}</span>
                   </div> }
                 ]}
@@ -2497,9 +2497,9 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
               <AppTable
                 data={payments}
                 columns={[
-                  { header: 'Payment Date', accessorKey: 'payment_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
+                  { header: 'Payment Date', accessorKey: 'payment_date', cell:(i:any)=><span className="font-black text-zinc-900">{i.getValue()}</span> },
                   { header: 'Amount', accessorKey: 'amount', cell:(i:any)=><span className="text-lg font-black text-emerald-600">₹{i.getValue()}</span> },
-                  { header: 'Method', accessorKey: 'payment_mode', cell:(i:any)=><span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">{i.getValue()}</span> },
+                  { header: 'Method', accessorKey: 'payment_mode', cell:(i:any)=><span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-50 px-2.5 py-1 rounded-full border border-zinc-100">{i.getValue()}</span> },
                   { header: 'Ref No', accessorKey: 'reference_no', cell:(i:any)=><span className="font-mono text-xs font-bold text-blue-500 bg-blue-50/50 px-2 py-1 rounded-lg">{i.getValue()}</span> }
                 ]}
                 emptyMessage="No payment history available."
@@ -2815,10 +2815,10 @@ export function SubcontractorAttendance({ onNavigate }: WithNavigate) {
               <AppTable
                 data={records}
                 columns={[
-                  { header: 'Date', accessorKey: 'attendance_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
+                  { header: 'Date', accessorKey: 'attendance_date', cell:(i:any)=><span className="font-black text-zinc-900">{i.getValue()}</span> },
                   { header: 'Workers', accessorKey: 'workers_count', cell:(i:any)=><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 font-black text-blue-600 text-[10px] uppercase border border-blue-100">{i.getValue()}</div> },
-                  { header: 'Supervisor', accessorKey: 'supervisor_name', cell:(i:any)=><span className="text-xs font-bold text-slate-600">{i.getValue() || '-'}</span> },
-                  { header: 'Remarks', accessorKey: 'remarks', cell:(i:any)=><span className="text-[11px] font-medium text-slate-400 italic line-clamp-1">{i.getValue() || '-'}</span> }
+                  { header: 'Supervisor', accessorKey: 'supervisor_name', cell:(i:any)=><span className="text-xs font-bold text-zinc-600">{i.getValue() || '-'}</span> },
+                  { header: 'Remarks', accessorKey: 'remarks', cell:(i:any)=><span className="text-[11px] font-medium text-zinc-400 italic line-clamp-1">{i.getValue() || '-'}</span> }
                 ]}
                 emptyMessage="Select a partner to view attendance cycles."
               />
@@ -2870,27 +2870,27 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
       <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Work Orders</h1>
-            <p className="font-medium text-slate-400">Issue and track task-specific contracts for partners</p>
+            <h1 className="text-3xl font-black tracking-tight text-zinc-900">Work Orders</h1>
+            <p className="font-medium text-zinc-400">Issue and track task-specific contracts for partners</p>
           </div>
-          <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400">
+          <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-zinc-200 text-zinc-400">
             <X size={20} />
           </button>
         </div>
 
         <div className="grid gap-10 lg:grid-cols-4">
           <div className="lg:col-span-1">
-             <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 space-y-4">
-               <h3 className="mb-4 text-[11px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-3">New Contract</h3>
+             <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-xl shadow-zinc-200/50 space-y-4">
+               <h3 className="mb-4 text-[11px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 pb-3">New Contract</h3>
                <div className="space-y-3">
-                 <select className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900" value={subId} onChange={e => setSubId(e.target.value)}>
+                 <select className="h-11 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-xs font-bold text-zinc-900" value={subId} onChange={e => setSubId(e.target.value)}>
                     <option value="">Select Partner</option>
                     {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
                  </select>
-                 <input placeholder="Contract # / WO #" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none" value={woNo} onChange={e => setWoNo(e.target.value)} />
-                 <textarea placeholder="Job Description" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none resize-none" rows={3} value={desc} onChange={e => setDesc(e.target.value)} />
-                 <input type="number" placeholder="Contract Value" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none" value={value} onChange={e => setValue(e.target.value)} />
-                 <button onClick={saveWO} disabled={saving || !subId} className="w-full h-11 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-[11px] font-black uppercase tracking-widest text-white shadow-lg active:scale-95 disabled:opacity-50">
+                 <input placeholder="Contract # / WO #" className="h-11 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-xs font-bold text-zinc-900 outline-none" value={woNo} onChange={e => setWoNo(e.target.value)} />
+                 <textarea placeholder="Job Description" className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs font-bold text-zinc-900 outline-none resize-none" rows={3} value={desc} onChange={e => setDesc(e.target.value)} />
+                 <input type="number" placeholder="Contract Value" className="h-11 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-xs font-bold text-zinc-900 outline-none" value={value} onChange={e => setValue(e.target.value)} />
+                 <button onClick={saveWO} disabled={saving || !subId} className="w-full h-11 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 text-[11px] font-black uppercase tracking-widest text-white shadow-lg active:scale-95 disabled:opacity-50">
                     {saving ? <RefreshCcw className="animate-spin h-3.3 w-3.5" /> : <Plus size={14} />}
                     Issue Order
                  </button>
@@ -2898,13 +2898,13 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
              </div>
           </div>
           <div className="lg:col-span-3">
-            <div className="rounded-[2rem] border border-slate-200 bg-white overflow-hidden shadow-xl shadow-slate-200/50">
+            <div className="rounded-[2rem] border border-zinc-200 bg-white overflow-hidden shadow-xl shadow-zinc-200/50">
                <AppTable
                  data={workOrders}
                  columns={[
                    { header: 'Order ID', accessorKey: 'work_order_no', cell:(i:any)=><b className="text-blue-600 font-black tracking-tight uppercase text-[11px]">{i.getValue()}</b> },
-                   { header: 'Job Details', accessorKey: 'work_description', cell:(i:any)=><span className="text-xs font-bold text-slate-900">{i.getValue()}</span> },
-                   { header: 'Value', accessorKey: 'contract_value', cell:(i:any)=><span className="font-black text-slate-900 italic">₹{i.getValue()}</span> },
+                   { header: 'Job Details', accessorKey: 'work_description', cell:(i:any)=><span className="text-xs font-bold text-zinc-900">{i.getValue()}</span> },
+                   { header: 'Value', accessorKey: 'contract_value', cell:(i:any)=><span className="font-black text-zinc-900 italic">₹{i.getValue()}</span> },
                    { header: 'Status', accessorKey: 'status', cell:(i:any)=><span className="text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 px-3 py-1 rounded-full">{i.getValue()}</span> }
                  ]}
                  emptyMessage="Select a partner to view assigned work packages."
@@ -4497,17 +4497,17 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
     <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex items-center justify-between">
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Document Vault</h1>
-            <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400">
+            <h1 className="text-3xl font-black tracking-tight text-zinc-900">Document Vault</h1>
+            <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-zinc-200 text-zinc-400">
               <X size={20} />
             </button>
         </div>
 
-        <div className="rounded-[2.5rem] border border-slate-200 bg-white p-10 shadow-xl shadow-slate-200/50">
+        <div className="rounded-[2.5rem] border border-zinc-200 bg-white p-10 shadow-xl shadow-zinc-200/50">
           <div className="mb-10 flex flex-wrap items-center gap-6">
             <div className="flex-1 min-w-[300px]">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-2 block">Partner Selection</label>
-              <select className="h-14 w-full rounded-2xl border border-slate-100 bg-slate-50 px-6 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={subId} onChange={e => setSubId(e.target.value)}>
+              <label className="text-[11px] font-black uppercase tracking-widest text-zinc-400 ml-1 mb-2 block">Partner Selection</label>
+              <select className="h-14 w-full rounded-2xl border border-zinc-100 bg-zinc-50 px-6 text-sm font-bold text-zinc-900 outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={subId} onChange={e => setSubId(e.target.value)}>
                 <option value="">Select a partner to access vault...</option>
                 {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
               </select>
@@ -4524,18 +4524,18 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
           </div>
 
           {!subId ? (
-            <div className="flex h-[300px] flex-col items-center justify-center gap-4 text-slate-300">
+            <div className="flex h-[300px] flex-col items-center justify-center gap-4 text-zinc-300">
               <ShieldCheck size={48} className="opacity-20" />
               <p className="text-sm font-bold uppercase tracking-[0.2em] opacity-50">Select Partner to Unlock Vault</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                {documents.map(doc => (
-                 <div key={doc.id} className="group relative rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-500/5">
+                 <div key={doc.id} className="group relative rounded-3xl border border-zinc-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-500/5">
                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-500 transition-colors group-hover:bg-blue-600 group-hover:text-white">
                       <FileText size={20} />
                     </div>
-                    <div className="line-clamp-2 text-[13px] font-black text-slate-900 leading-tight mb-4">{doc.document_name}</div>
+                    <div className="line-clamp-2 text-[13px] font-black text-zinc-900 leading-tight mb-4">{doc.document_name}</div>
                     <a href={doc.document_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800">
                       View Asset <ChevronRight size={14} />
                     </a>
@@ -4543,7 +4543,7 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
                ))}
                {documents.length === 0 && (
                  <div className="col-span-full py-20 text-center">
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No documents archived yet.</p>
+                    <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest">No documents archived yet.</p>
                  </div>
                )}
             </div>

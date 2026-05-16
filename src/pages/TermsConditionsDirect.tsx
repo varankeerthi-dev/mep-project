@@ -6,8 +6,8 @@ export const TermsConditionsDashboard: React.FC = () => {
     <div className="p-6 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Terms & Conditions</h1>
-        <p className="text-gray-600">Manage your quotation terms and conditions templates and usage</p>
+        <h1 className="text-2xl font-bold text-zinc-900 mb-2">Terms & Conditions</h1>
+        <p className="text-zinc-600">Manage your quotation terms and conditions templates and usage</p>
         <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm text-amber-800">
             <strong>Note:</strong> Database tables need to be created. Please run the SQL migration file to enable full functionality.
@@ -59,15 +59,15 @@ export const TermsConditionsDashboard: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-zinc-200 mb-6">
         <nav className="flex space-x-8">
           <button className="py-2 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600">
             Overview
           </button>
-          <button className="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+          <button className="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300">
             Templates (0)
           </button>
-          <button className="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+          <button className="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300">
             Recent Quotations (0)
           </button>
         </nav>
@@ -76,11 +76,11 @@ export const TermsConditionsDashboard: React.FC = () => {
       {/* Search Bar */}
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Search templates, quotations, clients..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
@@ -89,12 +89,12 @@ export const TermsConditionsDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Templates */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Templates</h3>
-          <div className="text-center py-8 text-gray-400">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-semibold text-zinc-900 mb-4">Recent Templates</h3>
+          <div className="text-center py-8 text-zinc-400">
+            <FileText className="w-12 h-12 mx-auto mb-4 text-zinc-300" />
             <p>No templates found</p>
             <p className="text-sm mt-2">Run the database migration to create tables, then create your first template</p>
-            <div className="mt-4 p-3 bg-gray-100 rounded text-sm text-gray-600">
+            <div className="mt-4 p-3 bg-zinc-100 rounded text-sm text-zinc-600">
               <p className="font-medium mb-2">Next Steps:</p>
               <ol className="text-left list-decimal list-inside space-y-1">
                 <li>Run: src/database-terms-conditions.sql</li>
@@ -107,9 +107,9 @@ export const TermsConditionsDashboard: React.FC = () => {
 
         {/* Recent Quotations */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Quotations with Custom T&C</h3>
-          <div className="text-center py-8 text-gray-400">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-semibold text-zinc-900 mb-4">Recent Quotations with Custom T&C</h3>
+          <div className="text-center py-8 text-zinc-400">
+            <FileText className="w-12 h-12 mx-auto mb-4 text-zinc-300" />
             <p>No quotations with custom terms found</p>
             <p className="text-sm mt-2">Quotations with custom terms will appear here</p>
             <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-600">
@@ -126,8 +126,8 @@ export const TermsConditionsDashboard: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+      <div className="mt-8 p-6 bg-zinc-50 rounded-lg">
+        <h3 className="text-lg font-semibold text-zinc-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button className="flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Plus className="w-4 h-4" />

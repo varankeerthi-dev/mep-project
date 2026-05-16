@@ -50,6 +50,32 @@ interface ViewModalData {
   items: any[];
 }
 
+const MetricCard = ({ title, value, icon: Icon, color = 'blue' }: {
+  title: string;
+  value: number;
+  icon: any;
+  color?: string;
+}) => {
+  const colorClasses = {
+    blue: 'bg-blue-50 text-blue-600 border-blue-200',
+    green: 'bg-green-50 text-green-600 border-green-200',
+    orange: 'bg-orange-50 text-orange-600 border-orange-200',
+    red: 'bg-red-50 text-red-600 border-red-200',
+  };
+
+  return (
+    <div className={`p-6 rounded-lg border ${colorClasses[color as keyof typeof colorClasses]}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-zinc-600">{title}</p>
+          <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+        </div>
+        <Icon className="h-8 w-8" />
+      </div>
+    </div>
+  );
+};
+
 export default function ToolsDashboard() {
   const { organisation } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -205,39 +231,13 @@ export default function ToolsDashboard() {
     }
   };
 
-  const MetricCard = ({ title, value, icon: Icon, color = 'blue' }: {
-    title: string;
-    value: number;
-    icon: any;
-    color?: string;
-  }) => {
-    const colorClasses = {
-      blue: 'bg-blue-50 text-blue-600 border-blue-200',
-      green: 'bg-green-50 text-green-600 border-green-200',
-      orange: 'bg-orange-50 text-orange-600 border-orange-200',
-      red: 'bg-red-50 text-red-600 border-red-200',
-    };
-
-    return (
-      <div className={`p-6 rounded-lg border ${colorClasses[color as keyof typeof colorClasses]}`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-2xl font-bold">{value.toLocaleString()}</p>
-          </div>
-          <Icon className="h-8 w-8" />
-        </div>
-      </div>
-    );
-  };
-
   const getActivityStatusColor = (type: string) => {
     switch (type) {
       case 'ISSUE': return 'bg-blue-500';
       case 'RECEIVE': return 'bg-green-500';
       case 'TRANSFER': return 'bg-orange-500';
       case 'SITE_TRANSFER': return 'bg-purple-500';
-      default: return 'bg-gray-500';
+      default: return 'bg-zinc-500';
     }
   };
 
@@ -246,7 +246,7 @@ export default function ToolsDashboard() {
       case 'ACTIVE': return 'bg-green-100 text-green-800';
       case 'IN_TRANSIT': return 'bg-orange-100 text-orange-800';
       case 'COMPLETED': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-zinc-100 text-zinc-800';
     }
   };
 
@@ -257,7 +257,7 @@ export default function ToolsDashboard() {
       case 'COMPLETED': return 'bg-blue-100 text-blue-800';
       case 'RETURNED': return 'bg-green-100 text-green-800';
       case 'PARTIAL': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-zinc-100 text-zinc-800';
     }
   };
 
@@ -293,7 +293,7 @@ export default function ToolsDashboard() {
         .select(`*, tool:tools_catalog(tool_name, make, category)`)
         .eq('transaction_id', tool.transaction_id);
 
-      setEditModal({ ...tool, transaction: tx, items: items || [] });
+      setEditModal(prev => ({ ...prev, ...tool, transaction: tx, items: items || [] }));
     } catch (err) {
       toast.error(`Failed to load for edit: ${(err as Error).message}`);
     }
@@ -403,8 +403,8 @@ export default function ToolsDashboard() {
       {/* Header */}
       <div className="mb-8 flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tools Dashboard</h1>
-          <p className="text-gray-600">Real-time overview of your tools inventory and movements</p>
+          <h1 className="text-3xl font-bold text-zinc-900">Tools Dashboard</h1>
+          <p className="text-zinc-600">Real-time overview of your tools inventory and movements</p>
         </div>
         <button
           onClick={loadDashboardData}
@@ -453,25 +453,25 @@ export default function ToolsDashboard() {
       <div className="bg-white rounded-lg border p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
             <Package className="h-8 w-8 mb-2 text-blue-600" />
             <span className="text-sm font-medium">Issue Tools</span>
-            <span className="text-xs text-gray-500">Warehouse → Site</span>
+            <span className="text-xs text-zinc-500">Warehouse → Site</span>
           </button>
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
             <Package className="h-8 w-8 mb-2 text-green-600" />
             <span className="text-sm font-medium">Receive Tools</span>
-            <span className="text-xs text-gray-500">Site → Warehouse</span>
+            <span className="text-xs text-zinc-500">Site → Warehouse</span>
           </button>
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
             <ArrowRight className="h-8 w-8 mb-2 text-orange-600" />
             <span className="text-sm font-medium">Transfer Tools</span>
-            <span className="text-xs text-gray-500">Client → Client</span>
+            <span className="text-xs text-zinc-500">Client → Client</span>
           </button>
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
             <RotateCw className="h-8 w-8 mb-2 text-purple-600" />
             <span className="text-sm font-medium">Site Transfer</span>
-            <span className="text-xs text-gray-500">Site → Site</span>
+            <span className="text-xs text-zinc-500">Site → Site</span>
           </button>
         </div>
       </div>
@@ -483,8 +483,8 @@ export default function ToolsDashboard() {
         </div>
         <div className="p-6">
           {recentActivity.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <div className="text-center py-8 text-zinc-500">
+              <Package className="h-12 w-12 mx-auto mb-4 text-zinc-400" />
               <p>No recent activity</p>
             </div>
           ) : (
@@ -498,8 +498,8 @@ export default function ToolsDashboard() {
                     <div className="flex items-center space-x-4">
                       <div className={`w-3 h-3 rounded-full ${statusColor}`}></div>
                       <div>
-                        <p className="font-medium text-gray-900">{activity.description}</p>
-                        <p className="text-sm text-gray-500">{activity.date}</p>
+                        <p className="font-medium text-zinc-900">{activity.description}</p>
+                        <p className="text-sm text-zinc-500">{activity.date}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -541,36 +541,36 @@ export default function ToolsDashboard() {
         </div>
         <div className="p-6">
           {allTools.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <div className="text-center py-8 text-zinc-500">
+              <Package className="h-12 w-12 mx-auto mb-4 text-zinc-400" />
               <p>No tools found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-zinc-200">
+                <thead className="bg-zinc-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client/Site</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ref ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tool Details</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">View</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Client/Site</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Ref ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Tool Details</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">View</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-zinc-200">
                   {allTools.map((tool) => {
                     const statusBadgeColor = getToolStatusBadgeColor(tool.status);
                     const typeBadgeColor = tool.transaction_type === 'ISSUE' ? 'bg-blue-100 text-blue-800' :
                       tool.transaction_type === 'RECEIVE' ? 'bg-green-100 text-green-800' :
                       tool.transaction_type === 'TRANSFER' ? 'bg-orange-100 text-orange-800' :
                       tool.transaction_type === 'SITE_TRANSFER' ? 'bg-purple-100 text-purple-800' :
-                      'bg-gray-100 text-gray-800';
+                      'bg-zinc-100 text-zinc-800';
                     
                     return (
-                      <tr key={tool.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <tr key={tool.id} className="hover:bg-zinc-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900">
                           {tool.transaction_date}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -578,16 +578,16 @@ export default function ToolsDashboard() {
                             {tool.transaction_type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900">
                           {tool.client_name || tool.from_client_name || tool.to_client_name || '—'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
                           {tool.reference_id}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900">
                           <div>
                             <p className="font-medium">{tool.tool_name}</p>
-                            <p className="text-xs text-gray-500">Qty: {tool.quantity}</p>
+                            <p className="text-xs text-zinc-500">Qty: {tool.quantity}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

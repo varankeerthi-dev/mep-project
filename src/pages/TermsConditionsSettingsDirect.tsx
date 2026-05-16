@@ -295,11 +295,11 @@ export const TermsConditionsSettings: React.FC = () => {
     return (
       <div className="p-6 bg-white">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+          <div className="h-8 bg-zinc-200 rounded w-1/4 mb-4"></div>
+          <div className="h-4 bg-zinc-200 rounded w-1/2 mb-8"></div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="h-64 bg-gray-200 rounded"></div>
-            <div className="h-64 bg-gray-200 rounded lg:col-span-2"></div>
+            <div className="h-64 bg-zinc-200 rounded"></div>
+            <div className="h-64 bg-zinc-200 rounded lg:col-span-2"></div>
           </div>
         </div>
       </div>
@@ -307,17 +307,17 @@ export const TermsConditionsSettings: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-zinc-50" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-zinc-200">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900" style={{ fontSize: '18px', fontWeight: 700 }}>Terms & Conditions Settings</h1>
-              <p className="text-sm text-gray-600 mt-1">Manage quotation terms and conditions templates</p>
+              <h1 className="text-lg font-semibold text-zinc-900" style={{ fontSize: '18px', fontWeight: 700 }}>Terms & Conditions Settings</h1>
+              <p className="text-sm text-zinc-600 mt-1">Manage quotation terms and conditions templates</p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium" style={{ fontSize: '14px', fontWeight: 600 }}>
+              <button className="px-4 py-2 bg-white border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 text-sm font-medium" style={{ fontSize: '14px', fontWeight: 600 }}>
                 <Copy className="w-4 h-4 inline mr-2" />
                 Export
               </button>
@@ -345,20 +345,20 @@ export const TermsConditionsSettings: React.FC = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      <div className="bg-white border-b border-zinc-200 px-6 py-3">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
             <input
               type="text"
               placeholder="Search templates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
               style={{ fontSize: '14px', height: '38px' }}
             />
           </div>
-          <button className="px-3 py-2 bg-gray-50 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium">
+          <button className="px-3 py-2 bg-zinc-50 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-100 text-sm font-medium">
             <Filter className="w-4 h-4 inline mr-2" />
             Filter
           </button>
@@ -367,9 +367,9 @@ export const TermsConditionsSettings: React.FC = () => {
 
       <div className="flex h-screen pt-32" style={{ marginTop: '-128px' }}>
         {/* Templates List */}
-        <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
+        <div className="w-80 bg-white border-r border-zinc-200 overflow-y-auto">
           <div className="p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>TEMPLATES</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 mb-4" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>TEMPLATES</h3>
             <div className="space-y-2">
               {filteredTemplates.map((template) => (
                 <div
@@ -378,13 +378,13 @@ export const TermsConditionsSettings: React.FC = () => {
                   className={`p-3 rounded-md cursor-pointer transition-colors border ${
                     selectedTemplate?.id === template.id
                       ? 'bg-red-50 border-red-200'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                      : 'bg-white border-zinc-200 hover:bg-zinc-50'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-gray-900 truncate" style={{ fontSize: '14px', fontWeight: 500 }}>{template.name}</h4>
-                      <p className="text-xs text-gray-600 truncate mt-1" style={{ fontSize: '12px' }}>{template.description || 'No description'}</p>
+                      <h4 className="text-sm font-medium text-zinc-900 truncate" style={{ fontSize: '14px', fontWeight: 500 }}>{template.name}</h4>
+                      <p className="text-xs text-zinc-600 truncate mt-1" style={{ fontSize: '12px' }}>{template.description || 'No description'}</p>
                       <div className="flex gap-2 mt-2">
                         {template.is_default && (
                           <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">DEFAULT</span>
@@ -402,29 +402,29 @@ export const TermsConditionsSettings: React.FC = () => {
         </div>
 
         {/* Template Editor */}
-        <div className="flex-1 bg-gray-50 overflow-y-auto">
+        <div className="flex-1 bg-zinc-50 overflow-y-auto">
           {selectedTemplate ? (
             <div className="max-w-4xl mx-auto p-6">
               {/* Template Header */}
-              <div className="bg-white rounded-md border border-gray-200 p-6 mb-6">
+              <div className="bg-white rounded-md border border-zinc-200 p-6 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-2 uppercase tracking-wide" style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em' }}>Template Name</label>
+                    <label className="block text-xs font-semibold text-zinc-900 mb-2 uppercase tracking-wide" style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em' }}>Template Name</label>
                     <input
                       type="text"
                       value={selectedTemplate.name}
                       onChange={(e) => setSelectedTemplate({ ...selectedTemplate, name: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      className="w-full px-3 py-2 bg-zinc-50 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       style={{ fontSize: '14px', height: '38px' }}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-2 uppercase tracking-wide" style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em' }}>Description</label>
+                    <label className="block text-xs font-semibold text-zinc-900 mb-2 uppercase tracking-wide" style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em' }}>Description</label>
                     <input
                       type="text"
                       value={selectedTemplate.description || ''}
                       onChange={(e) => setSelectedTemplate({ ...selectedTemplate, description: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      className="w-full px-3 py-2 bg-zinc-50 border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       style={{ fontSize: '14px', height: '38px' }}
                     />
                   </div>
@@ -435,26 +435,26 @@ export const TermsConditionsSettings: React.FC = () => {
                       type="checkbox"
                       checked={selectedTemplate.is_default}
                       onChange={(e) => setSelectedTemplate({ ...selectedTemplate, is_default: e.target.checked })}
-                      className="mr-2 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                      className="mr-2 h-4 w-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
                     />
-                    <span className="text-sm text-gray-700 font-medium" style={{ fontSize: '14px', fontWeight: 500 }}>Default Template</span>
+                    <span className="text-sm text-zinc-700 font-medium" style={{ fontSize: '14px', fontWeight: 500 }}>Default Template</span>
                   </label>
                   <label className="flex items-center">
                     <input
                       type="checkbox"
                       checked={selectedTemplate.is_active}
                       onChange={(e) => setSelectedTemplate({ ...selectedTemplate, is_active: e.target.checked })}
-                      className="mr-2 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                      className="mr-2 h-4 w-4 text-red-600 border-zinc-300 rounded focus:ring-red-500"
                     />
-                    <span className="text-sm text-gray-700 font-medium" style={{ fontSize: '14px', fontWeight: 500 }}>Active</span>
+                    <span className="text-sm text-zinc-700 font-medium" style={{ fontSize: '14px', fontWeight: 500 }}>Active</span>
                   </label>
                 </div>
               </div>
 
               {/* Sections */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between bg-white rounded-md border border-gray-200 p-4">
-                  <h3 className="text-sm font-semibold text-gray-900" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>SECTIONS</h3>
+                <div className="flex items-center justify-between bg-white rounded-md border border-zinc-200 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>SECTIONS</h3>
                   <button
                     onClick={addSection}
                     className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 font-medium"
@@ -466,13 +466,13 @@ export const TermsConditionsSettings: React.FC = () => {
                 </div>
 
                 {selectedTemplate.sections.map((section, sectionIndex) => (
-                  <div key={section.id} className="bg-white rounded-md border border-gray-200">
-                    <div className="p-4 border-b border-gray-200 bg-gray-50">
+                  <div key={section.id} className="bg-white rounded-md border border-zinc-200">
+                    <div className="p-4 border-b border-zinc-200 bg-zinc-50">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1">
                           <button
                             onClick={() => toggleSection(section.id)}
-                            className="p-1 hover:bg-gray-200 rounded text-gray-600"
+                            className="p-1 hover:bg-zinc-200 rounded text-zinc-600"
                           >
                             {expandedSections.has(section.id) ? (
                               <ChevronUp className="w-4 h-4" />
@@ -484,12 +484,12 @@ export const TermsConditionsSettings: React.FC = () => {
                             type="text"
                             value={section.title}
                             onChange={(e) => updateSectionTitle(section.id, e.target.value)}
-                            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md font-semibold text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                            className="flex-1 px-3 py-2 bg-white border border-zinc-300 rounded-md font-semibold text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                             style={{ fontSize: '14px', fontWeight: 600, height: '38px' }}
                           />
                         </div>
                         <div className="flex items-center gap-2">
-                          <button className="p-1 hover:bg-gray-200 rounded text-gray-600">
+                          <button className="p-1 hover:bg-zinc-200 rounded text-zinc-600">
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
@@ -516,15 +516,15 @@ export const TermsConditionsSettings: React.FC = () => {
                         </div>
                         <div className="space-y-2">
                           {section.items.map((item, itemIndex) => (
-                            <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-md border border-gray-200">
-                              <span className="text-gray-500 text-sm font-mono w-6" style={{ fontSize: '13px', fontFamily: 'JetBrains Mono, monospace' }}>
+                            <div key={item.id} className="flex items-center gap-3 p-3 bg-zinc-50 rounded-md border border-zinc-200">
+                              <span className="text-zinc-500 text-sm font-mono w-6" style={{ fontSize: '13px', fontFamily: 'JetBrains Mono, monospace' }}>
                                 {item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`}
                               </span>
                               <input
                                 type="text"
                                 value={item.content}
                                 onChange={(e) => updateItemContent(section.id, item.id, e.target.value)}
-                                className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                className="flex-1 px-3 py-2 bg-white border border-zinc-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                 style={{ fontSize: '14px', height: '38px' }}
                               />
                               <button
@@ -543,7 +543,7 @@ export const TermsConditionsSettings: React.FC = () => {
               </div>
 
               {/* Save Button */}
-              <div className="bg-white rounded-md border border-gray-200 p-4 mt-6">
+              <div className="bg-white rounded-md border border-zinc-200 p-4 mt-6">
                 <div className="flex justify-end">
                   <button
                     onClick={saveTemplate}
@@ -560,9 +560,9 @@ export const TermsConditionsSettings: React.FC = () => {
           ) : (
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Template Selected</h3>
-                <p className="text-sm text-gray-600">Select a template from the list to edit or create a new one</p>
+                <FileText className="w-16 h-16 mx-auto mb-4 text-zinc-400" />
+                <h3 className="text-lg font-semibold text-zinc-900 mb-2">No Template Selected</h3>
+                <p className="text-sm text-zinc-600">Select a template from the list to edit or create a new one</p>
               </div>
             </div>
           )}

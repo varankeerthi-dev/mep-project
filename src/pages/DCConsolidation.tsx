@@ -11,14 +11,14 @@ export default function DCConsolidation() {
         <div className="mb-4">
           <h1 className="text-2xl font-semibold">DC Consolidation</h1>
         </div>
-        <div className="border-b border-gray-200">
+        <div className="border-b border-zinc-200">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('date-wise')}
               className={`w-[250px] h-[40px] border-b-2 font-medium text-[16px] ${
                 activeTab === 'date-wise'
                   ? 'border-blue-600 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-gray-50'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 bg-zinc-50'
               }`}
             >
               Date-wise Consolidation
@@ -28,7 +28,7 @@ export default function DCConsolidation() {
               className={`w-[250px] h-[40px] border-b-2 font-medium text-[16px] ${
                 activeTab === 'material-wise'
                   ? 'border-blue-600 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-gray-50'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 bg-zinc-50'
               }`}
             >
               Material-wise Consolidation

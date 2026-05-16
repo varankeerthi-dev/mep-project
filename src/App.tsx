@@ -24,23 +24,23 @@ const lazyAny = (
 const PageSkeleton = () => (
   <div className="flex flex-col h-full animate-pulse">
     {/* Header skeleton */}
-    <div className="h-16 bg-gray-100 border-b border-gray-200 flex items-center px-6">
-      <div className="h-8 bg-gray-200 rounded w-1/4" />
+    <div className="h-16 bg-zinc-100 border-b border-zinc-200 flex items-center px-6">
+      <div className="h-8 bg-zinc-200 rounded w-1/4" />
       <div className="ml-auto flex gap-3">
-        <div className="h-8 w-24 bg-gray-200 rounded" />
-        <div className="h-8 w-24 bg-gray-200 rounded" />
+        <div className="h-8 w-24 bg-zinc-200 rounded" />
+        <div className="h-8 w-24 bg-zinc-200 rounded" />
       </div>
     </div>
     {/* Content skeleton */}
     <div className="flex-1 p-6">
-      <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
-      <div className="h-4 bg-gray-100 rounded w-2/3 mb-8" />
+      <div className="h-6 bg-zinc-200 rounded w-1/3 mb-4" />
+      <div className="h-4 bg-zinc-100 rounded w-2/3 mb-8" />
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="h-32 bg-gray-100 rounded" />
-        <div className="h-32 bg-gray-100 rounded" />
-        <div className="h-32 bg-gray-100 rounded" />
+        <div className="h-32 bg-zinc-100 rounded" />
+        <div className="h-32 bg-zinc-100 rounded" />
+        <div className="h-32 bg-zinc-100 rounded" />
       </div>
-      <div className="h-64 bg-gray-100 rounded" />
+      <div className="h-64 bg-zinc-100 rounded" />
     </div>
   </div>
 );

@@ -1139,8 +1139,8 @@ export default function ProformaEditorPage() {
           
           {/* Header Discounts for Variants */}
           {variants.length > 0 && Object.keys(discountSettings).length > 0 && (
-            <div className="mb-4 p-3 bg-slate-50 rounded border border-slate-200">
-              <div className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Variant Discounts</div>
+            <div className="mb-4 p-3 bg-zinc-50 rounded border border-zinc-200">
+              <div className="text-xs font-semibold text-zinc-600 mb-2 uppercase tracking-wide">Variant Discounts</div>
               <div className="flex flex-wrap gap-4">
                 {variants.map((variant) => {
                   const settings = discountSettings[variant.id];
@@ -1148,18 +1148,18 @@ export default function ProformaEditorPage() {
                   const variantName = variant.variant_name || variant.id;
                   return (
                     <div key={variant.id} className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-slate-700">{variantName}:</label>
+                      <label className="text-sm font-medium text-zinc-700">{variantName}:</label>
                       <input
                         type="number"
                         value={headerDiscounts[variant.id] ?? settings.default}
                         onChange={(e) => handleHeaderDiscountChange(variant.id, Number(e.target.value))}
-                        className="w-20 px-2 py-1 text-sm border border-slate-300 rounded"
+                        className="w-20 px-2 py-1 text-sm border border-zinc-300 rounded"
                         min={settings.min}
                         max={settings.max}
                         step="0.1"
                       />
-                      <span className="text-xs text-slate-500">%</span>
-                      <span className="text-xs text-slate-400">(Max: {settings.max}%)</span>
+                      <span className="text-xs text-zinc-500">%</span>
+                      <span className="text-xs text-zinc-400">(Max: {settings.max}%)</span>
                     </div>
                   );
                 })}
@@ -1343,12 +1343,12 @@ export default function ProformaEditorPage() {
           </div>
 
           <div className="flex items-center justify-end gap-2 mt-4">
-            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer">
               <input
                 type="checkbox"
                 checked={roundOff}
                 onChange={(e) => setRoundOff(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
               />
               Round Off Total
             </label>

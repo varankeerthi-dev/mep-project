@@ -184,16 +184,16 @@ const FinancialReports = () => {
   ], [projects]);
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full">
+    <div className="p-6 bg-zinc-50 min-h-full">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Financial Reports</h1>
-            <p className="text-gray-600 mt-1">Analyze financial performance and metrics</p>
+            <h1 className="text-3xl font-bold text-zinc-900">Financial Reports</h1>
+            <p className="text-zinc-600 mt-1">Analyze financial performance and metrics</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors h-12 border-radial-none">
+            <button className="flex items-center gap-2 px-4 py-2 border border-zinc-300 rounded-lg bg-white hover:bg-zinc-50 transition-colors h-12 border-radial-none">
               <FunnelIcon className="w-4 h-4" />
               Filters
             </button>
@@ -212,7 +212,7 @@ const FinancialReports = () => {
           return (
             <div
               key={report.id}
-              className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all cursor-pointer h-12 border-radial-none"
+              className="bg-white rounded-xl border border-zinc-200 hover:border-zinc-300 hover:shadow-lg transition-all cursor-pointer h-12 border-radial-none"
               onClick={() => setSelectedReport(report.id)}
             >
               <div className="p-6">
@@ -221,13 +221,13 @@ const FinancialReports = () => {
                     <Icon className="w-6 h-6 text-emerald-600" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{report.title}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{report.description}</p>
+                    <h3 className="text-lg font-semibold text-zinc-900 mb-2">{report.title}</h3>
+                    <p className="text-sm text-zinc-600 mb-4">{report.description}</p>
                     <div className="flex flex-wrap gap-2">
                       {report.metrics.map((metric, index) => (
                         <span
                           key={index}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                          className="px-2 py-1 bg-zinc-100 text-zinc-700 text-xs rounded-full"
                         >
                           {metric}
                         </span>
@@ -236,7 +236,7 @@ const FinancialReports = () => {
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+              <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 rounded-b-xl">
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => handleGenerateReport(report.id)}
@@ -263,11 +263,11 @@ const FinancialReports = () => {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">$2,456,789</p>
+              <p className="text-sm text-zinc-600">Total Revenue</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">$2,456,789</p>
               <p className="text-sm text-green-600 mt-2">+12.5% from last month</p>
             </div>
             <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center">
@@ -275,11 +275,11 @@ const FinancialReports = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Expenses</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">$1,345,678</p>
+              <p className="text-sm text-zinc-600">Total Expenses</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">$1,345,678</p>
               <p className="text-sm text-red-600 mt-2">+8.3% from last month</p>
             </div>
             <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
@@ -287,11 +287,11 @@ const FinancialReports = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Outstanding Invoices</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">$234,567</p>
+              <p className="text-sm text-zinc-600">Outstanding Invoices</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">$234,567</p>
               <p className="text-sm text-yellow-600 mt-2">15 invoices pending</p>
             </div>
             <div className="w-12 h-12 bg-yellow-50 rounded-lg flex items-center justify-center">
@@ -299,11 +299,11 @@ const FinancialReports = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-6 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Profit Margin</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">45.2%</p>
+              <p className="text-sm text-zinc-600">Profit Margin</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">45.2%</p>
               <p className="text-sm text-green-600 mt-2">+2.1% improvement</p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">

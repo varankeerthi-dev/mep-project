@@ -21,8 +21,8 @@ const PRICING_TIERS: PricingTier[] = [
     price: '₹0',
     period: 'forever',
     description: 'Perfect for getting started',
-    color: 'from-slate-500 to-slate-600',
-    gradient: 'from-slate-50 to-slate-100',
+    color: 'from-zinc-500 to-zinc-600',
+    gradient: 'from-zinc-50 to-zinc-100',
     features: [
       'Basic Dashboard',
       'Up to 3 Projects',
@@ -127,31 +127,31 @@ export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-blue-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-white border-b border-zinc-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-[clamp(3rem,8vw,6rem)]">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-full text-sm font-medium mb-8">
               <SparklesIcon className="w-4 h-4" />
               <span>Simple, transparent pricing</span>
             </div>
-            <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-bold text-slate-900 mb-5 tracking-tight">
+            <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-bold text-zinc-900 mb-5 tracking-tight">
               Choose your plan
             </h1>
-            <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-zinc-600 max-w-2xl mx-auto leading-relaxed">
               Start free and scale as you grow. No hidden fees, cancel anytime.
             </p>
 
             {/* Toggle */}
             <div className="flex items-center justify-center gap-5 mt-12">
-              <span className={`text-sm font-medium ${!annual ? 'text-slate-900' : 'text-slate-500'}`}>
+              <span className={`text-sm font-medium ${!annual ? 'text-zinc-900' : 'text-zinc-500'}`}>
                 Monthly
               </span>
               <button
                 onClick={() => setAnnual(!annual)}
                 className={`relative w-14 h-7 rounded-full transition-colors ${
-                  annual ? 'bg-blue-500' : 'bg-slate-300'
+                  annual ? 'bg-blue-500' : 'bg-zinc-300'
                 }`}
               >
                 <span
@@ -160,7 +160,7 @@ export default function PricingPage() {
                   }`}
                 />
               </button>
-              <span className={`text-sm font-medium ${annual ? 'text-slate-900' : 'text-slate-500'}`}>
+              <span className={`text-sm font-medium ${annual ? 'text-zinc-900' : 'text-zinc-500'}`}>
                 Annual <span className="text-green-600 font-semibold">(Save 20%)</span>
               </span>
             </div>
@@ -177,7 +177,7 @@ export default function PricingPage() {
               className={`relative rounded-2xl p-[clamp(1.5rem,4vw,2.5rem)] transition-all duration-300 hover:scale-105 ${
                 tier.highlighted
                   ? 'bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-2xl shadow-purple-500/25'
-                  : 'bg-white border border-slate-200 shadow-sm hover:shadow-lg'
+                  : 'bg-white border border-zinc-200 shadow-sm hover:shadow-lg'
               }`}
             >
               {tier.highlighted && (
@@ -196,19 +196,19 @@ export default function PricingPage() {
                   {tier.id === 'elite' && <BuildingOfficeIcon className="w-7 h-7" />}
                   {tier.id === 'enterprise' && <SparklesIcon className="w-7 h-7" />}
                 </div>
-                <h3 className={`text-2xl font-bold mb-3 ${tier.highlighted ? 'text-white' : 'text-slate-900'}`}>
+                <h3 className={`text-2xl font-bold mb-3 ${tier.highlighted ? 'text-white' : 'text-zinc-900'}`}>
                   {tier.name}
                 </h3>
-                <p className={`text-sm ${tier.highlighted ? 'text-purple-100' : 'text-slate-500'}`}>
+                <p className={`text-sm ${tier.highlighted ? 'text-purple-100' : 'text-zinc-500'}`}>
                   {tier.description}
                 </p>
               </div>
 
               <div className="text-center mb-10">
-                <div className={`text-[clamp(2rem,5vw,2.75rem)] font-bold ${tier.highlighted ? 'text-white' : 'text-slate-900'}`}>
+                <div className={`text-[clamp(2rem,5vw,2.75rem)] font-bold ${tier.highlighted ? 'text-white' : 'text-zinc-900'}`}>
                   {tier.price}
                 </div>
-                <div className={`text-sm ${tier.highlighted ? 'text-purple-100' : 'text-slate-500'}`}>
+                <div className={`text-sm ${tier.highlighted ? 'text-purple-100' : 'text-zinc-500'}`}>
                   {tier.period}
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function PricingPage() {
                         tier.highlighted ? 'text-purple-200' : 'text-green-500'
                       }`}
                     />
-                    <span className={`text-sm leading-relaxed ${tier.highlighted ? 'text-purple-100' : 'text-slate-600'}`}>
+                    <span className={`text-sm leading-relaxed ${tier.highlighted ? 'text-purple-100' : 'text-zinc-600'}`}>
                       {feature}
                     </span>
                   </li>
@@ -244,7 +244,7 @@ export default function PricingPage() {
 
       {/* FAQ Section */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-[clamp(3rem,8vw,5rem)]">
-        <h2 className="text-[clamp(1.75rem,4vw,2.25rem)] font-bold text-slate-900 text-center mb-16 tracking-tight">
+        <h2 className="text-[clamp(1.75rem,4vw,2.25rem)] font-bold text-zinc-900 text-center mb-16 tracking-tight">
           Frequently Asked Questions
         </h2>
         <div className="space-y-5">
@@ -270,9 +270,9 @@ export default function PricingPage() {
               a: 'Yes, we offer a 30-day money-back guarantee. If you\'re not satisfied, contact us for a full refund.',
             },
           ].map((faq, index) => (
-            <div key={index} className="bg-white rounded-2xl p-7 border border-slate-200">
-              <h3 className="font-semibold text-slate-900 mb-3 text-base">{faq.q}</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">{faq.a}</p>
+            <div key={index} className="bg-white rounded-2xl p-7 border border-zinc-200">
+              <h3 className="font-semibold text-zinc-900 mb-3 text-base">{faq.q}</h3>
+              <p className="text-zinc-600 text-sm leading-relaxed">{faq.a}</p>
             </div>
           ))}
         </div>

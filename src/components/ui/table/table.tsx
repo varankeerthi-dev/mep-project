@@ -14,21 +14,21 @@ export function TableBody({ className, ...props }: HTMLAttributes<HTMLTableSecti
 }
 
 export function TableFooter({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <tfoot className={cn('bg-slate-50 font-medium text-slate-500', className)} {...props} />
+  return <tfoot className={cn('bg-zinc-50 font-medium text-zinc-500', className)} {...props} />
 }
 
 export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('border-b border-slate-100 transition-colors hover:bg-slate-50 data-[state=selected]:bg-slate-50', className)} {...props} />
+  return <tr className={cn('border-b border-zinc-100 transition-colors hover:bg-zinc-50 data-[state=selected]:bg-zinc-50', className)} {...props} />
 }
 
 export function TableHead({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn('h-12 px-4 text-left align-middle font-semibold text-slate-700 text-xs uppercase tracking-wider [&:has([role=checkbox])]:pr-0', className)} {...props} />
+  return <th className={cn('h-12 px-4 text-left align-middle font-semibold text-zinc-700 text-xs uppercase tracking-wider [&:has([role=checkbox])]:pr-0', className)} {...props} />
 }
 
 export function TableCell({ className, colSpan, ...props }: HTMLAttributes<HTMLTableCellElement> & { colSpan?: number }) {
-  return <td colSpan={colSpan} className={cn('p-4 align-middle text-slate-600 [&:has([role=checkbox])]:pr-0', className)} {...props} />
+  return <td colSpan={colSpan} className={cn('p-4 align-middle text-zinc-600 [&:has([role=checkbox])]:pr-0', className)} {...props} />
 }
 
 export function TableCaption({ className, ...props }: HTMLAttributes<HTMLTableCaptionElement>) {
-  return <caption className={cn('mt-4 text-sm text-slate-500', className)} {...props} />
+  return <caption className={cn('mt-4 text-sm text-zinc-500', className)} {...props} />
 }

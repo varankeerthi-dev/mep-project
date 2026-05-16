@@ -130,10 +130,10 @@ export default function UserProfileManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/80 p-6">
+    <div className="min-h-screen bg-zinc-50/80 p-6">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">User Profile Management</h1>
+          <h1 className="text-2xl font-bold text-zinc-800">User Profile Management</h1>
         </div>
 
         {message && (

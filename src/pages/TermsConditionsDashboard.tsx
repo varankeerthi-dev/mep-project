@@ -97,7 +97,7 @@ export const TermsConditionsDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading Terms & Conditions Dashboard...</div>
+        <div className="text-zinc-500">Loading Terms & Conditions Dashboard...</div>
       </div>
     );
   }
@@ -106,8 +106,8 @@ export const TermsConditionsDashboard: React.FC = () => {
     <div className="p-6 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Terms & Conditions</h1>
-        <p className="text-gray-600">Manage your quotation terms and conditions templates and usage</p>
+        <h1 className="text-2xl font-bold text-zinc-900 mb-2">Terms & Conditions</h1>
+        <p className="text-zinc-600">Manage your quotation terms and conditions templates and usage</p>
       </div>
 
       {/* Stats Cards */}
@@ -158,14 +158,14 @@ export const TermsConditionsDashboard: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-zinc-200 mb-6">
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('overview')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'overview'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
             }`}
           >
             Overview
@@ -175,7 +175,7 @@ export const TermsConditionsDashboard: React.FC = () => {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'templates'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
             }`}
           >
             Templates ({templates.length})
@@ -185,7 +185,7 @@ export const TermsConditionsDashboard: React.FC = () => {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'quotations'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
             }`}
           >
             Recent Quotations ({recentQuotations.length})
@@ -196,13 +196,13 @@ export const TermsConditionsDashboard: React.FC = () => {
       {/* Search Bar */}
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Search templates, quotations, clients..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
@@ -212,15 +212,15 @@ export const TermsConditionsDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Templates */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Templates</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-4">Recent Templates</h3>
             <div className="space-y-3">
               {filteredTemplates.slice(0, 5).map((template) => (
-                <div key={template.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                <div key={template.id} className="border border-zinc-200 rounded-lg p-4 hover:bg-zinc-50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-gray-900">{template.name}</h4>
+                      <h4 className="font-medium text-zinc-900">{template.name}</h4>
                       {template.description && (
-                        <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                        <p className="text-sm text-zinc-600 mt-1">{template.description}</p>
                       )}
                       <div className="flex items-center gap-2 mt-2">
                         {template.is_default && (
@@ -236,7 +236,7 @@ export const TermsConditionsDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-zinc-500">
                         {new Date(template.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -244,8 +244,8 @@ export const TermsConditionsDashboard: React.FC = () => {
                 </div>
               ))}
               {filteredTemplates.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-zinc-400">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-zinc-300" />
                   <p>No templates found</p>
                 </div>
               )}
@@ -254,16 +254,16 @@ export const TermsConditionsDashboard: React.FC = () => {
 
           {/* Recent Quotations */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Quotations with Custom T&C</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-4">Recent Quotations with Custom T&C</h3>
             <div className="space-y-3">
               {filteredQuotations.slice(0, 5).map((qt) => (
-                <div key={qt.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                <div key={qt.id} className="border border-zinc-200 rounded-lg p-4 hover:bg-zinc-50">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-gray-900">
+                      <h4 className="font-medium text-zinc-900">
                         {qt.quotation?.quotation_number || 'Unknown Quotation'}
                       </h4>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-sm text-zinc-600 mt-1">
                         {qt.quotation?.client?.name && (
                           <span>Client: {qt.quotation.client.name}</span>
                         )}
@@ -278,7 +278,7 @@ export const TermsConditionsDashboard: React.FC = () => {
                           </span>
                         )}
                         {qt.quotation?.total_amount && (
-                          <span className="text-xs bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
+                          <span className="text-xs bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded">
                             {new Intl.NumberFormat('en-IN', {
                               style: 'currency',
                               currency: 'INR'
@@ -288,7 +288,7 @@ export const TermsConditionsDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-zinc-500">
                         {new Date(qt.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -296,8 +296,8 @@ export const TermsConditionsDashboard: React.FC = () => {
                 </div>
               ))}
               {filteredQuotations.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-zinc-400">
+                  <FileText className="w-12 h-12 mx-auto mb-4 text-zinc-300" />
                   <p>No quotations with custom terms found</p>
                 </div>
               )}
@@ -309,7 +309,7 @@ export const TermsConditionsDashboard: React.FC = () => {
       {activeTab === 'templates' && (
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">All Templates</h3>
+            <h3 className="text-lg font-semibold text-zinc-900">All Templates</h3>
             <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               <Plus className="w-4 h-4" />
               Create Template
@@ -318,15 +318,15 @@ export const TermsConditionsDashboard: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTemplates.map((template) => (
-              <div key={template.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div key={template.id} className="border border-zinc-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h4 className="font-semibold text-gray-900">{template.name}</h4>
+                    <h4 className="font-semibold text-zinc-900">{template.name}</h4>
                     {template.description && (
-                      <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+                      <p className="text-sm text-zinc-600 mt-1">{template.description}</p>
                     )}
                   </div>
-                  <Settings className="w-5 h-5 text-gray-400" />
+                  <Settings className="w-5 h-5 text-zinc-400" />
                 </div>
                 
                 <div className="flex items-center gap-2 mb-4">
@@ -342,17 +342,17 @@ export const TermsConditionsDashboard: React.FC = () => {
                   )}
                 </div>
 
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-zinc-500">
                   <p>Created: {new Date(template.created_at).toLocaleDateString()}</p>
                   <p>Updated: {new Date(template.updated_at).toLocaleDateString()}</p>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-200 flex items-center gap-2">
+                <div className="mt-4 pt-4 border-t border-zinc-200 flex items-center gap-2">
                   <button className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">
                     <Edit className="w-3 h-3" />
                     Edit
                   </button>
-                  <button className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100">
+                  <button className="flex items-center gap-1 px-3 py-1 text-sm bg-zinc-50 text-zinc-700 rounded hover:bg-zinc-100">
                     <Eye className="w-3 h-3" />
                     View
                   </button>
@@ -362,8 +362,8 @@ export const TermsConditionsDashboard: React.FC = () => {
           </div>
 
           {filteredTemplates.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-12 text-zinc-400">
+              <FileText className="w-16 h-16 mx-auto mb-4 text-zinc-300" />
               <p className="text-lg font-medium">No templates found</p>
               <p className="text-sm mt-2">Create your first template to get started</p>
             </div>
@@ -374,7 +374,7 @@ export const TermsConditionsDashboard: React.FC = () => {
       {activeTab === 'quotations' && (
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Quotations with Custom Terms</h3>
+            <h3 className="text-lg font-semibold text-zinc-900">Quotations with Custom Terms</h3>
             <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
               <Download className="w-4 h-4" />
               Export
@@ -382,42 +382,42 @@ export const TermsConditionsDashboard: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-zinc-200">
+              <thead className="bg-zinc-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Quotation #
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Client
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Project
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-zinc-200">
                 {filteredQuotations.map((qt) => (
-                  <tr key={qt.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={qt.id} className="hover:bg-zinc-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
                       {qt.quotation?.quotation_number || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
                       {qt.quotation?.client?.name || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
                       {qt.quotation?.project?.project_name || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -426,12 +426,12 @@ export const TermsConditionsDashboard: React.FC = () => {
                           Custom
                         </span>
                       ) : (
-                        <span className="text-xs bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-zinc-100 text-zinc-800 px-2 py-0.5 rounded">
                           Template
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
                       {qt.quotation?.total_amount ? (
                         new Intl.NumberFormat('en-IN', {
                           style: 'currency',
@@ -439,13 +439,13 @@ export const TermsConditionsDashboard: React.FC = () => {
                         }).format(qt.quotation.total_amount)
                       ) : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
                       {new Date(qt.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
                         <button className="text-blue-600 hover:text-blue-900">View</button>
-                        <button className="text-gray-600 hover:text-gray-900">Edit</button>
+                        <button className="text-zinc-600 hover:text-zinc-900">Edit</button>
                       </div>
                     </td>
                   </tr>
@@ -454,8 +454,8 @@ export const TermsConditionsDashboard: React.FC = () => {
             </table>
 
             {filteredQuotations.length === 0 && (
-              <div className="text-center py-12 text-gray-400">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-12 text-zinc-400">
+                <FileText className="w-16 h-16 mx-auto mb-4 text-zinc-300" />
                 <p className="text-lg font-medium">No quotations found</p>
                 <p className="text-sm mt-2">Quotations with custom terms will appear here</p>
               </div>

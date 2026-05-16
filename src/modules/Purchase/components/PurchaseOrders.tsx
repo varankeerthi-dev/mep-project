@@ -556,7 +556,7 @@ export const PurchaseOrders: React.FC = () => {
       cell: ({ getValue, row }: any) => {
         const val = getValue() || row.original.approval_status;
         const statusColors: any = {
-          'Draft': 'bg-gray-100 text-gray-700 border-gray-200',
+          'Draft': 'bg-zinc-100 text-zinc-700 border-zinc-200',
           'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200',
           'Approved': 'bg-sky-50 text-sky-700 border-sky-200',
           'Sent': 'bg-blue-50 text-blue-700 border-blue-200',
@@ -568,7 +568,7 @@ export const PurchaseOrders: React.FC = () => {
           <Badge 
             className={cn(
               "text-[10px] font-medium px-2 py-0 h-5 border shadow-none",
-              statusColors[val] || "bg-gray-100 text-gray-700"
+              statusColors[val] || "bg-zinc-100 text-zinc-700"
             )}
           >
             {val}
@@ -599,7 +599,7 @@ export const PurchaseOrders: React.FC = () => {
           <ShadcnButton 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+            className="h-8 w-8 text-zinc-600 hover:bg-zinc-100"
           >
             <Edit className="h-4 w-4" />
           </ShadcnButton>
@@ -842,14 +842,14 @@ export const PurchaseOrders: React.FC = () => {
                       className={cn(
                         "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
                         activeStep === step ? "bg-primary text-white" : 
-                        activeStep > step ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"
+                        activeStep > step ? "bg-emerald-500 text-white" : "bg-zinc-200 text-zinc-500"
                       )}
                     >
                       {activeStep > step ? <Plus className="h-4 w-4 rotate-45" /> : step + 1}
                     </div>
                     <span className={cn(
                       "text-[10px] mt-2 font-medium uppercase tracking-wider",
-                      activeStep === step ? "text-primary" : "text-slate-500"
+                      activeStep === step ? "text-primary" : "text-zinc-500"
                     )}>
                       {step === 0 ? "Details" : step === 1 ? "Items" : "Review"}
                     </span>
@@ -857,7 +857,7 @@ export const PurchaseOrders: React.FC = () => {
                   {step < 2 && (
                     <div className={cn(
                       "h-[2px] w-24 mx-4 mb-4 mt-[-10px]",
-                      activeStep > step ? "bg-emerald-500" : "bg-slate-200"
+                      activeStep > step ? "bg-emerald-500" : "bg-zinc-200"
                     )} />
                   )}
                 </React.Fragment>
@@ -869,12 +869,12 @@ export const PurchaseOrders: React.FC = () => {
                 <div className="space-y-4">
                   <div className="grid gap-1.5">
                     <Label className="text-sm font-semibold">PO Number</Label>
-                    <Input value={poNumber} readOnly className="bg-slate-50 border-slate-200" />
+                    <Input value={poNumber} readOnly className="bg-zinc-50 border-zinc-200" />
                   </div>
                   <div className="grid gap-1.5">
                     <Label className="text-sm font-semibold">Vendor <span className="text-rose-500">*</span></Label>
                     <Select value={vendorId} onValueChange={setVendorId}>
-                      <SelectTrigger className="border-slate-200">
+                      <SelectTrigger className="border-zinc-200">
                         <SelectValue placeholder="Select a vendor" />
                       </SelectTrigger>
                       <SelectContent>
@@ -890,7 +890,7 @@ export const PurchaseOrders: React.FC = () => {
                       type="date" 
                       value={poDate} 
                       onChange={(e) => setPoDate(e.target.value)} 
-                      className="border-slate-200"
+                      className="border-zinc-200"
                     />
                   </div>
                 </div>
@@ -901,14 +901,14 @@ export const PurchaseOrders: React.FC = () => {
                       type="date" 
                       value={deliveryDate} 
                       onChange={(e) => setDeliveryDate(e.target.value)} 
-                      className="border-slate-200"
+                      className="border-zinc-200"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-1.5">
                       <Label className="text-sm font-semibold">Currency</Label>
                       <Select value={currency} onValueChange={setCurrency}>
-                        <SelectTrigger className="border-slate-200">
+                        <SelectTrigger className="border-zinc-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -925,7 +925,7 @@ export const PurchaseOrders: React.FC = () => {
                         value={exchangeRate} 
                         onChange={(e) => setExchangeRate(Number(e.target.value))}
                         disabled={currency === 'INR'}
-                        className="border-slate-200"
+                        className="border-zinc-200"
                       />
                     </div>
                   </div>
@@ -935,7 +935,7 @@ export const PurchaseOrders: React.FC = () => {
                       value={terms} 
                       onChange={(e) => setTerms(e.target.value)} 
                       placeholder="e.g. Net 30"
-                      className="border-slate-200"
+                      className="border-zinc-200"
                     />
                   </div>
                 </div>
@@ -945,20 +945,20 @@ export const PurchaseOrders: React.FC = () => {
             {activeStep === 1 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Order Items</h3>
+                  <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">Order Items</h3>
                   <ShadcnButton 
                     variant="outline" 
                     size="sm" 
                     onClick={addItem} 
-                    className="gap-2 h-8 text-xs font-semibold border-slate-200"
+                    className="gap-2 h-8 text-xs font-semibold border-zinc-200"
                   >
                     <Plus className="h-3 w-3" />
                     Add Item
                   </ShadcnButton>
                 </div>
-                <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                <div className="border border-zinc-200 rounded-lg overflow-hidden bg-white shadow-sm">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                    <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600">
                       <tr>
                         <th className="px-3 py-2.5 font-bold w-10">#</th>
                         <th className="px-3 py-2.5 font-bold">Item & Description</th>
@@ -971,10 +971,10 @@ export const PurchaseOrders: React.FC = () => {
                         <th className="px-3 py-2.5 font-bold w-10"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-zinc-100">
                       {items.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50">
-                          <td className="px-3 py-2 text-slate-400 font-medium">{item.sr}</td>
+                        <tr key={index} className="hover:bg-zinc-50/50">
+                          <td className="px-3 py-2 text-zinc-400 font-medium">{item.sr}</td>
                           <td className="px-3 py-2">
                             <div className="space-y-1.5">
                               <Select 
@@ -997,7 +997,7 @@ export const PurchaseOrders: React.FC = () => {
                                   }
                                 }}
                               >
-                                <SelectTrigger className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0">
+                                <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0">
                                   <SelectValue placeholder="Select item" />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-60">
@@ -1012,7 +1012,7 @@ export const PurchaseOrders: React.FC = () => {
                                 placeholder="Description/Make" 
                                 value={item.make} 
                                 onChange={(e) => updateItem(index, 'make', e.target.value)}
-                                className="h-7 text-[10px] border-slate-100 bg-transparent shadow-none rounded-sm px-2 focus:ring-0"
+                                className="h-7 text-[10px] border-zinc-100 bg-transparent shadow-none rounded-sm px-2 focus:ring-0"
                               />
                             </div>
                           </td>
@@ -1020,7 +1020,7 @@ export const PurchaseOrders: React.FC = () => {
                             <Input 
                               value={item.hsn_code} 
                               onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
-                              className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0"
+                              className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -1028,14 +1028,14 @@ export const PurchaseOrders: React.FC = () => {
                               type="number" 
                               value={item.quantity} 
                               onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                              className="h-8 text-xs text-center border-slate-100 bg-transparent shadow-none focus:ring-0"
+                              className="h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0"
                             />
                           </td>
                           <td className="px-3 py-2">
                             <Input 
                               value={item.unit} 
                               onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                              className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0"
+                              className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -1043,7 +1043,7 @@ export const PurchaseOrders: React.FC = () => {
                               type="number" 
                               value={item.rate} 
                               onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
-                              className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0"
+                              className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0"
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -1056,7 +1056,7 @@ export const PurchaseOrders: React.FC = () => {
                                 updateItem(index, 'igst_percent', gst);
                               }}
                             >
-                              <SelectTrigger className="h-8 text-xs border-slate-100 bg-transparent shadow-none text-center focus:ring-0 pr-1">
+                              <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none text-center focus:ring-0 pr-1">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1066,7 +1066,7 @@ export const PurchaseOrders: React.FC = () => {
                               </SelectContent>
                             </Select>
                           </td>
-                          <td className="px-3 py-2 text-right font-medium text-slate-700">
+                          <td className="px-3 py-2 text-right font-medium text-zinc-700">
                             {item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
                           <td className="px-3 py-2">
@@ -1074,7 +1074,7 @@ export const PurchaseOrders: React.FC = () => {
                               variant="ghost" 
                               size="icon" 
                               onClick={() => removeItem(index)}
-                              className="h-7 w-7 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full"
+                              className="h-7 w-7 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-full"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </ShadcnButton>
@@ -1083,7 +1083,7 @@ export const PurchaseOrders: React.FC = () => {
                       ))}
                       {items.length === 0 && (
                         <tr>
-                          <td colSpan={9} className="px-3 py-10 text-center text-slate-400 italic">
+                          <td colSpan={9} className="px-3 py-10 text-center text-zinc-400 italic">
                             No items added. Click "Add Item" to start.
                           </td>
                         </tr>
@@ -1096,41 +1096,41 @@ export const PurchaseOrders: React.FC = () => {
 
             {activeStep === 2 && (
               <div className="max-w-2xl mx-auto space-y-6">
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-6">
-                  <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-6">
+                  <h3 className="text-sm font-bold text-zinc-800 mb-6 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-primary" />
                     Order Summary
                   </h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between text-sm text-slate-600">
+                    <div className="flex justify-between text-sm text-zinc-600">
                       <span>Subtotal</span>
                       <span className="font-medium">₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-sm text-slate-600">
+                    <div className="flex justify-between text-sm text-zinc-600">
                       <span>Discount</span>
                       <span className="font-medium text-rose-500">-₹{totals.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="h-px bg-slate-200 my-2" />
-                    <div className="flex justify-between text-sm text-slate-800 font-bold">
+                    <div className="h-px bg-zinc-200 my-2" />
+                    <div className="flex justify-between text-sm text-zinc-800 font-bold">
                       <span>Taxable Value</span>
                       <span>₹{totals.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-slate-500">
+                    <div className="flex justify-between text-xs text-zinc-500">
                       <span>CGST</span>
                       <span>₹{totals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-slate-500">
+                    <div className="flex justify-between text-xs text-zinc-500">
                       <span>SGST</span>
                       <span>₹{totals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     {totals.igst > 0 && (
-                      <div className="flex justify-between text-xs text-slate-500">
+                      <div className="flex justify-between text-xs text-zinc-500">
                         <span>IGST</span>
                         <span>₹{totals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
                     )}
-                    <div className="h-[2px] bg-slate-800 mt-6 mb-4" />
-                    <div className="flex justify-between items-center bg-slate-900 text-white rounded-lg p-4 shadow-lg shadow-slate-200">
+                    <div className="h-[2px] bg-zinc-800 mt-6 mb-4" />
+                    <div className="flex justify-between items-center bg-zinc-900 text-white rounded-lg p-4 shadow-lg shadow-zinc-200">
                       <span className="text-xs font-bold uppercase tracking-widest opacity-70 font-mono">Grand Total</span>
                       <div className="text-right">
                         <span className="text-2xl font-black">
@@ -1149,11 +1149,11 @@ export const PurchaseOrders: React.FC = () => {
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50 flex flex-row items-center justify-between">
             <ShadcnButton 
               variant="outline" 
               onClick={() => setOpenDialog(false)}
-              className="px-6 border-slate-200 font-semibold"
+              className="px-6 border-zinc-200 font-semibold"
             >
               Cancel
             </ShadcnButton>
@@ -1162,7 +1162,7 @@ export const PurchaseOrders: React.FC = () => {
                 <ShadcnButton 
                   variant="outline" 
                   onClick={() => setActiveStep(activeStep - 1)}
-                  className="gap-2 px-6 border-slate-200 font-semibold"
+                  className="gap-2 px-6 border-zinc-200 font-semibold"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Back

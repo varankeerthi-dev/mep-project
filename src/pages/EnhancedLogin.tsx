@@ -118,7 +118,7 @@ export default function EnhancedLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/80 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-zinc-50/80 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <Card>
           <CardHeader>
@@ -132,7 +132,7 @@ export default function EnhancedLogin() {
                   id="organisation"
                   value={selectedOrgId}
                   onChange={(e) => setSelectedOrgId(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-md"
+                  className="w-full p-2 border border-zinc-300 rounded-md"
                 >
                   <option value="">Choose an organization</option>
                   {organisations.map((org) => (
@@ -153,7 +153,7 @@ export default function EnhancedLogin() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="w-full p-2 border border-slate-300 rounded-md"
+                  className="w-full p-2 border border-zinc-300 rounded-md"
                 />
               </div>
 
@@ -165,7 +165,7 @@ export default function EnhancedLogin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full p-2 border border-slate-300 rounded-md"
+                  className="w-full p-2 border border-zinc-300 rounded-md"
                 />
               </div>
 

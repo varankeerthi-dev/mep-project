@@ -83,7 +83,7 @@ export function WorkOrderAmendmentModal({ workOrder, onClose, onSuccess }: WorkO
       >
         <div className="flex justify-between items-center mb-4 border-b border-black pb-2">
           <h3 className="text-lg font-bold">CREATE WORK ORDER AMENDMENT</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 hover:bg-zinc-100">
             <X size={20} />
           </button>
         </div>
@@ -91,14 +91,14 @@ export function WorkOrderAmendmentModal({ workOrder, onClose, onSuccess }: WorkO
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-sm font-bold mb-1">Work Order</label>
-            <div className="border border-black p-2 bg-gray-50">
+            <div className="border border-black p-2 bg-zinc-50">
               {workOrder.work_order_no} - {workOrder.work_description}
             </div>
           </div>
 
           <div className="mb-4">
             <label className="block text-sm font-bold mb-1">Current Amount</label>
-            <div className="border border-black p-2 bg-gray-50 text-right">
+            <div className="border border-black p-2 bg-zinc-50 text-right">
               ₹ {currentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
           </div>
@@ -115,7 +115,7 @@ export function WorkOrderAmendmentModal({ workOrder, onClose, onSuccess }: WorkO
             />
           </div>
 
-          <div className="mb-4 p-3 border border-black bg-gray-50">
+          <div className="mb-4 p-3 border border-black bg-zinc-50">
             <div className="flex justify-between">
               <span>Difference:</span>
               <span className={difference >= 0 ? 'text-green-600' : 'text-red-600'}>
@@ -146,7 +146,7 @@ export function WorkOrderAmendmentModal({ workOrder, onClose, onSuccess }: WorkO
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-black hover:bg-gray-100"
+              className="px-4 py-2 border border-black hover:bg-zinc-100"
               disabled={isSubmitting}
             >
               Cancel

@@ -319,11 +319,11 @@ export const TermsConditionsSettings: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 space-y-4">
-        <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-8 bg-zinc-200 rounded w-1/4"></div>
+        <div className="h-4 bg-zinc-200 rounded w-1/2"></div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <div className="h-64 bg-gray-200 rounded"></div>
-          <div className="h-64 bg-gray-200 rounded lg:col-span-3"></div>
+          <div className="h-64 bg-zinc-200 rounded"></div>
+          <div className="h-64 bg-zinc-200 rounded lg:col-span-3"></div>
         </div>
       </div>
     );
@@ -335,7 +335,7 @@ export const TermsConditionsSettings: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Terms & Conditions</h1>
-          <p className="text-gray-600">Manage your quotation terms and conditions templates</p>
+          <p className="text-zinc-600">Manage your quotation terms and conditions templates</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm">
@@ -382,7 +382,7 @@ export const TermsConditionsSettings: React.FC = () => {
       {/* Search Bar */}
       <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
           <Input
             placeholder="Search templates..."
             value={searchTerm}
@@ -413,7 +413,7 @@ export const TermsConditionsSettings: React.FC = () => {
                       className={`p-3 cursor-pointer border ${
                         selectedTemplate?.id === template.id
                           ? 'bg-blue-50 border-blue-200'
-                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                          : 'bg-white border-zinc-200 hover:bg-zinc-50'
                       }`}
                     >
                       <div className="space-y-1">
@@ -428,7 +428,7 @@ export const TermsConditionsSettings: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-gray-600 truncate">
+                        <p className="text-xs text-zinc-600 truncate">
                           {template.description || 'No description'}
                         </p>
                       </div>
@@ -517,7 +517,7 @@ export const TermsConditionsSettings: React.FC = () => {
                   {selectedTemplate.sections.map((section, sectionIndex) => (
                     <Card key={section.id} className="border">
                       <div
-                        className="cursor-pointer hover:bg-gray-50"
+                        className="cursor-pointer hover:bg-zinc-50"
                         onClick={() => toggleSection(section.id)}
                       >
                         <CardHeader className="pb-2">
@@ -562,7 +562,7 @@ export const TermsConditionsSettings: React.FC = () => {
                       {expandedSections.has(section.id) && (
                         <CardContent className="pt-0 space-y-4">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">
+                            <span className="text-sm text-zinc-600">
                               {section.items.length} items
                             </span>
                             <Button onClick={() => addItem(section.id)} size="sm" variant="outline">
@@ -572,8 +572,8 @@ export const TermsConditionsSettings: React.FC = () => {
                           </div>
                           <div className="space-y-2">
                             {section.items.map((item, itemIndex) => (
-                              <div key={item.id} className="flex items-center space-x-2 p-2 bg-gray-50 border">
-                                <span className="text-sm font-mono text-gray-600 w-4">
+                              <div key={item.id} className="flex items-center space-x-2 p-2 bg-zinc-50 border">
+                                <span className="text-sm font-mono text-zinc-600 w-4">
                                   {item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`}
                                 </span>
                                 <Input
@@ -633,9 +633,9 @@ export const TermsConditionsSettings: React.FC = () => {
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileText className="w-12 h-12 text-gray-400 mb-4" />
+                <FileText className="w-12 h-12 text-zinc-400 mb-4" />
                 <h3 className="text-lg font-medium mb-2">No Template Selected</h3>
-                <p className="text-gray-600 text-center max-w-md">
+                <p className="text-zinc-600 text-center max-w-md">
                   Select a template from the list to edit or create a new one to get started.
                 </p>
               </CardContent>

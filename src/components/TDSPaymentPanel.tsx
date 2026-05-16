@@ -80,8 +80,8 @@ export function TDSPaymentPanel({ subcontractorId }: TDSPaymentPanelProps) {
       </h4>
 
       {(!tdsPayments || tdsPayments.length === 0) ? (
-        <div className="text-gray-500 py-4 text-center">
-          <FileText size={24} className="mx-auto mb-2 text-gray-300" />
+        <div className="text-zinc-500 py-4 text-center">
+          <FileText size={24} className="mx-auto mb-2 text-zinc-300" />
           No TDS payments recorded
         </div>
       ) : (
@@ -92,7 +92,7 @@ export function TDSPaymentPanel({ subcontractorId }: TDSPaymentPanelProps) {
 
             return (
               <div key={quarter} className="border border-black">
-                <div className="bg-gray-100 p-2 border-b border-black flex justify-between items-center">
+                <div className="bg-zinc-100 p-2 border-b border-black flex justify-between items-center">
                   <span className="font-bold">{quarter}</span>
                   <div className="text-xs">
                     <span className="mr-3">Pending: {formatCurrency(pendingTotal)}</span>
@@ -101,7 +101,7 @@ export function TDSPaymentPanel({ subcontractorId }: TDSPaymentPanelProps) {
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50">
+                    <tr className="bg-zinc-50">
                       <th className="border border-black p-1">Date</th>
                       <th className="border border-black p-1">TDS Amount</th>
                       <th className="border border-black p-1">Status</th>
@@ -131,7 +131,7 @@ export function TDSPaymentPanel({ subcontractorId }: TDSPaymentPanelProps) {
                           {payment.challan_no ? (
                             <div className="text-xs">
                               <div>{payment.challan_no}</div>
-                              <div className="text-gray-500">{payment.challan_date}</div>
+                              <div className="text-zinc-500">{payment.challan_date}</div>
                             </div>
                           ) : (
                             '-'
