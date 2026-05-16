@@ -1635,7 +1635,7 @@ export default function QuotationView() {
               <button
                 onClick={() => {
                   setPreviewModalOpen(false);
-                  navigate(`/create-quotation?id=${quotationId}`);
+                  navigate(`/quotation/edit?id=${quotationId}`);
                 }}
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
               >
