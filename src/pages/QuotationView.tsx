@@ -116,7 +116,7 @@ export default function QuotationView() {
           .from('quotation_terms_conditions')
           .select('*')
           .eq('quotation_id', quotationId)
-          .single(),
+          .maybeSingle(),
         'Quotation terms conditions',
       );
       return data;

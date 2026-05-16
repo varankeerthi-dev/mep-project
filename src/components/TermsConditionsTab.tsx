@@ -48,7 +48,7 @@ export const TermsConditionsTab: React.FC<TermsConditionsTabProps> = ({ quotatio
         .select('*')
         .eq('quotation_id', quotationId)
         .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
-        .single();
+        .maybeSingle();
 
       let termsData;
       

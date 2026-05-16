@@ -251,7 +251,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
         .from('quotation_terms_conditions')
         .select('id')
         .eq('quotation_id', quotationId)
-        .single();
+        .maybeSingle();
 
       console.log('Existing terms check:', { existingTerms, checkError });
 

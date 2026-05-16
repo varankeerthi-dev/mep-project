@@ -139,7 +139,7 @@ export default function QuotationList() {
           .from('quotation_terms_conditions')
           .select('*')
           .eq('quotation_id', quotationId)
-          .single();
+          .maybeSingle();
         termsConditions = termsData;
       }
       
