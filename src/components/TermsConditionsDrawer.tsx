@@ -120,10 +120,14 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
         .from('quotation_terms_conditions')
         .select('*')
         .eq('quotation_id', quotationId)
-        .single();
+        .maybeSingle();
 
-      if (termsError && termsError.code !== 'PGRST116') {
-        console.error('Error loading existing terms:', termsError);
+      if (termsError) {
+        if (termsError.code === '42P01') {
+          console.warn('quotation_terms_conditions table does not exist — skipping terms load');
+        } else if (termsError.code !== 'PGRST116') {
+          console.error('Error loading existing terms:', termsError);
+        }
         return;
       }
 
