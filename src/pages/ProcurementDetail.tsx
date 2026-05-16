@@ -579,14 +579,13 @@ export default function ProcurementDetail() {
                       </td>
 
                       <td className="border border-zinc-300 px-2 py-5 text-center">
-                        <span className={cn(
-                          "inline-flex items-center rounded px-2 py-1 text-[10px] font-bold tabular-nums",
-                          isGap 
-                            ? "bg-rose-50 text-rose-600 border border-rose-200" 
-                            : "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                        )}>
-                          {gap}
-                        </span>
+                        {isGap ? (
+                          <span className="inline-flex items-center rounded px-2 py-1 text-[10px] font-bold tabular-nums bg-rose-50 text-rose-600 border border-rose-200">
+                            {gap}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-zinc-300">—</span>
+                        )}
                       </td>
 
                       <td className="border border-zinc-300 px-2 py-5">
