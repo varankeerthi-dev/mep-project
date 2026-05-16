@@ -2365,7 +2365,7 @@ const itemsToInsert = items.map(item => ({
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                   <div className="flex flex-col">
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-2 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium focus:outline-none transition-colors min-h-[30px] flex items-center">
+                    <div className="w-full px-2 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium focus:outline-none transition-colors min-h-[34px] flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
@@ -2373,7 +2373,7 @@ const itemsToInsert = items.map(item => ({
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Prepared By</label>
                     <input 
                       type="text" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.prepared_by || ''} 
                       onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                       placeholder="Sales executive..."
@@ -2386,7 +2386,7 @@ const itemsToInsert = items.map(item => ({
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
@@ -2395,7 +2395,7 @@ const itemsToInsert = items.map(item => ({
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Valid Till</label>
                     <input 
                       type="date" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.valid_till} 
                       onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                     />
@@ -2406,7 +2406,7 @@ const itemsToInsert = items.map(item => ({
                   <div className="flex flex-col">
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Variant</label>
                     <select 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.variant_id} 
                       onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                     >
@@ -2420,7 +2420,7 @@ const itemsToInsert = items.map(item => ({
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Reference</label>
                     <input 
                       type="text" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.reference || ''} 
                       onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                       placeholder="Client RFQ No..."
@@ -2432,7 +2432,7 @@ const itemsToInsert = items.map(item => ({
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Payment Terms</label>
                   <input 
                     type="text" 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                     value={formData.payment_terms} 
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                     placeholder="Net 30 Days"
@@ -2450,7 +2450,7 @@ const itemsToInsert = items.map(item => ({
                     <div className="relative">
                       <input 
                         type="text"
-                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[30px]"
+                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[34px]"
                         placeholder="Search or select..."
                         value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
                         onChange={(e) => {
@@ -2493,7 +2493,7 @@ const itemsToInsert = items.map(item => ({
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Contact</label>
                   <input 
                     type="text" 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                     value={formData.client_contact} 
                     onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                     placeholder="+91 98765 43210"
@@ -2515,7 +2515,7 @@ const itemsToInsert = items.map(item => ({
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">GSTIN</label>
                     <input 
                       type="text" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.gstin} 
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                       placeholder="27AABCU9603R1ZX"
@@ -2525,7 +2525,7 @@ const itemsToInsert = items.map(item => ({
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">State</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px] appearance-none" 
+                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
                         value={formData.state} 
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       >
@@ -2546,7 +2546,7 @@ const itemsToInsert = items.map(item => ({
                 
                 <div className="flex flex-col relative">
                   <select 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px] appearance-none" 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
                     value={formData.project_id} 
                     onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                   >
