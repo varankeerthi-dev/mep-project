@@ -300,11 +300,12 @@ export default function ProcurementDetail() {
     const received = dataRows.filter((i) => i.status === 'Received').length;
     const dispatched = dataRows.filter((i) => i.status === 'Dispatched').length;
     const needsSourcing = dataRows.filter((i) => {
-      const gap = (i.boq_qty || 0) - (i.stock_qty || 0) - (i.local_qty || 0);
+      const whTotal = getWarehouseStockTotal(i.item_id);
+      const gap = (i.boq_qty || 0) - whTotal - (i.stock_qty || 0) - (i.local_qty || 0);
       return gap > 0;
     }).length;
     return { total, pending, sourcing, poRaised, received, dispatched, needsSourcing };
-  }, [items]);
+  }, [items, getWarehouseStockTotal]);
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -312,12 +313,13 @@ export default function ProcurementDetail() {
     if (filterStatus === 'needs') {
       return items.filter((i) => {
         if (i.is_header_row) return true;
-        const gap = (i.boq_qty || 0) - (i.stock_qty || 0) - (i.local_qty || 0);
+        const whTotal = getWarehouseStockTotal(i.item_id);
+        const gap = (i.boq_qty || 0) - whTotal - (i.stock_qty || 0) - (i.local_qty || 0);
         return gap > 0;
       });
     }
     return items.filter((i) => i.is_header_row || i.status === filterStatus);
-  }, [items, filterStatus]);
+  }, [items, filterStatus, getWarehouseStockTotal]);
 
   const isLoading = listLoading || itemsLoading;
   const hasDirty = items.some((i) => i._dirty);
@@ -407,27 +409,27 @@ export default function ProcurementDetail() {
       {/* Main Table Area */}
       <div className="overflow-hidden border border-zinc-300 bg-white animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[12px]">
+          <table className="w-full border-collapse text-[10px]">
             <thead>
               <tr className="bg-zinc-100">
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-10">#</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[240px]">Item Description</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Make</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Variant</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">BOQ Qty</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-10">#</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[240px]">Item Description</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Make</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Variant</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">BOQ Qty</th>
                 {warehouses.map((wh: any) => (
-                  <th key={wh.id} className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={wh.warehouse_name}>
+                  <th key={wh.id} className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={wh.warehouse_name}>
                     {wh.warehouse_name.length > 8 ? wh.warehouse_name.substring(0, 8) + '…' : wh.warehouse_name}
                   </th>
                 ))}
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-blue-600 w-20">WH Total</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Stock</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Local</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-rose-500 w-20">Gap</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Vendor</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[120px]">Status</th>
-                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Notes</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-blue-600 w-20">WH Total</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">Stock</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">Local</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-rose-500 w-20">Gap</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Vendor</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[120px]">Status</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Notes</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center w-10"></th>
               </tr>
             </thead>
@@ -467,7 +469,8 @@ export default function ProcurementDetail() {
                     );
                   }
 
-                  const gap = (item.boq_qty || 0) - (item.stock_qty || 0) - (item.local_qty || 0);
+                  const whTotal = getWarehouseStockTotal(item.item_id);
+                  const gap = (item.boq_qty || 0) - whTotal - (item.stock_qty || 0) - (item.local_qty || 0);
                   const isGap = gap > 0;
                   const isDispatched = item.status === 'Dispatched';
                   const cfg = STATUS_CONFIG[item.status as Status] || STATUS_CONFIG.Pending;
@@ -484,7 +487,7 @@ export default function ProcurementDetail() {
                         isDispatched && "opacity-60"
                       )}
                     >
-                      <td className="border border-zinc-300 px-3 py-5 text-center text-[11px] font-medium text-zinc-400">
+                      <td className="border border-zinc-300 px-3 py-5 text-center text-[10px] font-medium text-zinc-400">
                         {idx + 1}
                       </td>
 
@@ -495,7 +498,7 @@ export default function ProcurementDetail() {
                           onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Search or enter item name..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-left text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
@@ -506,7 +509,7 @@ export default function ProcurementDetail() {
                           onChange={(e) => updateItem(item.id, 'make', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Make..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
@@ -517,7 +520,7 @@ export default function ProcurementDetail() {
                           onChange={(e) => updateItem(item.id, 'variant_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Variant..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
@@ -528,7 +531,7 @@ export default function ProcurementDetail() {
                           onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                           disabled={isDispatched}
                           placeholder="UOM"
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
@@ -538,19 +541,19 @@ export default function ProcurementDetail() {
                           value={item.boq_qty || ''}
                           onChange={(e) => updateItem(item.id, 'boq_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
                       {warehouses.map((wh: any) => (
                         <td key={wh.id} className="border border-zinc-300 px-2 py-5 text-center">
-                          <span className="text-[12px] tabular-nums text-zinc-500">
+                          <span className="text-[10px] tabular-nums text-zinc-500">
                             {getItemWarehouseStock(item.item_id, wh.id) || '-'}
                           </span>
                         </td>
                       ))}
                       <td className="border border-zinc-300 px-2 py-5 text-center">
-                        <span className="text-[12px] font-semibold tabular-nums text-blue-600">
+                        <span className="text-[10px] font-semibold tabular-nums text-blue-600">
                           {getWarehouseStockTotal(item.item_id)}
                         </span>
                       </td>
@@ -561,7 +564,7 @@ export default function ProcurementDetail() {
                           value={item.stock_qty || ''}
                           onChange={(e) => updateItem(item.id, 'stock_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
@@ -571,13 +574,13 @@ export default function ProcurementDetail() {
                           value={item.local_qty || ''}
                           onChange={(e) => updateItem(item.id, 'local_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
                       <td className="border border-zinc-300 px-2 py-5 text-center">
                         <span className={cn(
-                          "inline-flex items-center rounded px-2 py-1 text-[11px] font-bold tabular-nums",
+                          "inline-flex items-center rounded px-2 py-1 text-[10px] font-bold tabular-nums",
                           isGap 
                             ? "bg-rose-50 text-rose-600 border border-rose-200" 
                             : "bg-emerald-50 text-emerald-600 border border-emerald-200"
@@ -591,7 +594,7 @@ export default function ProcurementDetail() {
                           value={item.vendor_id || ''}
                           onChange={(e) => updateItem(item.id, 'vendor_id', e.target.value || null)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded cursor-pointer"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded cursor-pointer"
                         >
                           <option value="">Select Vendor...</option>
                           {vendors.map((v: any) => (
@@ -606,7 +609,7 @@ export default function ProcurementDetail() {
                             value={item.status}
                             onChange={(e) => updateItem(item.id, 'status', e.target.value as Status)}
                             className={cn(
-                              "w-full cursor-pointer appearance-none rounded border px-2 py-1 text-[11px] font-bold uppercase tracking-wider outline-none transition-all",
+                              "w-full cursor-pointer appearance-none rounded border px-2 py-1 text-[10px] font-bold uppercase tracking-wider outline-none transition-all",
                               "hover:brightness-95 active:scale-[0.98]"
                             )}
                             style={{ backgroundColor: cfg.bg, color: cfg.color, borderColor: cfg.border }}
@@ -625,7 +628,7 @@ export default function ProcurementDetail() {
                           onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Item notes..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
