@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -20,9 +20,16 @@ import {
   Package,
   Clock,
   CircleDashed,
-  Info
+  Info,
+  FileText,
+  X,
+  Edit3,
+  Download,
+  Check
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 const STATUSES = ['Pending', 'Sourcing', 'PO Raised', 'Received', 'Dispatched'] as const;
 type Status = typeof STATUSES[number];
@@ -69,6 +76,28 @@ export default function ProcurementDetail() {
   const [items, setItems] = useState<ProcurementItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // User-specific column visibility preferences
+  const [pdfColumns, setPdfColumns] = useState<Record<string, boolean>>({});
+
+  // Load user preferences from localStorage
+  useEffect(() => {
+    const userId = organisation?.id || 'default';
+    const stored = localStorage.getItem(`procurement-pdf-cols-${userId}`);
+    if (stored) {
+      setPdfColumns(JSON.parse(stored));
+    }
+  }, [organisation?.id]);
+
+  // Save user preferences to localStorage
+  useEffect(() => {
+    if (Object.keys(pdfColumns).length === 0) return;
+    const userId = organisation?.id || 'default';
+    localStorage.setItem(`procurement-pdf-cols-${userId}`, JSON.stringify(pdfColumns));
+  }, [pdfColumns, organisation?.id]);
 
   // Fetch list header
   const { data: list, isLoading: listLoading } = useQuery({
@@ -116,6 +145,26 @@ export default function ProcurementDetail() {
     },
     enabled: !!orgId,
   });
+
+  // Initialize warehouse column defaults when warehouses load
+  useEffect(() => {
+    if (warehouses.length > 0 && Object.keys(pdfColumns).length === 0) {
+      const defaults: Record<string, boolean> = {
+        local: true,
+        vendor: true,
+        status: true,
+        notes: true,
+      };
+      warehouses.forEach((wh: any) => {
+        defaults[`wh-${wh.id}`] = true;
+      });
+      setPdfColumns(defaults);
+    }
+  }, [warehouses]);
+
+  const togglePdfColumn = (key: string) => {
+    setPdfColumns((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // Fetch item stock from all warehouses
   const itemIds = items.filter((i) => !i.is_header_row && i.item_id).map((i) => i.item_id);
@@ -290,6 +339,41 @@ export default function ProcurementDetail() {
     deleteRow(item.id);
   };
 
+  // Generate PDF from print preview
+  const handleGeneratePdf = async () => {
+    if (!printRef.current) return;
+    setPdfGenerating(true);
+    try {
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      const fileName = list?.title || 'procurement-list';
+      pdf.save(`${fileName}.pdf`);
+    } catch (e: any) {
+      alert('PDF generation failed: ' + e.message);
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
   // Stats
   const stats = useMemo(() => {
     const dataRows = items.filter((i) => !i.is_header_row);
@@ -376,6 +460,13 @@ export default function ProcurementDetail() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowPdfPreview(true)}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
+          >
+            <FileText size={18} className="text-blue-500" />
+            PDF
+          </button>
           <button 
             onClick={addHeader} 
             className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
@@ -663,6 +754,215 @@ export default function ProcurementDetail() {
             {saving ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Saving...' : 'Commit Changes'}
           </button>
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {showPdfPreview && (
+        <div className="fixed inset-0 z-[2000] flex flex-col bg-zinc-100">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowPdfPreview(false)}
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-[13px] font-bold text-zinc-700 transition-all hover:bg-zinc-50"
+              >
+                <Edit3 size={16} />
+                EDIT
+              </button>
+              <div className="h-6 w-px bg-zinc-200" />
+              <span className="text-[13px] font-semibold text-zinc-500">PDF Preview</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleGeneratePdf}
+                disabled={pdfGenerating}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-[13px] font-bold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+              >
+                {pdfGenerating ? <RefreshCcw size={16} className="animate-spin" /> : <Download size={16} />}
+                {pdfGenerating ? 'Generating...' : 'Download PDF'}
+              </button>
+              <button
+                onClick={() => setShowPdfPreview(false)}
+                className="ml-2 rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+
+          {/* Column Toggles */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-6 py-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Columns:</span>
+            {warehouses.map((wh: any) => (
+              <label key={wh.id} className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 border border-zinc-200 cursor-pointer hover:bg-zinc-50 transition-colors">
+                <div className={cn(
+                  "flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                  pdfColumns[`wh-${wh.id}`] ? "bg-blue-600 border-blue-600" : "border-zinc-300 bg-white"
+                )}>
+                  {pdfColumns[`wh-${wh.id}`] && <Check size={12} className="text-white" />}
+                </div>
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={pdfColumns[`wh-${wh.id}`] ?? true}
+                  onChange={() => togglePdfColumn(`wh-${wh.id}`)}
+                />
+                <span className="text-[12px] font-medium text-zinc-700">{wh.warehouse_name}</span>
+              </label>
+            ))}
+            <div className="h-4 w-px bg-zinc-200" />
+            {['local', 'vendor', 'status', 'notes'].map((col) => (
+              <label key={col} className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 border border-zinc-200 cursor-pointer hover:bg-zinc-50 transition-colors">
+                <div className={cn(
+                  "flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                  pdfColumns[col] ? "bg-blue-600 border-blue-600" : "border-zinc-300 bg-white"
+                )}>
+                  {pdfColumns[col] && <Check size={12} className="text-white" />}
+                </div>
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={pdfColumns[col] ?? true}
+                  onChange={() => togglePdfColumn(col)}
+                />
+                <span className="text-[12px] font-medium text-zinc-700 capitalize">{col}</span>
+              </label>
+            ))}
+          </div>
+
+          {/* Preview Content */}
+          <div className="flex-1 overflow-auto p-8">
+            <div ref={printRef} className="mx-auto max-w-[900px] bg-white shadow-lg">
+              {/* Print Header */}
+              <div className="border-b border-zinc-200 px-8 py-6">
+                <h2 className="text-xl font-bold text-zinc-900">{list?.title || 'Procurement List'}</h2>
+                <div className="mt-2 flex flex-wrap gap-4 text-[12px] text-zinc-500">
+                  {list?.client_name && <span>Client: {list.client_name}</span>}
+                  {(list?.boq_no || list?.quotation_no) && <span>Ref: {list.boq_no || list.quotation_no}</span>}
+                  {list?.source && <span className="uppercase">{list.source}</span>}
+                </div>
+              </div>
+
+              {/* Print Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-[10px]">
+                  <thead>
+                    <tr className="bg-zinc-100">
+                      <th className="border border-zinc-300 px-3 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-8">#</th>
+                      <th className="border border-zinc-300 px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[200px]">Item Description</th>
+                      <th className="border border-zinc-300 px-3 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
+                      <th className="border border-zinc-300 px-3 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">BOQ</th>
+                      {warehouses.map((wh: any) => (
+                        pdfColumns[`wh-${wh.id}`] !== false && (
+                          <th key={wh.id} className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-14" title={wh.warehouse_name}>
+                            {wh.warehouse_name.length > 6 ? wh.warehouse_name.substring(0, 6) + '…' : wh.warehouse_name}
+                          </th>
+                        )
+                      ))}
+                      <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-blue-600 w-14">WH</th>
+                      {pdfColumns.local !== false && (
+                        <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-14">Local</th>
+                      )}
+                      <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-rose-500 w-14">Gap</th>
+                      {pdfColumns.vendor !== false && (
+                        <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">Vendor</th>
+                      )}
+                      {pdfColumns.status !== false && (
+                        <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">Status</th>
+                      )}
+                      {pdfColumns.notes !== false && (
+                        <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-24">Notes</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredItems.map((item, idx) => {
+                      if (item.is_header_row) {
+                        return (
+                          <tr key={item.id} className="bg-zinc-50">
+                            <td className="border border-zinc-300 px-3 py-2 text-center">
+                              <Layout size={12} className="mx-auto text-blue-400" />
+                            </td>
+                            <td colSpan={12 + warehouses.length} className="border border-zinc-300 px-3 py-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-900">{item.header_text || 'Section'}</span>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const whTotal = getWarehouseStockTotal(item.item_id);
+                      const gap = (item.boq_qty || 0) - whTotal - (item.stock_qty || 0) - (item.local_qty || 0);
+                      const isGap = gap > 0;
+                      const cfg = STATUS_CONFIG[item.status as Status] || STATUS_CONFIG.Pending;
+                      const vendorName = vendors.find((v: any) => v.id === item.vendor_id)?.company_name || '';
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className={cn(
+                            idx % 2 === 0 ? "bg-white" : "bg-zinc-50/30"
+                          )}
+                        >
+                          <td className="border border-zinc-300 px-3 py-3 text-center text-[10px] text-zinc-400">
+                            {idx + 1}
+                          </td>
+                          <td className="border border-zinc-300 px-2 py-3 text-left text-[10px] text-zinc-900 font-medium">
+                            {item.item_name || '-'}
+                          </td>
+                          <td className="border border-zinc-300 px-2 py-3 text-center text-[10px] text-zinc-500">
+                            {item.uom || '-'}
+                          </td>
+                          <td className="border border-zinc-300 px-2 py-3 text-center text-[10px] tabular-nums text-zinc-900">
+                            {item.boq_qty || 0}
+                          </td>
+                          {warehouses.map((wh: any) => (
+                            pdfColumns[`wh-${wh.id}`] !== false && (
+                              <td key={wh.id} className="border border-zinc-300 px-2 py-3 text-center text-[10px] tabular-nums text-zinc-500">
+                                {getItemWarehouseStock(item.item_id, wh.id) || '-'}
+                              </td>
+                            )
+                          ))}
+                          <td className="border border-zinc-300 px-2 py-3 text-center text-[10px] font-semibold tabular-nums text-blue-600">
+                            {whTotal}
+                          </td>
+                          {pdfColumns.local !== false && (
+                            <td className="border border-zinc-300 px-2 py-3 text-center text-[10px] tabular-nums text-zinc-500">
+                              {item.local_qty || 0}
+                            </td>
+                          )}
+                          <td className="border border-zinc-300 px-2 py-3 text-center">
+                            {isGap ? (
+                              <span className="text-[10px] font-bold tabular-nums text-rose-600">{gap}</span>
+                            ) : (
+                              <span className="text-[10px] text-zinc-300">—</span>
+                            )}
+                          </td>
+                          {pdfColumns.vendor !== false && (
+                            <td className="border border-zinc-300 px-2 py-3 text-center text-[10px] text-zinc-500">
+                              {vendorName || '-'}
+                            </td>
+                          )}
+                          {pdfColumns.status !== false && (
+                            <td className="border border-zinc-300 px-2 py-3 text-center">
+                              <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: cfg.color }}>
+                                {item.status}
+                              </span>
+                            </td>
+                          )}
+                          {pdfColumns.notes !== false && (
+                            <td className="border border-zinc-300 px-2 py-3 text-center text-[10px] text-zinc-400">
+                              {item.notes || '-'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
