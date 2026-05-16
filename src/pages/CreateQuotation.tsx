@@ -2176,6 +2176,9 @@ const itemsToInsert = items.map(item => ({
 
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['quotations', organisation?.id] });
+      queryClient.invalidateQueries({ queryKey: ['quotation', quotationId] });
+      queryClient.invalidateQueries({ queryKey: ['quotation_items', quotationId] });
+      queryClient.invalidateQueries({ queryKey: ['quotation-terms', quotationId] });
 
       // Update approval with actual quotation ID if approval was created
       if (needsApproval && !editId && finalStatus === 'PENDING_APPROVAL' && quotationId) {
