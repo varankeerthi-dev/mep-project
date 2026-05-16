@@ -1,41 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../App';
+import type { LedgerEntry, LedgerSummary, WorkOrderWithValue, LedgerEntryType } from '../types/subcontractor';
 
-export type LedgerEntryType = 'WO-ISSUED' | 'WO-AMD' | 'INVOICE' | 'PAYMENT';
-
-export interface LedgerEntry {
-  id: string;
-  date: string;
-  type: LedgerEntryType;
-  reference: string;
-  workOrderRef?: string;
-  description?: string;
-  debit: number;
-  credit: number;
-  tdsAmount: number;
-  balance: number;
-  details?: any;
-}
-
-export interface LedgerSummary {
-  contractValue: number;
-  totalInvoiced: number;
-  totalPaid: number;
-  balanceDue: number;
-  totalTDS: number;
-}
-
-export interface WorkOrderWithValue {
-  id: string;
-  work_order_no: string;
-  work_description: string;
-  total_amount: number;
-  status: string;
-  is_amendment: boolean;
-  amendment_no: number;
-  parent_work_order_id?: string;
-}
+export type { LedgerEntry, LedgerSummary, WorkOrderWithValue, LedgerEntryType };
 
 export function useSubcontractorLedger(subcontractorId: string | null) {
   const { organisation } = useAuth();
@@ -87,13 +55,16 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
       if (payError) throw payError;
 
       // Build ledger entries
+      // Balance represents: amount owed TO subcontractor (positive = we owe them)
+      // WO-ISSUED = contract commitment (informational, doesn't affect payable balance)
+      // INVOICE = subcontractor claims money (increases payable)
+      // PAYMENT = we pay subcontractor (decreases payable)
       const ledger: LedgerEntry[] = [];
       let runningBalance = 0;
 
-      // Add work order issuances (parent WOs only)
+      // Add work order issuances (informational only, no balance impact)
       workOrders?.filter(wo => !wo.is_amendment).forEach(wo => {
-        const amount = parseFloat(wo.total_amount) || 0;
-        runningBalance += amount;
+        const amount = parseFloat(wo.total_amount || wo.contract_value) || 0;
         ledger.push({
           id: wo.id,
           date: wo.issue_date || wo.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -109,11 +80,10 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         });
       });
 
-      // Add amendments
+      // Add amendments (informational only, no balance impact)
       amendments?.forEach(amd => {
         const parentWO = workOrders?.find(wo => wo.id === amd.work_order_id);
         const difference = parseFloat(amd.difference_amount) || 0;
-        runningBalance += difference;
         ledger.push({
           id: amd.id,
           date: amd.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -129,7 +99,7 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         });
       });
 
-      // Add invoices
+      // Add invoices (increases payable balance)
       invoices?.forEach(inv => {
         const amount = parseFloat(inv.amount) || 0;
         runningBalance += amount;
@@ -149,16 +119,14 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         });
       });
 
-      // Add payments (gross amounts)
+      // Add payments (decreases payable balance)
       let totalTDS = 0;
       payments?.forEach(pay => {
         const grossAmount = parseFloat(pay.gross_amount || pay.amount) || 0;
         const tdsAmount = parseFloat(pay.tds_amount) || 0;
-        const netAmount = parseFloat(pay.net_amount || (grossAmount - tdsAmount)) || 0;
-        
         runningBalance -= grossAmount;
         totalTDS += tdsAmount;
-        
+
         const linkedWO = workOrders?.find(wo => wo.id === pay.work_order_id);
         ledger.push({
           id: pay.id,
@@ -189,19 +157,22 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
       const summary: LedgerSummary = {
         contractValue: workOrders
           ?.filter(wo => !wo.is_amendment)
-          .reduce((sum, wo) => sum + (parseFloat(wo.total_amount) || 0), 0) || 0,
+          .reduce((sum, wo) => sum + (parseFloat(wo.total_amount || wo.contract_value) || 0), 0) || 0,
         totalInvoiced: invoices?.reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0) || 0,
         totalPaid: payments?.reduce((sum, pay) => sum + (parseFloat(pay.gross_amount || pay.amount) || 0), 0) || 0,
         balanceDue: newBalance,
-        totalTDS: totalTDS
+        totalTDS: totalTDS,
+        totalRetention: 0,
+        releasedRetention: 0
       };
 
       // Prepare work orders list with amendments
       const workOrdersWithAmendments: WorkOrderWithValue[] = workOrders?.map(wo => ({
         id: wo.id,
         work_order_no: wo.work_order_no,
-        work_description: wo.work_description,
-        total_amount: parseFloat(wo.total_amount) || 0,
+        work_description: wo.work_description || '',
+        total_amount: parseFloat(wo.total_amount || wo.contract_value) || 0,
+        contract_value: parseFloat(wo.contract_value) || 0,
         status: wo.status,
         is_amendment: wo.is_amendment,
         amendment_no: wo.amendment_no,
