@@ -56,6 +56,7 @@ export interface Task {
   actual_hours: number | null;
 
   assignee_ids: string[];
+  subcontractor_ids: string[];
   reporter_id: string | null;
   approved_by_id: string | null;
 
@@ -278,6 +279,7 @@ export interface TaskCreateInput {
   duration_days?: number | null;
   estimated_hours?: number | null;
   assignee_ids?: string[];
+  subcontractor_ids?: string[];
   tags?: string[];
   color?: string | null;
   discipline?: TaskDiscipline | null;
@@ -299,6 +301,7 @@ export interface TaskUpdateInput {
   duration_days?: number | null;
   estimated_hours?: number | null;
   assignee_ids?: string[];
+  subcontractor_ids?: string[];
   tags?: string[];
   color?: string | null;
   is_following?: boolean;

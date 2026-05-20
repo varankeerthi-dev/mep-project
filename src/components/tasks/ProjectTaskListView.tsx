@@ -885,6 +885,7 @@ export default function ProjectTaskListView({
           projectId={projectId}
           defaultGroupId={createForGroupId}
           groups={groups}
+          organisationId={organisationId}
           onClose={() => {
             setShowCreateModal(false);
             setCreateForGroupId(null);
