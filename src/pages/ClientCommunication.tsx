@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
@@ -84,6 +85,7 @@ const CATEGORY_ICONS = {
 };
 
 export function ClientCommunication() {
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -308,7 +310,29 @@ export function ClientCommunication() {
     next_action: '',
     priority: 'normal',
     status: 'open',
+    linked_type: '',
+    linked_id: '',
   });
+
+  const linkedTypeParam = searchParams.get('linkedType');
+  const linkedIdParam = searchParams.get('linkedId');
+  const itemLabelParam = searchParams.get('itemLabel');
+  const clientNameParam = searchParams.get('clientName');
+
+  useEffect(() => {
+    if (linkedTypeParam || linkedIdParam || itemLabelParam) {
+      setFormData(prev => ({
+        ...prev,
+        linked_type: linkedTypeParam || '',
+        linked_id: linkedIdParam || '',
+        call_regarding: linkedTypeParam === 'quotation' ? 'quotation'
+          : linkedTypeParam === 'invoice' ? 'payment'
+          : linkedTypeParam === 'podc' ? 'project'
+          : prev.call_regarding,
+        call_brief: itemLabelParam ? `Regarding: ${itemLabelParam}${clientNameParam ? ` (${clientNameParam})` : ''}` : '',
+      }));
+    }
+  }, [linkedTypeParam, linkedIdParam, itemLabelParam, clientNameParam]);
 
   const [newClientData, setNewClientData] = useState({
     client_name: '',
@@ -346,6 +370,8 @@ export function ClientCommunication() {
       next_action: '',
       priority: 'normal',
       status: 'open',
+      linked_type: '',
+      linked_id: '',
     });
   };
 

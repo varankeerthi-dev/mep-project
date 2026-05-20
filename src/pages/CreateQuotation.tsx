@@ -2316,6 +2316,15 @@ const itemsToInsert = items.map(item => ({
           </div>
 
           <div className="flex items-center gap-2">
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+              className="h-[25px] px-2 text-[11px] font-semibold border border-zinc-300 bg-white text-zinc-700 focus:border-blue-500 focus:outline-none min-w-[100px]"
+              title="Quotation status"
+            >
+              <option value="Draft">Draft</option>
+              <option value="Sent">Sent to Client</option>
+            </select>
             <button
               type="button"
               className="h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
@@ -2335,13 +2344,21 @@ const itemsToInsert = items.map(item => ({
             </button>
             <button
               type="button"
-              className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+              className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white ${
+                formData.status === 'Sent'
+                  ? 'bg-gradient-to-b from-emerald-700 to-emerald-900'
+                  : 'bg-gradient-to-b from-[#001f3f] to-[#003366]'
+              } shadow-none border-none hover:opacity-90 transition-all ${
                 saving ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               onClick={() => handleSave(false)}
               disabled={saving}
             >
-              {saving ? 'Saving...' : editId ? 'Update Quotation' : 'Confirm & Save'}
+              {saving
+                ? 'Saving...'
+                : editId
+                  ? formData.status === 'Sent' ? 'Update & Submit' : 'Update Quotation'
+                  : formData.status === 'Sent' ? 'Submit to Client' : 'Confirm & Save'}
             </button>
           </div>
         </div>

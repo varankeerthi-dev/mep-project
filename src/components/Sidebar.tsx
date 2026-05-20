@@ -46,7 +46,8 @@ const menuData: MenuSection[] = [
     section: 'Tasks',
     items: [
       { id: 'approvals', label: 'Approvals', path: '/approvals' },
-      { id: 'todo', label: 'To Do List', path: '/todo' }
+      { id: 'todo', label: 'To Do List', path: '/todo' },
+      { id: 'follow-up', label: 'Follow-Up Centre', path: '/follow-up' }
     ]
   },
   {
@@ -266,6 +267,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'credit-notes': 'ArrowUturnLeftIcon',
   'proforma-invoices': 'DocumentTextIcon',
   ledger: 'DocumentTextIcon',
+  'follow-up': 'BellAlertIcon',
   boq: 'TableCellsIcon',
   documents: 'FolderOpenIcon',
   issue: 'ExclamationTriangleIcon',

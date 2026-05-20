@@ -65,6 +65,7 @@ const InvoiceView = lazyAny(() => import('./invoices/pages/InvoiceView'));
 const ProformaListPage = lazyAny(() => import('./proforma-invoices/pages/ProformaListPage'));
 const ProformaEditorPage = lazyAny(() => import('./proforma-invoices/pages/ProformaEditorPage'));
 const LedgerDashboard = lazyAny(() => import('./ledger/LedgerDashboard'));
+const FollowUpCentre = lazyAny(() => import('./pages/FollowUpCentre'));
 const ProjectList = lazyAny(() => import('./pages/ProjectList'));
 const CreateProject = lazyAny(() => import('./pages/CreateProject'));
 const AuthModule = import('./pages/Auth');
@@ -271,6 +272,7 @@ export default function App() {
       case '/credit-notes/create': return <CreditNoteEditorPage />;
       case '/credit-notes/edit': return <CreditNoteEditorPage />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;
+      case '/follow-up': return <FollowUpCentre />;
       case '/boq': return <BOQList />;
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
       case '/documents': return <Documents />;

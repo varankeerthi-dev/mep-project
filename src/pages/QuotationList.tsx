@@ -629,6 +629,28 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                           >
                             Edit
                           </button>
+                          {q.status === 'Draft' && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                const { error } = await supabase
+                                  .from('quotation_header')
+                                  .update({ status: 'Sent', updated_at: new Date().toISOString() })
+                                  .eq('id', q.id)
+                                  .eq('organisation_id', organisation?.id);
+                                if (error) {
+                                  alert('Failed to mark as sent: ' + error.message);
+                                  return;
+                                }
+                                queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium"
+                              style={{ padding: '8px' }}
+                            >
+                              Mark as Sent
+                            </button>
+                          )}
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
