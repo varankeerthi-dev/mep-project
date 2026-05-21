@@ -1093,6 +1093,7 @@ function ItemsTab() {
         .map(m => ({
           material_id: itemId,
           client_id: m.client_id,
+          company_variant_id: m.company_variant_id || null,
           client_part_no: m.client_part_no,
           client_description: m.client_description,
           organisation_id: organisation?.id,
@@ -1111,6 +1112,7 @@ function ItemsTab() {
         .map(p => ({
           material_id: itemId,
           client_id: p.client_id,
+          company_variant_id: p.company_variant_id || null,
           pricing_type: p.pricing_type || 'Fixed ARC',
           rate: p.rate ? parseFloat(p.rate) : null,
           valid_from: p.valid_from || null,
@@ -1279,7 +1281,7 @@ function ItemsTab() {
   const addClientMappingRow = () => {
     setClientMappings(prev => [
       ...prev,
-      { id: 'temp-' + Date.now(), client_id: '', client_part_no: '', client_description: '' }
+      { id: 'temp-' + Date.now(), client_id: '', company_variant_id: '', client_part_no: '', client_description: '' }
     ]);
   };
 
@@ -1294,7 +1296,7 @@ function ItemsTab() {
   const addClientPricingRow = () => {
     setClientPricing(prev => [
       ...prev,
-      { id: 'temp-' + Date.now(), client_id: '', pricing_type: 'Fixed ARC', rate: '', valid_from: '', valid_to: '', status: 'active' }
+      { id: 'temp-' + Date.now(), client_id: '', company_variant_id: '', pricing_type: 'Fixed ARC', rate: '', valid_from: '', valid_to: '', status: 'active' }
     ]);
   };
 
@@ -2371,6 +2373,129 @@ function ItemsTab() {
 
               <div className="item-form-section">
                 <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Variants & Status</h4>
+                  <span className="item-form-section-hint">Optional</span>
+                </div>
+
+                <div className="item-toggle-row">
+                  <label className="item-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    />
+                    Active
+                  </label>
+
+                  <label className="item-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={formData.uses_variant}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        if (editingMaterial) {
+                          handleUsesVariantChange(checked);
+                        } else {
+                          setFormData({
+                            ...formData,
+                            uses_variant: checked,
+                            sale_price: checked ? '0' : formData.sale_price
+                          });
+                          if (checked && variantPricing.length === 0) {
+                            addVariantPricingRow();
+                          }
+                        }
+                      }}
+                    />
+                    This item uses Variant
+                  </label>
+                </div>
+
+                <p className="item-form-helper">
+                  {formData.uses_variant
+                    ? 'Prices will be set per variant below. At least one variant price is required before saving.'
+                    : 'Enable to set different prices for different variants (Retail, Wholesale, Special, etc.)'}
+                </p>
+              </div>
+
+              {formData.uses_variant && (
+                <div className="item-form-section">
+                  <div className="item-form-section-header">
+                    <div>
+                      <h4 className="item-form-section-title">Variant Pricing</h4>
+                      <div className="item-form-section-hint">By variant &amp; make (brand)</div>
+                    </div>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Row</button>
+                  </div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Variant</th>
+                        <th>MAKE (Brand)</th>
+                        <th>Sale Price</th>
+                        <th>Purchase Price</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variantPricing.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <select 
+                              className="form-select" 
+                              value={row.company_variant_id || ''} 
+                              onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
+                            >
+                              <option value="">No Variant</option>
+                              {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
+                                <option key={v.id} value={v.id}>{v.variant_name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input 
+                              type="text" 
+                              className="form-input"
+                              value={row.make || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'make', e.target.value)}
+                              placeholder="e.g. Brand A"
+                            />
+                          </td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="form-input"
+                              value={row.sale_price || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'sale_price', e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="form-input"
+                              value={row.purchase_price || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'purchase_price', e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => removeVariantPricingRow(row.id)}>Remove</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {variantPricing.length === 0 && (
+                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '8px' }}>At least one pricing row is required when using variants.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="item-form-section">
+                <div className="item-form-section-header">
                   <h4 className="item-form-section-title">Inventory Tracking</h4>
                   <span className="item-form-section-hint">Optional</span>
                 </div>
@@ -2496,15 +2621,29 @@ function ItemsTab() {
                       <table className="table" style={{ fontSize: '12px' }}>
                         <thead>
                           <tr>
-                            <th style={{ width: '25%' }}>Client</th>
-                            <th style={{ width: '25%' }}>Client Part No</th>
-                            <th style={{ width: '40%' }}>Client Description</th>
+                            <th style={{ width: '20%' }}>Variant</th>
+                            <th style={{ width: '20%' }}>Client</th>
+                            <th style={{ width: '20%' }}>Client Part No</th>
+                            <th style={{ width: '30%' }}>Client Description</th>
                             <th style={{ width: '10%' }}>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {clientMappings.map((mapping) => (
                             <tr key={mapping.id}>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  value={mapping.company_variant_id || ''}
+                                  onChange={(e) => handleClientMappingChange(mapping.id, 'company_variant_id', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px' }}
+                                >
+                                  <option value="">No Variant</option>
+                                  {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
+                                    <option key={v.id} value={v.id}>{v.variant_name}</option>
+                                  ))}
+                                </select>
+                              </td>
                               <td>
                                 <select
                                   className="form-select"
@@ -2575,18 +2714,32 @@ function ItemsTab() {
                       <table className="table" style={{ fontSize: '12px' }}>
                         <thead>
                           <tr>
-                            <th style={{ width: '20%' }}>Client</th>
-                            <th style={{ width: '18%' }}>Pricing Type</th>
-                            <th style={{ width: '12%' }}>Rate</th>
-                            <th style={{ width: '15%' }}>Valid From</th>
-                            <th style={{ width: '15%' }}>Valid To</th>
-                            <th style={{ width: '12%' }}>Status</th>
+                            <th style={{ width: '15%' }}>Variant</th>
+                            <th style={{ width: '15%' }}>Client</th>
+                            <th style={{ width: '15%' }}>Pricing Type</th>
+                            <th style={{ width: '10%' }}>Rate</th>
+                            <th style={{ width: '13%' }}>Valid From</th>
+                            <th style={{ width: '13%' }}>Valid To</th>
+                            <th style={{ width: '11%' }}>Status</th>
                             <th style={{ width: '8%' }}>Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {clientPricing.map((row) => (
                             <tr key={row.id}>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  value={row.company_variant_id || ''}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'company_variant_id', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                >
+                                  <option value="">No Variant</option>
+                                  {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
+                                    <option key={v.id} value={v.id}>{v.variant_name}</option>
+                                  ))}
+                                </select>
+                              </td>
                               <td>
                                 <select
                                   className="form-select"
@@ -2711,129 +2864,6 @@ function ItemsTab() {
                   </>
                 )}
               </div>
-
-              <div className="item-form-section">
-                <div className="item-form-section-header">
-                  <h4 className="item-form-section-title">Variants & Status</h4>
-                  <span className="item-form-section-hint">Optional</span>
-                </div>
-
-                <div className="item-toggle-row">
-                  <label className="item-checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_active}
-                      onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                    />
-                    Active
-                  </label>
-
-                  <label className="item-checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={formData.uses_variant}
-                      onChange={e => {
-                        const checked = e.target.checked;
-                        if (editingMaterial) {
-                          handleUsesVariantChange(checked);
-                        } else {
-                          setFormData({
-                            ...formData,
-                            uses_variant: checked,
-                            sale_price: checked ? '0' : formData.sale_price
-                          });
-                          if (checked && variantPricing.length === 0) {
-                            addVariantPricingRow();
-                          }
-                        }
-                      }}
-                    />
-                    This item uses Variant
-                  </label>
-                </div>
-
-                <p className="item-form-helper">
-                  {formData.uses_variant
-                    ? 'Prices will be set per variant below. At least one variant price is required before saving.'
-                    : 'Enable to set different prices for different variants (Retail, Wholesale, Special, etc.)'}
-                </p>
-              </div>
-
-              {formData.uses_variant && (
-                <div className="item-form-section">
-                  <div className="item-form-section-header">
-                    <div>
-                      <h4 className="item-form-section-title">Variant Pricing</h4>
-                      <div className="item-form-section-hint">By variant &amp; make (brand)</div>
-                    </div>
-                    <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Row</button>
-                  </div>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Variant</th>
-                        <th>MAKE (Brand)</th>
-                        <th>Sale Price</th>
-                        <th>Purchase Price</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {variantPricing.map((row) => (
-                        <tr key={row.id}>
-                          <td>
-                            <select 
-                              className="form-select" 
-                              value={row.company_variant_id || ''} 
-                              onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
-                            >
-                              <option value="">No Variant</option>
-                              {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
-                                <option key={v.id} value={v.id}>{v.variant_name}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>
-                            <input 
-                              type="text" 
-                              className="form-input"
-                              value={row.make || ''}
-                              onChange={e => handleVariantPricingRowChange(row.id, 'make', e.target.value)}
-                              placeholder="e.g. Brand A"
-                            />
-                          </td>
-                          <td>
-                            <input 
-                              type="number" 
-                              className="form-input"
-                              value={row.sale_price || ''}
-                              onChange={e => handleVariantPricingRowChange(row.id, 'sale_price', e.target.value)}
-                              placeholder="0.00"
-                              step="0.01"
-                            />
-                          </td>
-                          <td>
-                            <input 
-                              type="number" 
-                              className="form-input"
-                              value={row.purchase_price || ''}
-                              onChange={e => handleVariantPricingRowChange(row.id, 'purchase_price', e.target.value)}
-                              placeholder="0.00"
-                              step="0.01"
-                            />
-                          </td>
-                          <td>
-                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => removeVariantPricingRow(row.id)}>Remove</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {variantPricing.length === 0 && (
-                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '8px' }}>At least one pricing row is required when using variants.</p>
-                  )}
-                </div>
-              )}
 
               <div className="item-form-footer">
                 <button type="submit" className="btn btn-primary" disabled={materialSavePending}>
