@@ -136,25 +136,28 @@ export default function TemplateSettings() {
           .eq('organisation_id', organisation.id)
           .order('document_type', { ascending: true })
           .order('template_name', { ascending: true });
-
+        
         if (error) throw error;
         dbTemplates = data || [];
+        
+        // Auto-seed built-in templates if none exist for this org
+        if (dbTemplates.length === 0) {
+          await seedBuiltInTemplates();
+          // Reload after seeding
+          const { data: seededData } = await supabase
+            .from('document_templates')
+            .select('*')
+            .eq('organisation_id', organisation.id)
+            .order('document_type', { ascending: true })
+            .order('template_name', { ascending: true });
+          dbTemplates = seededData || [];
+        }
       }
       
-      // Merge database templates with built-in templates
-      // We put dbTemplates FIRST so that unique filter keeps the DB version (which contains customizations like is_default: true)
-      const allTemplates = [...dbTemplates, ...BUILT_IN_TEMPLATES];
-      
-      // Remove duplicates (keep database version if it exists)
-      const uniqueTemplates = allTemplates.filter((template, index, self) => 
-        index === self.findIndex(t => (t.template_code && template.template_code && t.template_code === template.template_code) || (t.id && template.id && t.id === template.id))
-      );
-      
-      setTemplates(uniqueTemplates);
+      setTemplates(dbTemplates);
     } catch (err: any) {
       console.error('Error loading templates:', err);
-      // If database fails, still show built-in templates
-      setTemplates(BUILT_IN_TEMPLATES);
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -1508,13 +1511,6 @@ const handleNew = (preset: any = null) => {
       <div className="page-header">
         <h1 className="page-title">Template Settings</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            className="btn btn-secondary" 
-            onClick={seedBuiltInTemplates}
-            style={{ borderColor: '#059669', color: '#059669' }}
-          >
-            Seed Built-in Templates
-          </button>
           <button 
             className="btn btn-secondary" 
             onClick={() => handleNew('vertical')}
