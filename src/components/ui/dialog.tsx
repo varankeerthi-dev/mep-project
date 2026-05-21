@@ -57,11 +57,11 @@ export function DialogContent({ className, children, ...props }: DialogContentPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[15vh]"
       onClick={() => ctx.setOpen(false)}
     >
       <div
-        className={cn('w-full max-w-lg rounded-lg bg-white p-6 shadow-xl', className)}
+        className={cn('w-full max-w-lg rounded-lg bg-white px-3 py-5 shadow-xl', className)}
         onClick={(event) => event.stopPropagation()}
         {...props}
       >

@@ -2409,15 +2409,15 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               <div className="space-y-4 pl-4">
                 <h3 className="text-xs font-semibold text-zinc-500 mb-3">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Quotation No <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-6 pb-[14px]">
+                  <div className="flex flex-col pt-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Quotation No <span className="text-red-500">*</span></label>
                     <div className="w-full px-2 py-1.5 border border-zinc-200 bg-zinc-50 text-zinc-600 text-xs font-medium focus:outline-none transition-colors min-h-10 flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Prepared By</label>
+                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Prepared By</label>
                     <input 
                       type="text" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2428,18 +2428,18 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-6 pb-[14px] pt-4">
+                  <div className="flex flex-col pt-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-3 py-3 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Valid Till</label>
+                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Valid Till</label>
                     <input 
                       type="date" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2451,7 +2451,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Variant</label>
+                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Variant</label>
                     <select 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.variant_id} 
@@ -2464,7 +2464,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Reference</label>
+                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Reference</label>
                     <input 
                       type="text" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2476,7 +2476,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-zinc-600 mb-1.5">Payment Terms</label>
+                  <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Payment Terms</label>
                   <input 
                     type="text" 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2492,7 +2492,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 <h3 className="text-xs font-semibold text-zinc-500 mb-3">Client</h3>
                 
                 <div className="flex flex-col client-dropdown-container space-y-4">
-                  <label className="text-xs font-semibold text-zinc-600 mb-1">Client <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
@@ -2536,8 +2536,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-zinc-600 mb-1">Contact</label>
+                <div className="flex flex-col pt-5">
+                  <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">Contact</label>
                   <input 
                     type="text" 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2548,7 +2548,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-zinc-600 mb-1">Billing Address</label>
+                  <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">Billing Address</label>
                   <textarea 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
                     value={formData.billing_address} 
@@ -2559,7 +2559,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1">GSTIN</label>
+                    <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">GSTIN</label>
                     <input 
                       type="text" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2569,7 +2569,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-zinc-600 mb-1">State</label>
+                    <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">State</label>
                     <div className="relative">
                       <select 
                         className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
@@ -2646,7 +2646,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                           const approvalDisplay = getApprovalDisplayStatus(variant.id);
                         
                           return (
-                            <div key={variant.id} className="flex items-center justify-between border border-zinc-100 bg-white rounded-md h-[35px]">
+                            <div key={variant.id} className="flex items-center justify-between border border-zinc-100 bg-white rounded-md h-[48px]">
                               <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-none h-full`}>
                                 <span className={`text-xs font-bold uppercase tracking-wider ${color.text} truncate`}>
                                   {variant.variant_name}
@@ -2771,35 +2771,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
               {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
             </span>
-          </div>
-          
-          {/* Section Tabs */}
-          <div className="px-5 py-[30px]">
-            <div className="flex border-b border-zinc-200">
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
-                  activeSection === 'materials'
-                    ? 'border-blue-800 text-blue-800'
-                    : 'border-transparent text-amber-700 hover:text-amber-800 hover:border-amber-300'
-                }`}
-                onClick={() => setActiveSection('materials')}
-              >
-                Materials
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
-                  activeSection === 'erection'
-                    ? 'border-blue-800 text-blue-800'
-                    : 'border-transparent text-amber-700 hover:text-amber-800 hover:border-amber-300'
-                }`}
-                onClick={() => setActiveSection('erection')}
-              >
-                Erection Charges
-              </button>
-            </div>
-          </div>
+</div>
           
           <div className="flex items-center gap-2">
             <button 

@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
+import { Agentation } from 'agentation';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
@@ -631,8 +632,11 @@ export default function App() {
           <Suspense fallback={<PageSkeleton />}>
             {renderedPage}
           </Suspense>
-</main>
+        </main>
       </div>
+
+      {process.env.NODE_ENV === 'development' && <Agentation endpoint="http://localhost:4747" />}
+
       <Toaster />
       <ReactQueryDevtools initialIsOpen={false} />
     </AuthContext.Provider>
