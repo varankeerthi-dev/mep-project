@@ -530,21 +530,25 @@ export default function InvoiceView() {
                             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
                           </div>
                           <div className="max-h-[300px] overflow-y-auto">
-                            {templates.map((t) => (
-                              <button
-                                key={t.id}
-                                onClick={() => {
-                                  handleSelectTemplate(t.id);
-                                  setPrintMenuView('main');
-                                }}
-                                className={`block w-full text-left text-xs font-bold transition-colors ${
-                                  selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'
-                                }`}
-                                style={{ padding: '10px 12px' }}
-                              >
-                                {t.name}
-                              </button>
-                            ))}
+                            {templates.length === 0 ? (
+                              <div className="px-3 py-4 text-xs text-zinc-400 text-center">No templates found</div>
+                            ) : (
+                              templates.map((t) => (
+                                <button
+                                  key={t.id}
+                                  onClick={() => {
+                                    handleSelectTemplate(t.id);
+                                    setPrintMenuView('main');
+                                  }}
+                                  className={`block w-full text-left text-xs font-bold transition-colors ${
+                                    selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'
+                                  }`}
+                                  style={{ padding: '10px 12px' }}
+                                >
+                                  {t.name || t.template_name || 'Untitled'}
+                                </button>
+                              ))
+                            )}
                           </div>
                         </>
                       )}
