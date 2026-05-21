@@ -72,10 +72,12 @@ export async function htmlToPdf(
       allowTaint: true,
       logging: false,
       backgroundColor: '#ffffff',
-      scrollY: -window.scrollY,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight
     });
+
+    // Ensure canvas has content
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Canvas has no content - element may not be visible or rendered');
+    }
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();

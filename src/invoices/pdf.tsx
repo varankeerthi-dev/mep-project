@@ -305,14 +305,11 @@ async function renderVerticalInvoicePdf(
   templateConfig: DocumentTemplateRecord | null
 ): Promise<{ blob: Blob; data: InvoicePdfData; fileName: string }> {
   const container = document.createElement('div');
-  container.id = 'pdf-capture-container';
-  container.style.position = 'fixed';
-  container.style.left = '0';
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
   container.style.top = '0';
   container.style.width = '210mm';
   container.style.background = 'white';
-  container.style.zIndex = '-9999';
-  container.style.pointerEvents = 'none';
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';

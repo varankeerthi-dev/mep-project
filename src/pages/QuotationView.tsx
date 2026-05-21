@@ -756,8 +756,8 @@ export default function QuotationView() {
       if (template?.column_settings?.print?.style === 'vertical' || template?.template_code === 'QTN_VERTICAL') {
         const container = document.createElement('div');
         container.id = 'pdf-capture-container';
-        container.style.position = 'fixed';
-        container.style.left = '0';
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
         container.style.top = '0';
         container.style.width = '210mm';
         container.style.background = 'white';
@@ -767,7 +767,7 @@ export default function QuotationView() {
         // Inject fonts for capture
         const fontLink = document.createElement('link');
         fontLink.rel = 'stylesheet';
-        fontLink.href = 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap';
         document.head.appendChild(fontLink);
 
         document.body.appendChild(container);
@@ -784,7 +784,7 @@ export default function QuotationView() {
           });
 
           // Wait longer for fonts and layout
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 3000));
           await htmlToPdf(container, `${safeFileName}.pdf`);
         } catch (captureErr) {
           console.error('Vertical PDF Capture Error:', captureErr);
