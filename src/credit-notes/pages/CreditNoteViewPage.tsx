@@ -34,7 +34,6 @@ export function CreditNoteViewPage() {
   const [cnTemplates, setCnTemplates] = useState<any[]>([]);
   const printMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load templates
   useEffect(() => {
     if (!organisation?.id) return;
     supabase
@@ -91,66 +90,6 @@ export function CreditNoteViewPage() {
       authorized_signatory_id: cn.authorized_signatory_id,
     };
   }, [organisation]);
-
-  const handlePreview = useCallback(async () => {
-    if (!selectedCN) return;
-    setPreviewModalOpen(true);
-    setPreviewLoading(true);
-    try {
-      const pdfData = buildPdfData(selectedCN);
-      const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
-      const blob = pdfDoc.output('blob');
-      const url = URL.createObjectURL(blob);
-      setPreviewPdfUrl(url);
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, [selectedCN, buildPdfData]);
-
-  const handleDownload = useCallback(() => {
-    if (!selectedCN) return;
-    const pdfData = buildPdfData(selectedCN);
-    const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
-    pdfDoc.save(`${selectedCN.cn_number}.pdf`);
-  }, [selectedCN, buildPdfData]);
-
-  const handlePrint = useCallback(() => {
-    if (!selectedCN) return;
-    const pdfData = buildPdfData(selectedCN);
-    const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
-    const blob = pdfDoc.output('blob');
-    const url = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    iframe.onload = () => {
-      try { iframe.contentWindow?.print(); } catch { window.print(); }
-      setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
-    };
-  }, [selectedCN, buildPdfData]);
-
-  const handleDelete = useCallback(async () => {
-    if (!selectedCN) return;
-    try {
-      await deleteCN.mutateAsync(selectedCN.id);
-      setDeleteConfirmOpen(false);
-      navigate('/credit-notes');
-    } catch {
-      alert('Failed to delete credit note');
-    }
-  }, [selectedCN, deleteCN, navigate]);
-
-  const getSignatoryName = useCallback(() => {
-    if (!selectedCN?.authorized_signatory_id) return '';
-    const sig = (organisation?.signatures as any[])?.find(s => String(s.id) === String(selectedCN.authorized_signatory_id));
-    return sig?.name ?? '';
-  }, [selectedCN, organisation]);
-
-  const handleSelectTemplate = useCallback((templateId: string) => {
-    setSelectedTemplateId(templateId);
-    setPrintMenuView('main');
-  }, []);
 
   const getSelectedTemplate = useCallback(async () => {
     if (selectedTemplateId) {
@@ -226,6 +165,28 @@ export function CreditNoteViewPage() {
       };
     }
   }, [selectedCN, buildPdfData, getSelectedTemplate]);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedCN) return;
+    try {
+      await deleteCN.mutateAsync(selectedCN.id);
+      setDeleteConfirmOpen(false);
+      navigate('/credit-notes');
+    } catch {
+      alert('Failed to delete credit note');
+    }
+  }, [selectedCN, deleteCN, navigate]);
+
+  const getSignatoryName = useCallback(() => {
+    if (!selectedCN?.authorized_signatory_id) return '';
+    const sig = (organisation?.signatures as any[])?.find(s => String(s.id) === String(selectedCN.authorized_signatory_id));
+    return sig?.name ?? '';
+  }, [selectedCN, organisation]);
+
+  const handleSelectTemplate = useCallback((templateId: string) => {
+    setSelectedTemplateId(templateId);
+    setPrintMenuView('main');
+  }, []);
 
   const renderVerticalCNPreview = async (cn: CreditNote, template: any) => {
     const container = document.createElement('div');

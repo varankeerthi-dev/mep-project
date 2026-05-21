@@ -14,6 +14,10 @@ import { CN_TYPES, CN_TYPE_LABELS, CN_APPROVAL_STATUSES } from '../../credit-not
 import type { CreditNote } from '../../credit-notes/types';
 import { adjustCNStock } from '../../credit-notes/stock-adjustment';
 import { toast } from '../../lib/logger';
+import { ArcPricingToggle, ArcPricingStatusBadge } from '../../components/ArcPricingToggle';
+import { ArcConfirmationDialog } from '../../components/ArcConfirmationDialog';
+import { getArcRateFromMap, fetchArcPricingForItems } from '../../lib/arc-pricing';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 const styles = `
   .cne-page { padding: 24px 32px 100px; max-width: 1200px; margin: 0 auto; }
@@ -176,6 +180,12 @@ export function CreditNoteEditorPage() {
   const [roundOffEnabled, setRoundOffEnabled] = useState((organisation as any)?.round_off_enabled === true);
   const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
 
+  // ARC Pricing state - Default OFF for Credit Notes (preserve original invoice rates)
+  const [useArcPricing, setUseArcPricing] = useState(false);
+  const [arcPricingMap, setArcPricingMap] = useState<Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>>({});
+  const [arcPricingNotice, setArcPricingNotice] = useState(false);
+  const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
+
   const warehousesQuery = useQuery({
     queryKey: ['warehouses', organisation?.id],
     queryFn: async () => {
@@ -294,25 +304,47 @@ export function CreditNoteEditorPage() {
       .then(({ data }) => {
         if (data?.state) setCompanyState(data.state);
         if (typeof data?.round_off_enabled === 'boolean') setRoundOffEnabled(data.round_off_enabled);
-      });
+});
   }, [organisation?.id]);
+
+  // Fetch ARC pricing when client or items change
+  useEffect(() => {
+    if (!useArcPricing || !watchedClientId) {
+      setArcPricingMap({});
+      return;
+    }
+
+    const fetchArcPricing = async () => {
+      const itemIds = watchedItems
+        .map((item: any) => item.meta_json?.material_id)
+        .filter(Boolean);
+      
+      if (itemIds.length === 0) {
+        setArcPricingMap({});
+        return;
+      }
+
+      try {
+        const arcData = await fetchArcPricingForItems(watchedClientId, itemIds as string[]);
+        setArcPricingMap(arcData);
+      } catch (err) {
+        console.error('Error fetching ARC pricing:', err);
+      }
+    };
+
+    fetchArcPricing();
+  }, [watchedClientId, watchedItems, useArcPricing]);
 
   useEffect(() => {
     if (!organisation?.id) return;
     supabase
-      .from('clients')
-      .select('id, client_name, name, state, gstin')
-      .eq('organisation_id', organisation.id)
-      .order('client_name')
+      .from('organisations')
+      .select('id, state, round_off_enabled')
+      .eq('id', organisation.id)
+      .single()
       .then(({ data }) => {
-        if (data) {
-          setClients(data.map(c => ({
-            id: String(c.id),
-            name: String(c.client_name ?? c.name ?? ''),
-            state: c.state ?? null,
-            gstin: c.gstin ?? null,
-          })));
-        }
+        if (data?.state) setCompanyState(data.state);
+        if (typeof data?.round_off_enabled === 'boolean') setRoundOffEnabled(data.round_off_enabled);
       });
   }, [organisation?.id]);
 
@@ -645,6 +677,30 @@ export function CreditNoteEditorPage() {
             ))}
           </select>
           {errors.client_id && <span className="cne-error">{errors.client_id.message}</span>}
+          {watch('client_id') && (
+            <div className="mt-2">
+              <ArcPricingToggle
+                clientId={watch('client_id')}
+                enabled={useArcPricing}
+                onChange={(enabled) => {
+                  if (enabled && fields.length > 0) {
+                    setArcPricingConfirmOpen(true);
+                  } else {
+                    setUseArcPricing(enabled);
+                    if (!enabled) {
+                      setArcPricingMap({});
+                    }
+                  }
+                }}
+              />
+              <ArcPricingStatusBadge
+                totalItems={fields.length}
+                itemsWithArcRate={Object.values(arcPricingMap).filter(Boolean).length}
+                itemsWithoutArcRate={fields.length - Object.values(arcPricingMap).filter(Boolean).length}
+                className="mt-2"
+              />
+            </div>
+          )}
         </div>
 
         <div className="cne-form-group">
@@ -738,6 +794,8 @@ export function CreditNoteEditorPage() {
         warehouses={warehousesQuery.data ?? []}
         stockRows={stockQuery.data ?? []}
         defaultWarehouseId={defaultWarehouseId}
+        useArcPricing={useArcPricing}
+        arcPricingMap={arcPricingMap}
       />
 
       <div className="cne-totals-card">
@@ -792,6 +850,60 @@ export function CreditNoteEditorPage() {
           </button>
         </div>
       </div>
+
+      {/* ARC Pricing Notice Dialog */}
+      <Dialog open={arcPricingNotice} onOpenChange={setArcPricingNotice}>
+        <DialogContent 
+          className="sm:max-w-md" 
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Space') {
+              setArcPricingNotice(false);
+            }
+          }}
+          tabIndex={0}
+          style={{ paddingTop: '16px', paddingBottom: '16px' }}
+        >
+          <DialogHeader style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <span className="text-green-600 text-lg">✓</span>
+              Using ARC Pricing
+            </DialogTitle>
+          </DialogHeader>
+          <div style={{ paddingTop: '16px', paddingLeft: '10px', paddingRight: '10px', paddingBottom: '16px' }}>
+            <p className="text-sm text-zinc-600 leading-relaxed">
+              Item rates will now use the <span className="font-semibold text-zinc-800">ARC / Annual Rate Contract / Fixed Pricing</span> configured for this client.
+            </p>
+            <p className="text-xs text-zinc-400 mt-4">
+              Click anywhere or press any key to continue.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    {/* ARC Pricing Confirmation Dialog */}
+      <ArcConfirmationDialog
+        open={arcPricingConfirmOpen}
+        onClose={() => {
+          setArcPricingConfirmOpen(false);
+        }}
+        onApplyAll={() => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+        }}
+        onApplySelected={() => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+        }}
+        items={fields.map((field, index) => ({
+          id: field.id || `item-${index}`,
+          description: fields[index]?.meta_json?.material_name || fields[index]?.description || `Item ${index + 1}`,
+          currentRate: Number(fields[index]?.rate) || 0,
+          arcRate: arcPricingMap[fields[index]?.meta_json?.material_id]?.[0]?.arc_rate || null,
+          hasArcRate: Boolean(arcPricingMap[fields[index]?.meta_json?.material_id]?.length > 0),
+          variantId: fields[index]?.meta_json?.variant_id,
+          materialId: fields[index]?.meta_json?.material_id,
+        }))}
+      />
     </div>
   );
 }

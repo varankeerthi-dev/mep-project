@@ -9,6 +9,8 @@ import { createPortal } from 'react-dom';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-utils';
 import { useAuth } from '../../App';
+import { ArcRateBadge, StandardRateBadge } from '@/components/ArcPricingToggle';
+import { getArcRateFromMap } from '@/lib/arc-pricing';
 
 type InvoiceItemsEditorProps = {
   fields: FieldArrayWithId<InvoiceEditorFormValues, 'items', 'id'>[];
@@ -31,6 +33,8 @@ type InvoiceItemsEditorProps = {
   variantOptions?: Array<{ id: string; variant_name: string }>;
   itemVariantIdsMap?: Record<string, string[]>;
   itemMakesMap?: Record<string, string[]>;
+  useArcPricing?: boolean;
+  arcPricingMap?: Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -70,6 +74,8 @@ export function InvoiceItemsEditor({
   variantOptions = [],
   itemVariantIdsMap = {},
   itemMakesMap = {},
+  useArcPricing = false,
+  arcPricingMap = {},
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -142,6 +148,15 @@ export function InvoiceItemsEditor({
 
   // Lookup rate for a specific material + variant + make combination
   const getRateForMaterialVariant = useCallback((materialId: string, variantId: string | null | undefined, make: string | null | undefined) => {
+    // Check if ARC pricing is available and should be used
+    if (useArcPricing && arcPricingMap[materialId]) {
+      // Use variant-aware ARC rate lookup
+      const arcRate = getArcRateFromMap(arcPricingMap, materialId, variantId);
+      if (arcRate !== null) {
+        return arcRate;
+      }
+    }
+    
     const material = productOptions.find(m => m.id === materialId);
     if (!material) return 0;
     
@@ -180,7 +195,7 @@ export function InvoiceItemsEditor({
     
     // Ultimate fallback: material's default sale_price
     return material.sale_price || 0;
-  }, [productOptions]);
+  }, [productOptions, useArcPricing, arcPricingMap]);
 
   const handleMakeSelect = useCallback((index: number, make: string) => {
     const materialId = items[index]?.meta_json?.material_id as string | undefined;
@@ -750,6 +765,21 @@ export function InvoiceItemsEditor({
               }}>
                 RATE AFTER DISC
               </th>
+              {/* ARC indicator column header */}
+              {useArcPricing && (
+                <th style={{ 
+                  padding: '6px 4px', 
+                  textAlign: 'center', 
+                  fontSize: '10px', 
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  color: '#737373',
+                  width: '32px'
+                }}>
+                  ARC
+                </th>
+              )}
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
@@ -1369,13 +1399,37 @@ export function InvoiceItemsEditor({
                       onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
                       onBlur={(e) => {
                         e.currentTarget.style.borderColor = 'transparent';
-                        // Additional blur handling
                         const rate = Number(e.target.value || 0);
                         if (rate < 0 && setValue) {
                           setValue(`items.${index}.rate`, 0, { shouldDirty: true });
                         }
                       }}
                     />
+                  </td>
+                  {/* ARC Badge column - show badge when using ARC pricing */}
+                  <td style={{ padding: '4px', textAlign: 'center', minWidth: '32px' }}>
+                    {useArcPricing && items[index]?.meta_json?.material_id && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                        {(() => {
+                          const materialId = items[index]?.meta_json?.material_id as string;
+                          const variantId = items[index]?.meta_json?.variant_id as string | undefined;
+                          const arcRate = getArcRateFromMap(arcPricingMap, materialId, variantId);
+                          const originalRate = items[index]?.meta_json?.base_rate || items[index]?.rate;
+                          
+                          if (arcRate !== null) {
+                            return (
+                              <ArcRateBadge
+                                arcRate={arcRate}
+                                originalRate={originalRate as number}
+                              />
+                            );
+                          } else if (useArcPricing) {
+                            return <StandardRateBadge />;
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input

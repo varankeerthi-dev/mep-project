@@ -16,6 +16,10 @@ import ItemCreateDrawer from '../../components/ItemCreateDrawer';
 import { useClientPOs } from '../hooks';
 import { useConversionStatus, getSourceTableName } from '../../conversions/hooks';
 import { withSessionCheck } from '../../queryClient';
+import { ArcPricingToggle, ArcPricingStatusBadge } from '../../components/ArcPricingToggle';
+import { getArcRateFromMap, fetchArcPricingForItems } from '../../lib/arc-pricing';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { ArcConfirmationDialog, type ArcPricingItem } from '../../components/ArcConfirmationDialog';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
@@ -321,6 +325,13 @@ export default function ProformaEditorPage() {
   const [discountSettings, setDiscountSettings] = useState<Record<string, { default: number; min: number; max: number }>>({});
   const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
 
+  // ARC Pricing state
+  const [useArcPricing, setUseArcPricing] = useState(false);
+  const [arcPricingMap, setArcPricingMap] = useState<Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>>({});
+  const [arcPricingNotice, setArcPricingNotice] = useState(false);
+  const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
+  const [variantPricing, setVariantPricing] = useState<Record<string, Record<string, Record<string, number>>>>({});
+
   const { data: clients = [] } = useClients();
   const { data: clientPOs = [] } = useClientPOs(clientId);
   const { data: variants = [] } = useQuery({
@@ -373,6 +384,34 @@ export default function ProformaEditorPage() {
       }
     }
   }, [clientId, templates, templateId, clients]);
+
+  // Fetch ARC pricing when client or items change
+  useEffect(() => {
+    if (!useArcPricing || !clientId) {
+      setArcPricingMap({});
+      return;
+    }
+
+    const fetchArcPricing = async () => {
+      const itemIds = items
+        .filter(item => item.item_id)
+        .map(item => item.item_id);
+      
+      if (itemIds.length === 0) {
+        setArcPricingMap({});
+        return;
+      }
+
+      try {
+        const arcData = await fetchArcPricingForItems(clientId, itemIds);
+        setArcPricingMap(arcData);
+      } catch (err) {
+        console.error('Error fetching ARC pricing:', err);
+      }
+    };
+
+    fetchArcPricing();
+  }, [clientId, items, useArcPricing]);
 
   // Load discount settings and template settings when template changes
   useEffect(() => {
@@ -774,10 +813,29 @@ export default function ProformaEditorPage() {
     }
   };
 
+  // Get rate for item (considering ARC pricing)
+  const getRateForItem = (item: any, variantId?: string | null): number => {
+    const materialId = item.id || item.item_id;
+    if (!materialId) {
+      return Number(item.sale_price || item.default_rate || 0);
+    }
+
+    // Check if ARC pricing is available and should be used
+    if (useArcPricing && arcPricingMap[materialId]) {
+      const arcRate = getArcRateFromMap(arcPricingMap, materialId, variantId);
+      if (arcRate !== null) {
+        return arcRate;
+      }
+    }
+
+    // Fall back to standard rate
+    return Number(item.sale_price || item.default_rate || 0);
+  };
+
   const handleItemSelectorSuccess = (newItems: any[]) => {
     const newLineItems = newItems.map((newItem: any) => {
       const discountPercent = 0;
-      const rate = Number(newItem.sale_price || newItem.default_rate) || 0;
+      const rate = getRateForItem(newItem, newItem.variant_id);
       const rateAfterDiscount = rate;
 
       return {
@@ -803,7 +861,7 @@ export default function ProformaEditorPage() {
 
   const handleItemCreateSuccess = (newItem: any) => {
     const discountPercent = 0;
-    const rate = Number(newItem.sale_price) || 0;
+    const rate = getRateForItem(newItem, newItem.variant_id);
     const rateAfterDiscount = rate;
 
     setItems(prev => [
@@ -1044,6 +1102,30 @@ export default function ProformaEditorPage() {
                   </option>
                 ))}
               </select>
+              {clientId && (
+                <div className="mt-2">
+                  <ArcPricingToggle
+                    clientId={clientId}
+                    enabled={useArcPricing}
+                    onChange={(enabled) => {
+                      if (enabled && items.length > 0) {
+                        setArcPricingConfirmOpen(true);
+                      } else {
+                        setUseArcPricing(enabled);
+                        if (!enabled) {
+                          setArcPricingMap({});
+                        }
+                      }
+                    }}
+                  />
+                  <ArcPricingStatusBadge
+                    totalItems={items.length}
+                    itemsWithArcRate={Object.values(arcPricingMap).filter(Boolean).length}
+                    itemsWithoutArcRate={items.length - Object.values(arcPricingMap).filter(Boolean).length}
+                    className="mt-2"
+                  />
+                </div>
+              )}
             </div>
             <div className="pe-form-group">
               <label className="pe-label">Your State</label>
@@ -1454,6 +1536,60 @@ export default function ProformaEditorPage() {
         isOpen={showItemCreateDrawer}
         onClose={() => setShowItemCreateDrawer(false)}
         onSuccess={handleItemCreateSuccess}
+      />
+
+      {/* ARC Pricing Notice Dialog */}
+      <Dialog open={arcPricingNotice} onOpenChange={setArcPricingNotice}>
+        <DialogContent 
+          className="sm:max-w-md" 
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Space') {
+              setArcPricingNotice(false);
+            }
+          }}
+          tabIndex={0}
+          style={{ paddingTop: '16px', paddingBottom: '16px' }}
+        >
+          <DialogHeader style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <span className="text-green-600 text-lg">✓</span>
+              Using ARC Pricing
+            </DialogTitle>
+          </DialogHeader>
+          <div style={{ paddingTop: '16px', paddingLeft: '10px', paddingRight: '10px', paddingBottom: '16px' }}>
+            <p className="text-sm text-zinc-600 leading-relaxed">
+              Item rates will now use the <span className="font-semibold text-zinc-800">ARC / Annual Rate Contract / Fixed Pricing</span> configured for this client.
+            </p>
+            <p className="text-xs text-zinc-400 mt-4">
+              Click anywhere or press any key to continue.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    {/* ARC Pricing Confirmation Dialog */}
+      <ArcConfirmationDialog
+        open={arcPricingConfirmOpen}
+        onClose={() => {
+          setArcPricingConfirmOpen(false);
+        }}
+        onApplyAll={() => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+        }}
+        onApplySelected={() => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+        }}
+        items={items.map((item: any, index: number) => ({
+          id: item.id || `item-${index}`,
+          description: item.meta_json?.material_name || item.description || `Item ${index + 1}`,
+          currentRate: Number(item.rate) || 0,
+          arcRate: arcPricingMap[item.meta_json?.material_id]?.[0]?.arc_rate || null,
+          hasArcRate: Boolean(arcPricingMap[item.meta_json?.material_id]?.length > 0),
+          variantId: item.meta_json?.variant_id,
+          materialId: item.meta_json?.material_id,
+        }))}
       />
     </div>
   );

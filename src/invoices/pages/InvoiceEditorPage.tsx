@@ -11,6 +11,9 @@ import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
 import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
 import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { ArcPricingToggle, ArcPricingStatusBadge } from '@/components/ArcPricingToggle';
+import { ArcConfirmationDialog, type ArcPricingItem } from '@/components/ArcConfirmationDialog';
+import { fetchArcPricingForItems } from '@/lib/arc-pricing';
 import { AddShippingAddressModal } from '../components/AddShippingAddressModal';
 import POLineItemsSelector from '../components/POLineItemsSelector';
 import QuotationLineItemsSelector from '../components/QuotationLineItemsSelector';
@@ -71,7 +74,6 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
   const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
-  // Fetch variant pricing data (CreateQuotation-style: use variant id from pricing rows)
   const { data: variantPricingData, error: pricingError } = await supabase
     .from('item_variant_pricing')
     .select('item_id, company_variant_id, make, sale_price')
@@ -96,7 +98,6 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
     });
   }
 
-  // Build pricing map: material_id -> array of { variant_id, make, sale_price, variant_name }
   const pricingMap: Record<string, { variant_id: string | null; make: string; sale_price: number; variant_name: string | null }[]> = {};
   (variantPricingData ?? []).forEach((row: any) => {
     if (!pricingMap[row.item_id]) {
@@ -116,7 +117,6 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
   return (materialsData ?? [])
     .map((material: any) => {
       const materialVariants = pricingMap[material.id] || [];
-      // If no variants, use material's own data
       if (materialVariants.length === 0) {
         return {
           id: String(material.id),
@@ -130,7 +130,6 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
         };
       }
 
-      // Use first variant as default
       const firstVariant = materialVariants[0];
       return {
         id: String(material.id),
@@ -219,7 +218,6 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
     }));
   }
 
-  // For POs, use the same working pattern as ProformaEditorPage
   if (clientId) {
     const { data, error } = await supabase
       .from('client_purchase_orders')
@@ -244,7 +242,6 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
     }));
   }
 
-  // If no client selected, return empty array
   return [];
 }
 
@@ -272,7 +269,11 @@ export default function InvoiceEditorPage() {
   const [isApplyingProformaItems, setIsApplyingProformaItems] = useState(false);
   const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
 
-  // PO line items selector handlers
+  const [useArcPricing, setUseArcPricing] = useState(false);
+  const [arcPricingMap, setArcPricingMap] = useState<Record<string, any>>({});
+  const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
+  const [pendingArcEnabled, setPendingArcEnabled] = useState(false);
+
   const handlePOSelection = () => {
     if (selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data) {
       setIsPOSelectorOpen(true);
@@ -282,7 +283,6 @@ export default function InvoiceEditorPage() {
   const handlePOLineItemsApply = (selectedItems: any[]) => {
     setIsApplyingPOItems(true);
 
-    // Convert selected PO line items to invoice items
     const invoiceItems = selectedItems.map(item => {
       const poRate = item.rate_per_unit;
       return {
@@ -291,8 +291,8 @@ export default function InvoiceEditorPage() {
         description: item.description,
         hsn_code: item.hsn_sac_code || null,
         qty: item.quantity,
-        rate: poRate, // Final rate (no discount applied for PO items)
-        discount_percent: 0, // No discount for PO items
+        rate: poRate,
+        discount_percent: 0,
         amount: item.full_amount,
         tax_percent: item.gst_percentage,
         meta_json: {
@@ -301,13 +301,12 @@ export default function InvoiceEditorPage() {
           item_code: item.item_code || null,
           po_line_item_id: item.id,
           original_quantity: item.original_quantity,
-          base_rate: poRate, // PO rate goes to base_rate field
-          rate_after_discount: poRate, // No discount, so rate_after_discount = base_rate
+          base_rate: poRate,
+          rate_after_discount: poRate,
         },
       };
     });
 
-    // Clear existing items first, then add new ones
     itemsFieldArray.remove();
     setTimeout(() => {
       invoiceItems.forEach((item, index) => {
@@ -321,21 +320,17 @@ export default function InvoiceEditorPage() {
       setSelectedPOLineItems(selectedItems);
       setIsPOSelectorOpen(false);
       
-      // Clear any focus and prevent cursor from landing in rate field
       setTimeout(() => {
         setIsApplyingPOItems(false);
-        // Clear all active elements
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
-        // Remove focus from any input fields
         const allInputs = document.querySelectorAll('input');
         allInputs.forEach(input => {
           if (input instanceof HTMLElement) {
             input.blur();
           }
         });
-        // Focus on body to completely remove focus
         document.body.focus();
       }, 100);
     }, 50);
@@ -345,7 +340,6 @@ export default function InvoiceEditorPage() {
     setIsPOSelectorOpen(false);
   };
 
-  // Quotation line items selector handlers
   const handleQuotationSelection = () => {
     if (selectedSourceType === 'quotation' && selectedSourceId && quotationDetailsQuery.data) {
       setIsQuotationSelectorOpen(true);
@@ -355,7 +349,6 @@ export default function InvoiceEditorPage() {
   const handleQuotationItemsApply = (selectedItems: any[]) => {
     setIsApplyingQuotationItems(true);
 
-    // Convert selected quotation items to invoice items
     const invoiceItems = selectedItems.map(item => {
       const qtRate = item.rate;
       return {
@@ -364,8 +357,8 @@ export default function InvoiceEditorPage() {
         description: item.description,
         hsn_code: item.hsn_code || null,
         qty: item.qty,
-        rate: qtRate, // Final rate (no discount initially)
-        discount_percent: item.discount_percent || 0, // Keep original discount
+        rate: qtRate,
+        discount_percent: item.discount_percent || 0,
         amount: item.line_total || (item.qty * qtRate),
         tax_percent: item.tax_percent || 18,
         meta_json: {
@@ -379,7 +372,6 @@ export default function InvoiceEditorPage() {
       };
     });
 
-    // Clear existing items first, then add new ones
     itemsFieldArray.remove();
     setTimeout(() => {
       invoiceItems.forEach((item, index) => {
@@ -393,7 +385,6 @@ export default function InvoiceEditorPage() {
       setSelectedQuotationItems(selectedItems);
       setIsQuotationSelectorOpen(false);
 
-      // Clear any focus and prevent cursor from landing in rate field
       setTimeout(() => {
         setIsApplyingQuotationItems(false);
         if (document.activeElement instanceof HTMLElement) {
@@ -414,7 +405,6 @@ export default function InvoiceEditorPage() {
     setIsQuotationSelectorOpen(false);
   };
 
-  // Proforma line items selector handlers
   const handleProformaSelection = () => {
     if (selectedSourceType === 'proforma' && selectedSourceId && proformaDetailsQuery.data) {
       setIsProformaSelectorOpen(true);
@@ -424,7 +414,6 @@ export default function InvoiceEditorPage() {
   const handleProformaItemsApply = (selectedItems: any[]) => {
     setIsApplyingProformaItems(true);
 
-    // Convert selected proforma items to invoice items
     const invoiceItems = selectedItems.map(item => {
       const pfRate = item.rate;
       return {
@@ -448,7 +437,6 @@ export default function InvoiceEditorPage() {
       };
     });
 
-    // Clear existing items first, then add new ones
     itemsFieldArray.remove();
     setTimeout(() => {
       invoiceItems.forEach((item, index) => {
@@ -534,6 +522,29 @@ export default function InvoiceEditorPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const arcPricingQuery = useQuery({
+    queryKey: ['arc-pricing', 'items', selectedClientId, watchedItems],
+    queryFn: async () => {
+      if (!useArcPricing || !selectedClientId) return {};
+      
+      const itemIds = watchedItems
+        .map((item: any) => item.meta_json?.material_id)
+        .filter(Boolean);
+      
+      if (itemIds.length === 0) return {};
+      
+      return fetchArcPricingForItems(selectedClientId, itemIds as string[]);
+    },
+    enabled: useArcPricing && Boolean(selectedClientId) && watchedItems.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (arcPricingQuery.data) {
+      setArcPricingMap(arcPricingQuery.data);
+    }
+  }, [arcPricingQuery.data]);
+
   const warehousesQuery = useWarehouses();
   const { data: variantRows = [] } = useVariants();
 
@@ -542,7 +553,6 @@ export default function InvoiceEditorPage() {
     queryFn: async () => {
       if (!organisation?.id) return {};
 
-      // First get org-scoped material IDs to filter pricing rows
       const { data: orgMaterials } = await supabase
         .from('materials')
         .select('id')
@@ -559,7 +569,6 @@ export default function InvoiceEditorPage() {
       const makesMap: Record<string, string[]> = {};
       (data ?? []).forEach((row: any) => {
         if (!row?.item_id) return;
-        // Only include pricing for materials belonging to this organisation
         if (!orgMaterialIds.has(row.item_id)) return;
 
         if (row.company_variant_id) {
@@ -613,7 +622,6 @@ export default function InvoiceEditorPage() {
   });
 
   const selectedShippingAddress = useMemo(() => {
-    // If "Same as billing" is selected, create address from client details
     if (selectedShippingAddressId === '' && clientDetailsQuery.data) {
       const client = clientDetailsQuery.data;
       return {
@@ -629,7 +637,6 @@ export default function InvoiceEditorPage() {
       };
     }
     
-    // Otherwise, return selected shipping address
     if (!selectedShippingAddressId || !shippingAddressesQuery.data) return null;
     return shippingAddressesQuery.data.find(addr => addr.id === selectedShippingAddressId) || null;
   }, [selectedShippingAddressId, shippingAddressesQuery.data, clientDetailsQuery.data]);
@@ -651,13 +658,11 @@ export default function InvoiceEditorPage() {
     staleTime: 0,
   });
 
-  // PO details query for line items selector
   const poDetailsQuery = useQuery({
     queryKey: ['po-details', selectedSourceId, organisation?.id],
     queryFn: async () => {
       if (!selectedSourceId || selectedSourceType !== 'po') return null;
 
-      // Load PO header
       const { data: header, error: headerError } = await supabase
         .from('client_purchase_orders')
         .select('id, po_number, po_total_value, po_utilized_value, po_available_value')
@@ -667,7 +672,6 @@ export default function InvoiceEditorPage() {
 
       if (headerError) throw headerError;
 
-      // Load PO line items
       const { data: lineItems, error: lineItemsError } = await supabase
         .from('po_line_items')
         .select('*')
@@ -690,13 +694,11 @@ export default function InvoiceEditorPage() {
     staleTime: 0,
   });
 
-  // Quotation details query for line items selector
   const quotationDetailsQuery = useQuery({
     queryKey: ['quotation-details', selectedSourceId, organisation?.id],
     queryFn: async () => {
       if (!selectedSourceId || selectedSourceType !== 'quotation') return null;
 
-      // Load quotation header
       const { data: header, error: headerError } = await supabase
         .from('quotation_header')
         .select('id, quotation_no, grand_total, status')
@@ -706,7 +708,6 @@ export default function InvoiceEditorPage() {
 
       if (headerError) throw headerError;
 
-      // Load quotation items
       const { data: items, error: itemsError } = await supabase
         .from('quotation_items')
         .select('*')
@@ -724,16 +725,14 @@ export default function InvoiceEditorPage() {
       };
     },
     enabled: Boolean(selectedSourceId && selectedSourceType === 'quotation' && organisation?.id),
-    staleTime: 2 * 60 * 1000, // Longer stale time for quotation data
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Proforma details query for line items selector
   const proformaDetailsQuery = useQuery({
     queryKey: ['proforma-details', selectedSourceId, organisation?.id],
     queryFn: async () => {
       if (!selectedSourceId || selectedSourceType !== 'proforma') return null;
 
-      // Load proforma header
       const { data: header, error: headerError } = await supabase
         .from('proforma_invoices')
         .select('id, proforma_no, grand_total, billing_status')
@@ -743,7 +742,6 @@ export default function InvoiceEditorPage() {
 
       if (headerError) throw headerError;
 
-      // Load proforma items
       const { data: items, error: itemsError } = await supabase
         .from('proforma_items')
         .select('*')
@@ -769,7 +767,6 @@ export default function InvoiceEditorPage() {
   const loadedInvoiceIdRef = useRef<string>('');
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
 
-  // Conversion query
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
   const clients = clientsQuery.data ?? [];
@@ -796,7 +793,6 @@ export default function InvoiceEditorPage() {
     [companyState, clientState, watchedItems, enableRoundOff],
   );
 
-  // Validation for PO-based invoices
   const poValidation = useMemo(() => {
     if (selectedSourceType !== 'po' || !selectedSourceId) return { isValid: true, message: '' };
     
@@ -837,11 +833,9 @@ export default function InvoiceEditorPage() {
     hydratedSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}:${invoiceQuery.data.mode}`;
   }, [invoiceQuery.data, reset]);
 
-  // Load conversion data when converting from another document
   useEffect(() => {
     if (!isConverting || !conversionQuery.data) return;
 
-    // Store conversion info for status update on save
     conversionInfoRef.current = {
       type: convertFrom!,
       sourceId: sourceId!,
@@ -849,7 +843,6 @@ export default function InvoiceEditorPage() {
 
     const convertedData = conversionQuery.data.data as any;
 
-    // Pre-fill form with converted data
     setValue('client_id', convertedData.client_id, {
       shouldDirty: true,
       shouldValidate: false,
@@ -891,29 +884,24 @@ export default function InvoiceEditorPage() {
       shouldValidate: false,
     });
 
-    // Pre-fill items
     if (convertedData.items && convertedData.items.length > 0) {
       itemsFieldArray.replace(convertedData.items.map((item: any) => createEmptyItem(item)));
     }
 
-    // Pre-fill materials if present
     if (convertedData.materials && convertedData.materials.length > 0) {
       materialsFieldArray.replace(convertedData.materials.map((material: any) => createEmptyMaterial(material)));
     }
   }, [isConverting, conversionQuery.data, convertFrom, sourceId, setValue, itemsFieldArray, materialsFieldArray, organisation?.state]);
 
-  // Load duplication data when creating from existing invoice
   useEffect(() => {
     if (!isDuplicating || !duplicateInvoiceQuery.data) return;
 
     const sourceInvoice = duplicateInvoiceQuery.data;
     const duplicatedFormValues = invoiceToFormValues(sourceInvoice);
 
-    // Clear invoice-specific fields for new invoice
     duplicatedFormValues.invoice_no = '';
     duplicatedFormValues.status = 'draft';
 
-    // Pre-fill form with duplicated data using reset for proper form state
     reset({
       ...duplicatedFormValues,
       invoice_no: '',
@@ -1021,7 +1009,6 @@ export default function InvoiceEditorPage() {
   const showCustomColumn = getValues('template_type') === 'client_custom';
   const isSaving = createInvoice.isPending || updateInvoice.isPending;
 
-  // Extract all useWatch calls to component level to avoid hook rule violations
   const defaultWarehouseId = useWatch({ control, name: 'default_warehouse_id' });
   useEffect(() => {
     const defaultWh = defaultWarehouseId;
@@ -1040,10 +1027,8 @@ export default function InvoiceEditorPage() {
     let invoiceNo = values.invoice_no;
     let seriesId: string | null = null;
 
-    // Clear any previous root errors
     form.clearErrors('root');
 
-    // Check PO validation first
     if (!poValidation.isValid) {
       form.setError('root', {
         type: 'validation',
@@ -1052,11 +1037,9 @@ export default function InvoiceEditorPage() {
       return;
     }
 
-    // Debug: Log form values before validation
     console.log('Form values before validation:', values);
     console.log('Items being validated:', values.items);
 
-    // Validate all items have proper rates
     const invalidItems = values.items.filter((item, index) => {
       const rate = Number(item.rate);
       const qty = Number(item.qty);
@@ -1105,7 +1088,6 @@ export default function InvoiceEditorPage() {
         }
       }
 
-      // Update source document status if this was a conversion
       if (conversionInfoRef.current && newInvoiceId) {
         const { type, sourceId } = conversionInfoRef.current;
         const { status } = useConversionStatus(type);
@@ -1121,9 +1103,7 @@ export default function InvoiceEditorPage() {
           .eq('id', sourceId);
       }
 
-      // Update quotation status if converted from quotation
       if (selectedSourceType === 'quotation' && selectedSourceId && newInvoiceId) {
-        // Check if all items were billed or only some
         const allQuotationItems = quotationDetailsQuery.data?.items || [];
         const billedItems = values.items.filter(item => item.meta_json?.quotation_item_id);
 
@@ -1137,16 +1117,13 @@ export default function InvoiceEditorPage() {
           })
           .eq('id', selectedSourceId);
 
-        // Also update the invoice to reference the quotation
         await supabase
           .from('invoices')
           .update({ quotation_id: selectedSourceId })
           .eq('id', newInvoiceId);
       }
 
-      // Update proforma billing status if converted from proforma
       if (selectedSourceType === 'proforma' && selectedSourceId && newInvoiceId) {
-        // Check if all items were billed or only some
         const allProformaItems = proformaDetailsQuery.data?.items || [];
         const billedItems = values.items.filter(item => item.meta_json?.proforma_item_id);
 
@@ -1159,7 +1136,6 @@ export default function InvoiceEditorPage() {
           })
           .eq('id', selectedSourceId);
 
-        // Also update the invoice to reference the proforma
         await supabase
           .from('invoices')
           .update({ proforma_id: selectedSourceId })
@@ -1172,10 +1148,8 @@ export default function InvoiceEditorPage() {
       alert('Failed to save invoice: ' + (error as Error).message);
     }
   }, (errors) => {
-    // Custom error handling - don't get stuck in validation loop
     console.error('Form validation errors found:', Object.keys(errors));
     
-    // Show user-friendly error message
     if (errors.items || errors.client_id || errors.root) {
       form.setError('root', {
         type: 'validation',
@@ -1185,7 +1159,6 @@ export default function InvoiceEditorPage() {
   });
 
   const handlePreviewPdf = async () => {
-    // ...
     if (!invoiceId) {
       alert('Please save the invoice first before previewing.');
       return;
@@ -1239,7 +1212,7 @@ export default function InvoiceEditorPage() {
   const handleSaveAsDraft = handleSubmit(async (values) => {
     const payload = composeInvoiceInput({
       ...values,
-      invoice_no: null, // Drafts don't have invoice numbers
+      invoice_no: null,
       status: 'draft',
     }, totals);
 
@@ -1285,7 +1258,6 @@ export default function InvoiceEditorPage() {
       margin: '0 auto',
       padding: '16px'
     }}>
-      {/* Compact Header */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -1306,7 +1278,6 @@ export default function InvoiceEditorPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           <InvoiceStatusBadge status={getValues('status')} />
           
-          {/* Small box buttons */}
           <button
             type="button"
             onClick={handlePreviewPdf}
@@ -1422,18 +1393,14 @@ export default function InvoiceEditorPage() {
         </div>
       </div>
 
-      {/* Main Form */}
       <form id="invoice-form" onSubmit={onSubmit} style={{ marginBottom: '16px' }}>
-        {/* Header - 5 Column Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
           gap: '12px',
           marginBottom: '16px'
         }}>
-          {/* Column 1-2: Client with Address Section */}
           <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* Client Dropdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{
                 fontSize: '11px',
@@ -1467,15 +1434,39 @@ export default function InvoiceEditorPage() {
                   {errors.client_id.message}
                 </span>
               )}
+              {selectedClientId && (
+                <div style={{ marginTop: '6px' }}>
+                  <ArcPricingToggle
+                    clientId={selectedClientId}
+                    enabled={useArcPricing}
+                    onChange={(enabled) => {
+                      if (enabled && watchedItems.length > 0) {
+                        setArcPricingConfirmOpen(true);
+                      } else {
+                        setUseArcPricing(enabled);
+                        if (!enabled) {
+                          setArcPricingMap({});
+                        }
+                      }
+                    }}
+                  />
+                  <ArcPricingStatusBadge
+                    totalItems={watchedItems.length}
+                    itemsWithArcRate={Object.values(arcPricingMap).filter(Boolean).length}
+                    itemsWithoutArcRate={watchedItems.length - Object.values(arcPricingMap).filter(Boolean).length}
+                  />
+                  {useArcPricing && arcPricingQuery.isLoading && (
+                    <span style={{ fontSize: '11px', color: '#737373', display: 'block', marginTop: '2px' }}>Loading ARC rates...</span>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Address Section - Compact 2-column grid */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: '8px'
             }}>
-              {/* Billing Address */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{
                   fontSize: '10px',
@@ -1521,374 +1512,108 @@ export default function InvoiceEditorPage() {
                 </div>
               </div>
 
-              {/* Shipping Address */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    color: '#737373'
-                  }}>
-                    Shipping
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsShippingAddressModalOpen(true)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '2px 6px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      background: '#fff',
-                      color: '#171717',
-                      cursor: 'pointer',
-                      fontSize: '10px',
-                      transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f5f5f5';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#fff';
-                    }}
-                    title="Add new shipping address"
-                  >
-                    <Plus size={12} />
-                  </button>
+                <label style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: '#737373'
+                }}>
+                  Shipping
+                </label>
+                <div style={{
+                  padding: '8px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  color: '#525252',
+                  background: '#f9fafb',
+                  minHeight: '100px',
+                  whiteSpace: 'pre-line'
+                }}>
+                  {selectedShippingAddress ? (
+                    <>
+                      {selectedShippingAddress.address_line1 && (
+                        <span style={{ display: 'block' }}>
+                          {selectedShippingAddress.address_line1}
+                          {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
+                        </span>
+                      )}
+                      {selectedShippingAddress.city && selectedShippingAddress.state && selectedShippingAddress.pincode && (
+                        <span style={{ display: 'block' }}>
+                          {selectedShippingAddress.city}, {selectedShippingAddress.state} - {selectedShippingAddress.pincode}
+                        </span>
+                      )}
+                      {selectedShippingAddress.contact_person && (
+                        <span style={{ display: 'block', marginTop: '4px' }}>
+                          Contact: {selectedShippingAddress.contact_person}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: '#a3a3a3', fontSize: '10px' }}>Same as billing</span>
+                  )}
                 </div>
-                <select
-                  {...register('shipping_address_id')}
-                  style={{
-                    width: '100%',
-                    padding: '4px 8px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    color: '#171717',
-                    background: '#fff',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Same as billing</option>
-                  {(shippingAddressesQuery.data ?? []).map((addr) => (
-                    <option key={addr.id} value={addr.id}>
-                      {addr.address_line1}, {addr.city} {addr.is_default && '(Default)'}
-                    </option>
-                  ))}
-                </select>
-                {selectedShippingAddress && (
-                  <div style={{
-                    padding: '6px',
-                    border: '1px solid #e5e5e5',
-                    borderRadius: '4px',
-                    fontSize: '10px',
-                    color: '#525252',
-                    background: '#fafafa',
-                    whiteSpace: 'pre-line'
-                  }}>
-                    {selectedShippingAddress.address_line1}
-                    {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
-                    <br />
-                    {selectedShippingAddress.city}, {selectedShippingAddress.state} - {selectedShippingAddress.pincode}
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Column 3: Invoice No + PO Number */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* Invoice No */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Invoice No
-              </label>
-              <input
-                {...register('invoice_no')}
-                placeholder="Auto-generated"
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-              {errors.invoice_no && (
-                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.invoice_no.message}
-                </span>
-              )}
-            </div>
-
-            {/* PO Number */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                PO Number
-              </label>
-              <input
-                {...register('po_number')}
-                placeholder="Enter PO number"
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Invoice Date
+            </label>
+            <input
+              type="date"
+              {...register('invoice_date')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+            {errors.invoice_date && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.invoice_date.message}
+              </span>
+            )}
           </div>
 
-          {/* Column 4: Invoice Date + PO Date */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* Invoice Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Invoice Date
-              </label>
-              <input
-                type="date"
-                {...register('invoice_date')}
-                style={{
-                  width: '100%',
-                  maxWidth: '140px',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
-
-            {/* PO Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                PO Date
-              </label>
-              <input
-                type="date"
-                {...register('po_date')}
-                style={{
-                  width: '100%',
-                  maxWidth: '140px',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Due Date
+            </label>
+            <input
+              type="date"
+              {...register('due_date')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
           </div>
 
-          {/* Column 5: Source Type + Source Document */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* Source Type */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Source
-              </label>
-              <select
-                {...register('source_type')}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="direct">Direct</option>
-                <option value="quotation">Quotation</option>
-                <option value="challan">Delivery Challan</option>
-                <option value="po">Client PO</option>
-              </select>
-            </div>
-
-            {/* Source Document */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Source Document
-              </label>
-              {selectedSourceType === 'direct' ? (
-                <div style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#737373',
-                  background: '#f5f5f5'
-                }}>
-                  Direct Invoice (No source)
-                </div>
-              ) : (
-                <select
-                  {...register('source_id')}
-                  style={{
-                    width: '100%',
-                    padding: '6px 10px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    fontSize: '13px',
-                    color: '#171717',
-                    background: '#fff',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
-                  {(sourceOptionsQuery.data ?? []).map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errors.source_id && (
-                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.source_id.message}
-                </span>
-              )}
-
-              {/* PO Line Items Selector Button */}
-              {selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data && (
-                <button
-                  type="button"
-                  onClick={handlePOSelection}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    border: '1px solid #059669',
-                    borderRadius: '4px',
-                    backgroundColor: '#f0fdf4',
-                    color: '#059669',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    marginTop: '8px'
-                  }}
-                >
-                  <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
-                  Select PO Line Items
-                </button>
-              )}
-
-              {/* Quotation Items Selector Button */}
-              {selectedSourceType === 'quotation' && selectedSourceId && quotationDetailsQuery.data && (
-                <button
-                  type="button"
-                  onClick={handleQuotationSelection}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    border: '1px solid #059669',
-                    borderRadius: '4px',
-                    backgroundColor: '#f0fdf4',
-                    color: '#059669',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    marginTop: '8px'
-                  }}
-                >
-                  <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
-                  Select Quotation Items
-                </button>
-              )}
-
-              {/* Proforma Items Selector Button */}
-              {selectedSourceType === 'proforma' && selectedSourceId && proformaDetailsQuery.data && (
-                <button
-                  type="button"
-                  onClick={handleProformaSelection}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    border: '1px solid #059669',
-                    borderRadius: '4px',
-                    backgroundColor: '#f0fdf4',
-                    color: '#059669',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    marginTop: '8px'
-                  }}
-                >
-                  <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
-                  Select Proforma Items
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Template, Status, Mode, Company State - 4 Column Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
@@ -1917,13 +1642,15 @@ export default function InvoiceEditorPage() {
                 <option key={template.id} value={template.id}>{template.name}</option>
               ))}
             </select>
-            {errors.template_id && (
-              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                {errors.template_id.message}
-              </span>
-            )}
           </div>
+        </div>
 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '12px',
+          marginBottom: '16px'
+        }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
@@ -1932,10 +1659,10 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Status
+              Source
             </label>
             <select
-              {...register('status')}
+              {...register('source_type')}
               style={{
                 width: '100%',
                 padding: '6px 10px',
@@ -1947,10 +1674,68 @@ export default function InvoiceEditorPage() {
                 cursor: 'pointer'
               }}
             >
-              <option value="draft">Draft</option>
-              <option value="final">Final</option>
+              <option value="direct">Direct</option>
+              <option value="quotation">Quotation</option>
+              <option value="challan">Challan</option>
+              <option value="po">PO</option>
+              <option value="proforma">Proforma</option>
             </select>
           </div>
+
+          {selectedSourceType !== 'direct' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                {getSourceLabel(selectedSourceType)} Number
+              </label>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <select
+                  {...register('source_id')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    color: '#171717',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">Select {getSourceLabel(selectedSourceType)}</option>
+                  {sourceOptionsQuery.data?.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+                {(selectedSourceType === 'po' || selectedSourceType === 'quotation' || selectedSourceType === 'proforma') && selectedSourceId && (
+                  <button
+                    type="button"
+                    onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection}
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      background: '#f5f5f5',
+                      color: '#525252',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Select Lines
+                  </button>
+                )}
+              </div>
+              {sourceDraftQuery.isLoading && (
+                <span style={{ fontSize: '11px', color: '#737373' }}>Loading {getSourceLabel(selectedSourceType)} details...</span>
+              )}
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
@@ -1962,46 +1747,55 @@ export default function InvoiceEditorPage() {
             }}>
               Mode
             </label>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              overflow: 'hidden'
+            <select
+              {...register('mode')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="standard">Standard</option>
+              <option value="lot">Lot</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '12px',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
             }}>
-              <button
-                type="button"
-                onClick={() => setValue('mode', 'itemized', { shouldDirty: true, shouldValidate: false })}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  border: 'none',
-                  background: selectedMode === 'itemized' ? '#171717' : '#fff',
-                  color: selectedMode === 'itemized' ? '#fff' : '#525252',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-              >
-                Itemized
-              </button>
-              <button
-                type="button"
-                onClick={() => setValue('mode', 'lot', { shouldDirty: true, shouldValidate: false })}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  border: 'none',
-                  background: selectedMode === 'lot' ? '#171717' : '#fff',
-                  color: selectedMode === 'lot' ? '#fff' : '#525252',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-              >
-                Lot
-              </button>
-            </div>
+              PO Number
+            </label>
+            <input
+              type="text"
+              {...register('po_number')}
+              placeholder="Enter PO number"
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2012,189 +1806,68 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Client State
+              PO Date
             </label>
             <input
-              {...register('client_state')}
-              placeholder={clientState || 'Select client to view state'}
-              readOnly
+              type="date"
+              {...register('po_date')}
               style={{
                 width: '100%',
                 padding: '6px 10px',
                 border: '1px solid #d4d4d4',
                 borderRadius: '4px',
                 fontSize: '13px',
-                color: '#525252',
-                background: '#f5f5f5',
-                cursor: 'not-allowed'
+                color: '#171717',
+                background: '#fff'
               }}
             />
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Default Warehouse
+            </label>
+            <select
+              {...register('default_warehouse_id')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select warehouse</option>
+              {warehousesQuery.data?.map((warehouse: any) => (
+                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Alerts */}
-        {sourceDraftQuery.isFetching && selectedSourceId && (
+        {errors.root && (
           <div style={{
-            padding: '8px 12px',
-            background: '#f5f5f5',
+            padding: '12px',
+            marginBottom: '16px',
+            border: '1px solid #dc2626',
             borderRadius: '4px',
-            fontSize: '12px',
-            color: '#525252',
-            marginBottom: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} />
-            Loading source data...
-          </div>
-        )}
-
-        {(createInvoice.isError || updateInvoice.isError || invoiceQuery.isError) && (
-          <div style={{
-            padding: '8px 12px',
             background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '4px',
-            fontSize: '12px',
             color: '#dc2626',
-            marginBottom: '12px',
-            fontWeight: 500
+            fontSize: '13px'
           }}>
-            {String(
-              (createInvoice.error as Error | null)?.message ??
-                (updateInvoice.error as Error | null)?.message ??
-                (invoiceQuery.error as Error | null)?.message ??
-                'Unable to save invoice.',
-            )}
+            {errors.root.message}
           </div>
         )}
 
-        {/* Stock & Warehouse Panel */}
-        <div style={{ 
-          border: '1px solid #e5e5e5', 
-          borderRadius: '4px', 
-          marginBottom: '16px',
-          background: '#fafafa'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            padding: '8px 12px',
-            borderBottom: '1px solid #e5e5e5',
-            cursor: 'pointer',
-            userSelect: 'none'
-          }} onClick={() => setWarehousePanelOpen(!warehousePanelOpen)}>
-            <span style={{ 
-              fontSize: '12px', 
-              fontWeight: 600, 
-              color: '#171717' 
-            }}>
-              Stock & Warehouse
-            </span>
-            <span style={{ 
-              fontSize: '10px', 
-              color: '#737373' 
-            }}>
-              {warehousePanelOpen ? '▼' : '▶'}
-            </span>
-          </div>
-          
-          {warehousePanelOpen && (
-            <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 600, 
-                    color: '#525252', 
-                    marginBottom: '4px', 
-                    display: 'block' 
-                  }}>
-                    Default Warehouse
-                  </label>
-                  <select
-                    {...register('default_warehouse_id')}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '2px',
-                      fontSize: '12px',
-                      background: '#fff',
-                      color: '#525252'
-                    }}
-                  >
-                    <option value="">Select warehouse</option>
-                    {warehousesQuery.data?.map((wh) => (
-                      <option key={wh.id} value={wh.id}>
-                        {wh.warehouse_name || wh.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 600, 
-                    color: '#525252', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px' 
-                  }}>
-                    <input
-                      type="checkbox"
-                      {...register('deduct_stock_on_finalize')}
-                      style={{ width: '14px', height: '14px' }}
-                    />
-                    Deduct stock on finalize
-                  </label>
-                  
-                  {deductStockOnFinalize && (
-                    <label style={{ 
-                      fontSize: '11px', 
-                      fontWeight: 600, 
-                      color: '#525252', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '4px',
-                      marginLeft: '16px'
-                    }}>
-                      <input
-                        type="checkbox"
-                        {...register('allow_insufficient_stock')}
-                        style={{ width: '14px', height: '14px' }}
-                      />
-                      Allow insufficient stock
-                    </label>
-                  )}
-                </div>
-              </div>
-              
-              {/* Stock Summary */}
-              <div style={{ 
-                fontSize: '11px', 
-                color: '#525252', 
-                padding: '8px', 
-                background: '#f5f5f5', 
-                borderRadius: '2px',
-                border: '1px solid #e5e5e5'
-              }}>
-                {(() => {
-                  const materialItems = watchedItems.filter(item => item.meta_json?.material_id && !item.meta_json?.is_service);
-                  const serviceItems = watchedItems.filter(item => item.meta_json?.is_service);
-                  const descriptionOnlyItems = watchedItems.filter(item => !item.meta_json?.material_id);
-                  
-                  return `${materialItems.length} material items · ${serviceItems.length} service items · ${descriptionOnlyItems.length} description-only`;
-                })()}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Invoice Items Editor - Compact Excel Style */}
         <InvoiceItemsEditor
           fields={itemsFieldArray.fields}
           items={watchedItems}
@@ -2216,9 +1889,10 @@ export default function InvoiceEditorPage() {
           variantOptions={variantRows.map((v: any) => ({ id: String(v.id), variant_name: String(v.variant_name || '') }))}
           itemVariantIdsMap={itemVariantIdsMapQuery.data?.variantIdsMap ?? {}}
           itemMakesMap={itemVariantIdsMapQuery.data?.makesMap ?? {}}
+          useArcPricing={useArcPricing}
+          arcPricingMap={arcPricingMap}
         />
 
-        {/* Materials Editor - Compact Excel Style */}
         {selectedMode === 'lot' && (
           <div style={{ marginTop: '16px' }}>
             <InvoiceMaterialsEditor
@@ -2231,12 +1905,11 @@ export default function InvoiceEditorPage() {
               setValue={setValue}
               watch={watch}
               warehouses={warehousesQuery.data ?? []}
-          defaultWarehouseId={defaultWarehouseId}
+              defaultWarehouseId={defaultWarehouseId}
             />
           </div>
         )}
 
-        {/* Context Panel */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
@@ -2309,7 +1982,6 @@ export default function InvoiceEditorPage() {
           </div>
         </div>
 
-        {/* Invoice Summary Footer */}
         <InvoiceSummaryFooter
           subtotal={totals.subtotal}
           cgst={totals.cgst}
@@ -2325,7 +1997,6 @@ export default function InvoiceEditorPage() {
         />
       </form>
 
-      {/* Sticky Action Buttons */}
       <div style={{
         position: 'sticky',
         bottom: '0',
@@ -2388,7 +2059,31 @@ export default function InvoiceEditorPage() {
         </button>
       </div>
 
-      {/* Add Shipping Address Modal */}
+      <ArcConfirmationDialog
+        open={arcPricingConfirmOpen}
+        onClose={() => {
+          setArcPricingConfirmOpen(false);
+          setPendingArcEnabled(false);
+        }}
+        onApplyAll={() => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+        }}
+        onApplySelected={(itemIds) => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+        }}
+        items={watchedItems.map((item: any, index: number) => ({
+          id: item.id || `item-${index}`,
+          description: item.meta_json?.material_name || item.description || `Item ${index + 1}`,
+          currentRate: Number(item.rate) || 0,
+          arcRate: arcPricingMap[item.meta_json?.material_id]?.[0]?.arc_rate || null,
+          hasArcRate: Boolean(arcPricingMap[item.meta_json?.material_id]?.length > 0),
+          variantId: item.meta_json?.variant_id,
+          materialId: item.meta_json?.material_id,
+        }))}
+      />
+
       {selectedClientId && (
         <AddShippingAddressModal
           isOpen={isShippingAddressModalOpen}
@@ -2400,7 +2095,6 @@ export default function InvoiceEditorPage() {
         />
       )}
 
-      {/* PO Line Items Selector Popup */}
       {isPOSelectorOpen && poDetailsQuery.data && (
         <POLineItemsSelector
           isOpen={isPOSelectorOpen}

@@ -7,6 +7,8 @@ import { useAuth } from '../../App';
 import { calculateItemTotals, detectInterState } from '../logic';
 import type { CNItemTotals } from '../logic';
 import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
+import { getArcRateFromMap } from '../../lib/arc-pricing';
+import { ArcRateBadge, StandardRateBadge } from '../../components/ArcPricingToggle';
 
 type CNItemForm = {
   id?: string;
@@ -66,6 +68,8 @@ type CNItemsEditorProps = {
   warehouses?: Array<{ id: string; warehouse_name?: string | null; name?: string | null }>;
   stockRows?: Array<{ item_id: string; warehouse_id: string; company_variant_id: string | null; current_stock: number }>;
   defaultWarehouseId?: string;
+  useArcPricing?: boolean;
+  arcPricingMap?: Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>;
 };
 
 function createEmptyCNItem(): CNItemForm {
@@ -102,6 +106,8 @@ export function CNItemsEditor({
   warehouses = [],
   stockRows = [],
   defaultWarehouseId,
+  useArcPricing = false,
+  arcPricingMap = {},
 }: CNItemsEditorProps) {
   const { organisation } = useAuth();
   const isInterState = detectInterState(companyState, clientState);
@@ -164,6 +170,14 @@ export function CNItemsEditor({
   }, [organisation?.id]);
 
   const getRateForMaterial = useCallback((materialId: string, variantId?: string | null, make?: string | null) => {
+    // Check if ARC pricing is available and should be used
+    if (useArcPricing && arcPricingMap[materialId]) {
+      const arcRate = getArcRateFromMap(arcPricingMap, materialId, variantId);
+      if (arcRate !== null) {
+        return arcRate;
+      }
+    }
+
     const material = materialOptions.find(m => m.id === materialId);
     if (!material) return 0;
 
@@ -183,7 +197,7 @@ export function CNItemsEditor({
     }
 
     return material.sale_price ?? 0;
-  }, [materialOptions]);
+  }, [materialOptions, useArcPricing, arcPricingMap]);
 
   const getMaterialVariants = useCallback((materialId: string) => {
     const material = materialOptions.find(m => m.id === materialId);
@@ -245,7 +259,7 @@ export function CNItemsEditor({
 
     const variants = material.variants;
     const firstVariant = variants.length > 0 ? variants[0] : null;
-    const baseRate = firstVariant?.sale_price ?? material.sale_price ?? 0;
+    const baseRate = getRateForMaterial(materialId, firstVariant?.variant_id, firstVariant?.make ?? material.make ?? null);
     const roundedRate = roundOffEnabled ? Math.round(baseRate) : baseRate;
 
     setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
@@ -266,13 +280,13 @@ export function CNItemsEditor({
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setEditingInputs(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [materialOptions, setValue, roundOffEnabled, recalcItem, items, defaultWarehouseId]);
+  }, [materialOptions, setValue, roundOffEnabled, recalcItem, items, defaultWarehouseId, getRateForMaterial]);
 
   const handleVariantSelect = useCallback((index: number, variant: { variant_id: string; variant_name: string; make: string | null; sale_price: number | null }) => {
     const materialId = items[index]?.meta_json?.material_id as string | undefined;
     if (!materialId) return;
 
-    const baseRate = variant.sale_price ?? 0;
+    const baseRate = getRateForMaterial(materialId, variant.variant_id, variant.make);
     const roundedRate = roundOffEnabled ? Math.round(baseRate) : baseRate;
 
     setValue(`items.${index}.meta_json.variant`, variant.variant_name, { shouldDirty: true });
@@ -282,7 +296,7 @@ export function CNItemsEditor({
 
     setTimeout(() => recalcItem(index), 0);
     setVariantDropdowns(prev => ({ ...prev, [index]: false }));
-  }, [setValue, items, roundOffEnabled, recalcItem]);
+  }, [setValue, items, roundOffEnabled, recalcItem, getRateForMaterial]);
 
   const handleSearchChange = useCallback((index: number, value: string) => {
     setSearchTerms(prev => ({ ...prev, [index]: value }));
