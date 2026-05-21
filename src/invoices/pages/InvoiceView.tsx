@@ -87,6 +87,15 @@ export default function InvoiceView() {
   const templates = templatesQuery.data ?? [];
   const invoices = invoicesQuery.data ?? [];
 
+  // Debug: log templates loading state
+  if (templatesQuery.isLoading) {
+    console.log('Templates loading...');
+  }
+  if (templatesQuery.error) {
+    console.error('Templates error:', templatesQuery.error);
+  }
+  console.log('Templates loaded:', templates.length, templates);
+
   const selectedInvoice = invoices.find((inv) => inv.id === invoiceId) ?? null;
   const totalPaid = (paymentsQuery.data ?? []).filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
   const balanceDue = (selectedInvoice?.total ?? 0) - totalPaid;

@@ -26,7 +26,11 @@ export interface InvoiceWithRelations extends Invoice {
 export interface InvoiceTemplateRecord {
   id: string;
   name: string;
-  layout_json: Record<string, unknown>;
+  layout_json?: Record<string, unknown>;
+  column_settings?: Record<string, unknown>;
+  template_code?: string;
+  is_default?: boolean;
+  document_type?: string;
   created_at?: string;
 }
 
