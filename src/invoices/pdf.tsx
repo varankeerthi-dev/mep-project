@@ -12,10 +12,10 @@ import {
   type InvoiceTemplateRecord,
   type InvoiceWithRelations,
 } from './api';
-import { InvoicePdfDocument } from './invoice-pdf-document';
+import { InvoicePdfDocument } from './pdf-document';
 import { ProGridInvoiceDocument } from './pro-grid-invoice-document';
 import { GridMinimalInvoiceDocument } from './grid-minimal-invoice-document';
-import { VerticalTemplate } from '../templates/VerticalTemplate';
+import VerticalTemplate from '../templates/VerticalTemplate';
 import type {
   InvoicePdfCompany,
   InvoicePdfData,

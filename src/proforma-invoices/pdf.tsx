@@ -6,7 +6,7 @@ import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
 import { getProformaById, type ProformaWithRelations } from './api';
 import { ProformaPdfDocument } from './pdf-document';
 import { generateProGridProformaPdf } from '../pdf/proGridProformaPdf';
-import { VerticalTemplate } from '../templates/VerticalTemplate';
+import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import type {
   ProformaPdfCompany,

@@ -276,7 +276,7 @@ export default function DCList() {
 
       // Vertical Template
       if (template.column_settings?.print?.style === 'vertical') {
-        const { VerticalTemplate } = await import('../templates/VerticalTemplate');
+        const VerticalTemplate = (await import('../templates/VerticalTemplate')).default;
         const { createRoot } = await import('react-dom/client');
         const { flushSync } = await import('react-dom');
         const { htmlToPdf } = await import('../utils/htmlTemplateRenderer');

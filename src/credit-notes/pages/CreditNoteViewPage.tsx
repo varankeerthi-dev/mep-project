@@ -9,7 +9,7 @@ import type { CreditNote } from '../../credit-notes/types';
 import { useAuth } from '../../App';
 import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
 import { supabase } from '../../supabase';
-import { VerticalTemplate } from '../../templates/VerticalTemplate';
+import VerticalTemplate from '../../templates/VerticalTemplate';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { htmlToPdf } from '../../utils/htmlTemplateRenderer';
