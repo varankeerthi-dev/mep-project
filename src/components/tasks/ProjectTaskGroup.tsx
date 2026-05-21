@@ -12,6 +12,7 @@ import {
   X,
   Trash2,
   MoreHorizontal,
+  CornerDownRight,
 } from 'lucide-react';
 import {
   ProjectTask,
@@ -31,6 +32,7 @@ interface ProjectTaskGroupProps {
   onTaskClick: (task: ProjectTask) => void;
   onInlineEdit: (taskId: string, newName: string) => void;
   onAddTask: () => void;
+  onAddSubTask: (parentId: string) => void;
   onToggleCollapse: (id: string, isCollapsed: boolean) => void;
   onDeleteTask: (id: string) => void;
   onUpdateTask: (id: string, updates: TaskUpdateInput) => void;
@@ -43,6 +45,7 @@ export default function ProjectTaskGroup({
   onTaskClick,
   onInlineEdit,
   onAddTask,
+  onAddSubTask,
   onToggleCollapse,
   onDeleteTask,
   onUpdateTask,
@@ -50,6 +53,7 @@ export default function ProjectTaskGroup({
   const isCollapsed = group.is_collapsed ?? false;
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   const handleStartEdit = (task: ProjectTask) => {
     setEditingTaskId(task.id);
@@ -107,7 +111,7 @@ export default function ProjectTaskGroup({
   };
 
   const visibleColumns = Object.entries(viewColumns).filter(([_, v]) => v);
-  const colSpan = visibleColumns.length + 1;
+  const colSpan = visibleColumns.length + 2; // +1 for grip handle, +1 for delete
 
   return (
     <>
@@ -151,6 +155,7 @@ export default function ProjectTaskGroup({
             const daysToGo = getDaysToGo(task.due_date);
 
             return (
+              <React.Fragment key={task.id}>
               <tr
                 key={task.id}
                 className="ptl-task-row"
@@ -173,17 +178,47 @@ export default function ProjectTaskGroup({
                   const col = colKey as keyof TaskColumns;
 
                   if (col === 'task_no') {
+                    const rawNo = task.task_no;
+                    const displayNo = rawNo != null ? String(rawNo).replace(/^T-?0*/i, '') || String(rawNo) : '—';
                     return (
                       <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 500, color: '#64748b', fontSize: '0.75rem' }}>
-                        {task.task_no}
+                        {displayNo}
                       </td>
                     );
                   }
 
                   if (col === 'title') {
+                    const hasSubtasks = (task as any).subtasks && (task as any).subtasks.length > 0;
+                    const isExpanded = expandedTasks.has(task.id);
                     return (
                       <td key={col} className="td-left" style={{ textAlign: 'left' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          {hasSubtasks ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedTasks(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(task.id)) next.delete(task.id);
+                                  else next.add(task.id);
+                                  return next;
+                                });
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                            >
+                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              <span style={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', marginLeft: '0.125rem' }}>{(task as any).subtasks.length}</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', opacity: 0 }}
+                              className="ptl-subtask-add-btn"
+                              title="Add sub-task"
+                            >
+                              <CornerDownRight size={13} />
+                            </button>
+                          )}
                           {task.color && (
                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: task.color, flexShrink: 0 }} />
                           )}
@@ -245,28 +280,70 @@ export default function ProjectTaskGroup({
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
                           {task.assignee_ids && task.assignee_ids.length > 0 ? (
                             <>
-                              {task.assignee_ids.slice(0, 3).map((id: string, i: number) => (
-                                <div
-                                  key={i}
-                                  style={{
-                                    width: '1.5rem',
-                                    height: '1.5rem',
-                                    borderRadius: '50%',
-                                    background: `linear-gradient(135deg, hsl(${i * 60}, 70%, 60%), hsl(${i * 60 + 30}, 70%, 50%))`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.5625rem',
-                                    fontWeight: 600,
-                                    color: 'white',
-                                    marginLeft: i > 0 ? '-0.5rem' : 0,
-                                    border: '2px solid white',
-                                  }}
-                                  title={id}
-                                >
-                                  {id.slice(0, 2).toUpperCase()}
-                                </div>
-                              ))}
+                              {task.assignees && task.assignees.length > 0 ? (
+                                task.assignees.slice(0, 3).map((assignee: any, i: number) => (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      padding: '0.125rem 0.5rem',
+                                      borderRadius: '9999px',
+                                      fontSize: '0.6875rem',
+                                      fontWeight: 500,
+                                      fontFamily: "'Inter', system-ui, sans-serif",
+                                      background: `linear-gradient(135deg, hsl(${i * 60 + 200}, 70%, 95%), hsl(${i * 60 + 220}, 70%, 90%))`,
+                                      color: `hsl(${i * 60 + 200}, 50%, 35%)`,
+                                      border: `1px solid hsl(${i * 60 + 200}, 50%, 80%)`,
+                                      marginLeft: i > 0 ? '-0.25rem' : 0,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title={assignee.email || assignee.id}
+                                  >
+                                    <div
+                                      style={{
+                                        width: '1.125rem',
+                                        height: '1.125rem',
+                                        borderRadius: '50%',
+                                        background: `linear-gradient(135deg, hsl(${i * 60 + 200}, 70%, 60%), hsl(${i * 60 + 230}, 70%, 50%))`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.5rem',
+                                        fontWeight: 600,
+                                        color: 'white',
+                                      }}
+                                    >
+                                      {(assignee.name || assignee.id).split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                    </div>
+                                    {assignee.name || assignee.id.slice(0, 8)}
+                                  </div>
+                                ))
+                              ) : (
+                                task.assignee_ids.slice(0, 3).map((id: string, i: number) => (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      width: '1.5rem',
+                                      height: '1.5rem',
+                                      borderRadius: '50%',
+                                      background: `linear-gradient(135deg, hsl(${i * 60}, 70%, 60%), hsl(${i * 60 + 30}, 70%, 50%))`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.5625rem',
+                                      fontWeight: 600,
+                                      color: 'white',
+                                      marginLeft: i > 0 ? '-0.5rem' : 0,
+                                      border: '2px solid white',
+                                    }}
+                                    title={id}
+                                  >
+                                    {id.slice(0, 2).toUpperCase()}
+                                  </div>
+                                ))
+                              )}
                               {task.assignee_ids.length > 3 && (
                                 <span style={{ fontSize: '0.6875rem', color: '#6b7280', marginLeft: '0.25rem' }}>
                                   +{task.assignee_ids.length - 3}
@@ -460,7 +537,133 @@ export default function ProjectTaskGroup({
 
                   return <td key={col}>—</td>;
                 })}
+                {/* Delete column */}
+                <td style={{ textAlign: 'center', width: '36px', minWidth: '36px', maxWidth: '36px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+                    title="Delete task"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0.25rem',
+                      borderRadius: '0.25rem',
+                      color: '#cbd5e1',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'color 0.15s, background 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </td>
               </tr>
+
+              {/* Sub-task rows */}
+              {(task as any).subtasks && (task as any).subtasks.length > 0 && expandedTasks.has(task.id) && (task as any).subtasks.map((subtask: any) => (
+                <tr
+                  key={`sub-${subtask.id}`}
+                  className="ptl-subtask-row"
+                  onClick={() => onTaskClick(subtask)}
+                  style={{ cursor: 'pointer', background: '#fafbfc' }}
+                >
+                  <td style={{ textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CornerDownRight size={12} style={{ color: '#94a3b8', marginRight: '0.125rem' }} />
+                    </div>
+                  </td>
+                  {visibleColumns.map(([colKey]) => {
+                    const col = colKey as keyof TaskColumns;
+                    if (col === 'task_no') {
+                      const rawNo = subtask.task_no;
+                      const displayNo = rawNo != null ? String(rawNo).replace(/^T-?0*/i, '') || String(rawNo) : '—';
+                      return (
+                        <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 400, color: '#94a3b8', fontSize: '0.6875rem' }}>
+                          {displayNo}
+                        </td>
+                      );
+                    }
+                    if (col === 'title') {
+                      return (
+                        <td key={col} className="td-left" style={{ textAlign: 'left', paddingLeft: '2.5rem' }}>
+                          <span style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.8125rem', fontWeight: 400, color: '#475569' }}>
+                            {subtask.title}
+                          </span>
+                        </td>
+                      );
+                    }
+                    if (col === 'status') {
+                      const sc = subtask.status ? STATUS_COLORS[subtask.status as keyof typeof STATUS_COLORS] : undefined;
+                      return (
+                        <td key={col}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.1875rem 0.5rem', borderRadius: '9999px', fontSize: '0.625rem', fontWeight: 500, fontFamily: "'Inter', system-ui, sans-serif", background: sc?.bg || '#f1f5f9', color: sc?.text || '#64748b' }}>
+                            {subtask.status ? (STATUS_COLORS[subtask.status as keyof typeof STATUS_COLORS]?.label || subtask.status) : '—'}
+                          </span>
+                        </td>
+                      );
+                    }
+                    if (col === 'priority') {
+                      const pc = subtask.priority ? PRIORITY_COLORS[subtask.priority as keyof typeof PRIORITY_COLORS] : undefined;
+                      return (
+                        <td key={col}>
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: pc?.text || '#94a3b8' }}>
+                            {subtask.priority || '—'}
+                          </span>
+                        </td>
+                      );
+                    }
+                    if (col === 'assignees') {
+                      return (
+                        <td key={col}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                            {subtask.assignees && subtask.assignees.length > 0 ? (
+                              subtask.assignees.slice(0, 2).map((a: any, i: number) => (
+                                <div key={i} style={{ width: '1.25rem', height: '1.25rem', borderRadius: '50%', background: `linear-gradient(135deg, hsl(${i * 60 + 200}, 70%, 60%), hsl(${i * 60 + 230}, 70%, 50%))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.5rem', fontWeight: 600, color: 'white' }}>
+                                  {(a.name || a.id).split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </div>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.6875rem', color: '#cbd5e1' }}>—</span>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    }
+                    if (col === 'completion_percentage') {
+                      return (
+                        <td key={col}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
+                            <div style={{ width: '40px', height: '4px', background: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>
+                              <div style={{ width: `${subtask.completion_percentage || 0}%`, height: '100%', background: getProgressColor(subtask.completion_percentage || 0), borderRadius: '9999px' }} />
+                            </div>
+                            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.625rem', color: '#94a3b8' }}>{subtask.completion_percentage || 0}%</span>
+                          </div>
+                        </td>
+                      );
+                    }
+                    if (col === 'start_date' || col === 'due_date') {
+                      return <td key={col} style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{subtask[col] || '—'}</td>;
+                    }
+                    return <td key={col} style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>—</td>;
+                  })}
+                  {/* Sub-task delete column */}
+                  <td style={{ textAlign: 'center', width: '36px', minWidth: '36px', maxWidth: '36px' }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDeleteTask(subtask.id); }}
+                      title="Delete sub-task"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.25rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s, background 0.15s' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              </React.Fragment>
             );
           })}
 

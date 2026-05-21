@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import {
@@ -18,6 +18,7 @@ import {
   Save,
   Eye,
   EyeOff,
+  Trash2,
 } from 'lucide-react';
 import { ProjectTask, TaskGroup, TaskColumns, DEFAULT_TASK_COLUMNS, COLUMN_LABELS, TaskCreateInput, TaskUpdateInput, GroupCreateInput } from './types';
 import ProjectTaskGroup from './ProjectTaskGroup';
@@ -377,6 +378,21 @@ const styles = `
     border-color: #dde1e6 !important;
     padding: 6px 12px;
   }
+
+  /* Sub-task rows */
+  .ptl-subtask-row:hover {
+    background: #f0f7ff !important;
+  }
+
+  .ptl-subtask-row td {
+    font-size: 0.8125rem !important;
+    color: #64748b;
+  }
+
+  /* Show subtask add button on row hover */
+  .ptl-task-row:hover .ptl-subtask-add-btn {
+    opacity: 1 !important;
+  }
   
   .ptl-table-header {
     display: none;
@@ -495,6 +511,14 @@ const styles = `
   }
 `;
 
+const STATUS_LABELS_TABLE: Record<string, string> = {
+  'not_started': 'Not Started',
+  'in_progress': 'In Progress',
+  'under_review': 'Under Review',
+  'on_hold': 'On Hold',
+  'completed': 'Completed',
+};
+
 if (typeof document !== 'undefined') {
   const styleId = 'ptl-styles';
   if (!document.getElementById(styleId)) {
@@ -536,10 +560,16 @@ export default function ProjectTaskListView({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [createForGroupId, setCreateForGroupId] = useState<string | null>(null);
+  const [parentTaskId, setParentTaskId] = useState<string | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const [currentView, setCurrentView] = useState<TaskViewType>('table');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [groupByField, setGroupByField] = useState<string>('task_list');
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Fetch task groups with tasks
+  // Fetch task groups with tasks (including sub-tasks)
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['project-tasks', projectId],
     queryFn: async () => {
@@ -551,25 +581,66 @@ export default function ProjectTaskListView({
 
       if (groupsError) throw groupsError;
 
-      const { data: tasks, error: tasksError } = await supabase
+      // Fetch ALL tasks (parents + sub-tasks)
+      const { data: allTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('project_id', projectId)
-        .is('parent_task_id', null)
         .is('deleted_at', null)
         .order('task_no', { ascending: true });
 
       if (tasksError) throw tasksError;
 
+      // Fetch user profiles for assignee name resolution
+      const allAssigneeIds = allTasks?.flatMap((t: any) => t.assignee_ids || []) || [];
+      const uniqueIds = [...new Set(allAssigneeIds.filter(Boolean))];
+      let profileMap: Record<string, { full_name: string; email?: string }> = {};
+      if (uniqueIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', uniqueIds);
+        if (profiles) {
+          (profiles as any[]).forEach((p: any) => {
+            profileMap[p.user_id] = { full_name: p.full_name || '', email: p.email || '' };
+          });
+        }
+      }
+
+      // Enrich tasks with assignee info and subtasks
+      const enrichedTasks = (allTasks || []).map((t: any) => ({
+        ...t,
+        assignees: (t.assignee_ids || []).map((uid: string) => ({
+          id: uid,
+          name: profileMap[uid]?.full_name || uid.slice(0, 8),
+          email: profileMap[uid]?.email || '',
+        })),
+      }));
+
+      // Separate parents and children
+      const parentTasks = enrichedTasks.filter((t: any) => !t.parent_task_id);
+      const childTasksMap: Record<string, any[]> = {};
+      enrichedTasks.filter((t: any) => t.parent_task_id).forEach((t: any) => {
+        if (!childTasksMap[t.parent_task_id]) childTasksMap[t.parent_task_id] = [];
+        childTasksMap[t.parent_task_id].push(t);
+      });
+
+      // Attach subtasks to parents
+      const tasksWithSubtasks = parentTasks.map((t: any) => ({
+        ...t,
+        subtasks: childTasksMap[t.id] || [],
+        subtask_count: (childTasksMap[t.id] || []).length,
+      }));
+
       // Group tasks by task_group_id
       const groupedTasks = taskGroups.map(group => ({
         ...group,
-        tasks: tasks.filter(t => t.task_group_id === group.id),
-        task_count: tasks.filter(t => t.task_group_id === group.id).length,
+        tasks: tasksWithSubtasks.filter((t: any) => t.task_group_id === group.id),
+        task_count: tasksWithSubtasks.filter((t: any) => t.task_group_id === group.id).length,
       }));
 
       // Ungrouped tasks
-      const ungroupedTasks = tasks.filter(t => !t.task_group_id);
+      const ungroupedTasks = tasksWithSubtasks.filter((t: any) => !t.task_group_id);
       if (ungroupedTasks.length > 0) {
         groupedTasks.push({
           id: 'ungrouped',
@@ -595,15 +666,55 @@ export default function ProjectTaskListView({
   // Create task mutation
   const createTaskMutation = useMutation({
     mutationFn: async (input: TaskCreateInput) => {
+      // Auto-generate task_no: find max task_no in project
+      const { data: existingTasks } = await supabase
+        .from('tasks')
+        .select('task_no')
+        .eq('project_id', input.project_id || projectId)
+        .is('deleted_at', null);
+
+      let maxNo = 0;
+      if (existingTasks) {
+        existingTasks.forEach((t: any) => {
+          const raw = String(t.task_no || '');
+          const num = parseInt(raw.replace(/\D/g, ''), 10);
+          if (!isNaN(num) && num > maxNo) maxNo = num;
+        });
+      }
+
+      const insertData: Record<string, unknown> = {
+        organisation_id: organisationId,
+        created_by: userId,
+        project_id: input.project_id || projectId,
+        task_group_id: input.task_group_id || null,
+        parent_task_id: input.parent_task_id || null,
+        task_no: maxNo + 1,
+        title: input.title,
+        description: input.description || null,
+        task_type: input.task_type || 'task',
+        status: input.status || 'not_started',
+        priority: input.priority || 'medium',
+        start_date: input.start_date || null,
+        due_date: input.due_date || null,
+        duration_days: input.duration_days || null,
+        estimated_hours: input.estimated_hours || null,
+        completion_percentage: 0,
+        assignee_ids: input.assignee_ids && input.assignee_ids.length > 0 ? input.assignee_ids : [],
+        tags: input.tags && input.tags.length > 0 ? input.tags : [],
+        discipline: input.discipline || null,
+        location: input.location || null,
+        drawing_ref: input.drawing_ref || null,
+        wbs_code: input.wbs_code || null,
+        is_following: false,
+        is_archived: false,
+      };
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert({
-          ...input,
-          organisation_id: organisationId,
-          created_by: userId,
-        })
+        .insert(insertData)
         .select()
         .single();
+
       if (error) throw error;
       return data;
     },
@@ -611,6 +722,10 @@ export default function ProjectTaskListView({
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] });
       setShowCreateModal(false);
       setCreateForGroupId(null);
+      setParentTaskId(null);
+    },
+    onError: (error) => {
+      alert('Failed to create task: ' + (error as Error).message);
     },
   });
 
@@ -637,13 +752,16 @@ export default function ProjectTaskListView({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('tasks')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] });
       setSelectedTask(null);
+    },
+    onError: (error) => {
+      alert('Failed to delete task: ' + (error as Error).message);
     },
   });
 
@@ -704,14 +822,102 @@ export default function ProjectTaskListView({
     setShowCreateModal(true);
   };
 
-  // Filter tasks by search
-  const filteredGroups = groups.map(group => ({
-    ...group,
-    tasks: group.tasks?.filter((task: any) =>
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.task_no.toString().includes(searchTerm)
-    ),
-  })).filter(group => group.tasks && group.tasks.length > 0);
+  // Filter tasks by search and status, then regroup based on groupByField
+  const allTasks = groups.flatMap(g => g.tasks || []);
+
+  const filteredTasks = (allTasks as any[]).filter((task: any) => {
+    const matchSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(task.task_no).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = statusFilter === 'all' || task.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+  const STATUS_ORDER: Record<string, number> = { not_started: 0, in_progress: 1, under_review: 2, on_hold: 3, completed: 4 };
+  const STATUS_GROUP_LABELS: Record<string, string> = {
+    'not_started': 'Not Started',
+    'in_progress': 'In Progress',
+    'under_review': 'Under Review',
+    'on_hold': 'On Hold',
+    'completed': 'Completed',
+  };
+
+  let displayGroups: TaskGroup[];
+
+  if (groupByField === 'none') {
+    displayGroups = [{
+      id: 'all',
+      project_id: projectId,
+      name: 'All Tasks',
+      start_date: null,
+      due_date: null,
+      is_collapsed: false,
+      sort_order: 0,
+      organisation_id: organisationId,
+      created_by: userId,
+      created_at: '',
+      updated_at: '',
+      tasks: filteredTasks,
+      task_count: filteredTasks.length,
+    } as TaskGroup];
+  } else if (groupByField === 'status') {
+    const statusGroups: Record<string, any[]> = {};
+    filteredTasks.forEach((task: any) => {
+      const key = task.status || 'not_started';
+      if (!statusGroups[key]) statusGroups[key] = [];
+      statusGroups[key].push(task);
+    });
+    const sortedKeys = Object.keys(statusGroups).sort((a, b) => (STATUS_ORDER[a] ?? 99) - (STATUS_ORDER[b] ?? 99));
+    displayGroups = sortedKeys.map((key, idx) => ({
+      id: `status-${key}`,
+      project_id: projectId,
+      name: STATUS_GROUP_LABELS[key] || key,
+      start_date: null,
+      due_date: null,
+      is_collapsed: false,
+      sort_order: idx,
+      organisation_id: organisationId,
+      created_by: userId,
+      created_at: '',
+      updated_at: '',
+      tasks: statusGroups[key],
+      task_count: statusGroups[key].length,
+    } as TaskGroup));
+  } else if (groupByField === 'priority') {
+    const prioGroups: Record<string, any[]> = {};
+    filteredTasks.forEach((task: any) => {
+      const key = task.priority || 'medium';
+      if (!prioGroups[key]) prioGroups[key] = [];
+      prioGroups[key].push(task);
+    });
+    const sortedKeys = Object.keys(prioGroups).sort((a, b) => (PRIORITY_ORDER[a] ?? 99) - (PRIORITY_ORDER[b] ?? 99));
+    displayGroups = sortedKeys.map((key, idx) => ({
+      id: `priority-${key}`,
+      project_id: projectId,
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      start_date: null,
+      due_date: null,
+      is_collapsed: false,
+      sort_order: idx,
+      organisation_id: organisationId,
+      created_by: userId,
+      created_at: '',
+      updated_at: '',
+      tasks: prioGroups[key],
+      task_count: prioGroups[key].length,
+    } as TaskGroup));
+  } else {
+    // task_list (default) - use original groups
+    displayGroups = groups.map(group => ({
+      ...group,
+      tasks: group.tasks?.filter((task: any) => {
+        const matchSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(task.task_no).toLowerCase().includes(searchTerm.toLowerCase());
+        const matchStatus = statusFilter === 'all' || task.status === statusFilter;
+        return matchSearch && matchStatus;
+      }),
+    })).filter(group => group.tasks && group.tasks.length > 0);
+  }
 
   const columnWidths: Record<string, string> = {
     task_no: '70px',
@@ -754,13 +960,63 @@ export default function ProjectTaskListView({
           {!toolbarCollapsed && (
             <>
               <div className="ptl-divider" />
-              <button className="ptl-filter-btn">
-                All Open <ChevronDown size={12} />
-              </button>
-              <button className="ptl-group-btn">
-                <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>Group By:</span>
-                Task List <ChevronDown size={12} />
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button className="ptl-filter-btn" onClick={(e) => { e.stopPropagation(); setShowStatusFilter(!showStatusFilter); }}>
+                  {statusFilter === 'all' ? 'All Open' : STATUS_LABELS_TABLE[statusFilter] || statusFilter} <ChevronDown size={12} />
+                </button>
+                {showStatusFilter && (
+                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
+                    <div
+                      className="ptl-col-item"
+                      onClick={() => { setStatusFilter('all'); setShowStatusFilter(false); }}
+                    >
+                      <div className={`ptl-col-checkbox ${statusFilter === 'all' ? 'checked' : ''}`}>
+                        {statusFilter === 'all' && <Check size={12} color="white" />}
+                      </div>
+                      All Open
+                    </div>
+                    {Object.entries(STATUS_LABELS_TABLE).map(([key, label]) => (
+                      <div
+                        key={key}
+                        className="ptl-col-item"
+                        onClick={() => { setStatusFilter(key); setShowStatusFilter(false); }}
+                      >
+                        <div className={`ptl-col-checkbox ${statusFilter === key ? 'checked' : ''}`}>
+                          {statusFilter === key && <Check size={12} color="white" />}
+                        </div>
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{ position: 'relative' }}>
+                <button className="ptl-group-btn" onClick={(e) => { e.stopPropagation(); setShowGroupByDropdown(!showGroupByDropdown); }}>
+                  <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>Group By:</span>
+                  {groupByField === 'task_list' ? 'Task List' : groupByField === 'status' ? 'Status' : groupByField === 'priority' ? 'Priority' : 'None'} <ChevronDown size={12} />
+                </button>
+                {showGroupByDropdown && (
+                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
+                    {[
+                      { key: 'task_list', label: 'Task List' },
+                      { key: 'status', label: 'Status' },
+                      { key: 'priority', label: 'Priority' },
+                      { key: 'none', label: 'None' },
+                    ].map(opt => (
+                      <div
+                        key={opt.key}
+                        className="ptl-col-item"
+                        onClick={() => { setGroupByField(opt.key); setShowGroupByDropdown(false); }}
+                      >
+                        <div className={`ptl-col-checkbox ${groupByField === opt.key ? 'checked' : ''}`}>
+                          {groupByField === opt.key && <Check size={12} color="white" />}
+                        </div>
+                        {opt.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -876,7 +1132,7 @@ export default function ProjectTaskListView({
       {/* View Content */}
       {currentView === 'table' && (
         <div className="ptl-card">
-          {filteredGroups.length === 0 ? (
+          {displayGroups.length === 0 ? (
             <div className="ptl-empty">
               <div className="ptl-empty-icon">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -908,10 +1164,11 @@ export default function ProjectTaskListView({
                       {COLUMN_LABELS[key as keyof TaskColumns]}
                     </th>
                   ))}
+                  <th style={{ width: '36px' }}></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredGroups.map(group => (
+                {displayGroups.map(group => (
                   <ProjectTaskGroup
                     key={group.id}
                     group={group}
@@ -919,17 +1176,69 @@ export default function ProjectTaskListView({
                     columnWidths={columnWidths}
                     onTaskClick={handleTaskClick}
                     onInlineEdit={handleNameInlineEdit}
-                    onAddTask={() => handleCreateTask(group.id)}
-                    onToggleCollapse={(id, isCollapsed) =>
-                      updateGroupMutation.mutate({ id, updates: { is_collapsed: isCollapsed } })
-                    }
-                    onDeleteTask={(id) => deleteTaskMutation.mutate(id)}
+                    onAddTask={() => handleCreateTask(group.id === 'ungrouped' ? null : group.id)}
+                    onAddSubTask={(parentId: string) => {
+                      setCreateForGroupId(group.id === 'ungrouped' ? null : group.id);
+                      setParentTaskId(parentId);
+                      setShowCreateModal(true);
+                    }}
+                    onToggleCollapse={(id, isCollapsed) => {
+                      if (!id.startsWith('status-') && !id.startsWith('priority-') && id !== 'all') {
+                        updateGroupMutation.mutate({ id, updates: { is_collapsed: isCollapsed } })
+                      } else {
+                        const g = displayGroups.find(g => g.id === id);
+                        if (g) g.is_collapsed = isCollapsed;
+                      }
+                    }}
+                    onDeleteTask={(id) => setDeleteConfirmId(id)}
                     onUpdateTask={(id, updates) => updateTaskMutation.mutate({ id, updates })}
                   />
                 ))}
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}
+          onClick={() => setDeleteConfirmId(null)}
+        >
+          <div
+            style={{ background: 'white', borderRadius: '0.75rem', padding: '1.5rem', width: '360px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 size={18} style={{ color: '#ef4444' }} />
+              </div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#1e293b', margin: 0 }}>Delete Task?</h3>
+            </div>
+            <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              This action cannot be undone. The task and all its data will be permanently removed.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 500, background: '#f1f5f9', color: '#475569', border: 'none', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirmId) {
+                    deleteTaskMutation.mutate(deleteConfirmId);
+                    setDeleteConfirmId(null);
+                  }
+                }}
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer' }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -966,6 +1275,7 @@ export default function ProjectTaskListView({
             onUpdate={(updates) => updateTaskMutation.mutate({ id: selectedTask.id, updates })}
             onDelete={() => deleteTaskMutation.mutate(selectedTask.id)}
             groups={groups}
+            organisationId={organisationId}
           />
         </>
       )}
@@ -980,8 +1290,9 @@ export default function ProjectTaskListView({
           onClose={() => {
             setShowCreateModal(false);
             setCreateForGroupId(null);
+            setParentTaskId(null);
           }}
-          onSubmit={(input) => createTaskMutation.mutate(input)}
+          onSubmit={(input) => createTaskMutation.mutate(parentTaskId ? { ...input, parent_task_id: parentTaskId } : input)}
           isLoading={createTaskMutation.isPending}
         />
       )}
