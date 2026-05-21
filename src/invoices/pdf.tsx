@@ -258,16 +258,39 @@ async function renderInvoicePdfBlob(
 }> {
   const data = await resolveInvoicePdfData(invoiceInput, options);
   const orgId = options.organisationId || data.invoice.organisation_id;
-  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice', orgId);
-  ensurePdfFontsRegistered();
   
-  const printStyle = invoiceTemplateConfig?.column_settings?.print?.style;
-  
-  if (printStyle === 'vertical') {
-    return await renderVerticalInvoicePdf(data, orgId, invoiceTemplateConfig);
+  // Use passed template, or find by template_id, or get default
+  let templateConfig = null;
+  if (options.template?.column_settings) {
+    templateConfig = {
+      id: String(options.template.id),
+      template_name: String(options.template.name || 'Template'),
+      column_settings: options.template.column_settings,
+    };
+  } else if (data.invoice.template_id) {
+    const { data: tpl } = await supabase.from('document_templates').select('*').eq('id', data.invoice.template_id).single();
+    if (tpl) {
+      templateConfig = {
+        id: String(tpl.id),
+        template_name: String(tpl.template_name || 'Template'),
+        column_settings: tpl.column_settings || {},
+      };
+    }
   }
   
-  const blob = await pdf(resolveInvoicePdfElement(data, invoiceTemplateConfig)).toBlob();
+  if (!templateConfig) {
+    templateConfig = await getDefaultDocumentTemplate('Invoice', orgId);
+  }
+  
+  ensurePdfFontsRegistered();
+  
+  const printStyle = templateConfig?.column_settings?.print?.style;
+  
+  if (printStyle === 'vertical') {
+    return await renderVerticalInvoicePdf(data, orgId, templateConfig);
+  }
+  
+  const blob = await pdf(resolveInvoicePdfElement(data, templateConfig)).toBlob();
 
   return {
     blob,

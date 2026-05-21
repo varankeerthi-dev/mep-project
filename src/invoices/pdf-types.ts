@@ -39,7 +39,10 @@ export interface InvoicePdfData {
 export interface InvoicePdfOptions {
   company?: InvoicePdfCompany | null;
   organisationId?: string;
-  template?: InvoiceTemplateRecord | null;
-  source?: InvoiceSourceDocument | null;
   fileName?: string;
+  template?: {
+    id?: string;
+    name?: string;
+    column_settings?: Record<string, unknown>;
+  } | null;
 }

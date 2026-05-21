@@ -391,25 +391,32 @@ export async function getInvoices(filters: InvoiceFilters = {}): Promise<Invoice
 
 export async function getInvoiceTemplates(organisationId?: string): Promise<InvoiceTemplateRecord[]> {
   let query = supabase
-    .from('invoice_templates')
-    .select('id, name, layout_json, created_at');
+    .from('document_templates')
+    .select('id, template_name as name, column_settings, template_code, is_default, document_type, page_size, orientation, show_logo, show_bank_details, show_terms, show_signature')
+    .eq('document_type', 'Invoice');
     
   if (organisationId) {
     query = query.eq('organisation_id', organisationId);
   }
 
-  const { data, error } = await query.order('created_at', { ascending: true });
+  const { data, error } = await query.order('template_name', { ascending: true });
 
   if (error) throw error;
 
-  return (data ?? []).map((template) => ({
+  return (data ?? []).map((template: any) => ({
     id: String(template.id),
-    name: String(template.name),
-    layout_json:
-      template.layout_json && typeof template.layout_json === 'object'
-        ? (template.layout_json as Record<string, unknown>)
-        : {},
-    created_at: template.created_at ?? undefined,
+    name: String(template.template_name || template.name),
+    layout_json: template.column_settings || {},
+    template_code: template.template_code,
+    is_default: template.is_default,
+    column_settings: template.column_settings,
+    document_type: template.document_type,
+    page_size: template.page_size,
+    orientation: template.orientation,
+    show_logo: template.show_logo,
+    show_bank_details: template.show_bank_details,
+    show_terms: template.show_terms,
+    show_signature: template.show_signature,
   }));
 }
 
