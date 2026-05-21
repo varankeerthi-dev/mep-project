@@ -396,7 +396,7 @@ export async function getInvoices(filters: InvoiceFilters = {}): Promise<Invoice
 export async function getInvoiceTemplates(organisationId?: string): Promise<InvoiceTemplateRecord[]> {
   let query = supabase
     .from('document_templates')
-    .select('id, template_name as name, column_settings, template_code, is_default, document_type, page_size, orientation, show_logo, show_bank_details, show_terms, show_signature')
+    .select('*')
     .eq('document_type', 'Invoice');
     
   if (organisationId) {
@@ -409,7 +409,7 @@ export async function getInvoiceTemplates(organisationId?: string): Promise<Invo
 
   return (data ?? []).map((template: any) => ({
     id: String(template.id),
-    name: String(template.template_name || template.name),
+    name: String(template.template_name),
     layout_json: template.column_settings || {},
     template_code: template.template_code,
     is_default: template.is_default,
@@ -421,6 +421,8 @@ export async function getInvoiceTemplates(organisationId?: string): Promise<Invo
     show_bank_details: template.show_bank_details,
     show_terms: template.show_terms,
     show_signature: template.show_signature,
+  }));
+}
   }));
 }
 
