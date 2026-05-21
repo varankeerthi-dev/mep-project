@@ -306,7 +306,8 @@ export function SiteVisits() {
     status: 'scheduled',
     next_step: '',
     follow_up_date: '',
-    postponed_reason: ''
+    postponed_reason: '',
+    is_client_meeting: false
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -542,7 +543,8 @@ export function SiteVisits() {
       status: 'scheduled',
       next_step: '',
       follow_up_date: '',
-      postponed_reason: ''
+      postponed_reason: '',
+      is_client_meeting: false
     });
     setCurrentStep(1);
     setSelectedVisit(null);
@@ -567,7 +569,43 @@ export function SiteVisits() {
     if (selectedVisit) {
       updateVisitMutation.mutate({ ...visitData, id: selectedVisit.id });
     } else {
-      addVisitMutation.mutate(visitData);
+      addVisitMutation.mutate(visitData, {
+        onSuccess: async (data) => {
+          // If marked as client meeting, create a meeting record
+          if (formData.is_client_meeting && data?.[0]) {
+            try {
+              const { createMeeting } = await import('../meetings/api/meetings');
+              const clientName = clients?.find((c: any) => c.id === formData.client_id)?.client_name || 'Unknown';
+              
+              const meeting = await createMeeting({
+                organisation_id: organisation.id,
+                project_id: formData.project_id || null,
+                client_name: clientName,
+                meeting_date: formData.visit_date,
+                meeting_time: formData.visit_time || null,
+                location: formData.site_address || null,
+                description: formData.purpose_of_visit || null,
+                meeting_type: 'client',
+                is_site_visit_meeting: true,
+                site_visit_id: data[0].id,
+                status: 'upcoming',
+                minutes_status: 'pending'
+              });
+
+              // Update site visit with meeting_id
+              await supabase
+                .from('site_visits')
+                .update({ meeting_id: meeting.id })
+                .eq('id', data[0].id);
+
+              toast.success('Site visit created with meeting record');
+            } catch (error) {
+              console.error('Failed to create meeting:', error);
+              toast.error('Site visit created but failed to create meeting record');
+            }
+          }
+        }
+      });
     }
   };
 
@@ -588,7 +626,8 @@ export function SiteVisits() {
       status: visit.status || 'pending',
       next_step: visit.next_step || '',
       follow_up_date: visit.follow_up_date || '',
-      postponed_reason: visit.postponed_reason || ''
+      postponed_reason: visit.postponed_reason || '',
+      is_client_meeting: visit.is_client_meeting || false
     });
     // Open the simple form only if the detailed update modal is not active
     if (!isUpdateModalOpen) {
@@ -1795,6 +1834,26 @@ export function SiteVisits() {
                       />
                     </div>
                   )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id="is_client_meeting"
+                        checked={formData.is_client_meeting}
+                        onChange={(e) => setFormData({ ...formData, is_client_meeting: e.target.checked })}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="is_client_meeting" style={{ fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                        Mark as Client Meeting
+                      </label>
+                    </div>
+                    {formData.is_client_meeting && (
+                      <p style={{ fontSize: '12px', color: '#6b7280', marginLeft: '24px' }}>
+                        This will create a meeting record and allow you to add meeting minutes
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 

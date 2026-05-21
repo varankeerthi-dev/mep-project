@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3 } from 'lucide-react';
+import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../App';
@@ -12,6 +12,7 @@ import ProjectMaterialList from './ProjectMaterialList';
 import MaterialUsageTracker from './MaterialUsageTracker';
 import MaterialConsumptionReport from './MaterialConsumptionReport';
 import ToolsDashboard from './ToolsDashboard';
+import { getMeetings } from '../meetings/api/meetings';
 
 const ProjectList = React.lazy(() => import('./ProjectList'));
 const CreateProject = React.lazy(() => import('./CreateProject'));
@@ -239,6 +240,7 @@ const MATERIAL_TAB_DEFS = [
   { id: 'material-list', label: 'Material List', Icon: List },
   { id: 'usage', label: 'Usage', Icon: Calendar },
   { id: 'consumption', label: 'Consumption Report', Icon: BarChart3 },
+  { id: 'meetings', label: 'Meetings', Icon: Users },
 ];
 
 function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }: { projectId: string; organisationId: string; projectName: string; onBack: () => void }) {
@@ -262,6 +264,7 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
     'material-list': <ProjectMaterialList projectId={projectId} organisationId={organisationId} />,
     'usage': <MaterialUsageTracker projectId={projectId} organisationId={organisationId} />,
     'consumption': <MaterialConsumptionReport projectId={projectId} organisationId={organisationId} />,
+    'meetings': <ProjectMeetings projectId={projectId} organisationId={organisationId} projectName={projectName} />,
   }), [projectId, organisationId, projectName]);
 
   return (
@@ -301,6 +304,119 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
           )
         )}
       </div>
+    </div>
+  );
+}
+
+function ProjectMeetings({ projectId, organisationId, projectName }: { projectId: string; organisationId: string; projectName: string }) {
+  const navigate = useNavigate();
+  const { data: meetings = [], isLoading } = useQuery({
+    queryKey: ['project-meetings', projectId],
+    queryFn: () => getMeetings(organisationId, projectId),
+    enabled: !!projectId && !!organisationId,
+  });
+
+  const handleCreateMeeting = () => {
+    navigate(`/meetings/create?projectId=${projectId}`);
+  };
+
+  const handleViewMinutes = (meetingId: string) => {
+    navigate(`/meetings/${meetingId}/minutes`);
+  };
+
+  const getStatusBadge = (status: string, minutesStatus: string) => {
+    if (minutesStatus === 'finalized') {
+      return <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#d4edda', color: '#155724', fontSize: '12px' }}>Finalized</span>;
+    }
+    if (minutesStatus === 'draft') {
+      return <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#d1ecf1', color: '#0c5460', fontSize: '12px' }}>Draft</span>;
+    }
+    if (status === 'completed') {
+      return <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#e2e3e5', color: '#383d41', fontSize: '12px' }}>Completed</span>;
+    }
+    return <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#fff3cd', color: '#856404', fontSize: '12px' }}>Upcoming</span>;
+  };
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '4px' }}>Project Meetings</h2>
+          <p style={{ color: '#6b7280', fontSize: '14px' }}>{projectName}</p>
+        </div>
+        <button
+          onClick={handleCreateMeeting}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px',
+            background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '6px',
+            fontSize: '14px', fontWeight: 500, cursor: 'pointer'
+          }}
+        >
+          <Plus size={16} />
+          New Meeting
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>Loading...</div>
+      ) : meetings.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+          <Users size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+          <p style={{ marginBottom: '16px' }}>No meetings scheduled for this project yet.</p>
+          <button
+            onClick={handleCreateMeeting}
+            style={{
+              padding: '10px 16px', background: '#1d4ed8', color: '#fff',
+              border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer'
+            }}
+          >
+            Create First Meeting
+          </button>
+        </div>
+      ) : (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Date</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Client</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Vendor</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Location</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Type</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Status</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {meetings.map((meeting: any) => (
+                <tr key={meeting.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#374151' }}>
+                    {meeting.meeting_date}
+                    {meeting.meeting_time && <span style={{ color: '#6b7280', marginLeft: '4px' }}>{meeting.meeting_time}</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#374151' }}>{meeting.client_name}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#6b7280' }}>{meeting.vendor_name || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#374151' }}>{meeting.location || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', color: '#374151', textTransform: 'capitalize' }}>{meeting.meeting_type}</td>
+                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(meeting.status, meeting.minutes_status)}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                    <button
+                      onClick={() => handleViewMinutes(meeting.id)}
+                      style={{
+                        padding: '6px 12px', background: '#f3f4f6', color: '#374151',
+                        border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '13px',
+                        cursor: 'pointer', marginRight: '4px'
+                      }}
+                    >
+                      View Minutes
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

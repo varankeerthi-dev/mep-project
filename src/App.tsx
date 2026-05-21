@@ -102,9 +102,10 @@ const CreateClientEdit = lazyAny(() => import('./pages/ClientManagement').then(m
 const ClientList = lazyAny(() => import('./pages/ClientList'));
 const MaterialInward = lazyAny(() => import('./pages/MaterialInward'));
 const MaterialOutward = lazyAny(() => import('./pages/MaterialOutward'));
-const Meetings = import('./pages/Meetings');
-const MeetingsDashboard = lazyAny(() => Meetings.then(m => ({ default: m.MeetingsDashboard })));
-const CreateMeeting = lazyAny(() => Meetings.then(m => ({ default: m.CreateMeeting })));
+const MeetingsList = lazyAny(() => import('./meetings/pages/MeetingsList'));
+const CreateMeeting = lazyAny(() => import('./meetings/pages/CreateMeeting'));
+const MeetingMinutesEditor = lazyAny(() => import('./meetings/pages/MeetingMinutesEditor'));
+const MeetingMinutesView = lazyAny(() => import('./meetings/pages/MeetingMinutesView'));
 const ClientRequests = lazyAny(() => import('./pages/ClientRequests'));
 const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ default: m.SiteVisits })));
 const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
@@ -233,9 +234,9 @@ export default function App() {
       case '/clients/new': return <CreateClient onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
       case '/clients/edit': return <CreateClientEdit onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
       case '/clients': return <ClientList />;
-      case '/meetings': return <MeetingsDashboard onNavigate={navigate} />;
-      case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
-      case '/meetings/edit': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} editMode={true} />;
+      case '/meetings': return <MeetingsList />;
+      case '/meetings/create': return <CreateMeeting />;
+      case '/meetings/edit': return <CreateMeeting />;
       case '/site-visits': return <SiteVisits />;
       case '/site-reports': return <SiteReport />;
       case '/client-communication': return <ClientCommunication />;
@@ -351,6 +352,14 @@ export default function App() {
             return <MeasurementSheetWrapper workOrderId={id} onBack={() => navigate(`/subcontractors/workorders/${id}`)} onSuccess={() => navigate(`/subcontractors/workorders/${id}`)} />;
           }
           return <WorkOrderDetailView workOrderId={id} onNavigate={navigate} />;
+        }
+        if (pathKey.startsWith('/meetings/') && pathKey.includes('/minutes')) {
+          const meetingId = pathKey.split('/meetings/')[1].split('/minutes')[0];
+          return <MeetingMinutesEditor />;
+        }
+        if (pathKey.startsWith('/meetings/') && pathKey.includes('/view')) {
+          const meetingId = pathKey.split('/meetings/')[1].split('/view')[0];
+          return <MeetingMinutesView />;
         }
         return <Dashboard onNavigate={navigate} />;
     }
