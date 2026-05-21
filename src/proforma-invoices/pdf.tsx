@@ -1,9 +1,13 @@
 import { pdf } from '@react-pdf/renderer';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { supabase } from '../supabase';
 import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
 import { getProformaById, type ProformaWithRelations } from './api';
 import { ProformaPdfDocument } from './pdf-document';
 import { generateProGridProformaPdf } from '../pdf/proGridProformaPdf';
+import { VerticalTemplate } from '../templates/VerticalTemplate';
+import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import type {
   ProformaPdfCompany,
   ProformaPdfData,
@@ -84,12 +88,17 @@ export async function generateProformaPdf(
 ): Promise<Blob> {
   const resolvedProforma = await resolveProforma(proforma, options.organisationId);
   const template = options.template ?? (options.organisationId && resolvedProforma.template_id ? await getProformaTemplateById(resolvedProforma.template_id, options.organisationId) : null);
+  const company = options.company ?? (options.organisationId ? await getOrganisationDetails(options.organisationId) : null);
 
   // Use Classic Proforma Template if selected
   if (template?.template_code === 'PI_CLASSIC') {
-    const company = options.company ?? (options.organisationId ? await getOrganisationDetails(options.organisationId) : null);
     const doc = generateProGridProformaPdf(resolvedProforma, company, template);
     return doc.output('blob') as Blob;
+  }
+
+  // Use Vertical Template if selected
+  if (template?.column_settings?.print?.style === 'vertical') {
+    return await generateVerticalProformaPdf(resolvedProforma, template, company);
   }
 
   // Default to React-PDF document
@@ -99,6 +108,73 @@ export async function generateProformaPdf(
   const pdfBlob = await pdf(doc).toBlob();
 
   return pdfBlob;
+}
+
+async function generateVerticalProformaPdf(
+  proforma: ProformaWithRelations,
+  template: any,
+  company: ProformaPdfCompany | null
+): Promise<Blob> {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '210mm';
+  container.style.background = 'white';
+  document.body.appendChild(container);
+
+  const fontLink = document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap';
+  document.head.appendChild(fontLink);
+
+  const root = createRoot(container);
+  try {
+    const proformaData = buildProformaVerticalData(proforma);
+    flushSync(() => {
+      root.render(<VerticalTemplate data={proformaData} organisation={company} templateConfig={template.column_settings} />);
+    });
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return await htmlToPdf(container, `${proforma.pi_number || proforma.id}.pdf`);
+  } finally {
+    root.unmount();
+    document.body.removeChild(container);
+  }
+}
+
+function buildProformaVerticalData(proforma: ProformaWithRelations) {
+  return {
+    ...proforma,
+    document_type: 'Proforma Invoice',
+    items: (proforma.items || []).map((item: any, idx: number) => ({
+      sno: idx + 1,
+      item: item.item_name || item.description,
+      description: item.description || '',
+      qty: item.quantity || item.qty,
+      uom: item.uom || 'Nos',
+      rate: item.rate,
+      discount_percent: item.discount_percent || 0,
+      rate_after_discount: item.rate_after_discount || item.rate,
+      base_amount: item.base_amount || (item.quantity || item.qty) * item.rate,
+      tax_percent: item.tax_percent || proforma.gst_rate || 18,
+      tax_amount: item.tax_amount || 0,
+      line_total: item.line_total || item.total,
+      hsn_code: item.hsn_code || '',
+      make: item.make || '',
+      item_code: item.item_code || '',
+    })),
+    subtotal: proforma.subtotal,
+    total_tax: proforma.total_tax || proforma.igst || 0,
+    round_off: proforma.round_off || 0,
+    grand_total: proforma.total,
+    client: proforma.client,
+    billing_address: proforma.billing_address || proforma.client?.address,
+    shipping_address: proforma.shipping_address || proforma.client?.shipping_address,
+    po_no: proforma.po_number,
+    po_date: proforma.po_date,
+    valid_till: proforma.valid_till,
+    reference: proforma.reference,
+  };
 }
 
 export async function downloadProformaPdf(

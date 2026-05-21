@@ -5,7 +5,7 @@ import { useAuth } from '../App';
 
 import { PortraitTemplate } from '../templates/PortraitTemplate';
 
-const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan'];
+const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan', 'Credit Note', 'Debit Note'];
 const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
@@ -466,6 +466,114 @@ export default function TemplateSettings() {
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'vertical' }
       }
+    },
+    {
+      template_name: 'Vertical Template (Proforma Invoice)',
+      template_code: 'PI_VERTICAL',
+      document_type: 'Proforma Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
+      }
+    },
+    {
+      template_name: 'Vertical Template (Delivery Challan)',
+      template_code: 'DC_VERTICAL',
+      document_type: 'Delivery Challan',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
+      }
+    },
+    {
+      template_name: 'Vertical Template (Invoice)',
+      template_code: 'INV_VERTICAL',
+      document_type: 'Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
+      }
+    },
+    {
+      template_name: 'Vertical Template (Tools Delivery Challan)',
+      template_code: 'TDC_VERTICAL',
+      document_type: 'Tools Delivery Challan',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
+      }
+    },
+    {
+      template_name: 'Vertical Template (Credit Note)',
+      template_code: 'CN_VERTICAL',
+      document_type: 'Credit Note',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
+      }
+    },
+    {
+      template_name: 'Vertical Template (Debit Note)',
+      template_code: 'DN_VERTICAL',
+      document_type: 'Debit Note',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
+      }
     }
   ];
 
@@ -556,15 +664,16 @@ export default function TemplateSettings() {
     setShowForm(true);
   };
 
-  const handleNew = (preset: any = null) => {
-    const normalizedPreset = typeof preset === 'string' ? preset : null
+const handleNew = (preset: any = null) => {
+    const normalizedPreset = typeof preset === 'string' ? preset : null;
     setSelectedTemplate(null);
     
     const isGridMinimal = normalizedPreset === 'grid_minimal';
+    const isVertical = normalizedPreset === 'vertical';
     
     const defaultData = {
-      template_name: isGridMinimal ? 'Grid Minimal Template' : normalizedPreset === 'Portrait' ? 'Professional Portrait' : '',
-      template_code: isGridMinimal ? 'GRID_MIN' : '',
+      template_name: isGridMinimal ? 'Grid Minimal Template' : isVertical ? 'Vertical Template' : '',
+      template_code: isGridMinimal ? 'GRID_MIN' : isVertical ? 'VERTICAL_NEW' : '',
       document_type: 'Quotation',
       is_default: false,
       page_size: 'A4',
@@ -607,11 +716,7 @@ export default function TemplateSettings() {
           rate_after_discount: 'Rate/Unit'
         },
         print: {
-          style: isGridMinimal ? 'grid_minimal' : 'default',
-          gridMinimal: {
-            titleOverride: isGridMinimal ? 'QUOTATION' : '',
-            columns: { hsn: true, make: true, unit: true, discPct: true, gst: true }
-          }
+          style: isGridMinimal ? 'grid_minimal' : isVertical ? 'vertical' : 'default'
         }
       }
     };
@@ -1068,7 +1173,10 @@ export default function TemplateSettings() {
       'Sales Order': '📋',
       'Proforma Invoice': '📑',
       'Delivery Challan': '🚚',
-      'Invoice': '💰'
+      'Invoice': '💰',
+      'Tools Delivery Challan': '🔧',
+      'Credit Note': '📗',
+      'Debit Note': '📘'
     };
     return icons[type] || '📄';
   };
@@ -1409,6 +1517,13 @@ export default function TemplateSettings() {
           </button>
           <button 
             className="btn btn-secondary" 
+            onClick={() => handleNew('vertical')}
+            style={{ borderColor: '#1e3a8a', color: '#1e3a8a' }}
+          >
+            + Vertical
+          </button>
+          <button 
+            className="btn btn-secondary" 
             onClick={() => handleNew('grid_minimal')}
             style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
           >
@@ -1432,7 +1547,8 @@ export default function TemplateSettings() {
           { value: 'all', label: 'All' },
           { value: 'default', label: 'Default' },
           { value: 'grid_minimal', label: 'Grid Minimal' },
-          { value: 'saas', label: 'SAAS Style' },
+          { value: 'saas', label: 'SAAS' },
+          { value: 'pro_grid', label: 'Pro Grid' },
           { value: 'vertical', label: 'Vertical' },
         ].map(filter => (
           <button

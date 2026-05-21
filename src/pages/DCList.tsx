@@ -274,6 +274,68 @@ export default function DCList() {
         return;
       }
 
+      // Vertical Template
+      if (template.column_settings?.print?.style === 'vertical') {
+        const { VerticalTemplate } = await import('../templates/VerticalTemplate');
+        const { createRoot } = await import('react-dom/client');
+        const { flushSync } = await import('react-dom');
+        const { htmlToPdf } = await import('../utils/htmlTemplateRenderer');
+
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.width = '210mm';
+        container.style.background = 'white';
+        document.body.appendChild(container);
+
+        const fontLink = document.createElement('link');
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap';
+        document.head.appendChild(fontLink);
+
+        const root = createRoot(container);
+        try {
+          const dcData = {
+            ...dcWithItems,
+            document_type: 'Delivery Challan',
+            items: (dcWithItems.items || []).map((item: any, idx: number) => ({
+              sno: idx + 1,
+              item: item.material_name || item.description,
+              description: item.description || '',
+              qty: item.quantity,
+              uom: item.unit || 'Nos',
+              rate: item.rate,
+              discount_percent: item.discount_percent || 0,
+              rate_after_discount: item.rate,
+              base_amount: item.amount,
+              tax_percent: item.tax_percent || 0,
+              tax_amount: 0,
+              line_total: item.amount,
+              hsn_code: item.hsn_code || '',
+              make: item.brand || '',
+              item_code: item.material_code || '',
+            })),
+            client: { name: challan.client_name, address: challan.site_address, gstin: challan.gstin },
+            billing_address: challan.billing_address || challan.site_address,
+            shipping_address: challan.shipping_address || challan.site_address,
+            grand_total: (dcWithItems.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0),
+            vehicle_number: challan.vehicle_number,
+            driver_name: challan.driver_name,
+          };
+          flushSync(() => {
+            root.render(<VerticalTemplate data={dcData} organisation={organisation} templateConfig={template.column_settings} />);
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          await htmlToPdf(container, `${challan.dc_number}.pdf`);
+        } finally {
+          root.unmount();
+          document.body.removeChild(container);
+        }
+        setShowPrintMenu(false);
+        return;
+      }
+
       const isLandscape = template.orientation === 'Landscape';
       const { default: jsPDF } = await import('jspdf');
       const autoTableModule = await import('jspdf-autotable');

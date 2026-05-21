@@ -1,16 +1,21 @@
 import { pdf } from '@react-pdf/renderer';
+import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { supabase } from '../supabase';
 import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
 import { getPrintConfig } from '../pdf/print-config';
+import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import {
   getInvoiceById,
   loadInvoiceSource,
   type InvoiceTemplateRecord,
   type InvoiceWithRelations,
 } from './api';
-import { InvoicePdfDocument } from './pdf-document';
+import { InvoicePdfDocument } from './invoice-pdf-document';
 import { ProGridInvoiceDocument } from './pro-grid-invoice-document';
 import { GridMinimalInvoiceDocument } from './grid-minimal-invoice-document';
+import { VerticalTemplate } from '../templates/VerticalTemplate';
 import type {
   InvoicePdfCompany,
   InvoicePdfData,
@@ -255,6 +260,13 @@ async function renderInvoicePdfBlob(
   const orgId = options.organisationId || data.invoice.organisation_id;
   const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice', orgId);
   ensurePdfFontsRegistered();
+  
+  const printStyle = invoiceTemplateConfig?.column_settings?.print?.style;
+  
+  if (printStyle === 'vertical') {
+    return await renderVerticalInvoicePdf(data, orgId, invoiceTemplateConfig);
+  }
+  
   const blob = await pdf(resolveInvoicePdfElement(data, invoiceTemplateConfig)).toBlob();
 
   return {
@@ -262,6 +274,77 @@ async function renderInvoicePdfBlob(
     data,
     fileName: getDownloadFilename(data.invoice, options.fileName),
   };
+}
+
+async function renderVerticalInvoicePdf(
+  data: InvoicePdfData,
+  orgId: string,
+  templateConfig: DocumentTemplateRecord | null
+): Promise<{ blob: Blob; data: InvoicePdfData; fileName: string }> {
+  const container = document.createElement('div');
+  container.id = 'pdf-capture-container';
+  container.style.position = 'fixed';
+  container.style.left = '0';
+  container.style.top = '0';
+  container.style.width = '210mm';
+  container.style.background = 'white';
+  container.style.zIndex = '-9999';
+  container.style.pointerEvents = 'none';
+
+  const fontLink = document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap';
+  document.head.appendChild(fontLink);
+
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+  try {
+    const invoiceData = {
+      ...data.invoice,
+      document_type: 'Invoice',
+      items: (data.invoice.materials || []).map((m: any, idx: number) => ({
+        sno: idx + 1,
+        item: m.product_name,
+        description: m.notes || '',
+        qty: m.qty_supplied || m.qty_used,
+        uom: 'Nos',
+        rate: m.rate,
+        discount_percent: 0,
+        rate_after_discount: m.rate,
+        base_amount: (m.qty_supplied || m.qty_used) * m.rate,
+        tax_percent: data.invoice.gst_rate || 18,
+        tax_amount: ((m.qty_supplied || m.qty_used) * m.rate * (data.invoice.gst_rate || 18)) / 100,
+        line_total: ((m.qty_supplied || m.qty_used) * m.rate * (100 + (data.invoice.gst_rate || 18))) / 100,
+        hsn_code: m.hsn_code || '',
+        make: m.brand || '',
+      })),
+      client: data.invoice.client,
+      billing_address: data.invoice.billing_address,
+      shipping_address: data.invoice.shipping_address,
+      subtotal: data.invoice.subtotal,
+      total_tax: data.invoice.total_tax || data.invoice.igst,
+      round_off: data.invoice.round_off || 0,
+      grand_total: data.invoice.total,
+      po_no: data.source?.header?.po_number || data.invoice.po_number,
+      po_date: data.source?.header?.po_date,
+      eway_bill: data.invoice.eway_bill_number,
+      reference: data.invoice.reference,
+      terms_conditions: data.invoice.terms,
+    };
+
+    flushSync(() => {
+      root.render(<VerticalTemplate data={invoiceData} organisation={data.company} templateConfig={templateConfig?.column_settings} />);
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const blob = await htmlToPdf(container, `${getInvoiceDisplayNumber(data.invoice)}.pdf`);
+    
+    return { blob, data, fileName: `${getInvoiceDisplayNumber(data.invoice)}.pdf` };
+  } finally {
+    root.unmount();
+    document.body.removeChild(container);
+  }
 }
 
 export async function downloadInvoicePDF(

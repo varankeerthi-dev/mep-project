@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, FileText, Printer, Download, ChevronDown, Eye, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, Printer, Download, ChevronDown, ChevronRight, ChevronLeft, Eye, Loader2, X } from 'lucide-react';
 import { useCreditNotes, useDeleteCreditNote } from '../../credit-notes/hooks';
 import { CNStatusBadge } from '../../credit-notes/components/StatusBadge';
 import { formatCurrency, formatDate } from '../../credit-notes/ui-utils';
@@ -8,6 +8,11 @@ import { CN_TYPE_LABELS } from '../../credit-notes/schemas';
 import type { CreditNote } from '../../credit-notes/types';
 import { useAuth } from '../../App';
 import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
+import { supabase } from '../../supabase';
+import { VerticalTemplate } from '../../templates/VerticalTemplate';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { htmlToPdf } from '../../utils/htmlTemplateRenderer';
 
 export function CreditNoteViewPage() {
   const { organisation } = useAuth();
@@ -24,7 +29,22 @@ export function CreditNoteViewPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [printMenuView, setPrintMenuView] = useState<'main' | 'templates'>('main');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [cnTemplates, setCnTemplates] = useState<any[]>([]);
   const printMenuRef = useRef<HTMLDivElement>(null);
+
+  // Load templates
+  useEffect(() => {
+    if (!organisation?.id) return;
+    supabase
+      .from('document_templates')
+      .select('*')
+      .eq('document_type', 'Credit Note')
+      .then(({ data }) => {
+        if (data) setCnTemplates(data);
+      });
+  }, [organisation?.id]);
 
   const selectedCN = creditNotes.find(cn => cn.id === viewId) ?? null;
 
@@ -127,6 +147,182 @@ export function CreditNoteViewPage() {
     return sig?.name ?? '';
   }, [selectedCN, organisation]);
 
+  const handleSelectTemplate = useCallback((templateId: string) => {
+    setSelectedTemplateId(templateId);
+    setPrintMenuView('main');
+  }, []);
+
+  const getSelectedTemplate = useCallback(async () => {
+    if (selectedTemplateId) {
+      const { data } = await supabase.from('document_templates').select('*').eq('id', selectedTemplateId).single();
+      return data;
+    }
+    if (selectedCN?.template_id) {
+      const { data } = await supabase.from('document_templates').select('*').eq('id', selectedCN.template_id).single();
+      return data;
+    }
+    const { data } = await supabase.from('document_templates').select('*').eq('document_type', 'Credit Note').eq('is_default', true).single();
+    return data;
+  }, [selectedTemplateId, selectedCN]);
+
+  const handlePreview = useCallback(async () => {
+    if (!selectedCN) return;
+    setPreviewModalOpen(true);
+    setPreviewLoading(true);
+    try {
+      const template = await getSelectedTemplate();
+      if (template?.column_settings?.print?.style === 'vertical') {
+        await renderVerticalCNPreview(selectedCN, template);
+      } else {
+        const pdfData = buildPdfData(selectedCN);
+        const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+        const blob = pdfDoc.output('blob');
+        const url = URL.createObjectURL(blob);
+        setPreviewPdfUrl(url);
+      }
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [selectedCN, buildPdfData, getSelectedTemplate]);
+
+  const handleDownload = useCallback(async () => {
+    if (!selectedCN) return;
+    const template = await getSelectedTemplate();
+    if (template?.column_settings?.print?.style === 'vertical') {
+      await downloadVerticalCNPdf(selectedCN, template);
+    } else {
+      const pdfData = buildPdfData(selectedCN);
+      const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+      pdfDoc.save(`${selectedCN.cn_number}.pdf`);
+    }
+  }, [selectedCN, buildPdfData, getSelectedTemplate]);
+
+  const handlePrint = useCallback(async () => {
+    if (!selectedCN) return;
+    const template = await getSelectedTemplate();
+    if (template?.column_settings?.print?.style === 'vertical') {
+      const blob = await downloadVerticalCNBlob(selectedCN, template);
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try { iframe.contentWindow?.print(); } catch { window.print(); }
+        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
+      };
+    } else {
+      const pdfData = buildPdfData(selectedCN);
+      const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+      const blob = pdfDoc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try { iframe.contentWindow?.print(); } catch { window.print(); }
+        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
+      };
+    }
+  }, [selectedCN, buildPdfData, getSelectedTemplate]);
+
+  const renderVerticalCNPreview = async (cn: CreditNote, template: any) => {
+    const container = document.createElement('div');
+    container.id = 'pdf-capture-container';
+    container.style.position = 'fixed';
+    container.style.left = '0';
+    container.style.top = '0';
+    container.style.width = '210mm';
+    container.style.background = 'white';
+    container.style.zIndex = '-9999';
+    container.style.pointerEvents = 'none';
+
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap';
+    document.head.appendChild(fontLink);
+
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    try {
+      const cnData = buildCNVerticalData(cn);
+      flushSync(() => {
+        root.render(<VerticalTemplate data={cnData} organisation={organisation} templateConfig={template.column_settings} />);
+      });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const url = URL.createObjectURL(await htmlToPdf(container, `${cn.cn_number}.pdf`));
+      setPreviewPdfUrl(url);
+    } finally {
+      root.unmount();
+      document.body.removeChild(container);
+    }
+  };
+
+  const downloadVerticalCNBlob = async (cn: CreditNote, template: any): Promise<Blob> => {
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '210mm';
+    container.style.background = 'white';
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    try {
+      const cnData = buildCNVerticalData(cn);
+      flushSync(() => {
+        root.render(<VerticalTemplate data={cnData} organisation={organisation} templateConfig={template.column_settings} />);
+      });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return await htmlToPdf(container, `${cn.cn_number}.pdf`);
+    } finally {
+      root.unmount();
+      document.body.removeChild(container);
+    }
+  };
+
+  const downloadVerticalCNPdf = async (cn: CreditNote, template: any) => {
+    const blob = await downloadVerticalCNBlob(cn, template);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${cn.cn_number}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const buildCNVerticalData = (cn: CreditNote) => ({
+    ...cn,
+    document_type: 'Credit Note',
+    items: (cn.items || []).map((item: any, idx: number) => ({
+      sno: idx + 1,
+      item: item.description,
+      description: '',
+      qty: item.quantity,
+      uom: 'Nos',
+      rate: item.rate,
+      discount_percent: 0,
+      rate_after_discount: item.rate,
+      base_amount: item.total_amount,
+      tax_percent: cn.gst_rate || 18,
+      tax_amount: item.tax_amount || 0,
+      line_total: item.total_amount,
+      hsn_code: item.hsn_code || '',
+      make: '',
+    })),
+    subtotal: cn.taxable_amount,
+    total_tax: cn.igst_amount || (cn.cgst_amount + cn.sgst_amount),
+    round_off: 0,
+    grand_total: cn.total_amount,
+    client: cn.client,
+    billing_address: cn.client?.billing_address || cn.client?.address,
+    shipping_address: cn.client?.shipping_address,
+  });
+
   if (isLoading) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#a3a3a3' }}>Loading...</div>;
   }
@@ -216,31 +412,64 @@ export function CreditNoteViewPage() {
 
               <div className="relative" ref={printMenuRef}>
                 <button
-                  onClick={() => setPrintMenuOpen(!printMenuOpen)}
+                  onClick={() => { setPrintMenuOpen(!printMenuOpen); setPrintMenuView('main'); }}
                   className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                 >
                   <FileText className="w-[14px] h-[14px]" /> Print Template <ChevronDown className="w-[12px] h-[12px]" />
                 </button>
                 {printMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
-                    <button
-                      onClick={() => { handlePreview(); setPrintMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded"
-                    >
-                      <Eye className="w-[14px] h-[14px]" /> Preview PDF
-                    </button>
-                    <button
-                      onClick={() => { handleDownload(); setPrintMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded"
-                    >
-                      <Download className="w-[14px] h-[14px]" /> Download PDF
-                    </button>
-                    <button
-                      onClick={() => { handlePrint(); setPrintMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded"
-                    >
-                      <Printer className="w-[14px] h-[14px]" /> Print PDF
-                    </button>
+                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
+                    {printMenuView === 'main' ? (
+                      <>
+                        <button
+                          onClick={() => { handlePreview(); setPrintMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50 rounded"
+                        >
+                          <Eye className="w-4 h-4 text-sky-500" /> Preview in New Tab
+                        </button>
+                        <button
+                          onClick={() => { handleDownload(); setPrintMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50 rounded"
+                        >
+                          <Download className="w-4 h-4 text-sky-500" /> Download PDF
+                        </button>
+                        <div className="h-px bg-zinc-100 my-1" />
+                        <button
+                          onClick={() => setPrintMenuView('templates')}
+                          className="flex items-center justify-between w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50 rounded"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-4 h-4 text-sky-500" />
+                            Choose Template
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-zinc-400" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 p-2 mb-1 border-b border-zinc-100">
+                          <button
+                            onClick={() => setPrintMenuView('main')}
+                            className="p-1 hover:bg-zinc-100 rounded transition-colors"
+                          >
+                            <ChevronLeft className="w-4 h-4 text-zinc-500" />
+                          </button>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto">
+                          {cnTemplates.map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => handleSelectTemplate(t.id)}
+                              className={`block w-full text-left text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'}`}
+                              style={{ padding: '10px 12px' }}
+                            >
+                              {t.template_name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
