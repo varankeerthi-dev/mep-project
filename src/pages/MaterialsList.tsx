@@ -263,6 +263,10 @@ function ItemsTab() {
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
   const [clientMappings, setClientMappings] = useState([]);
+  const [clientPricing, setClientPricing] = useState([]);
+  const [clientMappingTab, setClientMappingTab] = useState('code');
+  const [pricingHistory, setPricingHistory] = useState([]);
+  const [showPricingHistory, setShowPricingHistory] = useState(false);
   
   // Excel Edit Mode state
   const [excelEditMode, setExcelEditMode] = useState(false);
@@ -348,6 +352,28 @@ function ItemsTab() {
     } catch (error) {
       console.log('client mappings load error', error);
       setClientMappings([]);
+    }
+  }, []);
+
+  const loadClientPricing = useCallback(async (itemId: string) => {
+    if (!itemId) return;
+    try {
+      const { data } = await supabase.from('material_client_pricing').select('*, clients(client_name)').eq('material_id', itemId).order('created_at', { ascending: true });
+      setClientPricing(data || []);
+    } catch (error) {
+      console.log('client pricing load error', error);
+      setClientPricing([]);
+    }
+  }, []);
+
+  const loadPricingHistory = useCallback(async (itemId: string) => {
+    if (!itemId) return;
+    try {
+      const { data } = await supabase.from('material_client_pricing_history').select('*').eq('material_id', itemId).order('changed_at', { ascending: false }).limit(50);
+      setPricingHistory(data || []);
+    } catch (error) {
+      console.log('pricing history load error', error);
+      setPricingHistory([]);
     }
   }, []);
 
@@ -1078,6 +1104,27 @@ function ItemsTab() {
         if (mappingError) throw mappingError;
       }
 
+      // Save Client Pricing (ARC/Pricing)
+      await supabase.from('material_client_pricing').delete().eq('material_id', itemId);
+      const pricingToInsert = clientPricing
+        .filter(p => p.client_id)
+        .map(p => ({
+          material_id: itemId,
+          client_id: p.client_id,
+          pricing_type: p.pricing_type || 'Fixed ARC',
+          rate: p.rate ? parseFloat(p.rate) : null,
+          valid_from: p.valid_from || null,
+          valid_to: p.valid_to || null,
+          status: p.status || 'active',
+          organisation_id: organisation?.id,
+          updated_at: nowIso
+        }));
+
+      if (pricingToInsert.length > 0) {
+        const { error: pricingError } = await supabase.from('material_client_pricing').insert(pricingToInsert);
+        if (pricingError) throw pricingError;
+      }
+
       const changeLog = isEditing ? buildItemChangeLog(originalMaterial, materialData) : ['Item created'];
       const auditEntry = {
         id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1147,6 +1194,7 @@ function ItemsTab() {
     }
     setWarehouseStock(defaultWStock);
     setClientMappings([]);
+    setClientPricing([]);
   };
 
   const editMaterial = useCallback(async (material) => {
@@ -1192,6 +1240,7 @@ function ItemsTab() {
     setShowForm(true);
     loadVariantPricing(material.id);
     loadClientMappings(material.id);
+    loadClientPricing(material.id);
   }, [warehouses, stock]);
 
   const handleUsesVariantChange = async (checked) => {
@@ -1240,6 +1289,21 @@ function ItemsTab() {
 
   const handleClientMappingChange = (id, field, value) => {
     setClientMappings(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const addClientPricingRow = () => {
+    setClientPricing(prev => [
+      ...prev,
+      { id: 'temp-' + Date.now(), client_id: '', pricing_type: 'Fixed ARC', rate: '', valid_from: '', valid_to: '', status: 'active' }
+    ]);
+  };
+
+  const removeClientPricingRow = (id) => {
+    setClientPricing(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleClientPricingChange = (id, field, value) => {
+    setClientPricing(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const deleteMaterial = async (id) => {
@@ -2380,75 +2444,271 @@ function ItemsTab() {
               <div className="item-form-section">
                 <div className="item-form-section-header">
                   <div>
-                    <h4 className="item-form-section-title">Client Specific Mappings (Client Codes)</h4>
-                    <div className="item-form-section-hint">Map your item to client part numbers/descriptions</div>
+                    <h4 className="item-form-section-title">Client Mapping</h4>
+                    <div className="item-form-section-hint">Map client codes & pricing</div>
                   </div>
-                  <button type="button" className="btn btn-sm btn-secondary" onClick={addClientMappingRow}>+ Add Row</button>
                 </div>
-                {clientMappings.length > 0 && (
-                  <table className="table" style={{ fontSize: '12px' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '25%' }}>Client</th>
-                        <th style={{ width: '25%' }}>Client Part No</th>
-                        <th style={{ width: '40%' }}>Client Description</th>
-                        <th style={{ width: '10%' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {clientMappings.map((mapping) => (
-                        <tr key={mapping.id}>
-                          <td>
-                            <select
-                              className="form-select"
-                              value={mapping.client_id}
-                              onChange={(e) => handleClientMappingChange(mapping.id, 'client_id', e.target.value)}
-                              style={{ padding: '4px 8px', height: '32px' }}
-                            >
-                              <option value="">Select Client</option>
-                              {clients.map(c => (
-                                <option key={c.id} value={c.id}>{c.client_name}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={mapping.client_part_no}
-                              onChange={(e) => handleClientMappingChange(mapping.id, 'client_part_no', e.target.value)}
-                              placeholder="e.g. PART-001"
-                              style={{ padding: '4px 8px', height: '32px' }}
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={mapping.client_description}
-                              onChange={(e) => handleClientMappingChange(mapping.id, 'client_description', e.target.value)}
-                              placeholder="e.g. Specialized Valve for XYZ"
-                              style={{ padding: '4px 8px', height: '32px' }}
-                            />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-secondary"
-                              onClick={() => removeClientMappingRow(mapping.id)}
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Sub-tabs */}
+                <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderBottom: '2px solid #e5e7eb' }}>
+                  <button
+                    type="button"
+                    onClick={() => setClientMappingTab('code')}
+                    style={{
+                      padding: '8px 20px',
+                      fontSize: '13px',
+                      fontWeight: clientMappingTab === 'code' ? 600 : 400,
+                      color: clientMappingTab === 'code' ? '#2563eb' : '#6b7280',
+                      background: clientMappingTab === 'code' ? '#fff' : 'transparent',
+                      border: 'none',
+                      borderBottom: clientMappingTab === 'code' ? '2px solid #2563eb' : '2px solid transparent',
+                      cursor: 'pointer',
+                      marginBottom: '-2px',
+                    }}
+                  >
+                    Client Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClientMappingTab('pricing')}
+                    style={{
+                      padding: '8px 20px',
+                      fontSize: '13px',
+                      fontWeight: clientMappingTab === 'pricing' ? 600 : 400,
+                      color: clientMappingTab === 'pricing' ? '#2563eb' : '#6b7280',
+                      background: clientMappingTab === 'pricing' ? '#fff' : 'transparent',
+                      border: 'none',
+                      borderBottom: clientMappingTab === 'pricing' ? '2px solid #2563eb' : '2px solid transparent',
+                      cursor: 'pointer',
+                      marginBottom: '-2px',
+                    }}
+                  >
+                    ARC/Pricing
+                  </button>
+                </div>
+
+                {/* Client Code Tab */}
+                {clientMappingTab === 'code' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={addClientMappingRow}>+ Add Row</button>
+                    </div>
+                    {clientMappings.length > 0 && (
+                      <table className="table" style={{ fontSize: '12px' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: '25%' }}>Client</th>
+                            <th style={{ width: '25%' }}>Client Part No</th>
+                            <th style={{ width: '40%' }}>Client Description</th>
+                            <th style={{ width: '10%' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {clientMappings.map((mapping) => (
+                            <tr key={mapping.id}>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  value={mapping.client_id}
+                                  onChange={(e) => handleClientMappingChange(mapping.id, 'client_id', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px' }}
+                                >
+                                  <option value="">Select Client</option>
+                                  {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.client_name}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={mapping.client_part_no}
+                                  onChange={(e) => handleClientMappingChange(mapping.id, 'client_part_no', e.target.value)}
+                                  placeholder="e.g. PART-001"
+                                  style={{ padding: '4px 8px', height: '32px' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={mapping.client_description}
+                                  onChange={(e) => handleClientMappingChange(mapping.id, 'client_description', e.target.value)}
+                                  placeholder="e.g. Specialized Valve for XYZ"
+                                  style={{ padding: '4px 8px', height: '32px' }}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => removeClientMappingRow(mapping.id)}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {clientMappings.length === 0 && (
+                      <div style={{ padding: '12px', textAlign: 'center', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db', color: '#6b7280', fontSize: '12px' }}>
+                        No client codes added. Click "+ Add Row" to map this item to a client's part number.
+                      </div>
+                    )}
+                  </>
                 )}
-                {clientMappings.length === 0 && (
-                  <div style={{ padding: '12px', textAlign: 'center', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db', color: '#6b7280', fontSize: '12px' }}>
-                    No client mappings added. Click "+ Add Row" to associate this item with a client's part number.
-                  </div>
+
+                {/* ARC/Pricing Tab */}
+                {clientMappingTab === 'pricing' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px', gap: '8px' }}>
+                      {editingMaterial && (
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => { loadPricingHistory(editingMaterial.id); setShowPricingHistory(!showPricingHistory); }} style={{ fontSize: '12px' }}>
+                          {showPricingHistory ? 'Hide History' : 'Price History'}
+                        </button>
+                      )}
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={addClientPricingRow}>+ Add Row</button>
+                    </div>
+                    {clientPricing.length > 0 && (
+                      <table className="table" style={{ fontSize: '12px' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: '20%' }}>Client</th>
+                            <th style={{ width: '18%' }}>Pricing Type</th>
+                            <th style={{ width: '12%' }}>Rate</th>
+                            <th style={{ width: '15%' }}>Valid From</th>
+                            <th style={{ width: '15%' }}>Valid To</th>
+                            <th style={{ width: '12%' }}>Status</th>
+                            <th style={{ width: '8%' }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {clientPricing.map((row) => (
+                            <tr key={row.id}>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  value={row.client_id || ''}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'client_id', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                >
+                                  <option value="">Select Client</option>
+                                  {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.client_name}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  value={row.pricing_type || 'Fixed ARC'}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'pricing_type', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                >
+                                  <option value="Fixed ARC">Fixed ARC</option>
+                                  <option value="Variable ARC">Variable ARC</option>
+                                  <option value="Discount">Discount</option>
+                                  <option value="Special Price">Special Price</option>
+                                  <option value="Lumpsum">Lumpsum</option>
+                                </select>
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={row.rate ?? ''}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'rate', e.target.value)}
+                                  placeholder="0.00"
+                                  step="0.01"
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="date"
+                                  className="form-input"
+                                  value={row.valid_from || ''}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'valid_from', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="date"
+                                  className="form-input"
+                                  value={row.valid_to || ''}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'valid_to', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                />
+                              </td>
+                              <td>
+                                <select
+                                  className="form-select"
+                                  value={row.status || 'active'}
+                                  onChange={(e) => handleClientPricingChange(row.id, 'status', e.target.value)}
+                                  style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
+                                >
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive</option>
+                                  <option value="expired">Expired</option>
+                                </select>
+                              </td>
+                              <td>
+                                <button type="button" className="btn btn-sm btn-secondary" onClick={() => removeClientPricingRow(row.id)} style={{ fontSize: '11px' }}>
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {clientPricing.length === 0 && (
+                      <div style={{ padding: '12px', textAlign: 'center', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db', color: '#6b7280', fontSize: '12px' }}>
+                        No ARC/pricing entries. Click "+ Add Row" to set client-specific pricing.
+                      </div>
+                    )}
+                    {/* Price History */}
+                    {showPricingHistory && pricingHistory.length > 0 && (
+                      <div style={{ marginTop: '16px' }}>
+                        <h5 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#374151' }}>Price Change History</h5>
+                        <table className="table" style={{ fontSize: '11px' }}>
+                          <thead>
+                            <tr>
+                              <th>Date</th>
+                              <th>Type</th>
+                              <th>Old Rate</th>
+                              <th>New Rate</th>
+                              <th>Valid From</th>
+                              <th>Valid To</th>
+                              <th>Status</th>
+                              <th>Change</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pricingHistory.map((h) => {
+                              const changeType = h.change_type || 'created';
+                              const changeColor = changeType === 'created' ? '#22c55e' : changeType === 'updated' ? '#f59e0b' : '#ef4444';
+                              return (
+                                <tr key={h.id}>
+                                  <td>{h.changed_at ? new Date(h.changed_at).toLocaleDateString() : '—'}</td>
+                                  <td>{h.pricing_type || '—'}</td>
+                                  <td>{h.old_rate != null ? `₹${Number(h.old_rate).toLocaleString()}` : '—'}</td>
+                                  <td style={{ fontWeight: 600 }}>{h.new_rate != null ? `₹${Number(h.new_rate).toLocaleString()}` : '—'}</td>
+                                  <td>{h.valid_from || '—'}</td>
+                                  <td>{h.valid_to || '—'}</td>
+                                  <td>{h.status || '—'}</td>
+                                  <td><span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, color: changeColor, background: changeColor + '15' }}>{changeType.toUpperCase()}</span></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
