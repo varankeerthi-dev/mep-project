@@ -62,51 +62,42 @@ function sanitizeColors(element: HTMLElement) {
 export async function htmlToPdf(
   element: HTMLElement,
   filename: string = 'document.pdf'
-): Promise<void> {
+): Promise<Blob> {
   try {
-    // Sanitize modern CSS colors that html2canvas can't parse
     sanitizeColors(element);
     
-    // Convert HTML to canvas with higher scale for better quality
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
-      logging: true,
+      logging: false,
       backgroundColor: '#ffffff',
       scrollY: -window.scrollY,
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight
     });
 
-    const imgData = canvas.toDataURL('image/png');
-    
-    // Calculate PDF dimensions (A4)
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    // Calculate image dimensions to fit PDF
     const imgWidth = pdfWidth;
     const imgHeight = (canvas.height * pdfWidth) / canvas.width;
     
-    // If content spans multiple pages
     let heightLeft = imgHeight;
     let position = 0;
     
-    // Add first page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+    pdf.addImage(canvas, 'PNG', 0, position, imgWidth, imgHeight);
     heightLeft -= pdfHeight;
     
-    // Add subsequent pages if needed
     while (heightLeft > 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      pdf.addImage(canvas, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
     }
     
-    pdf.save(filename);
+    return pdf.output('blob');
   } catch (error) {
     console.error('Error converting HTML to PDF:', error);
     throw new Error('Failed to convert HTML to PDF');
@@ -121,28 +112,26 @@ export async function renderTemplateToPdf(
   htmlTemplate: string,
   data: any,
   filename: string = 'document.pdf'
-): Promise<void> {
+): Promise<Blob> {
   try {
-    // Render the template with data
     const renderedHtml = renderTemplate(htmlTemplate, data);
     
-    // Create a temporary container
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.left = '-9999px';
     container.style.top = '0';
-    container.style.width = '210mm'; // A4 width
+    container.style.width = '210mm';
     container.style.padding = '20px';
     container.style.background = '#ffffff';
     container.innerHTML = renderedHtml;
     
     document.body.appendChild(container);
     
-    // Convert to PDF
-    await htmlToPdf(container, filename);
+    const blob = await htmlToPdf(container, filename);
     
-    // Clean up
     document.body.removeChild(container);
+    
+    return blob;
   } catch (error) {
     console.error('Error rendering template to PDF:', error);
     throw new Error('Failed to render template to PDF');

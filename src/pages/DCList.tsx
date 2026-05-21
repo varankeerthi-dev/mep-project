@@ -327,7 +327,15 @@ export default function DCList() {
             root.render(<VerticalTemplate data={dcData} organisation={organisation} templateConfig={template.column_settings} />);
           });
           await new Promise(resolve => setTimeout(resolve, 2000));
-          await htmlToPdf(container, `${challan.dc_number}.pdf`);
+          const blob = await htmlToPdf(container, `${challan.dc_number}.pdf`);
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${challan.dc_number}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
         } finally {
           root.unmount();
           document.body.removeChild(container);
