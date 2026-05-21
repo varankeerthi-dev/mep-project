@@ -423,8 +423,6 @@ export async function getInvoiceTemplates(organisationId?: string): Promise<Invo
     show_signature: template.show_signature,
   }));
 }
-  }));
-}
 
 async function resolveClientFromChallan(clientName: string, organisationId: string, fallbackState?: string | null): Promise<{
   clientId: string;
