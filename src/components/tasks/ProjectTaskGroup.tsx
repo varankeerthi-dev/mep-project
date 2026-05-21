@@ -28,7 +28,6 @@ interface ProjectTaskGroupProps {
   group: TaskGroup;
   viewColumns: Record<string, boolean>;
   columnWidths: Record<string, string>;
-  gridTemplate: string;
   onTaskClick: (task: ProjectTask) => void;
   onInlineEdit: (taskId: string, newName: string) => void;
   onAddTask: () => void;
@@ -41,7 +40,6 @@ export default function ProjectTaskGroup({
   group,
   viewColumns,
   columnWidths,
-  gridTemplate,
   onTaskClick,
   onInlineEdit,
   onAddTask,
@@ -108,46 +106,34 @@ export default function ProjectTaskGroup({
     return '#d1d5db';
   };
 
-  return (
-    <div style={{ borderBottom: '1px solid #f3f4f6' }}>
-      {/* Group Header */}
-      <div
-        style={{
-          background: '#fafafa',
-          cursor: 'pointer',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `40px 80px 1fr ${Object.entries(viewColumns).filter(([_, v]) => v).length > 2 ? '1fr'.repeat(Object.entries(viewColumns).filter(([_, v]) => v).length - 2) : ''}`,
-            gap: '1rem',
-            padding: '0.75rem 1rem',
-            alignItems: 'center',
-          }}
-          onClick={() => onToggleCollapse(group.id, !isCollapsed)}
-        >
-          {/* Collapse Toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {isCollapsed ? (
-              <ChevronRight size={16} style={{ color: '#9ca3af' }} />
-            ) : (
-              <ChevronDown size={16} style={{ color: '#9ca3af' }} />
-            )}
-          </div>
+  const visibleColumns = Object.entries(viewColumns).filter(([_, v]) => v);
+  const colSpan = visibleColumns.length + 1;
 
-          {/* Group Name & Count */}
+  return (
+    <>
+      {/* Group Header Row */}
+      <tr
+        className="ptl-group-row"
+        onClick={() => onToggleCollapse(group.id, !isCollapsed)}
+        style={{ cursor: 'pointer' }}
+      >
+        <td colSpan={colSpan} style={{ cursor: 'pointer' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Menu size={14} style={{ color: '#9ca3af' }} />
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#374151' }}>
+            {isCollapsed ? (
+              <ChevronRight size={16} style={{ color: '#64748b' }} />
+            ) : (
+              <ChevronDown size={16} style={{ color: '#64748b' }} />
+            )}
+            <Menu size={14} style={{ color: '#94a3b8' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
               {group.name}
             </span>
             <span
               style={{
-                fontSize: '0.6875rem',
-                fontWeight: 500,
-                color: '#6b7280',
-                background: '#e5e7eb',
+                fontSize: '0.625rem',
+                fontWeight: 600,
+                color: '#64748b',
+                background: '#e2e8f0',
                 padding: '0.125rem 0.5rem',
                 borderRadius: '9999px',
               }}
@@ -155,96 +141,51 @@ export default function ProjectTaskGroup({
               {group.task_count || 0}
             </span>
           </div>
+        </td>
+      </tr>
 
-          {/* Empty cells for alignment */}
-          <div></div>
-        </div>
-      </div>
-
-      {/* Tasks */}
+      {/* Task Rows */}
       {!isCollapsed && group.tasks && group.tasks.length > 0 && (
-        <div>
-          {group.tasks.map((task, index) => {
+        <>
+          {group.tasks.map((task) => {
             const daysToGo = getDaysToGo(task.due_date);
-            const visibleColumns = Object.entries(viewColumns).filter(([_, v]) => v);
 
             return (
-              <div
+              <tr
                 key={task.id}
-                style={{
-                  borderBottom: index === group.tasks!.length - 1 ? 'none' : '1px solid #f3f4f6',
-                  cursor: 'pointer',
-                }}
                 className="ptl-task-row"
                 onClick={(e) => {
-                  // Don't open drawer if clicking on name for inline edit
                   const target = e.target as HTMLElement;
                   if (target.closest('.ptl-inline-edit')) return;
                   onTaskClick(task);
                 }}
+                style={{ cursor: 'pointer' }}
               >
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `40px ${visibleColumns.map(([k]) => columnWidths[k] || '1fr').join(' ')}`,
-                    gap: '1rem',
-                    padding: '0.75rem 1rem',
-                    alignItems: 'center',
-                  }}
-                >
-                  {/* Checkbox + Drag Handle */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <div
-                      style={{
-                        width: '1rem',
-                        height: '1rem',
-                        borderRadius: '0.25rem',
-                        border: '2px solid #d1d5db',
-                        cursor: 'grab',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <GripVertical size={12} style={{ color: '#d1d5db' }} />
-                    </div>
+                {/* Drag Handle Column */}
+                <td style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <GripVertical size={14} style={{ color: '#cbd5e1', cursor: 'grab' }} />
                   </div>
+                </td>
 
-                  {/* Dynamic Columns */}
-                  {visibleColumns.map(([colKey]) => {
-                    const col = colKey as keyof TaskColumns;
+                {/* Dynamic Columns */}
+                {visibleColumns.map(([colKey]) => {
+                  const col = colKey as keyof TaskColumns;
 
-                    // Task No
-                    if (col === 'task_no') {
-                      return (
-                        <div
-                          key={col}
-                          style={{
-                            width: columnWidths[col] || '80px',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            color: '#6b7280',
-                            fontFamily: 'JetBrains Mono, monospace',
-                          }}
-                        >
-                          {task.task_no}
-                        </div>
-                      );
-                    }
+                  if (col === 'task_no') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 500, color: '#64748b', fontSize: '0.75rem' }}>
+                        {task.task_no}
+                      </td>
+                    );
+                  }
 
-                    // Title (with inline edit)
-                    if (col === 'title') {
-                      return (
-                        <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  if (col === 'title') {
+                    return (
+                      <td key={col} className="td-left" style={{ textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {task.color && (
-                            <div
-                              style={{
-                                width: '0.5rem',
-                                height: '0.5rem',
-                                borderRadius: '50%',
-                                background: task.color,
-                              }}
-                            />
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: task.color, flexShrink: 0 }} />
                           )}
                           {editingTaskId === task.id ? (
                             <div className="ptl-inline-edit" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -258,26 +199,21 @@ export default function ProjectTaskGroup({
                                 style={{
                                   width: '100%',
                                   padding: '0.25rem 0.5rem',
-                                  border: '1px solid #3b82f6',
+                                  border: '2px solid #3b82f6',
                                   borderRadius: '0.25rem',
                                   fontSize: '0.8125rem',
+                                  fontFamily: "'Inter', system-ui, sans-serif",
                                   outline: 'none',
                                 }}
                               />
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSaveEdit();
-                                }}
+                                onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
                                 style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer' }}
                               >
                                 <Check size={14} style={{ color: '#22c55e' }} />
                               </button>
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelEdit();
-                                }}
+                                onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
                                 style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer' }}
                               >
                                 <X size={14} style={{ color: '#ef4444' }} />
@@ -286,28 +222,27 @@ export default function ProjectTaskGroup({
                           ) : (
                             <span
                               style={{
+                                fontFamily: "'Inter', system-ui, sans-serif",
                                 fontSize: '0.8125rem',
                                 fontWeight: 500,
                                 color: '#1f2937',
                                 cursor: 'text',
                               }}
-                              onDoubleClick={(e) => {
-                                e.stopPropagation();
-                                handleStartEdit(task);
-                              }}
+                              onDoubleClick={(e) => { e.stopPropagation(); handleStartEdit(task); }}
                               title="Double-click to edit"
                             >
                               {task.title}
                             </span>
                           )}
                         </div>
-                      );
-                    }
+                      </td>
+                    );
+                  }
 
-                    // Assignees
-                    if (col === 'assignees') {
-                      return (
-                        <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  if (col === 'assignees') {
+                    return (
+                      <td key={col}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
                           {task.assignee_ids && task.assignee_ids.length > 0 ? (
                             <>
                               {task.assignee_ids.slice(0, 3).map((id: string, i: number) => (
@@ -321,7 +256,7 @@ export default function ProjectTaskGroup({
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '0.625rem',
+                                    fontSize: '0.5625rem',
                                     fontWeight: 600,
                                     color: 'white',
                                     marginLeft: i > 0 ? '-0.5rem' : 0,
@@ -339,39 +274,55 @@ export default function ProjectTaskGroup({
                               )}
                             </>
                           ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>—</span>
+                            <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>—</span>
                           )}
                         </div>
-                      );
-                    }
+                      </td>
+                    );
+                  }
 
-                    // Status
-                    if (col === 'status') {
-                      const statusColor = STATUS_COLORS[task.status as keyof typeof STATUS_COLORS];
-                      return (
-                        <div key={col}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '0.25rem 0.625rem',
-                              borderRadius: '9999px',
-                              fontSize: '0.6875rem',
-                              fontWeight: 500,
-                              background: statusColor?.bg || '#f1f5f9',
-                              color: statusColor?.text || '#64748b',
-                            }}
-                          >
-                            {task.status}
+                  if (col === 'status') {
+                    const sc = task.status ? STATUS_COLORS[task.status as keyof typeof STATUS_COLORS] : undefined;
+                    return (
+                      <td key={col}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.25rem 0.625rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.6875rem',
+                            fontWeight: 500,
+                            fontFamily: "'Inter', system-ui, sans-serif",
+                            background: sc?.bg || '#f1f5f9',
+                            color: sc?.text || '#64748b',
+                          }}
+                        >
+                          {task.status ? (STATUS_COLORS[task.status as keyof typeof STATUS_COLORS]?.label || task.status) : '—'}
+                        </span>
+                      </td>
+                    );
+                  }
+
+                  if (col === 'priority') {
+                    const pc = task.priority ? PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] : undefined;
+                    return (
+                      <td key={col}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
+                          {getPriorityIcon(task.priority)}
+                          <span style={{ fontSize: '0.75rem', fontWeight: 500, fontFamily: "'Inter', system-ui, sans-serif", color: pc?.text || '#6b7280' }}>
+                            {task.priority || '—'}
                           </span>
                         </div>
-                      );
-                    }
+                      </td>
+                    );
+                  }
 
-                    // Tags
-                    if (col === 'tags') {
-                      return (
-                        <div key={col} style={{ display: 'flex', gap: '0.25rem' }}>
+                  if (col === 'tags') {
+                    return (
+                      <td key={col}>
+                        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
                           {task.tags && task.tags.length > 0 ? (
                             task.tags.slice(0, 2).map((tag, i) => (
                               <span
@@ -381,6 +332,7 @@ export default function ProjectTaskGroup({
                                   borderRadius: '0.25rem',
                                   fontSize: '0.625rem',
                                   fontWeight: 500,
+                                  fontFamily: "'Inter', system-ui, sans-serif",
                                   background: '#f3f4f6',
                                   color: '#6b7280',
                                 }}
@@ -389,168 +341,180 @@ export default function ProjectTaskGroup({
                               </span>
                             ))
                           ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>—</span>
+                            <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>—</span>
                           )}
                         </div>
-                      );
-                    }
+                      </td>
+                    );
+                  }
 
-                    // Start Date
-                    if (col === 'start_date') {
-                      return (
-                        <div key={col} style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {task.start_date || '—'}
+                  if (col === 'start_date') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.start_date || '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'due_date') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          {task.due_date || '—'}
                         </div>
-                      );
-                    }
+                        {daysToGo !== null && (
+                          <div style={{ fontSize: '0.625rem', fontWeight: 500, marginTop: '0.125rem' }}>
+                            {daysToGo > 0 && (
+                              <span style={{ color: '#22c55e' }}>({daysToGo}d)</span>
+                            )}
+                            {daysToGo === 0 && (
+                              <span style={{ color: '#eab308' }}>(Today)</span>
+                            )}
+                            {daysToGo < 0 && (
+                              <span style={{ color: '#ef4444' }}>({Math.abs(daysToGo)}d late)</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  }
 
-                    // Due Date
-                    if (col === 'due_date') {
-                      return (
-                        <div key={col} style={{ fontSize: '0.75rem' }}>
-                          <span style={{ color: '#6b7280' }}>{task.due_date || '—'}</span>
-                          {daysToGo !== null && (
-                            <div style={{ fontSize: '0.6875rem', marginTop: '0.125rem' }}>
-                              {daysToGo > 0 && (
-                                <span style={{ color: '#22c55e' }}>({daysToGo}d to go)</span>
-                              )}
-                              {daysToGo === 0 && (
-                                <span style={{ color: '#eab308' }}>(Today)</span>
-                              )}
-                              {daysToGo < 0 && (
-                                <span style={{ color: '#ef4444' }}>({Math.abs(daysToGo)}d overdue)</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
+                  if (col === 'duration_days') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.duration_days ? `${task.duration_days}d` : '—'}
+                      </td>
+                    );
+                  }
 
-                    // Duration
-                    if (col === 'duration_days') {
-                      return (
-                        <div key={col} style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {task.duration_days ? `${task.duration_days}d` : '—'}
-                        </div>
-                      );
-                    }
-
-                    // Priority
-                    if (col === 'priority') {
-                      const priorityColor = PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS];
-                      return (
-                        <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          {getPriorityIcon(task.priority)}
-                          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: priorityColor?.text || '#6b7280' }}>
-                            {task.priority}
-                          </span>
-                        </div>
-                      );
-                    }
-
-                    // Completion Percentage
-                    if (col === 'completion_percentage') {
-                      return (
-                        <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ flex: 1, height: '0.375rem', background: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>
+                  if (col === 'completion_percentage') {
+                    return (
+                      <td key={col}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                          <div style={{ width: '60px', height: '6px', background: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>
                             <div
                               style={{
                                 width: `${task.completion_percentage}%`,
                                 height: '100%',
                                 background: getProgressColor(task.completion_percentage),
                                 borderRadius: '9999px',
+                                transition: 'width 0.3s ease',
                               }}
                             />
                           </div>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#374151', minWidth: '2rem' }}>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6875rem', fontWeight: 600, color: '#374151', minWidth: '2rem' }}>
                             {task.completion_percentage}%
                           </span>
                         </div>
-                      );
-                    }
+                      </td>
+                    );
+                  }
 
-                    return null;
-                  })}
-                </div>
-              </div>
+                  if (col === 'discipline') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.discipline || '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'location') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.location || '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'drawing_ref') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.drawing_ref || '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'wbs_code') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.wbs_code || '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'estimated_hours') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.estimated_hours ? `${task.estimated_hours}h` : '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'actual_hours') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#64748b' }}>
+                        {task.actual_hours ? `${task.actual_hours}h` : '—'}
+                      </td>
+                    );
+                  }
+
+                  return <td key={col}>—</td>;
+                })}
+              </tr>
             );
           })}
 
           {/* Add Task Row */}
-          <div
-            style={{
-              padding: '0.5rem 1rem',
-              borderTop: '1px solid #f3f4f6',
-              background: '#fafafa',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `40px 80px 1fr ${Object.entries(viewColumns).filter(([_, v]) => v).length > 2 ? '1fr'.repeat(Object.entries(viewColumns).filter(([_, v]) => v).length - 2) : ''}`,
-                gap: '1rem',
-                alignItems: 'center',
-              }}
-            >
-              <div></div>
-              <div></div>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <tr className="ptl-add-row">
+            <td colSpan={colSpan}>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddTask();
-                  }}
+                  onClick={(e) => { e.stopPropagation(); onAddTask(); }}
                   style={{
+                    fontFamily: "'Inter', system-ui, sans-serif",
                     fontSize: '0.75rem',
                     color: '#2563eb',
                     fontWeight: 500,
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    padding: 0,
+                    padding: '0.25rem 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
                   }}
                 >
+                  <Plus size={12} />
                   Add Task
                 </button>
-                <span style={{ color: '#d1d5db' }}>|</span>
-                <button
-                  style={{
-                    fontSize: '0.75rem',
-                    color: '#2563eb',
-                    fontWeight: 500,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  Add Task List
-                </button>
               </div>
-            </div>
-          </div>
-        </div>
+            </td>
+          </tr>
+        </>
       )}
 
       {/* Empty group */}
       {!isCollapsed && (!group.tasks || group.tasks.length === 0) && (
-        <div style={{ padding: '1rem 2rem', background: '#fafafa' }}>
-          <button
-            onClick={onAddTask}
-            style={{
-              fontSize: '0.75rem',
-              color: '#2563eb',
-              fontWeight: 500,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            + Add first task
-          </button>
-        </div>
+        <tr>
+          <td colSpan={colSpan} style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.75rem', fontFamily: "'Inter', system-ui, sans-serif" }}>
+            <button
+              onClick={onAddTask}
+              style={{
+                fontFamily: "'Inter', system-ui, sans-serif",
+                fontSize: '0.75rem',
+                color: '#2563eb',
+                fontWeight: 500,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.25rem 0',
+              }}
+            >
+              + Add first task
+            </button>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }

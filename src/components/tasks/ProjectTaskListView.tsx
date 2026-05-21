@@ -37,20 +37,16 @@ interface ProjectTaskListViewProps {
 }
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   
   .ptl-container {
-    font-family: 'DM Sans', system-ui, sans-serif;
-    background: #faf9f7;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #ffffff;
     overflow-x: hidden;
   }
   
   .ptl-content {
-    padding: 0.75rem 1rem;
-    overflow-x: auto;
-  }
-  
-  .ptl-content {
+    padding: 0;
     overflow-x: auto;
   }
   
@@ -76,18 +72,20 @@ const styles = `
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.875rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.8125rem;
     font-weight: 600;
     color: #1a1a1a;
-    padding: 0.25rem 0.5rem;
-    background: #f3f4f6;
+    padding: 0.375rem 0.625rem;
+    background: #f0f4ff;
+    border: 1px solid #dbeafe;
     border-radius: 0.375rem;
   }
   
   .ptl-project-dot {
     width: 0.5rem;
     height: 0.5rem;
-    background: #3b82f6;
+    background: #2563eb;
     border-radius: 50%;
   }
   
@@ -97,6 +95,7 @@ const styles = `
   }
   
   .ptl-nav-btn {
+    font-family: 'Inter', system-ui, sans-serif;
     padding: 0.5rem 0.75rem;
     border-radius: 0.375rem;
     font-size: 0.8125rem;
@@ -140,9 +139,9 @@ const styles = `
   }
   
   .ptl-toolbar {
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 0.375rem 1rem;
+    background: #fafbfc;
+    border-bottom: 1px solid #e0e4e8;
+    padding: 0.5rem 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -167,6 +166,7 @@ const styles = `
   }
   
   .ptl-filter-btn {
+    font-family: 'Inter', system-ui, sans-serif;
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
     font-size: 0.75rem;
@@ -188,10 +188,11 @@ const styles = `
   .ptl-divider {
     width: 1px;
     height: 1rem;
-    background: #e5e7eb;
+    background: #e0e4e8;
   }
   
   .ptl-group-btn {
+    font-family: 'Inter', system-ui, sans-serif;
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
     font-size: 0.75rem;
@@ -212,13 +213,14 @@ const styles = `
   }
   
   .ptl-view-btn {
+    font-family: 'Inter', system-ui, sans-serif;
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
     font-size: 0.75rem;
     font-weight: 500;
     color: #6b7280;
     background: transparent;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e0e4e8;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -243,6 +245,7 @@ const styles = `
   }
   
   .ptl-primary-btn {
+    font-family: 'Inter', system-ui, sans-serif;
     padding: 0.5rem 1rem;
     border-radius: 0.375rem;
     font-size: 0.8125rem;
@@ -264,29 +267,119 @@ const styles = `
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
   
-  .ptl-content {
-    padding: 0.75rem 1rem;
-  }
-  
   .ptl-card {
-    background: white;
-    border-radius: 0.75rem;
-    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    border: 1px solid #d5dbe1;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
   
-  .ptl-table-header {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    background: #fafafa;
-    border-bottom: 1px solid #e5e7eb;
+  /* ── Excel-inspired grid ── */
+  
+  .ptl-grid {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.8125rem;
+    color: #1f2937;
+    border: 1px solid #c8ced6 !important;
+  }
+  
+  .ptl-grid thead th {
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #6b7280;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    background: #f1f5f9;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: #c8ced6 !important;
+    padding: 10px 12px;
+    text-align: center;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    user-select: none;
+  }
+  
+  .ptl-grid thead th:first-child {
+    width: 40px;
+    min-width: 40px;
+    text-align: center;
+  }
+  
+  .ptl-grid thead th.col-left {
+    text-align: left;
+  }
+  
+  .ptl-grid tbody tr {
+    transition: background 0.1s ease;
+  }
+  
+  .ptl-grid tbody tr:hover {
+    background: #f0f7ff;
+  }
+  
+  .ptl-grid tbody tr:nth-child(even) {
+    background: #fafbfc;
+  }
+  
+  .ptl-grid tbody tr:nth-child(even):hover {
+    background: #edf4ff;
+  }
+  
+  .ptl-grid tbody td {
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: #dde1e6 !important;
+    padding: 10px 12px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .ptl-grid tbody td:first-child {
+    text-align: center;
+    width: 40px;
+    min-width: 40px;
+  }
+  
+  .ptl-grid tbody td.td-left {
+    text-align: left;
+  }
+  
+  /* Group row spanning full width */
+  .ptl-group-row td {
+    background: #f1f5f9;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: #c8ced6 !important;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  
+  /* Add-row within group */
+  .ptl-add-row td {
+    background: #fafbfc;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: #dde1e6 !important;
+    padding: 6px 12px;
+  }
+  
+  .ptl-table-header {
+    display: none;
   }
   
   .ptl-empty {
@@ -302,12 +395,14 @@ const styles = `
   }
   
   .ptl-empty-text {
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 0.9375rem;
     color: #6b7280;
     margin-bottom: 1rem;
   }
   
   .ptl-empty-cta {
+    font-family: 'Inter', system-ui, sans-serif;
     padding: 0.625rem 1rem;
     border-radius: 0.5rem;
     font-size: 0.875rem;
@@ -329,6 +424,7 @@ const styles = `
     justify-content: center;
     min-height: 300px;
     color: #6b7280;
+    font-family: 'Inter', system-ui, sans-serif;
   }
   
   .ptl-skeleton {
@@ -350,7 +446,7 @@ const styles = `
     right: 0;
     margin-top: 0.5rem;
     background: white;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e0e4e8;
     border-radius: 0.5rem;
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
     z-index: 100;
@@ -359,6 +455,7 @@ const styles = `
   }
   
   .ptl-col-item {
+    font-family: 'Inter', system-ui, sans-serif;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -616,31 +713,23 @@ export default function ProjectTaskListView({
     ),
   })).filter(group => group.tasks && group.tasks.length > 0);
 
-  // Column widths for grid
-  const getColumnWidths = () => {
-    const widths: Record<string, string> = {
-      task_no: '80px',
-      title: '1fr',
-      assignees: '160px',
-      status: '140px',
-      tags: '120px',
-      start_date: '120px',
-      due_date: '120px',
-      duration_days: '100px',
-      priority: '100px',
-      completion_percentage: '140px',
-    };
-    return widths;
-  };
-
-  const columnWidths = getColumnWidths();
-
-  // Build grid template
-  const getGridTemplate = () => {
-    const visibleCols = Object.entries(viewColumns)
-      .filter(([_, v]) => v)
-      .map(([k]) => columnWidths[k] || '1fr');
-    return `40px ${visibleCols.join(' ')}`;
+  const columnWidths: Record<string, string> = {
+    task_no: '70px',
+    title: 'auto',
+    assignees: '140px',
+    status: '130px',
+    tags: '120px',
+    start_date: '110px',
+    due_date: '110px',
+    duration_days: '90px',
+    priority: '110px',
+    completion_percentage: '140px',
+    discipline: '110px',
+    location: '110px',
+    drawing_ref: '110px',
+    wbs_code: '90px',
+    estimated_hours: '80px',
+    actual_hours: '80px',
   };
 
   if (isLoading) {
@@ -806,38 +895,40 @@ export default function ProjectTaskListView({
               </button>
             </div>
           ) : (
-            <>
-              {/* Table Header */}
-              <div 
-                className="ptl-table-header" 
-                style={{ 
-                  gridTemplateColumns: `40px ${Object.entries(viewColumns).filter(([_, v]) => v).map(([k]) => columnWidths[k] || '1fr').join(' ')}`
-                }}
-              >
-                <div></div>
-                {Object.entries(viewColumns).filter(([_, v]) => v).map(([key]) => (
-                  <div key={key} style={{ width: columnWidths[key] || 'auto', minWidth: 0 }}>{COLUMN_LABELS[key as keyof TaskColumns]}</div>
+            <table className="ptl-grid">
+              <thead>
+                <tr>
+                  <th style={{ width: '40px' }}></th>
+                  {Object.entries(viewColumns).filter(([_, v]) => v).map(([key]) => (
+                    <th
+                      key={key}
+                      style={{ width: columnWidths[key] || 'auto' }}
+                      className={key === 'title' ? 'col-left' : undefined}
+                    >
+                      {COLUMN_LABELS[key as keyof TaskColumns]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGroups.map(group => (
+                  <ProjectTaskGroup
+                    key={group.id}
+                    group={group}
+                    viewColumns={viewColumns}
+                    columnWidths={columnWidths}
+                    onTaskClick={handleTaskClick}
+                    onInlineEdit={handleNameInlineEdit}
+                    onAddTask={() => handleCreateTask(group.id)}
+                    onToggleCollapse={(id, isCollapsed) =>
+                      updateGroupMutation.mutate({ id, updates: { is_collapsed: isCollapsed } })
+                    }
+                    onDeleteTask={(id) => deleteTaskMutation.mutate(id)}
+                    onUpdateTask={(id, updates) => updateTaskMutation.mutate({ id, updates })}
+                  />
                 ))}
-              </div>
-              {/* Task Groups */}
-              {filteredGroups.map(group => (
-                <ProjectTaskGroup
-                  key={group.id}
-                  group={group}
-                  viewColumns={viewColumns}
-                  columnWidths={columnWidths}
-                  gridTemplate={getGridTemplate()}
-                  onTaskClick={handleTaskClick}
-                  onInlineEdit={handleNameInlineEdit}
-                  onAddTask={() => handleCreateTask(group.id)}
-                  onToggleCollapse={(id, isCollapsed) =>
-                    updateGroupMutation.mutate({ id, updates: { is_collapsed: isCollapsed } })
-                  }
-                  onDeleteTask={(id) => deleteTaskMutation.mutate(id)}
-                  onUpdateTask={(id, updates) => updateTaskMutation.mutate({ id, updates })}
-                />
-              ))}
-            </>
+              </tbody>
+            </table>
           )}
         </div>
       )}
