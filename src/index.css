@@ -84,7 +84,13 @@ html, body {
   height: 100vh;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: #f9fafb;
-  padding: 0 1.5rem 1.5rem 1.5rem; /* Removed top padding */
+  padding: 1.5rem; /* Added vertical padding */
+}
+
+/* Subtabs Heading Typography & Tab Spacing */
+.item-mini-tab, .tab-button, .nav-tab {
+  line-height: 34px !important;
+  margin-bottom: 8px !important;
 }
 
 .main-content.sidebar-collapsed {
@@ -286,6 +292,7 @@ html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  border-radius: 0 !important;
 }
 
 body {
