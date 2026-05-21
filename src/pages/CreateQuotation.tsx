@@ -24,6 +24,8 @@ import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
 import { lookupServiceRate } from '../hooks/useErectionCharges';
 import { ErectionSection } from '../components/ErectionSection';
 import { ApprovalIntegration } from '../approvals/integration';
+import { toast } from '../lib/logger';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -90,6 +92,24 @@ export default function CreateQuotation() {
   const [discountSettings, setDiscountSettings] = useState({});
   const [approvalStatus, setApprovalStatus] = useState({});
   const [approvalHistory, setApprovalHistory] = useState([]);
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  destructive?: boolean;
+  onConfirm: () => void;
+} | null>(null);
+  const [inputDialog, setInputDialog] = useState<{
+  open: boolean;
+  title: string;
+  placeholder: string;
+  defaultValue?: string;
+  onSubmit: (value: string) => void;
+  suggestions?: string[];
+  allowEmpty?: boolean;
+} | null>(null);
   const [activeTab, setActiveTab] = useState('items');
   const [activeSection, setActiveSection] = useState('materials');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -673,7 +693,7 @@ const loadQuoteNoPreview = useCallback(async () => {
 
   const requestApproval = async (variantId, discountValue) => {
     if (!editId) {
-      alert('Please save the quotation first before requesting approval.');
+      toast.error('Please save the quotation first before requesting approval.');
       return false;
     }
     
@@ -721,7 +741,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       return true;
     } catch (err) {
       console.error('Error requesting approval:', err);
-      alert('Failed to request approval: ' + err.message);
+      toast.error('Failed to request approval', { description: err.message });
       return false;
     }
   };
@@ -889,7 +909,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         'Quotation details',
       );
     } catch (error) {
-      alert('Error loading quotation: ' + ((error as Error)?.message || 'Unknown error'));
+      toast.error('Error loading quotation', { description: (error as Error)?.message || 'Unknown error' });
       return;
     }
 
@@ -1121,21 +1141,29 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
       setHeaderDiscounts(portfolio.discounts);
 
-      if (items.length > 0 && window.confirm('Apply client discount portfolio to existing items?')) {
-        setItems(items.map(item => {
-          const disc = portfolio.discounts[item.variant_id] || 0;
-          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
-          const finalRate = calculateVariantDiscountedRate(baseRate, disc);
-          
-          return { 
-            ...item, 
-            discount_percent: disc, 
-            applied_discount_percent: disc,
-            final_rate_snapshot: finalRate,
-            rate: finalRate,
-            is_override: false
-          };
-        }));
+      if (items.length > 0) {
+        setConfirmDialog({
+          open: true,
+          title: 'Apply Client Discount Profile',
+          description: 'Apply this client\'s discount portfolio to all existing items? Existing row-level overrides will be reset.',
+          confirmLabel: 'Apply',
+          onConfirm: () => {
+            setItems(items.map(item => {
+              const disc = portfolio.discounts[item.variant_id] || 0;
+              const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+              const finalRate = calculateVariantDiscountedRate(baseRate, disc);
+              return { 
+                ...item, 
+                discount_percent: disc, 
+                applied_discount_percent: disc,
+                final_rate_snapshot: finalRate,
+                rate: finalRate,
+                is_override: false
+              };
+            }));
+            setConfirmDialog(null);
+          }
+        });
       }
     }
   };
@@ -1182,13 +1210,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         i.item_id === material.id && (i.variant_id || null) === null ? { ...i, qty: i.qty + 1 } : i
       ));
     } else {
-      console.log('Adding material with unit:', {
-        materialId: material.id,
-        materialName: material.name,
-        unit: material.unit,
-        unitType: typeof material.unit,
-        finalUom: material.unit || 'Nos'
-      });
+      
       
       setPickerItems([...pickerItems, {
         item_id: material.id,
@@ -1338,11 +1360,11 @@ const loadQuoteNoPreview = useCallback(async () => {
 
   const handleGenerateQuickQuote = () => {
     if (!quickQuoteConfig || !quickQuoteTemplateId) {
-      alert('Quick Quote template is not configured yet.');
+      toast.warning('Quick Quote template is not configured yet.');
       return;
     }
     if (!quickQuoteSize.trim()) {
-      alert('Please enter a size for Quick Quote.');
+      toast.warning('Please enter a size for Quick Quote.');
       return;
     }
 
@@ -1362,7 +1384,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     });
 
     if (generated.length === 0) {
-      alert('No matching items found for the selected Quick Quote inputs.');
+      toast.info('No matching items found for the selected Quick Quote inputs.');
       return;
     }
 
@@ -1564,7 +1586,7 @@ const loadQuoteNoPreview = useCallback(async () => {
               section: 'materials',
               quotation_id: formData.id
             }).catch(err => {
-              console.log('Erection auto-creation warning:', err.message);
+              console.warn('Erection auto-creation warning:', err.message);
             });
           }
         }
@@ -1575,41 +1597,38 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const removeItem = useCallback((id) => {
-    // Check if this item has linked erection charges
     const linkedErection = items.find(item => item.linked_material_id === id);
     
     if (linkedErection) {
       const erectionTotal = ((linkedErection.qty || 0) * (linkedErection.rate || 0)).toFixed(2);
-      const confirmed = confirm(
-        `This material has linked erection charges (₹${erectionTotal}).\n\n` +
-        `Choose an option:\n` +
-        `OK - Delete both material and erection charge\n` +
-        `Cancel - Keep both`
-      );
-      
-      if (!confirmed) {
-        return; // User cancelled
-      }
-      
-      // Delete both material and erection
-      setItems(prev => {
-        const filtered = prev.filter(item => item.id !== id && item.id !== linkedErection.id);
-        return filtered.map((item, index) => ({
-          ...item,
-          display_order: index + 1
-        }));
+      setConfirmDialog({
+        open: true,
+        title: 'Delete Material & Erection Charges',
+        description: `This material has linked erection charges (₹${erectionTotal}). Deleting will remove both the material and its erection charge row.`,
+        confirmLabel: 'Delete Both',
+        destructive: true,
+        onConfirm: () => {
+          setItems(prev => {
+            const filtered = prev.filter(item => item.id !== id && item.id !== linkedErection.id);
+            return filtered.map((item, index) => ({
+              ...item,
+              display_order: index + 1
+            }));
+          });
+          setIsDirty(true);
+          setConfirmDialog(null);
+        }
       });
-    } else {
-      // No linked erection, delete normally
-      setItems(prev => {
-        const filtered = prev.filter(item => item.id !== id);
-        return filtered.map((item, index) => ({
-          ...item,
-          display_order: index + 1
-        }));
-      });
+      return;
     }
     
+    setItems(prev => {
+      const filtered = prev.filter(item => item.id !== id);
+      return filtered.map((item, index) => ({
+        ...item,
+        display_order: index + 1
+      }));
+    });
     setIsDirty(true);
   }, [items]);
 
@@ -1664,62 +1683,76 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const addSectionHeader = () => {
-    const headerText = prompt('Enter section header text:');
-    if (!headerText || !headerText.trim()) return;
-    
-    const rowId = Date.now() + Math.random();
-    setItems((prev) => [
-      ...prev,
-      {
-        id: rowId,
-        item_id: null,
-        variant_id: null,
-        description: headerText.trim(),
-        qty: null,
-        uom: '',
-        rate: 0,
-        discount_percent: 0,
-        discount_amount: 0,
-        tax_percent: 0,
-        tax_amount: 0,
-        line_total: 0,
-        is_header: true,
-        display_order: prev.length
+    setInputDialog({
+      open: true,
+      title: 'Add Section Header',
+      placeholder: 'e.g. First Floor Piping, Fire Protection...',
+      defaultValue: '',
+      allowEmpty: false,
+      suggestions: ['First Floor Piping', 'Ground Floor', 'Electrical Works', 'Fire Protection'],
+      onSubmit: (value) => {
+        if (!value.trim()) return;
+        const rowId = Date.now() + Math.random();
+        setItems((prev) => [
+          ...prev,
+          {
+            id: rowId,
+            item_id: null,
+            variant_id: null,
+            description: value.trim(),
+            qty: null,
+            uom: '',
+            rate: 0,
+            discount_percent: 0,
+            discount_amount: 0,
+            tax_percent: 0,
+            tax_amount: 0,
+            line_total: 0,
+            is_header: true,
+            display_order: prev.length
+          }
+        ]);
+        setInputDialog(null);
       }
-    ]);
+    });
   };
 
   const addSubtotal = (afterIndex?: number) => {
-    const labels = ['Civil:', 'Electrical:', 'Plumbing:', 'HVAC:', 'Fire Protection:'];
-    const label = prompt(`Enter sub-total label:\n\nPredefined: ${labels.join(', ')}\nor type custom label`);
-    
-    if (!label || !label.trim()) return;
-    
-    const rowId = Date.now() + Math.random();
-    setItems((prev) => {
-      const newItems = [...prev];
-      const insertIndex = afterIndex !== undefined ? afterIndex + 1 : newItems.length;
-      
-      newItems.splice(insertIndex, 0, {
-        id: rowId,
-        item_id: null,
-        variant_id: null,
-        description: label.trim(),
-        qty: null,
-        uom: '',
-        rate: 0,
-        discount_percent: 0,
-        discount_amount: 0,
-        tax_percent: 0,
-        tax_amount: 0,
-        line_total: 0,
-        is_subtotal: true,
-        subtotal_label: label.trim(),
-        display_order: insertIndex
-      });
-      
-      // Recalculate display_order for all items
-      return newItems.map((item, idx) => ({ ...item, display_order: idx }));
+    const presetLabels = ['Civil:', 'Electrical:', 'Plumbing:', 'HVAC:', 'Fire Protection:'];
+    setInputDialog({
+      open: true,
+      title: 'Add Sub-total Label',
+      placeholder: 'Type a label or pick from suggestions...',
+      defaultValue: '',
+      allowEmpty: false,
+      suggestions: presetLabels,
+      onSubmit: (value) => {
+        if (!value || !value.trim()) return;
+        const rowId = Date.now() + Math.random();
+        setItems((prev) => {
+          const newItems = [...prev];
+          const insertIndex = afterIndex !== undefined ? afterIndex + 1 : newItems.length;
+          newItems.splice(insertIndex, 0, {
+            id: rowId,
+            item_id: null,
+            variant_id: null,
+            description: value.trim(),
+            qty: null,
+            uom: '',
+            rate: 0,
+            discount_percent: 0,
+            discount_amount: 0,
+            tax_percent: 0,
+            tax_amount: 0,
+            line_total: 0,
+            is_subtotal: true,
+            subtotal_label: value.trim(),
+            display_order: insertIndex
+          });
+          return newItems.map((item, idx) => ({ ...item, display_order: idx }));
+        });
+        setInputDialog(null);
+      }
     });
   };
 
@@ -1884,11 +1917,11 @@ const loadQuoteNoPreview = useCallback(async () => {
     if (saving) return;
     // --- Pre-flight validation (before setting saving=true) ---
     if (!formData.client_id) {
-      alert('Please select a client');
+      toast.error('Please select a client');
       return;
     }
     if (items.length === 0) {
-      alert('Please add at least one item');
+      toast.error('Please add at least one item');
       return;
     }
 
@@ -1908,7 +1941,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
 
       if (!sessionValid) {
-        alert('Your session has expired. Please refresh the page and log in again.');
+        toast.error('Session expired', { description: 'Please refresh the page and log in again.' });
         return;
       }
 
@@ -1930,15 +1963,15 @@ const loadQuoteNoPreview = useCallback(async () => {
 
           if (approvalResult.success && approvalResult.approvalId) {
             finalStatus = 'PENDING_APPROVAL';
-            console.log('Quotation approval request created:', approvalResult.approvalId);
+            if (import.meta.env.DEV) console.log('Quotation approval request created:', approvalResult.approvalId);
           } else if (approvalResult.error) {
             console.error('Failed to create approval request:', approvalResult.error);
             // Continue with draft status but show error
-            alert('Failed to create approval request: ' + approvalResult.error);
+            toast.error('Failed to create approval request', { description: approvalResult.error });
           }
         } catch (approvalError) {
           console.error('Error creating approval request:', approvalError);
-          alert('Error creating approval request. Quotation saved as draft.');
+          toast.error('Error creating approval request', { description: 'Quotation saved as draft.' });
         }
       }
 
@@ -2189,7 +2222,7 @@ const itemsToInsert = items.map(item => ({
             quotationId
           );
           if (approvalUpdateResult.success) {
-            console.log('Approval reference updated with quotation ID:', quotationId);
+            if (import.meta.env.DEV) console.log('Approval reference updated with quotation ID:', quotationId);
           }
         } catch (updateError) {
           console.error('Error updating approval reference:', updateError);
@@ -2199,7 +2232,7 @@ const itemsToInsert = items.map(item => ({
       // alert removed
 
       if (saveAndNew) {
-        alert('Quotation saved as draft successfully!');
+        toast.success('Quotation saved as draft!');
         setSaving(false);
         return;
       } else {
@@ -2209,18 +2242,18 @@ const itemsToInsert = items.map(item => ({
       console.error('Error saving quotation:', err);
       const errMsg = (err as any)?.message || String(err || '');
       if (/session|jwt|token|refresh_token|invalid_grant|not authenticated|auth/i.test(errMsg)) {
-        alert('Your session seems expired. Please refresh the page and log in again.');
+        toast.error('Session expired', { description: 'Please refresh the page and log in again.' });
       } else {
-        alert('Error: ' + errMsg);
+        toast.error('Save failed', { description: errMsg });
       }
     } finally {
       setSaving(false);
     }
   };
 
-  const compactFieldStyle = { minHeight: '26px', padding: '2px 6px', fontSize: '11px' };
+  const compactFieldStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '13px' };
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '6px' };
-  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '10px', color: '#374151' };
+  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '12px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
 
   const renderHeaderField = (label, field, isLast = false) => (
@@ -2267,24 +2300,29 @@ const itemsToInsert = items.map(item => ({
                 className="sr-only peer"
                 checked={formData.negotiation_mode}
                 onChange={async (e) => {
-                  if (e.target.checked && editId && !formData.negotiation_mode) {
-                    const confirmed = window.confirm(
-                      'Enable negotiation mode?\n\nThis will save the current quotation as Revision ' + 
-                      formData.revision_no + ' before making changes.\n\nContinue?'
-                    );
-                    if (!confirmed) return;
-                    const result = await saveCurrentRevision();
-                    if (!result) {
-                      alert('Failed to save revision. Please try again.');
-                      return;
-                    }
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      revision_no: result.newRevisionNo,
-                      revision_history: result.newHistory,
-                      negotiation_mode: true,
-                      status: 'Under Negotiation'
-                    }));
+if (e.target.checked && editId && !formData.negotiation_mode) {
+                    setConfirmDialog({
+                      open: true,
+                      title: 'Enable Negotiation Mode',
+                      description: `This will save the current quotation as Revision ${formData.revision_no} before making changes. Continue?`,
+                      confirmLabel: 'Enable',
+                      onConfirm: async () => {
+                        setConfirmDialog(null);
+                        const result = await saveCurrentRevision();
+                        if (!result) {
+                          toast.error('Failed to save revision. Please try again.');
+                          return;
+                        }
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          revision_no: result.newRevisionNo,
+                          revision_history: result.newHistory,
+                          negotiation_mode: true,
+                          status: 'Under Negotiation'
+                        }));
+                      }
+                    });
+                    return;
                   } else {
                     setFormData(prev => ({ 
                       ...prev, 
@@ -2301,14 +2339,7 @@ const itemsToInsert = items.map(item => ({
               <button
                 type="button"
                 className="text-xs font-medium text-blue-600 hover:text-blue-800 underline ml-2"
-                onClick={() => {
-                  const history = formData.revision_history || [];
-                  if (history.length === 0) return;
-                  const revInfo = history.map((rev, idx) => 
-                    `Rev ${rev.revision_no}: ₹${rev.header?.grand_total?.toLocaleString() || 0} (${new Date(rev.saved_at).toLocaleDateString()})`
-                  ).join('\n');
-                  alert('Revision History:\n\n' + revInfo);
-                }}
+                onClick={() => setRevisionDialogOpen(true)}
               >
                 View History ({formData.revision_history?.length})
               </button>
@@ -2319,7 +2350,7 @@ const itemsToInsert = items.map(item => ({
             <select
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              className="h-[25px] px-2 text-[11px] font-semibold border border-zinc-300 bg-white text-zinc-700 focus:border-blue-500 focus:outline-none min-w-[100px]"
+              className="h-9 px-2 text-xs font-semibold border border-zinc-300 bg-white text-zinc-700 focus:border-blue-500 focus:outline-none min-w-[100px]"
               title="Quotation status"
             >
               <option value="Draft">Draft</option>
@@ -2327,14 +2358,14 @@ const itemsToInsert = items.map(item => ({
             </select>
             <button
               type="button"
-              className="h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
+              className="h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
               onClick={() => navigate('/quotation')}
             >
               Cancel
             </button>
             <button
               type="button"
-              className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
                 saving ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               onClick={() => handleSave(true)}
@@ -2344,7 +2375,7 @@ const itemsToInsert = items.map(item => ({
             </button>
             <button
               type="button"
-              className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white ${
+              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-white ${
                 formData.status === 'Sent'
                   ? 'bg-gradient-to-b from-emerald-700 to-emerald-900'
                   : 'bg-gradient-to-b from-[#001f3f] to-[#003366]'
@@ -2372,24 +2403,24 @@ const itemsToInsert = items.map(item => ({
               <div className="w-1 h-4 bg-blue-600 rounded-sm"></div>
             </div>
             
-            <div className="grid grid-cols-[1fr_1.5fr_320px] gap-6 px-6 pt-6 pb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_320px] gap-6 px-6 pt-6 pb-6">
               
               {/* Column 1: DOCUMENT */}
               <div className="space-y-4 pl-4">
-                <h3 className="text-[11px] font-semibold text-zinc-500 mb-3">Document</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 mb-3">Document</h3>
                 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-2 py-1.5 border border-zinc-200 bg-zinc-50 text-zinc-600 text-xs font-medium focus:outline-none transition-colors min-h-[34px] flex items-center">
+                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Quotation No <span className="text-red-500">*</span></label>
+                    <div className="w-full px-2 py-1.5 border border-zinc-200 bg-zinc-50 text-zinc-600 text-xs font-medium focus:outline-none transition-colors min-h-10 flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Prepared By</label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Prepared By</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.prepared_by || ''} 
                       onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                       placeholder="Sales executive..."
@@ -2399,19 +2430,19 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Valid Till</label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Valid Till</label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.valid_till} 
                       onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                     />
@@ -2420,9 +2451,9 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Variant</label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Variant</label>
                     <select 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.variant_id} 
                       onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                     >
@@ -2433,10 +2464,10 @@ const itemsToInsert = items.map(item => ({
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Reference</label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1.5">Reference</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.reference || ''} 
                       onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                       placeholder="Client RFQ No..."
@@ -2445,10 +2476,10 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] font-semibold text-zinc-600 mb-1.5">Payment Terms</label>
+                  <label className="text-xs font-semibold text-zinc-600 mb-1.5">Payment Terms</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                     value={formData.payment_terms} 
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                     placeholder="Net 30 Days"
@@ -2458,15 +2489,15 @@ const itemsToInsert = items.map(item => ({
 
               {/* Column 2: CLIENT */}
               <div className="space-y-4">
-                <h3 className="text-[11px] font-semibold text-zinc-500 mb-3">Client</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 mb-3">Client</h3>
                 
                 <div className="flex flex-col client-dropdown-container space-y-4">
-                  <label className="text-[11px] font-semibold text-zinc-600 mb-1">Client <span className="text-red-500">*</span></label>
+                  <label className="text-xs font-semibold text-zinc-600 mb-1">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
                         type="text"
-                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[34px]"
+                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-10"
                         placeholder="Search or select..."
                         value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
                         onChange={(e) => {
@@ -2506,10 +2537,10 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] font-semibold text-zinc-600 mb-1">Contact</label>
+                  <label className="text-xs font-semibold text-zinc-600 mb-1">Contact</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                     value={formData.client_contact} 
                     onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                     placeholder="+91 98765 43210"
@@ -2517,7 +2548,7 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] font-semibold text-zinc-600 mb-1">Billing Address</label>
+                  <label className="text-xs font-semibold text-zinc-600 mb-1">Billing Address</label>
                   <textarea 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
                     value={formData.billing_address} 
@@ -2528,20 +2559,20 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1">GSTIN</label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1">GSTIN</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.gstin} 
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                       placeholder="27AABCU9603R1ZX"
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-semibold text-zinc-600 mb-1">State</label>
+                    <label className="text-xs font-semibold text-zinc-600 mb-1">State</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
+                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
                         value={formData.state} 
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       >
@@ -2558,11 +2589,11 @@ const itemsToInsert = items.map(item => ({
 
               {/* Column 3: PROJECT & DISCOUNTS */}
               <div className="space-y-4">
-                <h3 className="text-[11px] font-semibold text-zinc-500 mb-3">Project</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 mb-3">Project</h3>
                 
                 <div className="space-y-4">
                   <select 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
+                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
                     value={formData.project_id} 
                     onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                   >
@@ -2578,7 +2609,7 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="pt-3">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[11px] font-semibold text-zinc-500">Discounts</h3>
+                    <h3 className="text-xs font-semibold text-zinc-500">Discounts</h3>
                     {variants.length > 0 && (
                       <button 
                         type="button" 
@@ -2617,7 +2648,7 @@ const itemsToInsert = items.map(item => ({
                           return (
                             <div key={variant.id} className="flex items-center justify-between border border-zinc-100 bg-white rounded-md h-[35px]">
                               <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-none h-full`}>
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${color.text} truncate`}>
+                                <span className={`text-xs font-bold uppercase tracking-wider ${color.text} truncate`}>
                                   {variant.variant_name}
                                 </span>
                                 {approvalDisplay !== 'none' && (
@@ -2632,7 +2663,7 @@ const itemsToInsert = items.map(item => ({
                               <div className={`flex items-center border border-zinc-200 rounded-none bg-white shadow-sm`}>
                                 <input
                                   type="number"
-                                  className={`w-[60px] px-2 py-2 text-right text-[11px] font-bold ${color.text} bg-transparent outline-none`}
+                                  className={`w-[60px] px-2 py-2 text-right text-xs font-bold ${color.text} bg-transparent outline-none`}
                                   value={headerDiscounts[variant.id] || 0}
                                   onChange={(e) => {
                                     const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
@@ -2649,7 +2680,7 @@ const itemsToInsert = items.map(item => ({
                                   max="100"
                                   step="0.01"
                                 />
-                                <div className={`px-2 py-2 text-[10px] font-bold ${color.percentText} border-l border-zinc-200`}>
+                                <div className={`px-2 py-2 text-xs font-bold ${color.percentText} border-l border-zinc-200`}>
                                   %
                                 </div>
                               </div>
@@ -2679,7 +2710,7 @@ const itemsToInsert = items.map(item => ({
                     No approval history found for this document.
                   </div>
                 ) : (
-                  <table className="w-full text-[11px] text-left">
+                  <table className="w-full text-xs text-left">
                     <thead className="bg-zinc-50 border-b border-zinc-100">
                       <tr>
                         <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Variant</th>
@@ -2717,7 +2748,7 @@ const itemsToInsert = items.map(item => ({
                   checked={formData.include_erection_charges}
                   onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
                 />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Include Erection Charges</span>
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Include Erection Charges</span>
               </label>
               
               <label className="flex items-center gap-2 cursor-pointer group">
@@ -2727,7 +2758,7 @@ const itemsToInsert = items.map(item => ({
                   checked={formData.round_off_enabled}
                   onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })}
                 />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Enable Round Off</span>
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Enable Round Off</span>
               </label>
             </div>
           </div>
@@ -2774,20 +2805,20 @@ const itemsToInsert = items.map(item => ({
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
-              className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+              className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
               Add Material
             </button>
             <div className="w-px h-6 bg-zinc-200 mx-2"></div>
-            <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
-            <button className="h-[25px] min-w-[110px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#b45309] to-[#d97706] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={() => addSubtotal()}>+ Add Sub-total</button>
-            <button className="h-[25px] min-w-[120px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
+            <button className="h-9 min-w-[110px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#b45309] to-[#d97706] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={() => addSubtotal()}>+ Add Sub-total</button>
+            <button className="h-9 min-w-[120px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               Add Multiple Items
             </button>
-            <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
           </div>
         </div>
 
@@ -2870,7 +2901,7 @@ const itemsToInsert = items.map(item => ({
                           <input
                             type="text"
                             className="cell-input"
-                            style={{ fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '11px' }}
+                            style={{ fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '13px' }}
                             placeholder="Enter Section Header (e.g. First Floor Piping)..."
                             value={item.description}
                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
@@ -2908,7 +2939,7 @@ const itemsToInsert = items.map(item => ({
                           <input
                             type="text"
                             className="cell-input"
-                            style={{ fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '11px' }}
+                            style={{ fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '13px' }}
                             placeholder="Enter sub-total label..."
                             value={item.subtotal_label || ''}
                             onChange={(e) => {
@@ -2942,9 +2973,9 @@ const itemsToInsert = items.map(item => ({
                       onMouseLeave={() => setHoveredItemId(null)}
                     >
                       <td 
-                        className="text-center cell-static col-shrink row-drag-handle" 
-                        title="Drag to reorder" 
-                        style={{ fontSize: '11px' }}
+className="text-center cell-static col-shrink row-drag-handle" 
+                         title="Drag to reorder" 
+                         style={{ fontSize: '13px' }}
                         draggable
                         onDragStart={(e) => handleDragStart(e, item.id)}
                         onDragEnd={handleDragEnd}
@@ -3042,7 +3073,7 @@ const itemsToInsert = items.map(item => ({
                       )}
                       {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
                         <td className="col-shrink cell-static">
-                          <div style={{ fontSize: '10px', color: '#64748b', padding: '4px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '12px', color: '#64748b', padding: '4px', textAlign: 'center' }}>
                             {(() => {
                               const clientId = formData.client_id || formData.client?.id;
                               const mapping = clientId && item.material?.mappings?.find((m: any) => m.client_id === clientId);
@@ -3053,7 +3084,7 @@ const itemsToInsert = items.map(item => ({
                       )}
                       {(templateSettings?.column_settings?.optional?.client_description === true) && (
                         <td className="col-item cell-static">
-                          <div style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>
+                          <div style={{ fontSize: '12px', color: '#64748b', padding: '4px' }}>
                             {(() => {
                               const clientId = formData.client_id || formData.client?.id;
                               const mapping = clientId && item.material?.mappings?.find((m: any) => m.client_id === clientId);
@@ -3231,11 +3262,11 @@ const itemsToInsert = items.map(item => ({
         />
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4">
         <div>
           <div className="card" style={{ padding: '12px', height: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151' }}>Notes & Remarks:</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Notes & Remarks:</label>
               <button
                 onClick={() => setShowTermsDrawer(true)}
                 style={{
@@ -3244,7 +3275,7 @@ const itemsToInsert = items.map(item => ({
                   borderRadius: '4px',
                   background: '#fff',
                   color: '#525252',
-                  fontSize: '11px',
+                  fontSize: '13px',
                   fontWeight: 500,
                   cursor: 'pointer',
                   display: 'flex',
@@ -3261,7 +3292,7 @@ const itemsToInsert = items.map(item => ({
             </div>
             <textarea 
               className="form-input" 
-              style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '11px', resize: 'none' }}
+              style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
               placeholder="Enter internal notes or additional instructions..."
               value={formData.remarks || ''}
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
@@ -3269,7 +3300,7 @@ const itemsToInsert = items.map(item => ({
           </div>
         </div>
         <div className="card" style={{ padding: '12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Subtotal</span>
               <span style={{ fontWeight: 600 }}>{formatCurrency(calculations.subtotal)}</span>
@@ -3280,11 +3311,11 @@ const itemsToInsert = items.map(item => ({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Extra Discount %</span>
-              <input type="number" className="form-input" style={{ width: '60px', textAlign: 'right', height: '24px', padding: '2px 4px', fontSize: '11px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
+              <input type="number" className="form-input" style={{ width: '60px', textAlign: 'right', height: '36px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Extra Discount Amt</span>
-              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '24px', padding: '2px 4px', fontSize: '11px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
+              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '36px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
               <span>Extra Discount</span>
@@ -3333,7 +3364,7 @@ const itemsToInsert = items.map(item => ({
                   checked={formData.round_off_enabled} 
                   onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })} 
                 />
-                <label htmlFor="roundOffToggle" style={{ fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>Round Off</label>
+                <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}>Round Off</label>
               </div>
               <input 
                 type="number" 
@@ -3341,9 +3372,9 @@ const itemsToInsert = items.map(item => ({
                 style={{ 
                   width: '100px', 
                   textAlign: 'right', 
-                  height: '24px', 
+                  height: '36px', 
                   padding: '2px 4px', 
-                  fontSize: '11px',
+                  fontSize: '13px',
                   backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white',
                   color: formData.round_off_enabled ? '#64748b' : '#1e293b'
                 }} 
@@ -3357,7 +3388,7 @@ const itemsToInsert = items.map(item => ({
               <span>Grand Total</span>
               <span>{formatCurrency(calculations.grandTotal)}</span>
             </div>
-            <div style={{ color: '#1e293b', fontSize: '10px', fontStyle: 'italic', fontWeight: 600, textAlign: 'right', marginTop: '2px' }}>
+            <div style={{ color: '#1e293b', fontSize: '12px', fontStyle: 'italic', fontWeight: 600, textAlign: 'right', marginTop: '2px' }}>
               INR {calculations.amountInWords}
             </div>
           </div>
@@ -3372,7 +3403,7 @@ const itemsToInsert = items.map(item => ({
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
             <select 
               className="bg-transparent border-none p-0 text-sm font-bold text-zinc-800 focus:ring-0 cursor-pointer min-w-[200px]"
               value={formData.authorized_signatory_id ?? ''} 
@@ -3399,14 +3430,7 @@ const itemsToInsert = items.map(item => ({
                 >
                   Add signatures here
                 </a>
-                <button 
-                  type="button"
-                  onClick={() => console.log('Org signatures:', organisation?.signatures)}
-                  className="text-xs text-zinc-400 ml-2"
-                >
-                  (debug)
-                </button>
-              </>
+                </>
             )}
           </div>
         </div>
@@ -3414,12 +3438,11 @@ const itemsToInsert = items.map(item => ({
         {/* Signature Preview */}
         {formData.authorized_signatory_id && formData.authorized_signatory_id !== null && (
           <div className="bg-white border border-zinc-200 rounded-none px-4 py-3 shadow-sm">
-            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Signature Preview</div>
+            <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Signature Preview</div>
             <div className="h-16 flex items-center">
               {(() => {
                 const sigId = String(formData.authorized_signatory_id);
                 const selectedSig = (organisation?.signatures || []).find(s => String(s.id) === sigId);
-                console.log('Looking for signature:', sigId, 'Available:', organisation?.signatures);
                 if (selectedSig?.url) {
                   return (
                     <img 
@@ -3493,7 +3516,7 @@ const itemsToInsert = items.map(item => ({
                           type="text"
                           placeholder="Custom Label (optional)"
                           className="form-input"
-                          style={{ marginTop: '4px', height: '28px', fontSize: '11px' }}
+                          style={{ marginTop: '4px', height: '36px', fontSize: '13px' }}
                           value={customLabel}
                           onChange={(e) => {
                             const newLabel = e.target.value;
@@ -3541,7 +3564,7 @@ const itemsToInsert = items.map(item => ({
                 onChange={(e) => setItemSearch(e.target.value)}
                 style={{ marginBottom: '16px' }}
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', height: '400px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', height: '400px' }}>
                 <div style={{ overflowY: 'auto', border: '1px solid #eee' }}>
                   <table className="table">
                     <thead>
@@ -3635,6 +3658,140 @@ const itemsToInsert = items.map(item => ({
           setShowTermsDrawer(false);
         }}
       />
+
+      {confirmDialog && (
+        <Dialog open={confirmDialog.open} onOpenChange={(open) => { if (!open) setConfirmDialog(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{confirmDialog.title}</DialogTitle>
+              <DialogDescription>{confirmDialog.description}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                onClick={() => setConfirmDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${confirmDialog.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                onClick={confirmDialog.onConfirm}
+              >
+                {confirmDialog.confirmLabel || 'Confirm'}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {inputDialog && (
+        <Dialog open={inputDialog.open} onOpenChange={(open) => { if (!open) setInputDialog(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{inputDialog.title}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-zinc-300 rounded-md text-sm focus:border-blue-500 focus:outline-none"
+                placeholder={inputDialog.placeholder}
+                defaultValue={inputDialog.defaultValue || ''}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (val.trim() || inputDialog.allowEmpty) {
+                      inputDialog.onSubmit(val);
+                    }
+                  }
+                }}
+                id="input-dialog-field"
+              />
+              {inputDialog.suggestions && inputDialog.suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {inputDialog.suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className="px-2.5 py-1 text-xs font-medium text-zinc-600 bg-zinc-100 border border-zinc-200 rounded-md hover:bg-zinc-200"
+                      onClick={() => inputDialog.onSubmit(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                onClick={() => setInputDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                onClick={() => {
+                  const input = document.getElementById('input-dialog-field') as HTMLInputElement;
+                  const val = input?.value || '';
+                  if (val.trim() || inputDialog.allowEmpty) {
+                    inputDialog.onSubmit(val);
+                  }
+                }}
+              >
+                Add
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {revisionDialogOpen && (
+        <Dialog open={revisionDialogOpen} onOpenChange={setRevisionDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Revision History</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-80 overflow-y-auto">
+              {(formData.revision_history || []).length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-6">No revisions yet.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-zinc-50 border-b border-zinc-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-600">Revision</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600">Grand Total</th>
+                      <th className="px-3 py-2 text-right font-semibold text-zinc-600">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {formData.revision_history.map((rev: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-zinc-50">
+                        <td className="px-3 py-2 font-medium">Rev {rev.revision_no}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(rev.header?.grand_total || 0)}</td>
+                        <td className="px-3 py-2 text-right text-zinc-500">{rev.saved_at ? new Date(rev.saved_at).toLocaleDateString() : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                onClick={() => setRevisionDialogOpen(false)}
+              >
+                Close
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

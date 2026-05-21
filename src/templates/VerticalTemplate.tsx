@@ -1,11 +1,5 @@
 import React from "react";
 import { formatCurrency, formatDate } from "../utils/formatters";
-import { 
-  Phone,
-  Mail,
-  Globe,
-  MapPin
-} from "lucide-react";
 
 /* ---------------- HELPERS ---------------- */
 
@@ -207,7 +201,7 @@ export default function VerticalTemplate({
   return (
     <div className="vertical-template-container">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Manrope:wght@800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
         
         .vertical-template-container {
           font-family: 'Roboto', sans-serif;
@@ -223,12 +217,12 @@ export default function VerticalTemplate({
         }
 
         .org-name-font {
-          font-family: 'Manrope', sans-serif !important;
+          font-family: 'Roboto', sans-serif !important;
           font-weight: 900 !important;
         }
 
         .doc-no-font {
-          font-family: 'Manrope', sans-serif !important;
+          font-family: 'Roboto', sans-serif !important;
           font-weight: 800 !important;
         }
 
@@ -288,7 +282,7 @@ export default function VerticalTemplate({
           padding: 6px 6px;
           text-transform: uppercase;
           font-weight: 700;
-          font-size: 9px;
+          font-size: 10px;
           color: #334155;
           font-family: 'Roboto', sans-serif;
           vertical-align: middle;
@@ -338,39 +332,27 @@ export default function VerticalTemplate({
         {/* Header */}
         <div className="dense-header flex justify-between items-start pt-2">
           <div className="flex gap-5">
-            <div className="w-20 h-20 bg-zinc-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden border brd-zinc-200">
+            <div className="w-20 h-20 bg-zinc-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden">
               {organisation.logo_url ? (
                 <img src={organisation.logo_url} alt="Logo" className="w-full h-full object-contain bg-white p-1" />
               ) : (
                 <span className="text-4xl font-bold italic">{organisation.name?.[0] || 'S'}</span>
               )}
             </div>
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center" style={{ lineHeight: '1.3' }}>
               <div className="text-2xl font-black txt-zinc-900 tracking-tight leading-tight org-name-font">
                 {organisation.name}
               </div>
-              <div className="text-[10px] txt-blue-600 font-bold uppercase tracking-widest mb-2">
+              <div className="text-[10px] txt-blue-600 font-bold uppercase tracking-widest mb-1">
                 {organisation.subtitle || organisation.description || "Engineering & Manufacturing Solutions"}
               </div>
-              <div className="grid grid-cols-1 gap-1 txt-zinc-600 text-[10px]">
-                <div className="flex items-center gap-1.5" style={{ minHeight: '16px' }}>
-                  <MapPin size={10} className="txt-zinc-400 flex-shrink-0" />
-                  <span className="max-w-[450px]">{organisation.address}</span>
-                </div>
-                <div className="flex gap-4" style={{ minHeight: '16px' }}>
-                  <div className="flex items-center gap-1.5">
-                    <Phone size={10} className="txt-zinc-400 flex-shrink-0" />
-                    <span className="font-bold">{organisation.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-bold txt-zinc-800 uppercase">
-                    <span className="txt-zinc-400 flex-shrink-0">GSTIN:</span>
-                    <span>{organisation.gstin}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5" style={{ minHeight: '16px' }}>
-                  <Mail size={10} className="txt-zinc-400 flex-shrink-0" />
-                  <span className="font-bold">{organisation.email}</span>
-                </div>
+              <div className="grid grid-cols-1 gap-0 txt-zinc-600 text-[10px]" style={{ lineHeight: '16px' }}>
+                <div style={{ minHeight: '16px' }}>{organisation.address}</div>
+                <div style={{ minHeight: '16px' }}>Mobile: <span className="font-bold">{organisation.phone}</span> &nbsp; GSTIN: <span className="font-bold uppercase">{organisation.gstin}</span></div>
+                <div style={{ minHeight: '16px' }}>Mail: <span className="font-bold">{organisation.email}</span></div>
+                {organisation.website && (
+                  <div style={{ minHeight: '16px' }}>Web: <span className="font-bold">{organisation.website}</span></div>
+                )}
               </div>
             </div>
           </div>
@@ -384,23 +366,23 @@ export default function VerticalTemplate({
 
         {/* Info Bar - Clean Layout */}
         {infoFields.length > 0 && (
-          <div className="mt-0 grid grid-cols-3 divide-x divide-zinc-200 border-y border-zinc-200 py-1 text-[11px] font-bold">
-          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
-            <div className="txt-zinc-500 font-bold uppercase text-[9px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
-            <div className="txt-zinc-500 font-bold uppercase text-[9px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
+          <div className="mt-0 grid grid-cols-3 border-y border-zinc-200 py-1 text-[11px] font-bold">
+          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2 gap-y-2">
+            <div className="txt-zinc-500 font-bold uppercase text-[10px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
+            <div className="txt-zinc-500 font-bold uppercase text-[10px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
           </div>
-          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
+          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2 gap-y-2">
             {infoFields.slice(0, 2).map((f, i) => (
               <React.Fragment key={i}>
-                <div className="txt-zinc-500 font-bold uppercase text-[9px]">{f.label}</div>
+                <div className="txt-zinc-500 font-bold uppercase text-[10px]">{f.label}</div>
                 <div className="font-bold">: {f.value || "-"}</div>
               </React.Fragment>
             ))}
           </div>
-          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
+          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2 gap-y-2">
             {infoFields.slice(2).map((f, i) => (
               <React.Fragment key={i}>
-                <div className="txt-zinc-500 font-bold uppercase text-[9px]">{f.label}</div>
+                <div className="txt-zinc-500 font-bold uppercase text-[10px]">{f.label}</div>
                 <div className="font-bold">: {f.value || "-"}</div>
               </React.Fragment>
             ))}
@@ -412,7 +394,7 @@ export default function VerticalTemplate({
         {(optional.bill_to !== false || optional.ship_to !== false) && (
           <div className="mt-1 grid grid-cols-2 gap-4">
             {optional.bill_to !== false && (
-              <div className="bg-zinc-50 p-2 border-l-2 brd-zinc-900" style={{ backgroundColor: '#f8fafc' }}>
+              <div className="bg-zinc-50 p-2" style={{ backgroundColor: '#f8fafc' }}>
                 <div className="text-[10px] font-black uppercase txt-zinc-900 mb-1 tracking-widest">Bill To</div>
                 <div className="font-extrabold txt-zinc-900 text-[12px] leading-tight mb-1">
                   {data.client?.client_name || data.client?.name}
@@ -427,7 +409,7 @@ export default function VerticalTemplate({
               </div>
             )}
             {optional.ship_to !== false && (
-              <div className="bg-zinc-50 p-2 border-l-2 brd-zinc-300" style={{ backgroundColor: '#f8fafc' }}>
+              <div className="bg-zinc-50 p-2" style={{ backgroundColor: '#f8fafc' }}>
                 <div className="text-[10px] font-black uppercase txt-zinc-900 mb-1 tracking-widest">Ship To / Project</div>
                 <div className="font-extrabold txt-zinc-900 text-[12px] leading-tight mb-1">
                   {data.shipping_company_name || data.client?.client_name || data.client?.name}
@@ -478,7 +460,9 @@ export default function VerticalTemplate({
                           ) : col.key === 'item' ? (
                             <div>
                               <div className="font-bold text-zinc-900">{getCellValue(item, col.key, idx, data)}</div>
-                              {item.description && <div className="text-[9px] text-zinc-500 mt-0.5 leading-none">{mapping?.client_description || item.description}</div>}
+                              {(item.description && item.description.trim()) && (
+                                <div className="text-[9px] text-zinc-500 mt-0.5 leading-none">{mapping?.client_description || item.description}</div>
+                              )}
                             </div>
                           ) : (
                             <span className={col.align === 'right' ? 'font-bold' : ''}>
