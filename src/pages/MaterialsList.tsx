@@ -43,6 +43,7 @@ import {
   Eye,
   Download,
   Package as InventoryIcon,
+  Copy,
   FileSpreadsheet,
 } from 'lucide-react';
 
@@ -69,27 +70,27 @@ const ITEM_DETAIL_TABS = [
 ];
 
 const ITEM_TABLE_COLUMNS = [
-  { key: 'name', label: 'Name', default: true, locked: true },
-  { key: 'code', label: 'Code', default: true, locked: true },
+  { key: 'name', label: 'Item Name', default: true, locked: true },
   { key: 'category', label: 'Category', default: true, locked: true },
+  { key: 'unit', label: 'Unit', default: true, locked: true },
+  { key: 'gst_rate', label: 'GST Rate', default: true },
+  { key: 'hsn_code', label: 'HSN/SAC', default: true },
+  { key: 'uses_variant', label: 'Variant', default: true },
+  { key: 'stock', label: 'Inventory', default: true },
+  { key: 'code', label: 'Code', default: false },
   { key: 'sub_category', label: 'Sub Category', default: false },
   { key: 'size', label: 'Size', default: false },
   { key: 'pressure_class', label: 'Pressure Class', default: false },
   { key: 'make', label: 'MAKE(Brand name)', default: false },
   { key: 'material', label: 'Material', default: false },
   { key: 'end_connection', label: 'End Connection', default: false },
-  { key: 'unit', label: 'Unit', default: true, locked: true },
   { key: 'sale_price', label: 'Sale Price', default: false },
   { key: 'purchase_price', label: 'Purchase Price', default: false },
-  { key: 'hsn_code', label: 'HSN/SAC', default: false },
-  { key: 'gst_rate', label: 'GST Rate', default: false },
-  { key: 'uses_variant', label: 'Uses Variant', default: false },
-  { key: 'stock', label: 'Stock', default: true },
   { key: 'status', label: 'Status', default: true },
   { key: 'actions', label: 'Actions', default: true, locked: true },
 ];
 
-const MANDATORY_ITEM_COLUMNS = ['name', 'code', 'category', 'unit', 'actions'];
+const MANDATORY_ITEM_COLUMNS = ['name', 'category', 'unit', 'actions'];
 
 const emptyItemTransactions = () => ({
   warehouseRows: [],
@@ -197,10 +198,10 @@ function TabButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={cn(
-        "px-5 py-2.5 text-sm font-medium border-b-2 transition-colors",
+        "tab-button px-5 text-sm font-medium border-b-2 transition-all",
         active 
-          ? "border-indigo-600 text-indigo-600" 
-          : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
+          ? "border-indigo-600 text-indigo-700 bg-indigo-50/50" 
+          : "border-transparent text-zinc-500 hover:text-indigo-600 hover:bg-zinc-50 hover:border-zinc-300"
       )}
     >
       {children}
@@ -226,6 +227,11 @@ function ItemsTab() {
   const [hideInactive, setHideInactive] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
   const [materialSavePending, setMaterialSavePending] = useState(false);
+  const [isSavingSequentially, setIsSavingSequentially] = useState(false);
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
+  const [showMultiItemModal, setShowMultiItemModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [multiItemRows, setMultiItemRows] = useState([]);
   const [bulkPriceText, setBulkPriceText] = useState('');
   const [bulkPreviewRows, setBulkPreviewRows] = useState([]);
   const [bulkParseErrors, setBulkParseErrors] = useState([]);
@@ -257,7 +263,8 @@ function ItemsTab() {
     item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-    uses_variant: false, track_inventory: false
+    uses_variant: false, track_inventory: false,
+    dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg'
   });
 
   const [variantPricing, setVariantPricing] = useState([]);
@@ -1006,6 +1013,10 @@ function ItemsTab() {
       gst_rate: formData.gst_rate || null,
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
+      dimension: formData.dimension || null,
+      dimension_unit: formData.dimension_unit || 'cm',
+      weight: formData.weight ? parseFloat(formData.weight) : null,
+      weight_unit: formData.weight_unit || 'kg',
       item_type: 'product',
       organisation_id: organisation?.id
     };
@@ -1237,7 +1248,11 @@ function ItemsTab() {
       gst_rate: material.gst_rate || 18,
       is_active: material.is_active !== false,
       uses_variant: material.uses_variant || false,
-      track_inventory: hasStock
+      track_inventory: hasStock,
+      dimension: material.dimension || '',
+      dimension_unit: material.dimension_unit || 'cm',
+      weight: material.weight || '',
+      weight_unit: material.weight_unit || 'kg'
     });
     setShowForm(true);
     loadVariantPricing(material.id);
@@ -1372,16 +1387,19 @@ function ItemsTab() {
     );
   };
 
-  const filteredMaterials = useMemo(() => materials.filter(m => {
-    const matchesSearch = 
-      m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.item_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.material?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'All' || m.main_category === categoryFilter;
-    const matchesActive = !hideInactive || m.is_active;
-    return matchesSearch && matchesCategory && matchesActive;
-  }), [materials, searchTerm, categoryFilter, hideInactive]);
+  const filteredMaterials = useMemo(() => {
+    return materials.filter(m => {
+      const searchTermLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        m.name?.toLowerCase().includes(searchTermLower) ||
+        m.display_name?.toLowerCase().includes(searchTermLower) ||
+        m.item_code?.toLowerCase().includes(searchTermLower) ||
+        m.material?.toLowerCase().includes(searchTermLower);
+      const matchesCategory = categoryFilter === 'All' || m.main_category === categoryFilter;
+      const matchesActive = !hideInactive || m.is_active;
+      return matchesSearch && matchesCategory && matchesActive;
+    }).sort((a, b) => (a.display_name || a.name || '').localeCompare(b.display_name || b.name || ''));
+  }, [materials, searchTerm, categoryFilter, hideInactive]);
 
   const selectedMaterial = useMemo(() => materials.find((item) => item.id === selectedMaterialId) || null, [materials, selectedMaterialId]);
 
@@ -1453,124 +1471,164 @@ function ItemsTab() {
 
   const itemColumns = useMemo(() => {
     const columns: any[] = [];
-    const addColumn = (key: string, col: any) => {
-      if (visibleColumns.includes(key)) columns.push(col);
-    };
-
-    addColumn('name', {
-      id: 'name',
-      header: () => (
-        <span className="text-xs font-semibold text-zinc-500">Item</span>
-      ),
-      cell: ({ row }: any) => {
-        const m = row.original;
-        return (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-semibold text-zinc-600">
-              {(m.display_name || m.name || '?')[0]?.toUpperCase()}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-zinc-900">
-                {m.display_name || m.name}
-              </span>
-              <span className="text-xs text-zinc-500">
-                {m.material || m.size || '—'}
-              </span>
-            </div>
-          </div>
-        );
-      }
-    });
-
+    
+    // Helper to create basic text column
     const textCol = (key: string, label: string, accessor: (m: any) => any) => ({
       id: key,
       header: () => (
         <span className="text-xs font-semibold text-zinc-500">{label}</span>
       ),
       cell: ({ row }: any) => (
-        <span className="text-sm text-zinc-700 truncate">
+        <span className="text-sm text-zinc-700">
           {accessor(row.original) || '—'}
         </span>
       )
     });
 
-    addColumn('code', textCol('code', 'Code', (m) => m.item_code));
-    addColumn('category', textCol('category', 'Category', (m) => m.main_category));
-    addColumn('unit', textCol('unit', 'Unit', (m) => m.unit));
-
+    // Helper to create numeric column
     const numberCol = (key: string, label: string, accessor: (m: any) => any) => ({
       id: key,
       header: () => (
-        <div className="text-xs font-semibold text-zinc-500 text-right">
+        <div className="text-xs font-semibold text-zinc-500">
           {label}
         </div>
       ),
       cell: ({ row }: any) => (
-        <div className="text-sm text-zinc-900 text-right tabular-nums">
+        <div className="text-sm text-zinc-900 tabular-nums">
           {accessor(row.original) ?? '—'}
         </div>
       )
     });
 
-    addColumn('stock', {
-      id: 'stock',
-      header: () => (
-        <div className="text-xs font-semibold text-zinc-500 text-right">Stock</div>
-      ),
-      cell: ({ row }: any) => {
-        const m = row.original;
-        const stock = stockData[m.id] || 0;
-        const isLowStock = stock < (m.low_stock_level || 0);
-        return (
-          <span className={`text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
-            {stock}
-          </span>
-        );
-      }
-    });
+    ITEM_TABLE_COLUMNS.forEach(colConfig => {
+      if (!visibleColumns.includes(colConfig.key)) return;
 
-    addColumn('status', {
-      id: 'status',
-      header: () => (
-        <span className="text-xs font-semibold text-zinc-500">Status</span>
-      ),
-      cell: ({ row }: any) => {
-        const active = row.original.is_active !== false;
-        return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'
-          }`}>
-            {active ? 'Active' : 'Inactive'}
-          </span>
-        );
-      }
-    });
+      switch (colConfig.key) {
+        case 'name':
+          columns.push({
+            id: 'name',
+            header: () => (
+              <span className="text-xs font-semibold text-zinc-500">Item Name</span>
+            ),
+            cell: ({ row }: any) => {
+              const m = row.original;
+              return (
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-zinc-900">
+                    {m.display_name || m.name}
+                  </span>
+                  {(m.material || m.size) && (
+                    <span className="text-[10px] text-zinc-500">
+                      {m.material} {m.size}
+                    </span>
+                  )}
+                </div>
+              );
+            }
+          });
+          break;
 
-    addColumn('actions', {
-      id: 'actions',
-      header: () => (
-        <span className="text-xs font-semibold text-zinc-500">Actions</span>
-      ),
-      cell: ({ row }: any) => {
-        const m = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>
-              <Edit className="w-3.5 h-3.5 mr-1" /> Edit
-            </Button>
-            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={(e) => { e.stopPropagation(); openDeleteModal(m); }}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        );
+        case 'category':
+          columns.push(textCol('category', 'Category', (m) => m.main_category));
+          break;
+
+        case 'code':
+          columns.push(textCol('code', 'Code', (m) => m.item_code));
+          break;
+
+        case 'unit':
+          columns.push(textCol('unit', 'Unit', (m) => m.unit));
+          break;
+
+        case 'gst_rate':
+          columns.push(numberCol('gst_rate', 'GST Rate', (m) => m.gst_rate !== null ? `${m.gst_rate}%` : '-'));
+          break;
+
+        case 'hsn_code':
+          columns.push(textCol('hsn_code', 'HSN/SAC', (m) => m.hsn_code));
+          break;
+
+        case 'uses_variant':
+          columns.push(textCol('uses_variant', 'Variant', (m) => m.uses_variant ? 'Yes' : 'No'));
+          break;
+
+        case 'stock':
+          columns.push({
+            id: 'stock',
+            header: () => (
+              <div className="text-xs font-semibold text-zinc-500">Inventory</div>
+            ),
+            cell: ({ row }: any) => {
+              const m = row.original;
+              const stock = stockData[m.id] || 0;
+              const isLowStock = stock < (m.low_stock_level || 0);
+              return (
+                <span className={`text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
+                  {stock}
+                </span>
+              );
+            }
+          });
+          break;
+
+        case 'status':
+          columns.push({
+            id: 'status',
+            header: () => (
+              <span className="text-xs font-semibold text-zinc-500">Status</span>
+            ),
+            cell: ({ row }: any) => {
+              const active = row.original.is_active !== false;
+              return (
+                <span className={`px-2 py-1 text-[10px] font-medium ${
+                  active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'
+                }`}>
+                  {active ? 'Active' : 'Inactive'}
+                </span>
+              );
+            }
+          });
+          break;
+
+        case 'actions':
+          columns.push({
+            id: 'actions',
+            header: () => (
+              <span className="text-xs font-semibold text-zinc-500">Actions</span>
+            ),
+            cell: ({ row }: any) => {
+              const m = row.original;
+              return (
+                <div className="flex items-center justify-center gap-1">
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>
+                    <Edit className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" onClick={(e) => { e.stopPropagation(); openDeleteModal(m); }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              );
+            }
+          });
+          break;
+
+        default:
+          columns.push(textCol(colConfig.key, colConfig.label, (m) => formatColumnValue(m, colConfig.key)));
+          break;
       }
     });
 
     return columns;
   }, [visibleColumns, stockData, editMaterial, openDeleteModal]);
 
-  const [visibleCount, setVisibleCount] = useState(200);
-  const visibleMaterials = useMemo(() => filteredMaterials.slice(0, visibleCount), [filteredMaterials, visibleCount]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+  
+  const totalPages = Math.ceil(filteredMaterials.length / pageSize);
+  const visibleMaterials = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredMaterials.slice(start, start + pageSize);
+  }, [filteredMaterials, currentPage]);
 
   const table = useReactTable({
     data: visibleMaterials,
@@ -1578,6 +1636,145 @@ function ItemsTab() {
     getCoreRowModel: getCoreRowModel()
   });
 
+  const addMultiItemRow = (cloneFrom?: any) => {
+    const newId = Date.now() + Math.random();
+    if (cloneFrom) {
+      setMultiItemRows(prev => {
+        const index = prev.findIndex(r => r.id === cloneFrom.id);
+        const newRows = [...prev];
+        newRows.splice(index + 1, 0, { 
+          ...cloneFrom, 
+          id: newId, 
+          inventory: 0, 
+          variant_id: '', 
+          sale_price: '', 
+          purchase_price: '',
+          uses_variant: true 
+        });
+        return newRows;
+      });
+    } else {
+      setMultiItemRows(prev => [
+        ...prev,
+        { 
+          id: newId, category: '', name: '', unit: 'nos', gst_rate: 18, hsn_code: '', 
+          uses_variant: false, inventory: 0, variant_id: '', sale_price: '', purchase_price: '' 
+        }
+      ]);
+    }
+  };
+
+  const removeMultiItemRow = (id) => {
+    setMultiItemRows(prev => prev.filter(r => r.id !== id));
+  };
+
+  const updateMultiItemRow = (id, field, value) => {
+    setMultiItemRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+  };
+
+  const validateMultiItems = () => {
+    const invalid = multiItemRows.some(r => {
+      const basicInvalid = !r.name || !r.category || !r.unit;
+      const variantInvalid = r.uses_variant && (!r.variant_id || !r.sale_price);
+      return basicInvalid || variantInvalid;
+    });
+
+    if (invalid) {
+      alert('Please fill all mandatory fields. If Variant is checked, Variant type and Sale Price are required.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSequentialSave = async () => {
+    if (!validateMultiItems()) return;
+
+    setIsSavingSequentially(true);
+    setSaveProgress({ current: 0, total: multiItemRows.length });
+
+    const errors = [];
+    let successCount = 0;
+
+    // Smart Grouping: Track created materials in this session
+    const materialIdCache = new Map();
+
+    for (let i = 0; i < multiItemRows.length; i++) {
+      const row = multiItemRows[i];
+      setSaveProgress({ current: i + 1, total: multiItemRows.length });
+
+      const groupKey = `${row.name.trim().toLowerCase()}|${row.category}|${row.unit}`;
+      let materialId = materialIdCache.get(groupKey);
+
+      try {
+        if (!materialId) {
+          // Create new base material
+          const materialData = {
+            item_code: generateItemCode(),
+            name: row.name,
+            display_name: row.name,
+            main_category: row.category,
+            unit: row.unit,
+            hsn_code: row.hsn_code || null,
+            gst_rate: row.gst_rate || 18,
+            uses_variant: row.uses_variant,
+            item_type: 'product',
+            organisation_id: organisation?.id,
+            is_active: true,
+            sale_price: row.uses_variant ? 0 : (row.sale_price ? parseFloat(row.sale_price) : 0)
+          };
+
+          const { data, error } = await supabase.from('materials').insert(materialData).select().single();
+          if (error) throw error;
+
+          materialId = data.id;
+          materialIdCache.set(groupKey, materialId);
+        }
+
+        // Add Variant Pricing
+        if (row.uses_variant) {
+          const { error: pricingError } = await supabase.from('item_variant_pricing').insert({
+            item_id: materialId,
+            company_variant_id: row.variant_id,
+            sale_price: parseFloat(row.sale_price),
+            purchase_price: row.purchase_price ? parseFloat(row.purchase_price) : 0,
+            organisation_id: organisation?.id,
+            updated_at: new Date().toISOString()
+          });
+          if (pricingError) throw pricingError;
+        }
+
+        // Add Inventory
+        if (row.inventory > 0 && warehouses.length > 0) {
+          const defaultWh = warehouses.find(w => w.is_default) || warehouses[0];
+          const { error: stockError } = await supabase.from('item_stock').insert({
+            item_id: materialId,
+            warehouse_id: defaultWh.id,
+            company_variant_id: row.uses_variant ? row.variant_id : null,
+            current_stock: parseFloat(row.inventory),
+            organisation_id: organisation?.id,
+            updated_at: new Date().toISOString()
+          });
+          if (stockError) throw stockError;
+        }
+
+        successCount++;
+      } catch (err) {
+        errors.push(`Row ${i + 1} (${row.name}): ${err.message}`);
+      }
+    }
+
+    setIsSavingSequentially(false);
+    setShowReviewModal(false);
+    setShowMultiItemModal(false);
+    setMultiItemRows([]);
+
+    if (errors.length > 0) {
+      alert(`Save complete with errors:\n${errors.join('\n')}`);
+    } else {
+      setSaveNotice(`Successfully saved ${successCount} entries for ${materialIdCache.size} unique items.`);
+    }
+    refreshMaterials();
+  };
   const overviewStats = {
     totalStock: itemTransactions.warehouseRows.reduce((sum, row) => sum + (row.current_stock || 0), 0),
     lowStockWarehouses: itemTransactions.warehouseRows.filter(
@@ -1594,6 +1791,35 @@ function ItemsTab() {
 
   return (
     <div className="h-full flex flex-col">
+      {/* Sequential Saving Progress Overlay */}
+      {isSavingSequentially && (
+        <div className="modal-overlay open" style={{ zIndex: 10000, background: 'rgba(255,255,255,0.9)' }}>
+          <div className="text-center p-8 bg-white border border-zinc-200 shadow-xl">
+            <div className="loading-spinner mb-4 mx-auto"></div>
+            <h3 className="text-lg font-bold text-zinc-900 mb-1">Saving Items...</h3>
+            <p className="text-sm text-zinc-600 mb-4">Processing {saveProgress.current} of {saveProgress.total} items</p>
+            <div className="w-64 h-2 bg-zinc-100 rounded-full mx-auto overflow-hidden">
+              <div 
+                className="h-full bg-indigo-600 transition-all duration-300" 
+                style={{ width: `${(saveProgress.current / saveProgress.total) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-[10px] text-zinc-400 mt-4 italic">Please do not close this window</p>
+          </div>
+        </div>
+      )}
+
+      {/* Category Heading (Collapsible) */}
+      <div className="mb-4">
+        <button 
+          onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+          className="flex items-center gap-2 text-lg font-bold text-zinc-900 hover:text-indigo-600 transition-colors"
+        >
+          {showCategoryDropdown ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          Category: {categoryFilter === 'All' ? 'All Materials' : categoryFilter}
+        </button>
+      </div>
+
       <div className="p-2 mb-2 rounded-lg border border-zinc-200 bg-white">
         <div className="flex justify-between items-center flex-wrap gap-2">
           <div className="flex items-center gap-1">
@@ -1641,6 +1867,9 @@ function ItemsTab() {
             <Button size="sm" onClick={() => setShowForm(true)} className="text-xs font-sans">
               <Plus className="w-4 h-4 mr-1" /> Add Material
             </Button>
+            <Button size="sm" variant="outline" onClick={() => { setMultiItemRows([{ id: Date.now(), category: '', name: '', unit: 'nos', gst_rate: 18, hsn_code: '', uses_variant: false, inventory: 0 }]); setShowMultiItemModal(true); }} className="text-xs font-sans">
+              <TableIcon className="w-4 h-4 mr-1" /> Multi-Item
+            </Button>
             <div className="relative">
               <Button size="sm" variant="outline" className="text-xs font-sans" onClick={() => setShowMoreDropdown(!showMoreDropdown)}>
                 <MoreHorizontal className="w-4 h-4" />
@@ -1664,12 +1893,6 @@ function ItemsTab() {
                     onClick={() => { setShowFieldSelector(true); setShowMoreDropdown(false); }}
                   >
                     <FileSpreadsheet className="w-3 h-3" /> Excel Edit
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2"
-                    onClick={() => { setShowColumnSettings((prev) => !prev); setShowMoreDropdown(false); }}
-                  >
-                    <Settings className="w-3 h-3" /> Columns
                   </button>
                 </div>
               )}
@@ -1696,6 +1919,19 @@ function ItemsTab() {
         </div>
       ) : (
         <>
+          <div className="card" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
+              Hide Inactive Items
+            </label>
+            <button
+              className="btn btn-secondary btn-sm flex items-center gap-2"
+              onClick={() => setShowColumnSettings((prev) => !prev)}
+            >
+              <Settings className="w-3 h-3" /> Columns
+            </button>
+          </div>
+
           {showColumnSettings && (
             <div className="card" style={{ marginBottom: '16px' }}>
               <h3 className="card-title">Select Visible Columns</h3>
@@ -1715,25 +1951,24 @@ function ItemsTab() {
             </div>
           )}
 
-          <div className="card" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
-              Hide Inactive Items
-            </label>
-          </div>
-
           <div className="rounded-xl overflow-hidden border border-zinc-200">
             {filteredMaterials.length === 0 ? (
               <div className="p-12 text-center text-zinc-500"><h3 className="text-lg font-medium">No Items Found</h3></div>
             ) : (
               <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full border-collapse">
                 <thead className="bg-zinc-50 sticky top-0 z-10">
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
-                        <th key={header.id} className="px-4 py-3 text-left">
+                        <th 
+                          key={header.id} 
+                          className={cn(
+                            "px-4 py-3 border border-zinc-200",
+                            header.id === 'name' ? "text-left" : "text-center"
+                          )}
+                        >
                           {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                         </th>
                       ))}
@@ -1751,7 +1986,7 @@ function ItemsTab() {
                         key={row.id}
                         onClick={() => selectMaterialRow(m)}
                         className={`
-                          border-t transition-colors cursor-pointer relative
+                          transition-colors cursor-pointer relative
                           ${isSelected ? 'bg-blue-50' : 'hover:bg-zinc-50'}
                         `}
                         style={{ opacity: isActive ? 1 : 0.55 }}
@@ -1760,7 +1995,13 @@ function ItemsTab() {
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
                         )}
                         {row.getVisibleCells().map(cell => (
-                          <td key={cell.id} className="px-4 py-3">
+                          <td 
+                            key={cell.id} 
+                            className={cn(
+                              "px-4 py-3 border border-zinc-200",
+                              cell.column.id === 'name' ? "text-left" : "text-center"
+                            )}
+                          >
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         ))}
@@ -1770,12 +2011,53 @@ function ItemsTab() {
                 </tbody>
               </table>
             </div>
-            {filteredMaterials.length > visibleCount ? (
-              <div className="p-3 text-center">
-                <Button variant="outline" size="sm" onClick={() => setVisibleCount((v) => v + 200)}>Show more</Button>
-                <span className="ml-3 text-sm text-zinc-500">{visibleMaterials.length} / {filteredMaterials.length} shown</span>
+            {/* Pagination Controls */}
+            <div className="px-4 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50/50">
+              <div className="text-xs text-zinc-500 font-medium">
+                Showing {visibleMaterials.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, filteredMaterials.length)} of {filteredMaterials.length} items
               </div>
-            ) : null}
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  First
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs font-medium text-zinc-600 px-2">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage >= totalPages}
+                >
+                  Last
+                </Button>
+              </div>
+            </div>
           </div>
             )}
           </div>
@@ -2235,7 +2517,7 @@ function ItemsTab() {
             if (e.target === e.currentTarget) resetForm();
           }}
         >
-          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
+          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '800px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                 <div>
@@ -2286,6 +2568,53 @@ function ItemsTab() {
                 <div className="item-form-section-header">
                   <h4 className="item-form-section-title">Technical Attributes</h4>
                   <span className="item-form-section-hint">Internal use</span>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Dimensions (L × W × H)</label>
+                    <div className="flex gap-1">
+                      <input 
+                        type="text" 
+                        className="form-input w-[50px]" 
+                        value={formData.dimension} 
+                        onChange={e => setFormData({...formData, dimension: e.target.value})} 
+                        placeholder="10x10x10" 
+                        style={{ padding: '4px 2px' }}
+                      />
+                      <select 
+                        className="form-select w-[8px] px-0 text-center" 
+                        value={formData.dimension_unit} 
+                        onChange={e => setFormData({...formData, dimension_unit: e.target.value})}
+                        style={{ appearance: 'none', padding: '0', fontSize: '10px', border: 'none', background: 'transparent', overflow: 'visible' }}
+                      >
+                        <option value="cm">cm</option>
+                        <option value="in">in</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Weight</label>
+                    <div className="flex gap-1">
+                      <input 
+                        type="number" 
+                        className="form-input w-[50px]" 
+                        value={formData.weight} 
+                        onChange={e => setFormData({...formData, weight: e.target.value})} 
+                        placeholder="0.0"
+                        step="0.1" 
+                        style={{ padding: '4px 2px' }}
+                      />
+                      <select 
+                        className="form-select w-[8px] px-0 text-center" 
+                        value={formData.weight_unit} 
+                        onChange={e => setFormData({...formData, weight_unit: e.target.value})}
+                        style={{ appearance: 'none', padding: '0', fontSize: '10px', border: 'none', background: 'transparent', overflow: 'visible' }}
+                      >
+                        <option value="kg">kg</option>
+                        <option value="lb">lb</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -2879,6 +3208,216 @@ function ItemsTab() {
         </div>
       )}
 
+      {/* Multi-Item Modal */}
+      {showMultiItemModal && (
+        <div className="modal-overlay open" onClick={() => !isSavingSequentially && setShowMultiItemModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '95vw', width: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header border-b">
+              <div className="flex justify-between items-center w-full">
+                <h3 className="text-lg font-bold">Bulk Item Addition</h3>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={addMultiItemRow}>+ Add Row</Button>
+                  <button type="button" onClick={() => setShowMultiItemModal(false)} className="text-2xl">&times;</button>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 bg-zinc-50">
+              <table className="w-full border-collapse bg-white shadow-sm border border-zinc-200" style={{ tableLayout: 'fixed' }}>
+                <thead className="bg-zinc-100 sticky top-0 z-20">
+                  <tr>
+                    <th className="px-1 py-2 border border-zinc-200 text-[10px] font-semibold text-zinc-600 w-[25px]">#</th>
+                    <th className="px-1 py-2 border border-zinc-200 text-[10px] font-semibold text-zinc-600 w-[50px]">Cat</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[200px]">Item Name *</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[80px]">Unit *</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[40px]">V?</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[120px]">Variant Type</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[90px]">Sale Rate</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[90px]">Pur. Rate</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[60px]">GST %</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[100px]">HSN</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[80px]">Inventory</th>
+                    <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[40px]">Del</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {multiItemRows.map((row, idx) => {
+                    const prevRow = idx > 0 ? multiItemRows[idx - 1] : null;
+                    const isDuplicateName = prevRow && 
+                      prevRow.name.trim().toLowerCase() === row.name.trim().toLowerCase() &&
+                      prevRow.category === row.category &&
+                      prevRow.unit === row.unit;
+
+                    return (
+                      <tr key={row.id} className={isDuplicateName ? "bg-zinc-50/30" : ""}>
+                        <td className="px-1 py-1 border border-zinc-200 text-center text-[10px] text-zinc-400">{idx + 1}</td>
+                        <td className="px-0 py-1 border border-zinc-200 w-[50px]">
+                          <select 
+                            className={cn(
+                              "w-[50px] h-8 text-[10px] border-none focus:ring-0 p-0 appearance-none bg-transparent text-center",
+                              isDuplicateName && "opacity-20"
+                            )}
+                            value={row.category}
+                            onChange={(e) => updateMultiItemRow(row.id, 'category', e.target.value)}
+                          >
+                            <option value="">-</option>
+                            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <input 
+                            type="text" 
+                            className={cn(
+                              "w-full h-8 text-xs border-none focus:ring-0 font-medium",
+                              isDuplicateName ? "text-zinc-300" : "text-zinc-900"
+                            )}
+                            value={row.name}
+                            onChange={(e) => updateMultiItemRow(row.id, 'name', e.target.value)}
+                            placeholder={isDuplicateName ? "(Same as above)" : "Enter item name..."}
+                          />
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <select 
+                            className={cn(
+                              "w-full h-8 text-xs border-none focus:ring-0",
+                              isDuplicateName && "opacity-20"
+                            )}
+                            value={row.unit}
+                            onChange={(e) => updateMultiItemRow(row.id, 'unit', e.target.value)}
+                          >
+                            {units.map(u => <option key={u.unit_code} value={u.unit_code}>{u.unit_code}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200 text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={row.uses_variant}
+                            onChange={(e) => updateMultiItemRow(row.id, 'uses_variant', e.target.checked)}
+                          />
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          {row.uses_variant && (
+                            <select 
+                              className="w-full h-8 text-xs border-none focus:ring-0 bg-blue-50/30"
+                              value={row.variant_id}
+                              onChange={(e) => updateMultiItemRow(row.id, 'variant_id', e.target.value)}
+                            >
+                              <option value="">Select Variant</option>
+                              {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
+                            </select>
+                          )}
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <input 
+                            type="number" 
+                            className={cn("w-full h-8 text-xs border-none focus:ring-0 text-right", row.uses_variant && "bg-blue-50/30")}
+                            value={row.sale_price}
+                            onChange={(e) => updateMultiItemRow(row.id, 'sale_price', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <input 
+                            type="number" 
+                            className={cn("w-full h-8 text-xs border-none focus:ring-0 text-right", row.uses_variant && "bg-blue-50/30")}
+                            value={row.purchase_price}
+                            onChange={(e) => updateMultiItemRow(row.id, 'purchase_price', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <select 
+                            className="w-full h-8 text-xs border-none focus:ring-0"
+                            value={row.gst_rate}
+                            onChange={(e) => updateMultiItemRow(row.id, 'gst_rate', parseFloat(e.target.value))}
+                          >
+                            {GST_RATES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <input 
+                            type="text" 
+                            className="w-full h-8 text-xs border-none focus:ring-0"
+                            value={row.hsn_code}
+                            onChange={(e) => updateMultiItemRow(row.id, 'hsn_code', e.target.value)}
+                            placeholder="HSN..."
+                          />
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200">
+                          <input 
+                            type="number" 
+                            className="w-full h-8 text-xs border-none focus:ring-0 text-center font-semibold"
+                            value={row.inventory}
+                            onChange={(e) => updateMultiItemRow(row.id, 'inventory', e.target.value)}
+                          />
+                        </td>
+                        <td className="px-2 py-1 border border-zinc-200 text-center">
+                          <div className="flex items-center gap-1 justify-center">
+                            <button onClick={() => addMultiItemRow(row)} className="text-blue-500 hover:text-blue-700" title="Add Variant (Clone)">
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => removeMultiItemRow(row.id)} className="text-zinc-400 hover:text-red-600" title="Remove Row">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="mt-4">
+                <Button variant="ghost" size="sm" onClick={addMultiItemRow} className="text-indigo-600 hover:bg-indigo-50">
+                  + Add Another Row
+                </Button>
+              </div>
+            </div>
+            {/* Sticky Footer */}
+            <div className="p-4 border-t bg-white flex justify-end gap-3 sticky bottom-0 z-30">
+              <Button variant="outline" onClick={() => setShowMultiItemModal(false)}>Cancel</Button>
+              <Button onClick={() => setShowReviewModal(true)} disabled={multiItemRows.length === 0}>
+                Review & Save ({multiItemRows.length})
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="modal-overlay open" style={{ zIndex: 9000 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <h3 className="text-lg font-bold mb-2">Review Items</h3>
+            <p className="text-sm text-zinc-600 mb-4">You are about to save {multiItemRows.length} items. Please verify the details before proceeding.</p>
+            <div className="max-h-[300px] overflow-auto border border-zinc-200 rounded-lg mb-6">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-zinc-50 border-b">
+                  <tr>
+                    <th className="px-3 py-2">Item Name</th>
+                    <th className="px-3 py-2">Category</th>
+                    <th className="px-3 py-2 text-right">Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {multiItemRows.map(r => (
+                    <tr key={r.id} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-medium">{r.name || '(Empty Name)'}</td>
+                      <td className="px-3 py-2">{r.category || '-'}</td>
+                      <td className="px-3 py-2 text-right">{r.inventory}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowReviewModal(false)}>Back to Edit</Button>
+              <Button onClick={handleSequentialSave} className="bg-indigo-600 text-white">
+                Proceed to Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Excel Edit Mode - Field Selector Dialog */}
       {showFieldSelector && (
         <div className="modal-overlay open" onClick={() => setShowFieldSelector(false)}>
@@ -3283,23 +3822,25 @@ function ServiceTab() {
       </div>
 
       {/* Sub-tab Navigation */}
-      <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '20px' }}>
+      <div className="bg-white border border-gray-200 p-1 flex flex-wrap gap-[20px] shadow-sm mb-6">
         <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={cn(
+            "tab-button px-4 text-sm font-medium border-b-2 transition-colors",
             activeSubTab === 'items'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
-          }`}
+          )}
           onClick={() => setActiveSubTab('items')}
         >
           Service Items
         </button>
         <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={cn(
+            "tab-button px-4 text-sm font-medium border-b-2 transition-colors",
             activeSubTab === 'rates'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
-          }`}
+          )}
           onClick={() => setActiveSubTab('rates')}
         >
           Service Rates (Erection)
@@ -3343,8 +3884,10 @@ function ServiceTab() {
                         )}
                       </td>
                       <td className="pr-3 py-3 text-right align-middle">
-                        <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
+                        <div className="flex items-center justify-end gap-[15px]">
+                          <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
+                          <button className="btn btn-sm btn-secondary" onClick={() => deleteService(s.id)}>Delete</button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -3608,16 +4151,17 @@ function ServiceRatesTab() {
                     )}
                   </td>
                   <td className="pr-3 py-3 text-right align-middle">
-                    <button className="btn btn-sm btn-secondary" onClick={() => editRate(r)}>
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      style={{ marginLeft: '4px' }}
-                      onClick={() => deleteRate(r.id)}
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center justify-end gap-[15px]">
+                      <button className="btn btn-sm btn-secondary" onClick={() => editRate(r)}>
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => deleteRate(r.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -4028,8 +4572,10 @@ function CategoryTab() {
                     </span>
                   </td>
                   <td className="pr-3 py-3 text-right align-middle">
-                    <Button size="sm" variant="outline" onClick={() => editCategory(c)} className="text-xs">Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => deleteCategory(c.id)} className="text-xs ml-1">Delete</Button>
+                    <div className="flex items-center justify-end gap-[15px]">
+                      <Button size="sm" variant="outline" onClick={() => editCategory(c)} className="text-xs">Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => deleteCategory(c.id)} className="text-xs">Delete</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -4115,8 +4661,10 @@ function UnitTab() {
                     </span>
                   </td>
                   <td className="pr-3 py-3 text-right align-middle">
-                    <Button size="sm" variant="outline" onClick={() => editUnit(u)} className="text-xs">Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => deleteUnit(u.id)} className="text-xs ml-1">Delete</Button>
+                    <div className="flex items-center justify-end gap-[15px]">
+                      <Button size="sm" variant="outline" onClick={() => editUnit(u)} className="text-xs">Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => deleteUnit(u.id)} className="text-xs">Delete</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -4217,8 +4765,10 @@ function WarehousesTab() {
                     </span>
                   </td>
                   <td className="pr-3 py-3 text-right align-middle">
-                    <Button size="sm" variant="outline" onClick={() => editWarehouse(w)} className="text-xs">Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => deleteWarehouse(w.id)} className="text-xs ml-1">Delete</Button>
+                    <div className="flex items-center justify-end gap-[15px]">
+                      <Button size="sm" variant="outline" onClick={() => editWarehouse(w)} className="text-xs">Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => deleteWarehouse(w.id)} className="text-xs">Delete</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -4301,8 +4851,10 @@ function VariantsTab() {
                   </td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
                   <td className="pr-3 py-3 text-right align-middle">
-                    <Button size="sm" variant="outline" onClick={() => editVariant(v)} className="text-xs">Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => deleteVariant(v.id)} className="text-xs ml-1">Delete</Button>
+                    <div className="flex items-center justify-end gap-[15px]">
+                      <Button size="sm" variant="outline" onClick={() => editVariant(v)} className="text-xs">Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => deleteVariant(v.id)} className="text-xs">Delete</Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -4400,8 +4952,8 @@ export default function MaterialsList() {
   };
 
   return (
-    <div>
-      <div style={{ borderBottom: '1px solid #ddd', marginBottom: '20px', display: 'flex', gap: '0px' }}>
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 p-1 flex flex-wrap gap-[20px] shadow-sm">
         <TabButton active={activeTab === 'items'} onClick={() => changeTab('items')}>Items</TabButton>
         <TabButton active={activeTab === 'service'} onClick={() => changeTab('service')}>Service</TabButton>
         <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>
