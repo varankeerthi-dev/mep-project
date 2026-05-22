@@ -336,7 +336,7 @@ export default function InvoiceView() {
 
       {/* Main Content */}
       <div className="flex-1 bg-zinc-50 overflow-y-auto">
-        <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
+        <div className="max-w-5xl mx-auto py-12 px-16 sm:px-24 lg:px-32">
           {!selectedInvoice ? (
             <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
               Invoice not found
@@ -344,7 +344,7 @@ export default function InvoiceView() {
           ) : (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-8 px-8">
                 <div className="flex items-center gap-4">
                   <h1 className="text-2xl font-bold text-zinc-900">{selectedInvoice.invoice_no}</h1>
                   {getStatusBadge(selectedInvoice.status)}
@@ -362,7 +362,7 @@ export default function InvoiceView() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-[20px] mb-6 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
+              <div className="flex flex-wrap items-center gap-[20px] mb-6 px-8 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
                 <button
                   className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
                   onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
@@ -572,7 +572,7 @@ export default function InvoiceView() {
 
               {/* Creator & Approver */}
               <div 
-                className="flex justify-between items-center text-[13px] text-zinc-500 px-2 border-y border-zinc-200"
+                className="flex justify-between items-center text-[13px] text-zinc-500 px-8 border-y border-zinc-200"
                 style={{ paddingTop: '14px', paddingBottom: '14px', marginBottom: '14px' }}
               >
                 <div>
@@ -591,81 +591,131 @@ export default function InvoiceView() {
               </div>
 
               {/* Invoice Details */}
-              <div className="bg-white rounded-lg shadow-sm border border-zinc-200 p-8">
-                {/* Client Info */}
-                <div className="grid grid-cols-2 gap-8 mb-8">
+              <div className="space-y-6 bg-white border border-zinc-200 shadow-2xl min-h-[1120px] mb-12 rounded-none" style={{ padding: '14px' }}>
+                <div className="grid grid-cols-2 gap-[72px] border-b border-zinc-100 pb-12">
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Bill To</h3>
-                    <p className="text-lg font-semibold text-zinc-900">{selectedInvoice.client?.name || 'Unknown'}</p>
-                    {(selectedInvoice.client as any)?.gstin && (
-                      <p className="text-sm text-zinc-600">GSTIN: {(selectedInvoice.client as any).gstin}</p>
-                    )}
+                    <h3 className="text-lg font-bold text-zinc-900 mb-6">General Information</h3>
+                    <dl className="space-y-6">
+                      <div className="flex justify-between border-b border-zinc-50 pb-2">
+                        <dt className="text-[13px] text-zinc-500">Invoice No</dt>
+                        <dd className="text-[13px] font-bold text-zinc-900">{selectedInvoice.invoice_no || '-'}</dd>
+                      </div>
+                      <div className="flex justify-between border-b border-zinc-50 pb-2">
+                        <dt className="text-[13px] text-zinc-500">Invoice Date</dt>
+                        <dd className="text-[13px] font-bold text-zinc-900">{formatDate(selectedInvoice.created_at)}</dd>
+                      </div>
+                      <div className="flex justify-between border-b border-zinc-50 pb-2">
+                        <dt className="text-[13px] text-zinc-500">PO No</dt>
+                        <dd className="text-[13px] font-bold text-zinc-900">{selectedInvoice.po_number || '-'}</dd>
+                      </div>
+                      <div className="flex justify-between border-b border-zinc-50 pb-2">
+                        <dt className="text-[13px] text-zinc-500">PO Date</dt>
+                        <dd className="text-[13px] font-bold text-zinc-900">{selectedInvoice.po_date ? formatDate(selectedInvoice.po_date) : '-'}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-[13px] text-zinc-500">Remarks</dt>
+                        <dd className="text-[13px] font-bold text-zinc-900 text-right max-w-[200px] truncate" title={selectedInvoice.remarks}>{selectedInvoice.remarks || '-'}</dd>
+                      </div>
+                    </dl>
                   </div>
-                  <div className="text-right">
-                    <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Invoice Details</h3>
-                    <p className="text-sm text-zinc-600">Date: {formatDate(selectedInvoice.created_at)}</p>
-                    {selectedInvoice.po_number && (
-                      <p className="text-sm text-zinc-600">PO No: {selectedInvoice.po_number}</p>
-                    )}
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-900 mb-6">Bill To</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Client</dt>
+                        <dd className="text-[15px] font-bold text-zinc-900">{selectedInvoice.client?.name || selectedInvoice.client?.client_name || 'Unknown'}</dd>
+                      </div>
+                      {(selectedInvoice.client as any)?.gstin && (
+                        <div>
+                          <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">GSTIN</dt>
+                          <dd className="text-[13px] text-zinc-500">{(selectedInvoice.client as any).gstin}</dd>
+                        </div>
+                      )}
+                      {(selectedInvoice.billing_address || (selectedInvoice.client as any)?.address || (selectedInvoice.client as any)?.billing_address) && (
+                        <div>
+                          <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Billing Address</dt>
+                          <dd className="text-[13px] text-zinc-500 whitespace-pre-line">{selectedInvoice.billing_address || (selectedInvoice.client as any)?.address || (selectedInvoice.client as any)?.billing_address}</dd>
+                        </div>
+                      )}
+                      {(selectedInvoice.shipping_address || (selectedInvoice.client as any)?.shipping_address) && (
+                        <div>
+                          <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Shipping Address</dt>
+                          <dd className="text-[13px] text-zinc-500 whitespace-pre-line">{selectedInvoice.shipping_address || (selectedInvoice.client as any)?.shipping_address}</dd>
+                        </div>
+                      )}
+                      {(selectedInvoice.gst_address || (selectedInvoice.client as any)?.gst_address) && (
+                        <div>
+                          <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">GST Address</dt>
+                          <dd className="text-[13px] text-zinc-500 whitespace-pre-line">{selectedInvoice.gst_address || (selectedInvoice.client as any)?.gst_address}</dd>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Items Table */}
-                {selectedInvoice.items && selectedInvoice.items.length > 0 && (
-                  <div className="mb-8">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200">
-                          <th className="text-left py-3 px-4 font-semibold text-zinc-600">#</th>
-                          <th className="text-left py-3 px-4 font-semibold text-zinc-600">Description</th>
-                          <th className="text-right py-3 px-4 font-semibold text-zinc-600">Qty</th>
-                          <th className="text-right py-3 px-4 font-semibold text-zinc-600">Rate</th>
-                          <th className="text-right py-3 px-4 font-semibold text-zinc-600">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedInvoice.items.map((item: any, idx: number) => (
-                          <tr key={idx} className="border-b border-zinc-100">
-                            <td className="py-3 px-4 text-zinc-600">{idx + 1}</td>
-                            <td className="py-3 px-4 text-zinc-900">{item.description}</td>
-                            <td className="py-3 px-4 text-right text-zinc-600">{item.qty}</td>
-                            <td className="py-3 px-4 text-right text-zinc-600">{formatCurrency(item.rate)}</td>
-                            <td className="py-3 px-4 text-right font-semibold text-zinc-900">{formatCurrency(item.amount)}</td>
+                <div>
+                  <h3 className="text-lg font-bold text-zinc-900 mb-6">Line Items</h3>
+                  {selectedInvoice.items && selectedInvoice.items.length > 0 ? (
+                    <div className="overflow-x-auto -mx-12">
+                      <table className="min-w-full border border-zinc-200">
+                        <thead className="bg-zinc-100">
+                          <tr className="border-b border-zinc-200">
+                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">#</span></th>
+                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Description</span></th>
+                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
+                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Rate</span></th>
+                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Amount</span></th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        </thead>
+                        <tbody className="bg-white">
+                          {selectedInvoice.items.map((item: any, idx: number) => (
+                            <tr key={idx} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">
+                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(idx + 1).padStart(2, '0')}</span></td>
+                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] text-zinc-900 block whitespace-pre-line">{item.description}</span></td>
+                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] text-zinc-900 block text-right">{item.qty}</span></td>
+                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] text-zinc-900 block text-right">{formatCurrency(item.rate)}</span></td>
+                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] font-bold text-zinc-900 block text-right">{formatCurrency(item.amount)}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-zinc-500">
+                      <div className="text-lg font-medium mb-2">No line items found</div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Totals */}
-                <div className="flex justify-end">
-                  <div className="w-64">
-                    <div className="flex justify-between py-2 text-sm">
-                      <span className="text-zinc-600">Subtotal</span>
-                      <span className="font-semibold text-zinc-900">{formatCurrency(selectedInvoice.subtotal)}</span>
+                <div className="flex justify-end pt-8">
+                  <div className="w-64 border border-zinc-200 bg-zinc-50 p-4 rounded">
+                    <div className="flex justify-between py-2 text-[13px]">
+                      <span className="text-zinc-500 font-medium">Subtotal</span>
+                      <span className="font-bold text-zinc-900">{formatCurrency(selectedInvoice.subtotal)}</span>
                     </div>
                     {selectedInvoice.cgst > 0 && (
-                      <div className="flex justify-between py-2 text-sm">
-                        <span className="text-zinc-600">CGST</span>
-                        <span className="text-zinc-900">{formatCurrency(selectedInvoice.cgst)}</span>
+                      <div className="flex justify-between py-2 text-[13px]">
+                        <span className="text-zinc-500 font-medium">CGST</span>
+                        <span className="font-medium text-zinc-900">{formatCurrency(selectedInvoice.cgst)}</span>
                       </div>
                     )}
                     {selectedInvoice.sgst > 0 && (
-                      <div className="flex justify-between py-2 text-sm">
-                        <span className="text-zinc-600">SGST</span>
-                        <span className="text-zinc-900">{formatCurrency(selectedInvoice.sgst)}</span>
+                      <div className="flex justify-between py-2 text-[13px]">
+                        <span className="text-zinc-500 font-medium">SGST</span>
+                        <span className="font-medium text-zinc-900">{formatCurrency(selectedInvoice.sgst)}</span>
                       </div>
                     )}
                     {selectedInvoice.igst > 0 && (
-                      <div className="flex justify-between py-2 text-sm">
-                        <span className="text-zinc-600">IGST</span>
-                        <span className="text-zinc-900">{formatCurrency(selectedInvoice.igst)}</span>
+                      <div className="flex justify-between py-2 text-[13px]">
+                        <span className="text-zinc-500 font-medium">IGST</span>
+                        <span className="font-medium text-zinc-900">{formatCurrency(selectedInvoice.igst)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between py-3 border-t border-zinc-200 text-base font-bold">
-                      <span>Total</span>
-                      <span>{formatCurrency(selectedInvoice.total)}</span>
+                    <div className="flex justify-between py-3 mt-2 border-t border-zinc-200 text-sm font-bold">
+                      <span className="text-zinc-900">Total</span>
+                      <span className="text-sky-600">{formatCurrency(selectedInvoice.total)}</span>
                     </div>
                   </div>
                 </div>
