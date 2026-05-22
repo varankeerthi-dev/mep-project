@@ -16,6 +16,11 @@ import { AuthContext, type AuthContextValue, type Organisation, type Organisatio
 export { useAuth } from './contexts/AuthContext';
 export type { AuthContextValue, Organisation, OrganisationMember };
 
+const DynamicAgentation = lazy(() => {
+  if (typeof window === 'undefined') return Promise.resolve({ default: () => null });
+  return import('agentation').then(m => ({ default: m.Agentation }));
+});
+
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
 ): LazyExoticComponent<ComponentType<any>> => lazy(factory);
@@ -633,6 +638,8 @@ export default function App() {
           </Suspense>
         </main>
       </div>
+
+      {process.env.NODE_ENV === 'development' && <DynamicAgentation />}
 
       <Toaster />
       <ReactQueryDevtools initialIsOpen={false} />
