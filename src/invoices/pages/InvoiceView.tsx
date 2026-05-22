@@ -661,23 +661,104 @@ export default function InvoiceView() {
                       <table className="min-w-full border border-zinc-200">
                         <thead className="bg-zinc-100">
                           <tr className="border-b border-zinc-200">
-                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">#</span></th>
-                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Description</span></th>
-                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
-                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Rate</span></th>
-                            <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Amount</span></th>
+                            {(() => {
+                              const template = templates.find(t => t.id === selectedTemplateId);
+                              const optCols = template?.column_settings?.optional || {};
+                              const hasHSN = selectedInvoice.items?.some((i: any) => i.sac_code || i.hsn_code || i.item?.hsn_code);
+                              const hasItemCode = selectedInvoice.items?.some((i: any) => i.item?.item_code || i.item_code);
+                              const hasMake = selectedInvoice.items?.some((i: any) => i.make);
+                              const hasVariant = selectedInvoice.items?.some((i: any) => i.variant_id);
+                              const hasDiscount = selectedInvoice.items?.some((i: any) => i.discount_percent !== undefined && i.discount_percent !== null);
+                              const hasTax = selectedInvoice.items?.some((i: any) => i.tax_percent !== undefined && i.tax_percent !== null);
+                              const hasCustom1 = selectedInvoice.items?.some((i: any) => i.custom1);
+                              const hasCustom2 = selectedInvoice.items?.some((i: any) => i.custom2);
+
+                              return (
+                                <>
+                                  {optCols.sno !== false && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">#</span></th>
+                                  )}
+                                  {hasHSN && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">HSN/SAC</span></th>
+                                  )}
+                                  {hasItemCode && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Part No</span></th>
+                                  )}
+                                  {hasMake && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Make</span></th>
+                                  )}
+                                  <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Description</span></th>
+                                  {hasVariant && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Variant</span></th>
+                                  )}
+                                  <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
+                                  <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Unit</span></th>
+                                  <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Rate</span></th>
+
+                                  {hasDiscount && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Disc %</span></th>
+                                  )}
+                                  {hasTax && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Tax %</span></th>
+                                  )}
+                                  {hasCustom1 && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">{template?.column_settings?.labels?.custom1 || 'Custom 1'}</span></th>
+                                  )}
+                                  {hasCustom2 && (
+                                    <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">{template?.column_settings?.labels?.custom2 || 'Custom 2'}</span></th>
+                                  )}
+                                  <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Total</span></th>
+                                </>
+                              );
+                            })()}
                           </tr>
                         </thead>
                         <tbody className="bg-white">
-                          {selectedInvoice.items.map((item: any, idx: number) => (
-                            <tr key={idx} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">
-                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(idx + 1).padStart(2, '0')}</span></td>
-                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] text-zinc-900 block whitespace-pre-line">{item.description}</span></td>
-                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] text-zinc-900 block text-right">{item.qty}</span></td>
-                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] text-zinc-900 block text-right">{formatCurrency(item.rate)}</span></td>
-                              <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[13px] font-bold text-zinc-900 block text-right">{formatCurrency(item.amount)}</span></td>
-                            </tr>
-                          ))}
+                          {selectedInvoice.items.map((item: any, index: number) => {
+                            const template = templates.find(t => t.id === selectedTemplateId);
+                            const optCols = template?.column_settings?.optional || {};
+                            
+                            const hasHSN = selectedInvoice.items?.some((i: any) => i.sac_code || i.hsn_code || i.item?.hsn_code);
+                            const hasItemCode = selectedInvoice.items?.some((i: any) => i.item?.item_code || i.item_code);
+                            const hasMake = selectedInvoice.items?.some((i: any) => i.make);
+                            const hasVariant = selectedInvoice.items?.some((i: any) => i.variant_id);
+                            const hasDiscount = selectedInvoice.items?.some((i: any) => i.discount_percent !== undefined && i.discount_percent !== null);
+                            const hasTax = selectedInvoice.items?.some((i: any) => i.tax_percent !== undefined && i.tax_percent !== null);
+                            const hasCustom1 = selectedInvoice.items?.some((i: any) => i.custom1);
+                            const hasCustom2 = selectedInvoice.items?.some((i: any) => i.custom2);
+
+                            return (
+                              <tr key={index} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">
+                                {optCols.sno !== false && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
+                                {hasHSN && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
+                                {hasItemCode && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.item?.item_code || item.item_code || '-'}</span></td>}
+                                {hasMake && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 italic block">{item.make || '-'}</span></td>}
+                                <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
+                                  <div className="text-[12px] font-medium text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || item.description || '-'}</div>
+                                  {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
+                                    <div className="text-[11px] text-zinc-500 leading-snug mt-1">{item.description}</div>
+                                  )}
+                                  {item.override_flag && (
+                                    <span className="inline-flex items-center px-1 py-0.5 mt-1 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
+                                  )}
+                                </td>
+                                {hasVariant && (
+                                  <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
+                                    <span className="text-[11px] text-zinc-500 block">{item.variant_name || item.variant?.variant_name || '-'}</span>
+                                  </td>
+                                )}
+                                <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-medium block">{item.qty}</span></td>
+                                <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 block">{item.uom || item.unit || 'Nos'}</span></td>
+                                <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right block">{formatCurrency(item.rate)}</span></td>
+
+                                {hasDiscount && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-red-500 text-right font-medium block">{item.discount_percent}%</span></td>}
+                                {hasTax && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 text-right block">{item.tax_percent}%</span></td>}
+                                {hasCustom1 && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom1 || '-'}</span></td>}
+                                {hasCustom2 && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom2 || '-'}</span></td>}
+                                <td className="bg-zinc-50 border-l border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] font-bold text-zinc-900 text-right block">{formatCurrency(item.amount || item.line_total)}</span></td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
