@@ -288,3 +288,5 @@ export function MeetingMinutesEditor() {
     </div>
   );
 }
+
+export default MeetingMinutesEditor;

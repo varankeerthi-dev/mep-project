@@ -411,3 +411,5 @@ export function CreateMeeting({ onSuccess, onCancel, projectId, clientId, siteVi
     </div>
   );
 }
+
+export default CreateMeeting;

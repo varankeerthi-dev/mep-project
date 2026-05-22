@@ -320,3 +320,5 @@ export function MeetingMinutesView() {
     </div>
   );
 }
+
+export default MeetingMinutesView;
