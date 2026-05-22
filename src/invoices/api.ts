@@ -50,6 +50,7 @@ const INVOICE_FIELDS = [
 
 const INVOICE_SELECT = `
   id,
+  organisation_id,
   client_id,
   invoice_no,
   invoice_date,
@@ -171,6 +172,7 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
   const client = parseClientSummary(row.client);
   const base = InvoiceSchema.parse({
     id: row.id,
+    organisation_id: row.organisation_id ?? null,
     client_id: row.client_id,
     invoice_no: row.invoice_no ?? null,
     invoice_date: row.invoice_date ?? null,

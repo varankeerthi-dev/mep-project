@@ -19,7 +19,7 @@ type ProformaLike = ProformaWithRelations | string;
 async function getOrganisationDetails(organisationId: string): Promise<ProformaPdfCompany | null> {
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state')
     .eq('id', organisationId)
     .single();
 

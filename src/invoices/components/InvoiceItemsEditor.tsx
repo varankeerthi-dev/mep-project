@@ -35,6 +35,7 @@ type InvoiceItemsEditorProps = {
   itemMakesMap?: Record<string, string[]>;
   useArcPricing?: boolean;
   arcPricingMap?: Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>;
+  headerDiscounts?: Record<string, number>;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -76,6 +77,7 @@ export function InvoiceItemsEditor({
   itemMakesMap = {},
   useArcPricing = false,
   arcPricingMap = {},
+  headerDiscounts = {},
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -242,8 +244,13 @@ export function InvoiceItemsEditor({
     
     // Update rate when variant changes
     if (materialId && setValue) {
+      let discountPercent = Number(items[index]?.discount_percent || 0);
+      if (variant.variant_id && headerDiscounts[variant.variant_id] !== undefined) {
+        discountPercent = headerDiscounts[variant.variant_id];
+        setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
+      }
+
       const newRate = getRateForMaterialVariant(materialId, variant.variant_id, variant.make || currentMake);
-      const discountPercent = Number(items[index]?.discount_percent || 0);
       const rateAfterDiscount = newRate - (newRate * discountPercent / 100);
       const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
       
@@ -333,8 +340,13 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
       
       // Look up rate for selected variant + make
+      let discountPercent = Number(items[index]?.discount_percent || 0);
+      if (firstVariant?.variant_id && headerDiscounts[firstVariant.variant_id] !== undefined) {
+        discountPercent = headerDiscounts[firstVariant.variant_id];
+        setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
+      }
+
       const baseRate = getRateForMaterialVariant(materialId, firstVariant?.variant_id, firstVariant?.make || firstMake);
-      const discountPercent = Number(items[index]?.discount_percent || 0);
       const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
       const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
       
@@ -377,8 +389,13 @@ export function InvoiceItemsEditor({
       }
       
       // Look up rate for selected variant + make
+      let discountPercent = Number(items[index]?.discount_percent || 0);
+      if (firstVariant?.variant_id && headerDiscounts[firstVariant.variant_id] !== undefined) {
+        discountPercent = headerDiscounts[firstVariant.variant_id];
+        setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
+      }
+
       const baseRate = getRateForMaterialVariant(materialId, firstVariant?.variant_id, firstVariant?.make || firstMake);
-      const discountPercent = Number(items[index]?.discount_percent || 0);
       const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
       const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
       

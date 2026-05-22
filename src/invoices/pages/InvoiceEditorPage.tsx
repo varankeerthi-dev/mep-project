@@ -66,6 +66,10 @@ async function loadClientOptions(organisationId: string): Promise<InvoiceClientO
       state: client.state ?? null,
       gst_number: client.gst_number ?? client.gstin ?? null,
       default_template_id: client.default_template_id ?? null,
+      discount_type: client.discount_type ?? null,
+      standard_pricelist_id: client.standard_pricelist_id ?? null,
+      custom_discounts: client.custom_discounts ?? {},
+      discount_profile_id: client.discount_profile_id ?? null,
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
@@ -303,6 +307,9 @@ export default function InvoiceEditorPage() {
           original_quantity: item.original_quantity,
           base_rate: poRate,
           rate_after_discount: poRate,
+          material_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          make: item.make || null,
         },
       };
     });
@@ -368,6 +375,9 @@ export default function InvoiceEditorPage() {
           rate_after_discount: qtRate - (qtRate * (item.discount_percent || 0) / 100),
           quotation_item_id: item.id,
           original_qty: item.qty,
+          material_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          make: item.make || null,
         },
       };
     });
@@ -433,6 +443,9 @@ export default function InvoiceEditorPage() {
           rate_after_discount: pfRate - (pfRate * (item.discount_percent || 0) / 100),
           proforma_item_id: item.id,
           original_qty: item.qty,
+          material_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          make: item.make || null,
         },
       };
     });
@@ -502,6 +515,33 @@ export default function InvoiceEditorPage() {
   const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
   const deductStockOnFinalize = useWatch({ control, name: 'deduct_stock_on_finalize' });
 
+  const [enableRoundOff, setEnableRoundOff] = useState(false);
+
+  const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
+
+  const handleHeaderDiscountChange = (variantId: string, newValue: number) => {
+    setHeaderDiscounts(prev => ({ ...prev, [variantId]: newValue }));
+    
+    const items = getValues('items');
+    items.forEach((item, index) => {
+      const itemVariantId = item.meta_json?.variant_id;
+      if (itemVariantId === variantId) {
+        setValue(`items.${index}.discount_percent`, newValue, { shouldDirty: true });
+        
+        const baseRate = Number(item.meta_json?.base_rate || 0);
+        const rateAfterDiscount = baseRate - (baseRate * newValue / 100);
+        const roundedRate = enableRoundOff ? Math.round(rateAfterDiscount) : rateAfterDiscount;
+        
+        setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
+        setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
+        
+        const qty = Number(item.qty || 0);
+        const amount = round2(qty * roundedRate);
+        setValue(`items.${index}.amount`, amount, { shouldDirty: true });
+      }
+    });
+  };
+
   const { errors } = formState;
 
   const invoiceQuery = useInvoice(invoiceId ?? undefined);
@@ -547,6 +587,73 @@ export default function InvoiceEditorPage() {
 
   const warehousesQuery = useWarehouses();
   const { data: variantRows = [] } = useVariants();
+
+  useEffect(() => {
+    async function loadDiscounts() {
+      if (!selectedClientId) {
+        setHeaderDiscounts({});
+        return;
+      }
+      
+      const client = clientsQuery.data?.find(c => c.id === selectedClientId);
+      if (!client) return;
+
+      const newDiscounts: Record<string, number> = {};
+      const customDiscounts = client.custom_discounts || {};
+      
+      try {
+        if (client.discount_type === 'Standard' && client.standard_pricelist_id) {
+          const { data: pl } = await supabase
+            .from('standard_discount_pricelists')
+            .select('discount_percent')
+            .eq('id', client.standard_pricelist_id)
+            .single();
+            
+          if (pl) {
+            const flatDisc = parseFloat(pl.discount_percent) || 0;
+            variantRows.forEach((v: any) => {
+              newDiscounts[v.id] = flatDisc;
+            });
+          }
+        } else {
+          let structId = client.discount_profile_id;
+          
+          if (!structId) {
+            const structName = client.discount_type || 'Special';
+            const { data } = await supabase
+              .from('discount_structures')
+              .select('id')
+              .eq('structure_name', structName)
+              .eq('organisation_id', organisation?.id)
+              .maybeSingle();
+            if (data) structId = data.id;
+          }
+          
+          if (structId) {
+            const { data: varSettings } = await supabase
+              .from('discount_variant_settings')
+              .select('variant_id, default_discount_percent')
+              .eq('structure_id', structId)
+              .eq('organisation_id', organisation?.id);
+              
+            varSettings?.forEach((s: any) => {
+              const variantId = s.variant_id;
+              const customDisc = customDiscounts[variantId] !== undefined 
+                ? customDiscounts[variantId] 
+                : (parseFloat(s.default_discount_percent) || 0);
+              newDiscounts[variantId] = customDisc;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error loading client discounts:', err);
+      }
+      
+      setHeaderDiscounts(newDiscounts);
+    }
+    
+    loadDiscounts();
+  }, [selectedClientId, clientsQuery.data, variantRows, organisation?.id]);
 
   const itemVariantIdsMapQuery = useQuery({
     queryKey: ['invoice-ui', 'item-variant-ids', organisation?.id],
@@ -780,8 +887,6 @@ export default function InvoiceEditorPage() {
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
     [selectedTemplateId, templates],
   );
-
-  const [enableRoundOff, setEnableRoundOff] = useState(false);
 
   const totals = useMemo(
     () =>
@@ -1643,6 +1748,53 @@ export default function InvoiceEditorPage() {
               ))}
             </select>
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Discounts (By Variant)
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {variantRows.length > 0 ? variantRows.map((variant: any) => (
+                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e5e5e5', background: '#fff', borderRadius: '4px', height: '36px' }}>
+                  <div style={{ padding: '0 8px', flex: 1, borderLeft: '2px solid #3b82f6', height: '100%', display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#1d4ed8' }}>
+                      {variant.variant_name}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid #e5e5e5' }}>
+                    <input
+                      type="number"
+                      style={{ width: '60px', padding: '0 8px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#1d4ed8', border: 'none', background: 'transparent', height: '100%', outline: 'none' }}
+                      value={headerDiscounts[variant.id] || 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                        setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                      }}
+                      onBlur={(e) => {
+                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                        handleHeaderDiscountChange(variant.id, val);
+                      }}
+                      min="0" max="100" step="0.01"
+                    />
+                    <div style={{ padding: '0 8px', fontSize: '11px', fontWeight: 700, color: '#2563eb', borderLeft: '1px solid #e5e5e5', height: '100%', display: 'flex', alignItems: 'center' }}>
+                      %
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div style={{ fontSize: '11px', color: '#737373', fontStyle: 'italic', padding: '8px', border: '1px solid #e5e5e5', background: '#fafafa' }}>
+                  No variants available.
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
         <div style={{
@@ -1760,7 +1912,7 @@ export default function InvoiceEditorPage() {
                 cursor: 'pointer'
               }}
             >
-              <option value="standard">Standard</option>
+              <option value="itemized">Itemized</option>
               <option value="lot">Lot</option>
             </select>
           </div>
@@ -1891,6 +2043,7 @@ export default function InvoiceEditorPage() {
           itemMakesMap={itemVariantIdsMapQuery.data?.makesMap ?? {}}
           useArcPricing={useArcPricing}
           arcPricingMap={arcPricingMap}
+          headerDiscounts={headerDiscounts}
         />
 
         {selectedMode === 'lot' && (

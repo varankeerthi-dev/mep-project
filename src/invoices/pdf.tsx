@@ -128,7 +128,7 @@ async function getInvoiceCompany(organisationId?: string): Promise<InvoicePdfCom
 
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state')
     .eq('id', organisationId)
     .maybeSingle();
   if (error) throw error;
@@ -323,22 +323,28 @@ async function renderVerticalInvoicePdf(
     const invoiceData = {
       ...data.invoice,
       document_type: 'Invoice',
-      items: (data.invoice.materials || []).map((m: any, idx: number) => ({
-        sno: idx + 1,
-        item: m.product_name,
-        description: m.notes || '',
-        qty: m.qty_supplied || m.qty_used,
-        uom: 'Nos',
-        rate: m.rate,
-        discount_percent: 0,
-        rate_after_discount: m.rate,
-        base_amount: (m.qty_supplied || m.qty_used) * m.rate,
-        tax_percent: data.invoice.gst_rate || 18,
-        tax_amount: ((m.qty_supplied || m.qty_used) * m.rate * (data.invoice.gst_rate || 18)) / 100,
-        line_total: ((m.qty_supplied || m.qty_used) * m.rate * (100 + (data.invoice.gst_rate || 18))) / 100,
-        hsn_code: m.hsn_code || '',
-        make: m.brand || '',
-      })),
+      items: (data.invoice.items || []).map((m: any, idx: number) => {
+        const meta = m.meta_json || {};
+        return {
+          ...m,
+          sno: idx + 1,
+          item: { name: m.description },
+          description: m.description || '',
+          qty: m.qty || 0,
+          uom: meta.uom || 'Nos',
+          rate: m.rate || 0,
+          base_rate_snapshot: meta.base_rate || m.rate || 0,
+          discount_percent: meta.discount_percent || 0,
+          rate_after_discount: m.rate || 0,
+          base_amount: m.amount || ((m.qty || 0) * (m.rate || 0)),
+          tax_percent: meta.tax_percent || 18,
+          tax_amount: (m.amount || ((m.qty || 0) * (m.rate || 0))) * (meta.tax_percent || 18) / 100,
+          line_total: (m.amount || ((m.qty || 0) * (m.rate || 0))) * (1 + (meta.tax_percent || 18) / 100),
+          hsn_code: m.hsn_code || '',
+          make: meta.make || '',
+          variant: meta.variant_name || meta.variant_id || '',
+        };
+      }),
       client: data.invoice.client,
       billing_address: data.invoice.billing_address,
       shipping_address: data.invoice.shipping_address,
@@ -354,7 +360,7 @@ async function renderVerticalInvoicePdf(
     };
 
     flushSync(() => {
-      root.render(<VerticalTemplate data={invoiceData} organisation={data.company} templateConfig={templateConfig?.column_settings} />);
+      root.render(<VerticalTemplate data={invoiceData} organisation={data.company || {}} templateConfig={templateConfig?.column_settings} />);
     });
 
     await new Promise(resolve => setTimeout(resolve, 2000));

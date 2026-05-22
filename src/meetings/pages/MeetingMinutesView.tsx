@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Edit, FileText, Users, Printer } from 'lucide-react';
 import { useAuth } from '../../App';
@@ -9,10 +9,11 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export function MeetingMinutesView() {
+export const MeetingMinutesView = memo(function MeetingMinutesView({ meetingId }: { meetingId?: string }) {
   const { user, organisation } = useAuth();
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = meetingId || params.id;
   
   const [meeting, setMeeting] = useState<any>(null);
   const [minutesItems, setMinutesItems] = useState<any[]>([]);
@@ -319,6 +320,6 @@ export function MeetingMinutesView() {
       </div>
     </div>
   );
-}
+});
 
 export default MeetingMinutesView;

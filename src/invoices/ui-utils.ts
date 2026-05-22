@@ -133,6 +133,10 @@ export type InvoiceClientOption = {
   state: string | null;
   gst_number: string | null;
   default_template_id: string | null;
+  discount_type: string | null;
+  standard_pricelist_id: string | null;
+  custom_discounts: Record<string, number>;
+  discount_profile_id: string | null;
 };
 
 export type MaterialVariant = {

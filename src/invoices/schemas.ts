@@ -92,6 +92,7 @@ export const InvoiceSchema = z
   .object({
     id: z.string().uuid().optional(),
     client_id: z.string().uuid('Valid client id is required.'),
+    organisation_id: z.string().uuid().optional().nullable(),
     template_id: z.string().uuid('Valid template id is required.').optional().nullable(),
     invoice_no: z.string().optional().nullable(),
     invoice_date: z.string().optional().nullable(),

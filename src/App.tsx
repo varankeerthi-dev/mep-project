@@ -360,11 +360,15 @@ export default function App() {
         }
         if (pathKey.startsWith('/meetings/') && pathKey.includes('/minutes')) {
           const meetingId = pathKey.split('/meetings/')[1].split('/minutes')[0];
-          return <MeetingMinutesEditor />;
+          return <MeetingMinutesEditor meetingId={meetingId} />;
         }
         if (pathKey.startsWith('/meetings/') && pathKey.includes('/view')) {
           const meetingId = pathKey.split('/meetings/')[1].split('/view')[0];
-          return <MeetingMinutesView />;
+          return <MeetingMinutesView meetingId={meetingId} />;
+        }
+        if (pathKey.startsWith('/meetings/edit/')) {
+          const meetingId = pathKey.split('/meetings/edit/')[1];
+          return <CreateMeeting meetingId={meetingId} />;
         }
         return <Dashboard onNavigate={navigate} />;
     }
