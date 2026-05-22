@@ -22,15 +22,17 @@ import {
   Plus,
   Loader2,
   CreditCard,
+  History,
 } from 'lucide-react';
 import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
 import PaymentHistoryDrawer from '../components/PaymentHistoryDrawer';
+import ActivityLogDrawer from '../components/ActivityLogDrawer';
 
 export default function InvoiceView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invoiceId = searchParams.get('id');
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
 
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
@@ -43,6 +45,7 @@ export default function InvoiceView() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
   const [showPaymentMenu, setShowPaymentMenu] = useState(false);
   const [editingPayment, setEditingPayment] = useState<{
     id: string;
@@ -359,9 +362,9 @@ export default function InvoiceView() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 mb-6" style={{ paddingBottom: '16px' }}>
+              <div className="flex flex-wrap items-center gap-[20px] mb-6 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
                 <button
-                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
                   onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
                 >
                   <Edit className="w-[14px] h-[14px]" />
@@ -369,7 +372,7 @@ export default function InvoiceView() {
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
                   onClick={handleDuplicate}
                 >
                   <Copy className="w-[14px] h-[14px]" />
@@ -378,7 +381,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 transition-all text-[12px] font-bold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 rounded-md transition-all text-[13px] font-semibold"
                     onClick={() => {
                       setShowPaymentMenu(!showPaymentMenu);
                     }}
@@ -424,7 +427,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
                     onClick={() => {
                       setShowConvertMenu(!showConvertMenu);
                       setShowPrintMenu(false);
@@ -460,7 +463,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
                     onClick={() => {
                       setShowPrintMenu(!showPrintMenu);
                       setShowConvertMenu(false);
@@ -558,13 +561,33 @@ export default function InvoiceView() {
 
                 {selectedInvoice.status === 'draft' && (
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-red-600 border border-red-200 rounded hover:bg-red-50 transition-all text-[12px] font-bold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 rounded-md transition-all text-[13px] font-semibold"
                     onClick={handleDelete}
                   >
                     <Trash2 className="w-[14px] h-[14px]" />
                     Delete
                   </button>
                 )}
+              </div>
+
+              {/* Creator & Approver */}
+              <div 
+                className="flex justify-between items-center text-[13px] text-zinc-500 px-2 border-y border-zinc-200"
+                style={{ paddingTop: '14px', paddingBottom: '14px', marginBottom: '14px' }}
+              >
+                <div>
+                  Invoice created by: <span className="text-zinc-900 font-medium ml-1">{user?.user_metadata?.full_name || user?.email || 'Unknown User'}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div>Approved by:</div>
+                  <button 
+                    onClick={() => setActivityLogOpen(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded transition-colors font-medium"
+                  >
+                    <History size={14} />
+                    Activity log
+                  </button>
+                </div>
               </div>
 
               {/* Invoice Details */}
@@ -822,6 +845,14 @@ export default function InvoiceView() {
           }}
         />
       )}
+
+      <ActivityLogDrawer 
+        open={activityLogOpen} 
+        onClose={() => setActivityLogOpen(false)} 
+        userName={user?.user_metadata?.full_name || user?.email || 'Unknown User'}
+        invoice={selectedInvoice}
+        payments={paymentsQuery.data || []}
+      />
     </div>
   );
 }
