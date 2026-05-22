@@ -3522,65 +3522,112 @@ className="text-center cell-static col-shrink row-drag-handle"
       )}
       {showItemPicker && (
         <div className="modal-overlay open" onClick={() => setShowItemPicker(false)}>
-          <div className="modal-content" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Select Items</h3>
-              <button className="btn-close" onClick={() => setShowItemPicker(false)}>×</button>
+          <div className="modal-content" style={{ maxWidth: '750px', height: '80vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className="modal-title" style={{ margin: 0 }}>Select Items</h3>
+              <button className="btn-close" onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '4px 8px' }}>×</button>
             </div>
-            <div className="modal-body">
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Search items..." 
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                style={{ marginBottom: '16px' }}
-              />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', height: '400px' }}>
-                <div style={{ overflowY: 'auto', border: '1px solid #eee' }}>
-                  <table className="table">
-                    <thead>
-                      {pickerTable.getHeaderGroups().map(headerGroup => (
-                        <tr key={headerGroup.id}>
-                          {headerGroup.headers.map(header => (
-                            <th key={header.id}>
-                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                            </th>
-                          ))}
-                        </tr>
-                      ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb' }}>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Search items..." 
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    autoFocus
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                      <tr>
+                        <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb' }}>Item Name</th>
+                        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '90px' }}>Stock</th>
+                        <th style={{ padding: '8px', textAlign: 'center', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '60px' }}></th>
+                      </tr>
                     </thead>
                     <tbody>
-                      {pickerTable.getRowModel().rows.map(row => (
-                        <tr key={row.id}>
-                          {row.getVisibleCells().map(cell => (
-                            <td key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {pickerTable.getRowModel().rows.map(row => {
+                        const itemId = row.original?.id;
+                        const isSelected = itemId && pickerItems.some(p => p.item_id === itemId);
+                        return (
+                          <tr 
+                            key={row.id}
+                            style={{ cursor: isSelected ? 'default' : 'pointer', background: isSelected ? '#f0fdf4' : '#fff' }}
+                            onClick={() => {
+                              if (itemId && !isSelected) {
+                                const existing = pickerItems.find(p => p.item_id === itemId);
+                                if (!existing) {
+                                  handleAddToPicker(itemId);
+                                }
+                              }
+                            }}
+                          >
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                              <div style={{ fontWeight: 500, color: '#1e293b' }}>{row.original?.display_name || row.original?.name}</div>
+                              <div style={{ fontSize: '11px', color: '#64748b' }}>{row.original?.item_code}</div>
                             </td>
-                          ))}
-                        </tr>
-                      ))}
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#64748b' }}>
+                              {row.original?.stock_on_hand ?? '-'}
+                            </td>
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
+                              {isSelected ? (
+                                <span style={{ color: '#16a34a', fontSize: '14px' }}>✓</span>
+                              ) : (
+                                <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>+</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-                <div style={{ overflowY: 'auto', border: '1px solid #eee', padding: '8px' }}>
-                  <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Selected Items</h4>
-                  {pickerItems.map(p => (
-                    <div key={p.item_id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
-                      <span>{p.material.name} x {p.qty}</span>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button className="btn btn-sm" onClick={() => handlePickerQtyChange(p.item_id, -1)}>-</button>
-                        <button className="btn btn-sm" onClick={() => handlePickerQtyChange(p.item_id, 1)}>+</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleRemoveFromPicker(p.item_id)}>x</button>
-                      </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: '#334155' }}>Selected Items ({pickerItems.length})</h4>
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px' }}>
+                  {pickerItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', fontSize: '13px' }}>
+                      No items selected. Click items on the left to add them here.
                     </div>
-                  ))}
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {pickerItems.map(p => (
+                        <div key={p.item_id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '12px', fontWeight: 500, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.material?.display_name || p.material?.name}</div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>{p.material?.item_code}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <input 
+                              type="number" 
+                              value={p.qty}
+                              onChange={(e) => handlePickerQtyChange(p.item_id, e.target.value)}
+                              min="0.01"
+                              step="0.01"
+                              style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px', textAlign: 'center' }}
+                            />
+                            <button 
+                              onClick={() => handleRemoveFromPicker(p.item_id)} 
+                              style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '4px', width: '24px', height: '24px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >×</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button className="btn btn-secondary" onClick={() => setShowItemPicker(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAddItemsToQuotation} disabled={pickerItems.length === 0}>Add to Quotation</button>
+              <button className="btn btn-primary" onClick={handleAddItemsToQuotation} disabled={pickerItems.length === 0}>Add to Quotation ({pickerItems.length})</button>
             </div>
           </div>
         </div>
