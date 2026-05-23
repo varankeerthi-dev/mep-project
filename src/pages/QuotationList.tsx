@@ -54,6 +54,7 @@ const ALL_COLUMNS = [
   { id: 'quotation_no', label: 'Quote No', width: '120px' },
   { id: 'project', label: 'Project', width: '200px' },
   { id: 'client', label: 'Client', width: '400px' },
+  { id: 'created_by', label: 'Created By', width: '150px' },
   { id: 'status', label: 'Status', width: '100px' },
   { id: 'grand_total', label: 'Amount', width: '100px' },
 ];
@@ -399,7 +400,11 @@ export default function QuotationList() {
     queryFn: async () => {
       let query = supabase
         .from('quotation_header')
-        .select(`*, client:clients(id, client_name, gstin, state), project:projects(id, project_name)`)
+        .select(`
+          *, 
+          client:clients(id, client_name, gstin, state), 
+          project:projects(id, project_name)
+        `)
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
@@ -707,7 +712,7 @@ export default function QuotationList() {
                       localStorage.setItem('quotation_list_columns', JSON.stringify(tempVisibleColumns));
                       setShowColumnCustomizer(false);
                     }}
-                    className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors"
+                    className="flex-1 px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     Save
                   </button>
@@ -730,7 +735,7 @@ export default function QuotationList() {
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <div className="min-w-full">
-          <table className="w-full border-separate border-spacing-0 table-fixed">
+          <table className="w-full border-separate border-spacing-0">
             <thead className="z-10">
               <tr>
                 <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
@@ -797,9 +802,9 @@ export default function QuotationList() {
                         damping: 30,
                         opacity: { duration: 0.2 }
                       }}
-                      className={`hover:bg-zinc-50 cursor-pointer transition-colors duration-150 ${
+                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group ${
                         index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
-                      } ${selectedIds.has(q.id) ? 'bg-indigo-50/50' : ''}`}
+                      } ${selectedIds.has(q.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
                       onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                     >
                       <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
@@ -839,6 +844,13 @@ export default function QuotationList() {
                             </div>
                           </td>
                         );
+                        if (col.id === 'created_by') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                            <div className="truncate" title={q.creator?.full_name || '-'}>
+                              {q.creator?.full_name || '-'}
+                            </div>
+                          </td>
+                        );
                         if (col.id === 'status') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
                             <span 
@@ -871,7 +883,7 @@ export default function QuotationList() {
                             <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                           </button>
                         {openMenuId === q.id && (
-                          <div className={`absolute right-0 z-50 w-48 rounded-lg border border-zinc-200/60 bg-white p-1.5 shadow-lg shadow-black/5 ${
+                          <div className={`absolute right-0 z-50 w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
                             index >= paginationData.currentItems.length - 3 ? 'bottom-full mb-1' : 'top-full mt-1'
                           }`}>
                             {/* Section 1: Read actions */}
@@ -880,10 +892,10 @@ export default function QuotationList() {
                                 e.stopPropagation();
                                 navigate(`/quotation/view?id=${q.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
-                              <EyeIcon className="w-4 h-4" />
+                              <EyeIcon className="w-3.5 h-3.5" />
                               View Details
                             </button>
                             <button
@@ -891,10 +903,10 @@ export default function QuotationList() {
                                 e.stopPropagation();
                                 downloadQuotationPDF(q.id);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
-                              <DownloadIcon className="w-4 h-4" />
+                              <DownloadIcon className="w-3.5 h-3.5" />
                               Download PDF
                             </button>
 
@@ -907,8 +919,8 @@ export default function QuotationList() {
                                 setOpenMenuId(null);
                                 navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
                               Convert to Invoice
                             </button>
@@ -918,8 +930,8 @@ export default function QuotationList() {
                                 setOpenMenuId(null);
                                 navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
                               Convert to Proforma
                             </button>
@@ -930,8 +942,8 @@ export default function QuotationList() {
                                 setOpenMenuId(null);
                                 navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
                               Convert to Delivery
                             </button>
@@ -945,8 +957,8 @@ export default function QuotationList() {
                                 setOpenMenuId(null);
                                 navigate(`/quotation/edit?id=${q.id}`);
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
                               Edit
                             </button>
@@ -966,8 +978,8 @@ export default function QuotationList() {
                                   }
                                   queryClient.invalidateQueries({ queryKey: ['quotations'] });
                                 }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium"
-                                style={{ padding: '8px' }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98]"
+                                style={{ padding: '6px' }}
                               >
                                 Mark as Sent
                               </button>
@@ -1091,8 +1103,8 @@ export default function QuotationList() {
                                   alert('Error: ' + err.message);
                                 }
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
                               Duplicate
                             </button>
@@ -1110,8 +1122,8 @@ export default function QuotationList() {
                                   });
                                 }
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600"
-                              style={{ padding: '8px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
                             >
                               Delete
                             </button>
@@ -1129,70 +1141,68 @@ export default function QuotationList() {
       </div>
       
       {/* Pagination Controls */}
-      {paginationData.totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
-          <div className="text-base text-zinc-600">
-            Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Previous Button */}
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={!paginationData.hasPrevPage}
-              className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
-                paginationData.hasPrevPage
-                  ? 'text-zinc-700 hover:bg-zinc-100'
-                  : 'text-zinc-300 cursor-not-allowed'
-              }`}
-            >
-              Previous
-            </button>
-            
-            {/* Page Numbers */}
-            <div className="flex items-center gap-2">
-              {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
-                let pageNum;
-                if (paginationData.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= paginationData.totalPages - 2) {
-                  pageNum = paginationData.totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[36px] ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600/10 text-blue-600'
-                        : 'text-zinc-700 hover:bg-zinc-100'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            {/* Next Button */}
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={!paginationData.hasNextPage}
-              className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
-                paginationData.hasNextPage
-                  ? 'text-zinc-700 hover:bg-zinc-100'
-                  : 'text-zinc-300 cursor-not-allowed'
-              }`}
-            >
-              Next
-            </button>
-          </div>
+      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+        <div className="text-sm font-medium text-zinc-600">
+          Showing {paginationData.totalItems === 0 ? 0 : paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          {/* Previous Button */}
+          <button
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={!paginationData.hasPrevPage}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+              paginationData.hasPrevPage
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Previous
+          </button>
+          
+          {/* Page Numbers */}
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: Math.max(1, Math.min(5, paginationData.totalPages)) }, (_, i) => {
+              let pageNum;
+              if (paginationData.totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= paginationData.totalPages - 2) {
+                pageNum = paginationData.totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
+                    currentPage === pageNum
+                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
+                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          
+          {/* Next Button */}
+          <button
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={!paginationData.hasNextPage}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+              paginationData.hasNextPage
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
