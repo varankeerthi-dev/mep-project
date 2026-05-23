@@ -192,6 +192,7 @@ export default function TransactionNumberSeries() {
           onClose={handleCloseModal} 
           onSave={handleSaveSeries}
           generatePreview={generatePreview}
+          organisationId={organisation?.id}
         />
       )}
     </div>
@@ -203,9 +204,10 @@ type SeriesModalProps = {
   onClose: () => void
   onSave: () => void
   generatePreview: (prefix: string, startNumber: number, suffix: string, padding?: number | string) => string
+  organisationId: string | undefined
 }
 
-function SeriesModal({ series, onClose, onSave, generatePreview }: SeriesModalProps) {
+function SeriesModal({ series, onClose, onSave, generatePreview, organisationId }: SeriesModalProps) {
   const [formData, setFormData] = useState<any>({
     series_name: series?.series_name || '',
     financial_year: series?.financial_year || 'auto',
@@ -262,7 +264,8 @@ function SeriesModal({ series, onClose, onSave, generatePreview }: SeriesModalPr
         financial_year: formData.financial_year,
         is_default: formData.is_default,
         current_number: formData.current_number || 1,
-        configs: formData.configs
+        configs: formData.configs,
+        organisation_id: organisationId
       };
 
       let result;
@@ -306,7 +309,7 @@ function SeriesModal({ series, onClose, onSave, generatePreview }: SeriesModalPr
           <button className="modal-close" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
           <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div className="form-group">

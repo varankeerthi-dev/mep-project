@@ -1863,14 +1863,23 @@ body {
 }
 
 .sidebar-section {
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding-bottom: 6px;
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
   margin-bottom: 2px;
+  padding-bottom: 0;
 }
 
 .sidebar-section-title {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 600; /* Keep semibold - they're labels, not clickable */
+  letter-spacing: 0.5px; /* Adds breathing room */
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  opacity: 0.6; /* Reduces visual weight */
   color: #9ca3af;
   padding: 8px 12px 4px;
   white-space: nowrap;
@@ -1891,7 +1900,7 @@ body {
   color: #334155;
   cursor: pointer;
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
+  font-weight: 400; /* Change from 500 to 400 (normal) */
   font-size: 13px;
   line-height: 1.4;
   text-decoration: none;
@@ -1944,7 +1953,7 @@ body {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 600;
+  font-weight: 400; /* Change from 600 to 400 */
 }
 
 .sidebar.collapsed .sidebar-item-label {
@@ -1997,7 +2006,7 @@ body {
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 13px;
   line-height: 1.4;
-  font-weight: 500;
+  font-weight: 400; /* Change from 500 to 400 */
   border: none;
   background: transparent;
   width: 100%;
@@ -2042,7 +2051,7 @@ body {
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 13px;
   line-height: 1.4;
-  font-weight: 500;
+  font-weight: 400; /* Change from 500 to 400 */
   background: transparent;
   border: none;
   width: 100%;

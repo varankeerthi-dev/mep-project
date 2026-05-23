@@ -8,6 +8,7 @@ import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { jsPDF } from 'jspdf';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
+import { generateZohoTemplate } from './ZohoTemplate';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
@@ -57,6 +58,26 @@ export default function QuotationList() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginationData.currentItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginationData.currentItems.map((q: any) => q.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -257,8 +278,7 @@ export default function QuotationList() {
         return;
       }
 
-      // Grid Minimal template commented out
-      /*
+      // Grid Minimal template
       if (template?.column_settings?.print?.style === 'grid_minimal') {
         const blob = await generateGridMinimalQuotationPdfBlobWithTerms(quotation, org, template);
         const url = URL.createObjectURL(blob);
@@ -271,9 +291,7 @@ export default function QuotationList() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         return;
       }
-      */
 
-      /*
       if (template.template_code === 'QTN_TALLY') {
         const doc = generateQuotationTally(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
@@ -285,16 +303,14 @@ export default function QuotationList() {
         doc.save(`${safeFileName}.pdf`);
         return;
       }
-      */
 
-      // Zoho template function not available
-      /*
+      // Zoho template function
       if (template.template_code === 'QTN_ZOHO') {
         const doc = generateZohoTemplate(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
-      */
+
       if (template.template_code === 'QTN_CLASSIC') {
         const quotationWithTerms = {
           ...quotation,
@@ -368,9 +384,10 @@ export default function QuotationList() {
     );
   }, [quotations, searchTerm]);
 
-  // Pagination calculations
+  // Pagination and totals calculations
   const paginationData = useMemo(() => {
     const totalItems = filteredQuotations.length;
+    const totalValue = filteredQuotations.reduce((sum, q) => sum + (q.grand_total || 0), 0);
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -378,6 +395,7 @@ export default function QuotationList() {
     
     return {
       totalItems,
+      totalValue,
       totalPages,
       startIndex,
       endIndex,
@@ -387,15 +405,119 @@ export default function QuotationList() {
     };
   }, [filteredQuotations, currentPage, itemsPerPage]);
 
+  const stats = useMemo(() => {
+    return {
+      draft: quotations.filter((q: any) => q.status === 'Draft').length,
+      sent: quotations.filter((q: any) => q.status === 'Sent').length,
+      approved: quotations.filter((q: any) => q.status === 'Approved').length,
+      converted: quotations.filter((q: any) => q.status === 'Converted').length,
+    };
+  }, [quotations]);
+
+  const handleBulkStatusUpdate = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    
+    const confirmMessage = `Are you sure you want to mark ${selectedIds.size} quotation(s) as ${status}?`;
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      const { error } = await supabase
+        .from('quotation_header')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', Array.from(selectedIds))
+        .eq('organisation_id', organisation?.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      alert('Failed to update status: ' + err.message);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white relative">
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-zinc-900 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-3 pr-6 border-r border-zinc-700">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-zinc-400 hover:text-white underline underline-offset-4"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleBulkStatusUpdate('Sent')}
+              className="px-4 py-1.5 bg-white text-zinc-900 text-sm font-medium rounded-lg hover:bg-zinc-100 transition-colors"
+            >
+              Mark as Sent
+            </button>
+            <button
+              onClick={() => handleBulkStatusUpdate('Approved')}
+              className="px-4 py-1.5 bg-white text-zinc-900 text-sm font-medium rounded-lg hover:bg-zinc-100 transition-colors"
+            >
+              Mark as Approved
+            </button>
+            <button
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete ${selectedIds.size} quotation(s)?`)) {
+                  supabase
+                    .from('quotation_header')
+                    .delete()
+                    .in('id', Array.from(selectedIds))
+                    .eq('organisation_id', organisation?.id)
+                    .then(({ error }) => {
+                      if (error) alert('Error: ' + error.message);
+                      else {
+                        queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                        setSelectedIds(new Set());
+                      }
+                    });
+                }
+              }}
+              className="px-4 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            >
+              <Trash2Icon className="w-4 h-4" />
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold text-zinc-900">Quotations</h1>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {paginationData.totalItems}
-          </span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-base font-medium text-zinc-900">Quotations</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+              {paginationData.totalItems}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-zinc-200" />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mx-1">Draft</span>
+              <span className="text-xs font-medium text-zinc-700 mx-1">{stats.draft}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mx-1">Sent</span>
+              <span className="text-xs font-medium text-blue-700 mx-1">{stats.sent}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mx-1">Approved</span>
+              <span className="text-xs font-medium text-emerald-700 mx-1">{stats.approved}</span>
+            </div>
+          </div>
+          <div className="h-4 w-px bg-zinc-200" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider mx-1">Total Value</span>
+            <span className="text-sm font-medium text-zinc-900 mx-1">{formatCurrency(paginationData.totalValue)}</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -474,22 +596,33 @@ export default function QuotationList() {
           <table className="w-full border-separate border-spacing-0 table-fixed">
             <thead className="sticky top-0 z-10">
               <tr className="bg-blue-100/80 border-b border-blue-200">
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
+                <th className="h-[36px] px-4 text-center align-middle w-[50px]">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[120px]">
                   Date
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[160px] border-r border-zinc-200">
+                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[160px]">
                   Quote No
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[500px]">
+                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[200px]">
+                  Project
+                </th>
+                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[400px]">
                   Client
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[180px] border-r border-zinc-200">
+                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[180px]">
                   Amount
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
+                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[120px]">
                   Status
                 </th>
-                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px]">
+                <th className="h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[70px]">
                   Action
                 </th>
               </tr>
@@ -513,24 +646,42 @@ export default function QuotationList() {
                     key={q.id}
                     className={`hover:bg-zinc-50 cursor-pointer transition-all duration-150 ${
                       index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
-                    }`}
-onClick={() => navigate(`/quotation/view?id=${q.id}`)}
+                    } ${selectedIds.has(q.id) ? 'bg-indigo-50/50' : ''}`}
+                    onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                   >
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
+                    <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(q.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelect(q.id);
+                        }}
+                        className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
+                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
                       {formatDate(q.date)}
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
+                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
                       {q.quotation_no}
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                    <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                      <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
+                        {q.project?.project_name || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                       <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
                         {q.client?.client_name || '-'}
                       </div>
                     </td>
-                    <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap tabular-nums border-r border-zinc-100 border-t border-zinc-200/70">
-                      {formatCurrency(q.grand_total)}
+                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
+                      <div className="text-right">
+                        {formatCurrency(q.grand_total)}
+                      </div>
                     </td>
-                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
+                    <td className="px-6 py-[26px] align-middle whitespace-nowrap border-t border-zinc-200/70">
                       <span
                         className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
                         style={{
@@ -542,7 +693,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                         {q.status}
                       </span>
                     </td>
-                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
                       <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                         <button
                           onClick={(e) => {
@@ -564,6 +715,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                             className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
+                            <EyeIcon className="w-4 h-4" />
                             View Details
                           </button>
                           <button
@@ -574,6 +726,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                             className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
                             style={{ padding: '8px' }}
                           >
+                            <DownloadIcon className="w-4 h-4" />
                             Download PDF
                           </button>
 
