@@ -174,7 +174,7 @@ export default function POList() {
     queryFn: async () => {
       let query = supabase
         .from('client_purchase_orders')
-        .select(`*, clients(id, client_name)`)
+        .select(`*, clients(id, client_name), creator:user_profiles(full_name)`)
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
@@ -423,7 +423,7 @@ export default function POList() {
                         if (col.id === 'po_date') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(p.po_date)}</td>;
                         if (col.id === 'po_number') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{p.po_number}</td>;
                         if (col.id === 'client') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[300px] truncate" title={p.clients?.client_name || '-'}>{p.clients?.client_name || '-'}</div></td>;
-                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={p.prepared_by || '-'}>{p.prepared_by || '-'}</div></td>;
+                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={p.creator?.full_name || p.prepared_by || '-'}>{p.creator?.full_name || p.prepared_by || '-'}</div></td>;
                         if (col.id === 'status') return <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70"><span className="text-sm font-medium" style={{ color: getStatusColor(p.status).color }}>{p.status}</span></td>;
                         if (col.id === 'po_total_value') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(p.po_total_value)}</div></td>;
                         if (col.id === 'po_utilized_value') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(p.po_utilized_value)}</div></td>;

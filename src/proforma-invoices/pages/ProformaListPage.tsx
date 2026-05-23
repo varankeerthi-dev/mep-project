@@ -519,7 +519,7 @@ export default function ProformaListPage() {
                         if (col.id === 'date') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(p.created_at)}</td>;
                         if (col.id === 'pi_number') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{p.pi_number ?? p.id?.slice(0, 8)}</td>;
                         if (col.id === 'client') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[350px] truncate" title={p.client?.client_name || p.client?.name || '-'}>{p.client?.client_name || p.client?.name || '-'}</div></td>;
-                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={p.prepared_by || '-'}>{p.prepared_by || '-'}</div></td>;
+                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={p.creator?.full_name || p.prepared_by || '-'}>{p.creator?.full_name || p.prepared_by || '-'}</div></td>;
                         if (col.id === 'status') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
                             <span className="text-sm font-medium" style={{ color: getStatusColor(p.status).color }}>{p.status}</span>

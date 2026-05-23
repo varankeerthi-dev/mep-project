@@ -68,10 +68,12 @@ const INVOICE_SELECT = `
   total,
   paid_amount,
   status,
+  prepared_by,
   created_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
   items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json),
-  materials:invoice_materials(id, invoice_id, product_id, qty_used)
+  materials:invoice_materials(id, invoice_id, product_id, qty_used),
+  creator:user_profiles(full_name)
 `;
 
 function parseClientSummary(client: any): InvoiceClientSummary | null {

@@ -15,7 +15,7 @@ import {
   ChevronDown as ChevronDownIcon, 
   Trash2 as Trash2Icon,
   ArrowUpDown as ArrowUpDownIcon,
-  ArrowUp as ArrowUpIcon,
+  ArrowUp as ArrowUpIcon, 
   ArrowDown as ArrowDownIcon,
   Printer as PrinterIcon,
   X as XIcon,
@@ -49,12 +49,13 @@ const MANDATORY_COLUMNS = ['issueDate', 'invoice_no', 'client', 'totalAmount'];
 const ALL_COLUMNS = [
   { id: 'issueDate', label: 'Date', width: '120px' },
   { id: 'invoice_no', label: 'Invoice No', width: '140px' },
-  { id: 'client', label: 'Client', width: '350px' },
+  { id: 'client', label: 'Client', width: '300px' },
+  { id: 'sourceType', label: 'Source Type', width: '120px' },
   { id: 'prepared_by', label: 'Created By', width: '150px' },
-  { id: 'status', label: 'Status', width: '120px' },
-  { id: 'subtotal', label: 'Sub-total', width: '120px' },
-  { id: 'taxAmount', label: 'Tax Amount', width: '120px' },
-  { id: 'totalAmount', label: 'Amount', width: '120px' },
+  { id: 'status', label: 'Status', width: '110px' },
+  { id: 'subtotal', label: 'Sub-total', width: '110px' },
+  { id: 'taxAmount', label: 'Tax Amount', width: '110px' },
+  { id: 'totalAmount', label: 'Amount', width: '110px' },
 ];
 
 export default function InvoiceListPage() {
@@ -73,7 +74,7 @@ export default function InvoiceListPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
-    const saved = localStorage.getItem('invoice_list_columns_v2');
+    const saved = localStorage.getItem('invoice_list_columns_v4');
     return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
   });
   const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
@@ -173,7 +174,7 @@ export default function InvoiceListPage() {
     if (subTab === 'Drafts') {
       setStatusFilter('draft');
     } else if (subTab === 'Unpaid') {
-      setStatusFilter('sent'); // Assume 'sent' means unpaid
+      setStatusFilter('sent'); 
     } else {
       setStatusFilter('All');
     }
@@ -197,8 +198,8 @@ export default function InvoiceListPage() {
 
     if (sortOrder) {
       items.sort((a: any, b: any) => {
-        const dateA = new Date(a.issue_date).getTime();
-        const dateB = new Date(b.issue_date).getTime();
+        const dateA = new Date(a.invoice_date || a.created_at).getTime();
+        const dateB = new Date(b.invoice_date || b.created_at).getTime();
         return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
       });
     }
@@ -208,7 +209,7 @@ export default function InvoiceListPage() {
 
   const paginationData = useMemo(() => {
     const totalItems = filteredInvoices.length;
-    const totalValue = filteredInvoices.reduce((sum, i) => sum + (Number(i.total_amount) || 0), 0);
+    const totalValue = filteredInvoices.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -361,7 +362,7 @@ export default function InvoiceListPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pt-4 border-t border-zinc-100">
-                  <button onClick={() => { setVisibleColumns(tempVisibleColumns); localStorage.setItem('invoice_list_columns_v2', JSON.stringify(tempVisibleColumns)); setShowColumnCustomizer(false); }} className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors active:scale-[0.98]">Save</button>
+                  <button onClick={() => { setVisibleColumns(tempVisibleColumns); localStorage.setItem('invoice_list_columns_v4', JSON.stringify(tempVisibleColumns)); setShowColumnCustomizer(false); }} className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors active:scale-[0.98]">Save</button>
                   <button onClick={() => { setVisibleColumnsTemp(visibleColumns); setShowColumnCustomizer(false); }} className="flex-1 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-[0.98]">Cancel</button>
                 </div>
               </div>
@@ -418,14 +419,19 @@ export default function InvoiceListPage() {
                         <input type="checkbox" checked={selectedIds.has(i.id)} onChange={(e) => { e.stopPropagation(); toggleSelect(i.id); }} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
                       </td>
                       {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
-                        if (col.id === 'issueDate') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(i.issue_date)}</td>;
+                        if (col.id === 'issueDate') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(i.invoice_date || i.created_at)}</td>;
                         if (col.id === 'invoice_no') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{i.invoice_no}</td>;
                         if (col.id === 'client') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[350px] truncate" title={i.client?.client_name || i.client?.name || '-'}>{i.client?.client_name || i.client?.name || '-'}</div></td>;
-                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={i.prepared_by || '-'}>{i.prepared_by || '-'}</div></td>;
+                        if (col.id === 'sourceType') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70 uppercase">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-500">{i.source_type || '-'}</span>
+                          </td>
+                        );
+                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={i.creator?.full_name || i.prepared_by || '-'}>{i.creator?.full_name || i.prepared_by || '-'}</div></td>;
                         if (col.id === 'status') return <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70"><span className="text-sm font-medium" style={{ color: getStatusColor(i.status).color }}>{i.status}</span></td>;
                         if (col.id === 'subtotal') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.subtotal)}</div></td>;
-                        if (col.id === 'taxAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.tax_amount)}</div></td>;
-                        if (col.id === 'totalAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.total_amount)}</div></td>;
+                        if (col.id === 'taxAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.cgst + i.sgst + i.igst)}</div></td>;
+                        if (col.id === 'totalAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.total)}</div></td>;
                         return null;
                       })}
                       <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">

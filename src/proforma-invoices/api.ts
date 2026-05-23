@@ -34,10 +34,12 @@ const PROFORMA_SELECT = `
   notes,
   terms,
   payment_terms,
+  prepared_by,
   created_at,
   updated_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
-  items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order)
+  items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order),
+  creator:user_profiles(full_name)
 `;
 
 function parseClientSummary(client: any): ProformaClientSummary | null {
