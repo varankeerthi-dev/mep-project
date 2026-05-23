@@ -502,7 +502,7 @@ export default function QuotationList() {
     <div className="flex flex-col h-full bg-white relative">
       {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-zinc-900 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-blue-600 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex items-center gap-3 pr-6 border-r border-zinc-700">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
             <button
@@ -591,21 +591,86 @@ export default function QuotationList() {
               className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Sub-tabs & Filter Row */}
+      <div 
+        className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
+        style={{ paddingTop: '15px', paddingBottom: '15px' }}
+      >
+        <div className="flex items-center gap-2">
+          {SUB_TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSubTab(tab)}
+              className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${
+                subTab === tab
+                  ? 'bg-blue-600/10 text-blue-600'
+                  : 'text-zinc-600 hover:bg-zinc-100'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+          
+          {/* Status Dropdown - Only show in All Quotes tab */}
+          {subTab === 'All Quotes' && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+              >
+                {statusFilter === 'All' ? 'All Statuses' : statusFilter}
+                <ChevronDownIcon className="w-4 h-4" />
+              </button>
+              {showStatusDropdown && (
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+                  {STATUS_FILTER_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        setStatusFilter(status);
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                        statusFilter === status
+                          ? 'bg-indigo-50 text-indigo-700'
+                          : 'text-zinc-700 hover:bg-zinc-50'
+                      }`}
+                    >
+                      {status === 'All' ? 'All Statuses' : status}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-[10px]">
+          <button
+            onClick={() => navigate('/quotation/create')}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            Create Quotation
+          </button>
 
           {/* Column Customizer */}
-          <div className="relative mx-[6px]" ref={columnCustomizerRef}>
+          <div className="relative" ref={columnCustomizerRef}>
             <button
               onClick={() => setShowColumnCustomizer(!showColumnCustomizer)}
-              className="inline-flex items-center justify-center gap-2 px-3 py-[12px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors"
+              className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors"
+              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
             >
-              <MoreHorizontalIcon className="w-4 h-4" />
               Columns
             </button>
             {showColumnCustomizer && (
               <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="mb-4">
                   <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</h3>
-                  <div className="space-y-2">
+                  <div className="space-y-[10px]">
                     {ALL_COLUMNS.map((col) => {
                       const isMandatory = MANDATORY_COLUMNS.includes(col.id);
                       return (
@@ -642,7 +707,7 @@ export default function QuotationList() {
                       localStorage.setItem('quotation_list_columns', JSON.stringify(tempVisibleColumns));
                       setShowColumnCustomizer(false);
                     }}
-                    className="flex-1 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors"
+                    className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     Save
                   </button>
@@ -659,65 +724,7 @@ export default function QuotationList() {
               </div>
             )}
           </div>
-
-          <button
-            onClick={() => navigate('/quotation/create')}
-            className="inline-flex items-center justify-center gap-2 px-4 py-[12px] mx-[6px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Create Quotation
-          </button>
         </div>
-      </div>
-
-      {/* Sub-tabs */}
-      <div className="flex items-center gap-2 px-6 py-3 border-b border-zinc-100 bg-zinc-50/50">
-        {SUB_TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setSubTab(tab)}
-            className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${
-              subTab === tab
-                ? 'bg-zinc-800 text-white'
-                : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-        
-        {/* Status Dropdown - Only show in All Quotes tab */}
-        {subTab === 'All Quotes' && (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
-            >
-              {statusFilter === 'All' ? 'All Statuses' : statusFilter}
-              <ChevronDownIcon className="w-4 h-4" />
-            </button>
-            {showStatusDropdown && (
-              <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
-                {STATUS_FILTER_OPTIONS.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      setStatusFilter(status);
-                      setShowStatusDropdown(false);
-                    }}
-                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
-                      statusFilter === status
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-zinc-700 hover:bg-zinc-50'
-                    }`}
-                  >
-                    {status === 'All' ? 'All Statuses' : status}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Table */}
@@ -765,345 +772,359 @@ export default function QuotationList() {
             <tbody className="bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-zinc-500">
+                  <td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">
                     Loading quotations...
                   </td>
                 </tr>
               ) : paginationData.currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm text-zinc-500">
+                  <td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">
                     No quotations found
                   </td>
                 </tr>
               ) : (
-                paginationData.currentItems.map((q: any, index) => (
-                  <tr
-                    key={q.id}
-                    className={`hover:bg-zinc-50 cursor-pointer transition-all duration-150 ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
-                    } ${selectedIds.has(q.id) ? 'bg-indigo-50/50' : ''}`}
-                    onClick={() => navigate(`/quotation/view?id=${q.id}`)}
-                  >
-                    <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(q.id)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleSelect(q.id);
-                        }}
-                        className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </td>
-                    
-                    {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
-                      if (col.id === 'date') return (
-                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                          {formatDate(q.date)}
-                        </td>
-                      );
-                      if (col.id === 'quotation_no') return (
-                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                          {q.quotation_no}
-                        </td>
-                      );
-                      if (col.id === 'project') return (
-                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                          <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
-                            {q.project?.project_name || '-'}
-                          </div>
-                        </td>
-                      );
-                      if (col.id === 'client') return (
-                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                          <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
-                            {q.client?.client_name || '-'}
-                          </div>
-                        </td>
-                      );
-                      if (col.id === 'status') return (
-                        <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                          <span 
-                            className="text-sm font-medium"
-                            style={{ color: getStatusColor(q.status).color }}
-                          >
-                            {q.status}
-                          </span>
-                        </td>
-                      );
-                      if (col.id === 'grand_total') return (
-                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
-                          <div className="text-right">
-                            {formatCurrency(q.grand_total)}
-                          </div>
-                        </td>
-                      );
-                      return null;
-                    })}
-
-                    <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                      <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
-                        <button
-                          onClick={(e) => {
+                <AnimatePresence mode="popLayout">
+                  {paginationData.currentItems.map((q: any, index) => (
+                    <motion.tr
+                      key={q.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 400, 
+                        damping: 30,
+                        opacity: { duration: 0.2 }
+                      }}
+                      className={`hover:bg-zinc-50 cursor-pointer transition-colors duration-150 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
+                      } ${selectedIds.has(q.id) ? 'bg-indigo-50/50' : ''}`}
+                      onClick={() => navigate(`/quotation/view?id=${q.id}`)}
+                    >
+                      <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(q.id)}
+                          onChange={(e) => {
                             e.stopPropagation();
-                            setOpenMenuId(openMenuId === q.id ? null : q.id);
+                            toggleSelect(q.id);
                           }}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
-                        >
-                          <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
-                        </button>
-                      {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
-                          {/* Section 1: Read actions */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/quotation/view?id=${q.id}`);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
-                          >
-                            <EyeIcon className="w-4 h-4" />
-                            View Details
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              downloadQuotationPDF(q.id);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
-                          >
-                            <DownloadIcon className="w-4 h-4" />
-                            Download PDF
-                          </button>
+                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                      
+                      {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
+                        if (col.id === 'date') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                            {formatDate(q.date)}
+                          </td>
+                        );
+                        if (col.id === 'quotation_no') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                            {q.quotation_no}
+                          </td>
+                        );
+                        if (col.id === 'project') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                            <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
+                              {q.project?.project_name || '-'}
+                            </div>
+                          </td>
+                        );
+                        if (col.id === 'client') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                            <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
+                              {q.client?.client_name || '-'}
+                            </div>
+                          </td>
+                        );
+                        if (col.id === 'status') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
+                            <span 
+                              className="text-sm font-medium"
+                              style={{ color: getStatusColor(q.status).color }}
+                            >
+                              {q.status}
+                            </span>
+                          </td>
+                        );
+                        if (col.id === 'grand_total') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
+                            <div className="text-right">
+                              {formatCurrency(q.grand_total)}
+                            </div>
+                          </td>
+                        );
+                        return null;
+                      })}
 
-                          <div className="my-1 border-t border-zinc-100" />
-
-                          {/* Section 2: Convert actions */}
+                      <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenMenuId(null);
-                              navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
+                              setOpenMenuId(openMenuId === q.id ? null : q.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
                           >
-                            Convert to Invoice
+                            <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                              navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
-                          >
-                            Convert to Proforma
-                          </button>
+                        {openMenuId === q.id && (
+                          <div className={`absolute right-0 z-50 w-48 rounded-lg border border-zinc-200/60 bg-white p-1.5 shadow-lg shadow-black/5 ${
+                            index >= paginationData.currentItems.length - 3 ? 'bottom-full mb-1' : 'top-full mt-1'
+                          }`}>
+                            {/* Section 1: Read actions */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/quotation/view?id=${q.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                              style={{ padding: '8px' }}
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                              View Details
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadQuotationPDF(q.id);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                              style={{ padding: '8px' }}
+                            >
+                              <DownloadIcon className="w-4 h-4" />
+                              Download PDF
+                            </button>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                              navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
-                          >
-                            Convert to Delivery
-                          </button>
+                            <div className="my-1 border-t border-zinc-100" />
 
-                          <div className="my-1 border-t border-zinc-100" />
+                            {/* Section 2: Convert actions */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                              style={{ padding: '8px' }}
+                            >
+                              Convert to Invoice
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                              style={{ padding: '8px' }}
+                            >
+                              Convert to Proforma
+                            </button>
 
-                          {/* Section 3: Modify actions */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                              navigate(`/quotation/edit?id=${q.id}`);
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
-                          >
-                            Edit
-                          </button>
-                          {q.status === 'Draft' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                              style={{ padding: '8px' }}
+                            >
+                              Convert to Delivery
+                            </button>
+
+                            <div className="my-1 border-t border-zinc-100" />
+
+                            {/* Section 3: Modify actions */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                navigate(`/quotation/edit?id=${q.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                              style={{ padding: '8px' }}
+                            >
+                              Edit
+                            </button>
+                            {q.status === 'Draft' && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  const { error } = await supabase
+                                    .from('quotation_header')
+                                    .update({ status: 'Sent', updated_at: new Date().toISOString() })
+                                    .eq('id', q.id)
+                                    .eq('organisation_id', organisation?.id);
+                                  if (error) {
+                                    alert('Failed to mark as sent: ' + error.message);
+                                    return;
+                                  }
+                                  queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium"
+                                style={{ padding: '8px' }}
+                              >
+                                Mark as Sent
+                              </button>
+                            )}
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 setOpenMenuId(null);
-                                const { error } = await supabase
-                                  .from('quotation_header')
-                                  .update({ status: 'Sent', updated_at: new Date().toISOString() })
-                                  .eq('id', q.id)
-                                  .eq('organisation_id', organisation?.id);
-                                if (error) {
-                                  alert('Failed to mark as sent: ' + error.message);
-                                  return;
+                                
+                                try {
+                                  // Get default series from document_series table
+                                  const { data: seriesRow } = await supabase
+                                    .from('document_series')
+                                    .select('id, configs, current_number')
+                                    .eq('is_default', true)
+                                    .eq('organisation_id', organisation?.id)
+                                    .limit(1)
+                                    .maybeSingle();
+
+                                  let quotationNo = 'QT-0001';
+                                  let newSeriesNumber = 1;
+                                  
+                                  if (seriesRow) {
+                                    const cfg = seriesRow?.configs?.quote || {};
+                                    const prefix = cfg.prefix || 'QT-';
+                                    const suffix = cfg.suffix || '';
+                                    newSeriesNumber = (seriesRow.current_number || 0) + 1;
+                                    const padded = String(newSeriesNumber).padStart(4, '0');
+                                    quotationNo = `${prefix}${padded}${suffix}`;
+                                    
+                                    // Update series number
+                                    await supabase
+                                      .from('document_series')
+                                      .update({ current_number: newSeriesNumber })
+                                      .eq('id', seriesRow.id);
+                                  } else {
+                                    // Fallback: get existing quotations to generate new number
+                                    const { data: existing } = await supabase
+                                      .from('quotation_header')
+                                      .select('quotation_no')
+                                      .eq('organisation_id', organisation?.id)
+                                      .order('created_at', { ascending: false })
+                                      .limit(1);
+
+                                    if (existing && existing.length > 0) {
+                                      const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
+                                      quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+                                    }
+                                  }
+
+                                  // Duplicate quotation
+                                  const { data: newQuote, error } = await supabase
+                                    .from('quotation_header')
+                                    .insert({
+                                      organisation_id: organisation?.id,
+                                      quotation_no: quotationNo,
+                                      client_id: q.client_id,
+                                      project_id: q.project_id,
+                                      billing_address: q.billing_address,
+                                      gstin: q.gstin,
+                                      state: q.state,
+                                      date: new Date().toISOString().split('T')[0],
+                                      valid_till: q.valid_till,
+                                      payment_terms: q.payment_terms,
+                                      contact_no: q.contact_no,
+                                      remarks: q.remarks || q.reference,
+                                      reference: q.reference,
+                                      subtotal: q.subtotal,
+                                      total_item_discount: q.total_item_discount,
+                                      extra_discount_percent: q.extra_discount_percent,
+                                      extra_discount_amount: q.extra_discount_amount,
+                                      total_tax: q.total_tax,
+                                      round_off: q.round_off,
+                                      grand_total: q.grand_total,
+                                      status: 'Draft',
+                                      negotiation_mode: false,
+                                      revised_from_id: q.id
+                                    })
+                                    .select()
+                                    .single();
+
+                                  if (error) {
+                                    console.error('Duplicate error:', error);
+                                    alert('Failed to duplicate: ' + error.message);
+                                    return;
+                                  }
+
+                                  console.log('Duplicated quote:', newQuote);
+
+                                  // Duplicate items if any
+                                  if (q.items && q.items.length > 0) {
+                                    const itemsToInsert = q.items.map(item => ({
+                                      quotation_id: newQuote.id,
+                                      item_id: item.item_id,
+                                      variant_id: item.variant_id,
+                                      description: item.description,
+                                      qty: item.qty,
+                                      uom: item.uom,
+                                      rate: item.rate,
+                                      original_discount_percent: item.original_discount_percent,
+                                      discount_percent: item.discount_percent,
+                                      discount_amount: item.discount_amount,
+                                      tax_percent: item.tax_percent,
+                                      tax_amount: item.tax_amount,
+                                      line_total: item.line_total,
+                                      override_flag: false
+                                    }));
+
+                                    const { error: itemsError } = await supabase.from('quotation_items').insert(itemsToInsert);
+                                    if (itemsError) {
+                                      console.error('Items error:', itemsError);
+                                    }
+                                  }
+
+                                  // Refresh list with exact query key
+                                  await queryClient.invalidateQueries({ 
+                                    queryKey: ['quotations', statusFilter, organisation?.id] 
+                                  });
+                                } catch (err) {
+                                  console.error('Duplicate exception:', err);
+                                  alert('Error: ' + err.message);
                                 }
-                                queryClient.invalidateQueries({ queryKey: ['quotations'] });
                               }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium"
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                               style={{ padding: '8px' }}
                             >
-                              Mark as Sent
+                              Duplicate
                             </button>
-                          )}
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                              
-                              try {
-                                // Get default series from document_series table
-                                const { data: seriesRow } = await supabase
-                                  .from('document_series')
-                                  .select('id, configs, current_number')
-                                  .eq('is_default', true)
-                                  .eq('organisation_id', organisation?.id)
-                                  .limit(1)
-                                  .maybeSingle();
 
-                                let quotationNo = 'QT-0001';
-                                let newSeriesNumber = 1;
-                                
-                                if (seriesRow) {
-                                  const cfg = seriesRow?.configs?.quote || {};
-                                  const prefix = cfg.prefix || 'QT-';
-                                  const suffix = cfg.suffix || '';
-                                  newSeriesNumber = (seriesRow.current_number || 0) + 1;
-                                  const padded = String(newSeriesNumber).padStart(4, '0');
-                                  quotationNo = `${prefix}${padded}${suffix}`;
-                                  
-                                  // Update series number
-                                  await supabase
-                                    .from('document_series')
-                                    .update({ current_number: newSeriesNumber })
-                                    .eq('id', seriesRow.id);
-                                } else {
-                                  // Fallback: get existing quotations to generate new number
-                                  const { data: existing } = await supabase
-                                    .from('quotation_header')
-                                    .select('quotation_no')
-                                    .eq('organisation_id', organisation?.id)
-                                    .order('created_at', { ascending: false })
-                                    .limit(1);
+                            <div className="my-1 border-t border-zinc-100" />
 
-                                  if (existing && existing.length > 0) {
-                                    const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-                                    quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-                                  }
+                            {/* Section 3: Destructive */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                if (confirm('Are you sure you want to delete this quotation?')) {
+                                  supabase.from('quotation_header').delete().eq('id', q.id).then(() => {
+                                    queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                                  });
                                 }
-
-                                // Duplicate quotation
-                                const { data: newQuote, error } = await supabase
-                                  .from('quotation_header')
-                                  .insert({
-                                    organisation_id: organisation?.id,
-                                    quotation_no: quotationNo,
-                                    client_id: q.client_id,
-                                    project_id: q.project_id,
-                                    billing_address: q.billing_address,
-                                    gstin: q.gstin,
-                                    state: q.state,
-                                    date: new Date().toISOString().split('T')[0],
-                                    valid_till: q.valid_till,
-                                    payment_terms: q.payment_terms,
-                                    contact_no: q.contact_no,
-                                    remarks: q.remarks || q.reference,
-                                    reference: q.reference,
-                                    subtotal: q.subtotal,
-                                    total_item_discount: q.total_item_discount,
-                                    extra_discount_percent: q.extra_discount_percent,
-                                    extra_discount_amount: q.extra_discount_amount,
-                                    total_tax: q.total_tax,
-                                    round_off: q.round_off,
-                                    grand_total: q.grand_total,
-                                    status: 'Draft',
-                                    negotiation_mode: false,
-                                    revised_from_id: q.id
-                                  })
-                                  .select()
-                                  .single();
-
-                                if (error) {
-                                  console.error('Duplicate error:', error);
-                                  alert('Failed to duplicate: ' + error.message);
-                                  return;
-                                }
-
-                                console.log('Duplicated quote:', newQuote);
-
-                                // Duplicate items if any
-                                if (q.items && q.items.length > 0) {
-                                  const itemsToInsert = q.items.map(item => ({
-                                    quotation_id: newQuote.id,
-                                    item_id: item.item_id,
-                                    variant_id: item.variant_id,
-                                    description: item.description,
-                                    qty: item.qty,
-                                    uom: item.uom,
-                                    rate: item.rate,
-                                    original_discount_percent: item.original_discount_percent,
-                                    discount_percent: item.discount_percent,
-                                    discount_amount: item.discount_amount,
-                                    tax_percent: item.tax_percent,
-                                    tax_amount: item.tax_amount,
-                                    line_total: item.line_total,
-                                    override_flag: false
-                                  }));
-
-                                  const { error: itemsError } = await supabase.from('quotation_items').insert(itemsToInsert);
-                                  if (itemsError) {
-                                    console.error('Items error:', itemsError);
-                                  }
-                                }
-
-// Refresh list with exact query key
-                                await queryClient.invalidateQueries({ 
-                                  queryKey: ['quotations', statusFilter, organisation?.id] 
-                                });
-                              } catch (err) {
-                                console.error('Duplicate exception:', err);
-                                alert('Error: ' + err.message);
-                              }
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '8px' }}
-                          >
-                            Duplicate
-                          </button>
-
-                          <div className="my-1 border-t border-zinc-100" />
-
-                          {/* Section 3: Destructive */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(null);
-                              if (confirm('Are you sure you want to delete this quotation?')) {
-                                supabase.from('quotation_header').delete().eq('id', q.id).then(() => {
-                                  queryClient.invalidateQueries({ queryKey: ['quotations'] });
-                                });
-                              }
-                            }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600"
-                            style={{ padding: '8px' }}
-                          >
-                            Delete
-                          </button>
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600"
+                              style={{ padding: '8px' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
       
@@ -1147,7 +1168,7 @@ export default function QuotationList() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[36px] ${
                       currentPage === pageNum
-                        ? 'bg-zinc-900 text-white'
+                        ? 'bg-blue-600/10 text-blue-600'
                         : 'text-zinc-700 hover:bg-zinc-100'
                     }`}
                   >
