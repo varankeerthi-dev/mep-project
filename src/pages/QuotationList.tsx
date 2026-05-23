@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -21,6 +22,9 @@ import {
   MoreHorizontal as MoreHorizontalIcon,
   ChevronDown as ChevronDownIcon,
   Trash2 as Trash2Icon,
+  ArrowUpDown as ArrowUpDownIcon,
+  ArrowUp as ArrowUpIcon,
+  ArrowDown as ArrowDownIcon,
 } from 'lucide-react';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
@@ -44,6 +48,16 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 const getStatusColor = (status?: string) =>
   STATUS_COLORS[status ?? ''] ?? STATUS_COLORS['Draft'];
 
+const MANDATORY_COLUMNS = ['date', 'quotation_no', 'client', 'grand_total'];
+const ALL_COLUMNS = [
+  { id: 'date', label: 'Date', width: '120px' },
+  { id: 'quotation_no', label: 'Quote No', width: '120px' },
+  { id: 'project', label: 'Project', width: '200px' },
+  { id: 'client', label: 'Client', width: '400px' },
+  { id: 'status', label: 'Status', width: '100px' },
+  { id: 'grand_total', label: 'Amount', width: '100px' },
+];
+
 export default function QuotationList() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
@@ -56,8 +70,18 @@ export default function QuotationList() {
   const [itemsPerPage] = useState(20);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('quotation_list_columns');
+    return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
+  });
+  const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
+
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const columnCustomizerRef = useRef<HTMLDivElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -114,6 +138,28 @@ export default function QuotationList() {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showStatusDropdown]);
+
+  useEffect(() => {
+    if (!showColumnCustomizer) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnCustomizerRef.current && !columnCustomizerRef.current.contains(event.target as Node)) {
+        setShowColumnCustomizer(false);
+        setVisibleColumnsTemp(visibleColumns);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowColumnCustomizer(false);
+        setVisibleColumnsTemp(visibleColumns);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showColumnCustomizer, visibleColumns]);
 
   // Reset status filter when switching sub-tabs
   useEffect(() => {
@@ -378,11 +424,21 @@ export default function QuotationList() {
 
   const filteredQuotations = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return quotations.filter((qt: any) =>
+    const items = quotations.filter((qt: any) =>
       qt.quotation_no?.toLowerCase().includes(q) ||
       qt.client?.client_name?.toLowerCase().includes(q)
     );
-  }, [quotations, searchTerm]);
+
+    if (sortOrder) {
+      items.sort((a: any, b: any) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      });
+    }
+
+    return items;
+  }, [quotations, searchTerm, sortOrder]);
 
   // Pagination and totals calculations
   const paginationData = useMemo(() => {
@@ -413,6 +469,12 @@ export default function QuotationList() {
       converted: quotations.filter((q: any) => q.status === 'Converted').length,
     };
   }, [quotations]);
+
+  const toggleSort = () => {
+    if (sortOrder === null) setSortOrder('desc');
+    else if (sortOrder === 'desc') setSortOrder('asc');
+    else setSortOrder(null);
+  };
 
   const handleBulkStatusUpdate = async (status: string) => {
     if (selectedIds.size === 0) return;
@@ -521,18 +583,86 @@ export default function QuotationList() {
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Search quotations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
+
+          {/* Column Customizer */}
+          <div className="relative mx-[6px]" ref={columnCustomizerRef}>
+            <button
+              onClick={() => setShowColumnCustomizer(!showColumnCustomizer)}
+              className="inline-flex items-center justify-center gap-2 px-3 py-[12px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors"
+            >
+              <MoreHorizontalIcon className="w-4 h-4" />
+              Columns
+            </button>
+            {showColumnCustomizer && (
+              <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="mb-4">
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</h3>
+                  <div className="space-y-2">
+                    {ALL_COLUMNS.map((col) => {
+                      const isMandatory = MANDATORY_COLUMNS.includes(col.id);
+                      return (
+                        <label
+                          key={col.id}
+                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+                            isMandatory ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50 cursor-pointer'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={tempVisibleColumns.includes(col.id)}
+                            disabled={isMandatory}
+                            onChange={(e) => {
+                              if (isMandatory) return;
+                              if (e.target.checked) {
+                                setVisibleColumnsTemp([...tempVisibleColumns, col.id]);
+                              } else {
+                                setVisibleColumnsTemp(tempVisibleColumns.filter(id => id !== col.id));
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm font-medium text-zinc-700">{col.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-4 border-t border-zinc-100">
+                  <button
+                    onClick={() => {
+                      setVisibleColumns(tempVisibleColumns);
+                      localStorage.setItem('quotation_list_columns', JSON.stringify(tempVisibleColumns));
+                      setShowColumnCustomizer(false);
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setVisibleColumnsTemp(visibleColumns);
+                      setShowColumnCustomizer(false);
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => navigate('/quotation/create')}
-            className="inline-flex items-center justify-center gap-2 px-4 h-[30px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-[12px] mx-[6px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             Create Quotation
@@ -594,9 +724,9 @@ export default function QuotationList() {
       <div className="flex-1 overflow-auto">
         <div className="min-w-full">
           <table className="w-full border-separate border-spacing-0 table-fixed">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-blue-100/80 border-b border-blue-200">
-                <th className="h-[36px] px-4 text-center align-middle w-[50px]">
+            <thead className="z-10">
+              <tr>
+                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
                   <input
                     type="checkbox"
                     checked={selectedIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
@@ -604,25 +734,30 @@ export default function QuotationList() {
                     className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                   />
                 </th>
-                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[120px]">
-                  Date
-                </th>
-                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[160px]">
-                  Quote No
-                </th>
-                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[200px]">
-                  Project
-                </th>
-                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[400px]">
-                  Client
-                </th>
-                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[180px]">
-                  Amount
-                </th>
-                <th className="h-[36px] px-6 pl-1 text-left align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[120px]">
-                  Status
-                </th>
-                <th className="h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-medium text-zinc-700 tracking-tight w-[70px]">
+                {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => (
+                  <th 
+                    key={col.id}
+                    style={{ width: col.width }}
+                    className={`sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 ${
+                      col.id === 'grand_total' ? 'text-right' : 'text-left'
+                    }`}
+                  >
+                    {col.id === 'date' ? (
+                      <button 
+                        onClick={toggleSort}
+                        className="flex items-center gap-2 hover:text-zinc-900 transition-colors group"
+                      >
+                        {col.label}
+                        <div className="flex flex-col">
+                          {!sortOrder && <ArrowUpDownIcon className="w-3 h-3 text-zinc-300 group-hover:text-zinc-400" />}
+                          {sortOrder === 'asc' && <ArrowUpIcon className="w-3 h-3 text-indigo-600" />}
+                          {sortOrder === 'desc' && <ArrowDownIcon className="w-3 h-3 text-indigo-600" />}
+                        </div>
+                      </button>
+                    ) : col.label}
+                  </th>
+                ))}
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
                   Action
                 </th>
               </tr>
@@ -660,39 +795,52 @@ export default function QuotationList() {
                         className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </td>
-                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                      {formatDate(q.date)}
-                    </td>
-                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                      {q.quotation_no}
-                    </td>
-                    <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                      <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
-                        {q.project?.project_name || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                      <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
-                        {q.client?.client_name || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
-                      <div className="text-right">
-                        {formatCurrency(q.grand_total)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-[26px] align-middle whitespace-nowrap border-t border-zinc-200/70">
-                      <span
-                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
-                        style={{
-                          backgroundColor: getStatusColor(q.status).bg,
-                          color: getStatusColor(q.status).color,
-                          borderColor: getStatusColor(q.status).color + '20',
-                        }}
-                      >
-                        {q.status}
-                      </span>
-                    </td>
+                    
+                    {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
+                      if (col.id === 'date') return (
+                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                          {formatDate(q.date)}
+                        </td>
+                      );
+                      if (col.id === 'quotation_no') return (
+                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                          {q.quotation_no}
+                        </td>
+                      );
+                      if (col.id === 'project') return (
+                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                          <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
+                            {q.project?.project_name || '-'}
+                          </div>
+                        </td>
+                      );
+                      if (col.id === 'client') return (
+                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                          <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
+                            {q.client?.client_name || '-'}
+                          </div>
+                        </td>
+                      );
+                      if (col.id === 'status') return (
+                        <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
+                          <span 
+                            className="text-sm font-medium"
+                            style={{ color: getStatusColor(q.status).color }}
+                          >
+                            {q.status}
+                          </span>
+                        </td>
+                      );
+                      if (col.id === 'grand_total') return (
+                        <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
+                          <div className="text-right">
+                            {formatCurrency(q.grand_total)}
+                          </div>
+                        </td>
+                      );
+                      return null;
+                    })}
+
                     <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
                       <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                         <button
@@ -700,19 +848,19 @@ export default function QuotationList() {
                             e.stopPropagation();
                             setOpenMenuId(openMenuId === q.id ? null : q.id);
                           }}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-amber-100 hover:bg-amber-200 transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
                         >
                           <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                         </button>
                       {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200/60 bg-zinc-200 p-1.5 shadow-lg shadow-black/5">
+                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
                           {/* Section 1: Read actions */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/quotation/view?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             <EyeIcon className="w-4 h-4" />
@@ -723,7 +871,7 @@ export default function QuotationList() {
                               e.stopPropagation();
                               downloadQuotationPDF(q.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             <DownloadIcon className="w-4 h-4" />
@@ -739,7 +887,7 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             Convert to Invoice
@@ -750,7 +898,7 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             Convert to Proforma
@@ -762,7 +910,7 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             Convert to Delivery
@@ -777,7 +925,7 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/quotation/edit?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             Edit
@@ -923,7 +1071,7 @@ export default function QuotationList() {
                                 alert('Error: ' + err.message);
                               }
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-amber-100 hover:text-zinc-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                             style={{ padding: '8px' }}
                           >
                             Duplicate
