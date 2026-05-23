@@ -745,7 +745,9 @@ export default function QuotationList() {
                         damping: 30,
                         opacity: { duration: 0.2 }
                       }}
-                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group ${
+                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
+                        openMenuId === q.id ? 'z-50' : 'z-0'
+                      } ${
                         index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
                       } ${selectedIds.has(q.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
                       onClick={() => {
@@ -847,8 +849,8 @@ export default function QuotationList() {
                             <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                           </button>
                         {openMenuId === q.id && (
-                          <div className={`absolute right-0 z-50 w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
-                            index >= paginationData.currentItems.length - 3 ? 'bottom-full mb-1' : 'top-full mt-1'
+                          <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
+                            index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
                           }`}>
                             {/* Section 1: Read actions */}
                             <button

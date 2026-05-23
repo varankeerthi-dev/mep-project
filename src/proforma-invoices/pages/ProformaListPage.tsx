@@ -507,7 +507,9 @@ export default function ProformaListPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ type: "spring", stiffness: 400, damping: 30, opacity: { duration: 0.2 } }}
-                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group ${index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} ${selectedIds.has(p.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
+                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
+                        openMenuId === p.id ? 'z-50' : 'z-0'
+                      } ${index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} ${selectedIds.has(p.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
                       onClick={() => selectedIds.size === 0 ? navigate(`/proforma-invoices/edit?id=${p.id}`) : toggleSelect(p.id)}
                     >
                       <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
@@ -532,7 +534,9 @@ export default function ProformaListPage() {
                         <div className="relative inline-block" ref={openMenuId === p.id ? menuRef : null}>
                           <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id!); }} className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"><MoreHorizontalIcon className="w-4 h-4 text-zinc-500" /></button>
                           {openMenuId === p.id && (
-                            <div className={`absolute right-0 z-50 w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${index >= paginationData.currentItems.length - 3 ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+                            <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
+                              index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
+                            }`}>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/proforma-invoices/edit?id=${p.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><EyeIcon className="w-3.5 h-3.5" />View / Edit</button>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoice/create?source=proforma&sourceId=${p.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><FileCheckIcon className="w-3.5 h-3.5" />Convert to Invoice</button>
                               <button onClick={(e) => { e.stopPropagation(); downloadProformaPdf(p, { organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
