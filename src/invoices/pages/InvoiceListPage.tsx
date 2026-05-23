@@ -1,689 +1,252 @@
-import { useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Eye,
-  Loader2,
-  Mail,
-  MoreHorizontal,
-  Plus,
-  Printer,
-  Filter,
-  FileText,
-  RotateCcw,
-  Pencil,
-  Columns,
-  Check,
-  Trash2,
-} from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
-import type { TableColumn } from '@/lib/table-schema';
-import { distinctOptions } from '@/lib/table-schema';
+import { formatDate, formatCurrency } from '../ui-utils';
+import { useAuth } from '../../App';
+import { timedSupabaseQuery } from '../../utils/queryTimeout';
+import { 
+  Search as SearchIcon, 
+  Plus as PlusIcon, 
+  Download as DownloadIcon, 
+  Eye as EyeIcon, 
+  MoreHorizontal as MoreHorizontalIcon, 
+  ChevronDown as ChevronDownIcon, 
+  Trash2 as Trash2Icon,
+  ArrowUpDown as ArrowUpDownIcon,
+  ArrowUp as ArrowUpIcon,
+  ArrowDown as ArrowDownIcon,
+  Printer as PrinterIcon,
+  X as XIcon,
+  Mail as MailIcon,
+  Pencil as PencilIcon,
+  FileText as FileTextIcon,
+  Loader2
+} from 'lucide-react';
 import { useInvoices, useDeleteInvoice } from '../hooks';
-import { invoiceListTableSchema, invoiceToListRow } from '../invoice-list-table-schema';
-import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF, generateProGridInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
-import type { InvoiceWithRelations } from '../api';
-import { formatCurrency, formatDate } from '../ui-utils';
+import { downloadInvoicePDF, printInvoicePDF, emailInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
+import { PDFDocument } from 'pdf-lib';
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
+const INVOICE_STATUSES = ['All', 'draft', 'sent', 'paid', 'overdue', 'cancelled'];
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-  
-  :root {
-    --bg-page: #f9fafb;
-    --bg-card: #ffffff;
-    --bg-hover: #f3f4f6;
-    --bg-muted: #f9fafb;
-    --border: #e5e7eb;
-    --border-light: #f3f4f6;
-    --border-hover: #d1d5db;
-    --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #6b7280;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-  }
-  
-  .il-page {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #f9fafb;
-    min-height: 100vh;
-    padding: 1.5rem 2rem;
-  }
-  
-  .il-container { max-width: 1600px; margin: 0 auto; }
-  
+const SUB_TABS = ['All Invoices', 'Drafts', 'Unpaid'];
 
-  .il-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #111827;
-    letter-spacing: -0.01em;
-    margin: 0;
-  }
-  
-  .il-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: inherit;
-    white-space: nowrap;
-  }
-  
-  .il-btn-primary {
-    background: #2563eb;
-    color: white;
-  }
-  
-  .il-btn-primary:hover { background: #1d4ed8; }
-  
-  .il-btn-secondary {
-    background: white;
-    color: #374151;
-    border: 1px solid #e5e7eb;
-  }
-  
-  .il-btn-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
-  
-  .il-input, .il-select {
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-muted);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font-size: 0.8125rem;
-    font-family: inherit;
-    color: var(--text-primary);
-  }
-  
-  .il-input:focus, .il-select:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: white;
-  }
-  
-  .il-checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    padding: 0.15rem 0;
-  }
-  
-  .il-table-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-height: calc(100vh - 180px);
-  }
-  
-  .il-table-card .il-table-wrapper {
-    flex: 1;
-    overflow: auto;
-  }
-  
-  .il-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8125rem;
-    min-width: 1100px;
-  }
-  
-  .il-table thead {
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  
-  .il-table th {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #4b5563;
-    white-space: nowrap;
-    vertical-align: middle;
-    position: relative;
-  }
-  
-  .il-table th.il-th-sortable {
-    cursor: pointer;
-    user-select: none;
-  }
-  
-  .il-th-filter {
-    padding: 0.25rem 0 0;
-    margin-top: 0.25rem;
-  }
-  
-  .il-th-filter-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.125rem 0.5rem;
-    border-radius: 0.25rem;
-    border: 1px solid var(--border);
-    background: white;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    color: #6b7280;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  
-  .il-th-filter-btn:hover {
-    border-color: #d1d5db;
-    color: #374151;
-  }
-  
-  .il-th-filter-btn.active {
-    background: #eff6ff;
-    color: #2563eb;
-    border-color: #bfdbfe;
-  }
-  
-  .il-th-filter-dropdown {
-    position: absolute;
-    top: calc(100% + 0.25rem);
-    left: 0;
-    z-index: 50;
-    min-width: 180px;
-    max-height: 280px;
-    overflow-y: auto;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    padding: 0.5rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  }
-  
-  .il-table th.il-th-sortable:hover { color: #2563eb; }
-  
-  .il-table th.il-th-num, .il-table td.il-td-num { text-align: right; }
-  
-  .il-table th.il-th-actions, .il-table td.il-td-actions { text-align: right; }
-  
-  .il-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #f3f4f6;
-    vertical-align: middle;
-    color: #374151;
-  }
-  
-  .il-table tbody tr:hover { background: #f9fafb; }
-  .il-table tbody tr:last-child td { border-bottom: none; }
-  
-  .il-invoice-num {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #111827;
-  }
-  
-  .il-amount {
-    font-weight: 600;
-    color: #111827;
-  }
-  
-  .il-date { color: #6b7280; font-size: 0.8125rem; }
-  .il-muted { color: #9ca3af; }
-  
-  .il-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.625rem;
-    border-radius: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: capitalize;
-    border: 1px solid #e5e7eb;
-    background: #f9fafb;
-    color: #374151;
-    max-width: 12rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .il-actions {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  
-  .il-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.625rem;
-    background: transparent;
-    border: none;
-    border-radius: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #6b7280;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-  }
-  
-  .il-action-btn:hover {
-    background: #f3f4f6;
-    color: #374151;
-  }
-  
-  .il-dropdown-trigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    background: transparent;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    color: #6b7280;
-    cursor: pointer;
-  }
-  
-  .il-dropdown-trigger:hover {
-    background: #f3f4f6;
-    color: #374151;
-  }
-  
-  .il-dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 0.25rem);
-    z-index: 50;
-    min-width: 180px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    padding: 0.375rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  }
-  
-  .il-dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #374151;
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    text-align: left;
-  }
-  
-  .il-dropdown-item:hover { background: #f3f4f6; color: #111827; }
-  
-  .il-loading, .il-empty { padding: 3rem; text-align: center; }
-  .il-loading-text, .il-empty-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: #111827;
-    margin-bottom: 0.5rem;
-  }
-  .il-empty-desc { font-size: 0.8125rem; color: #6b7280; }
-  .il-empty-icon { width: 3rem; height: 3rem; margin: 0 auto 1rem; color: #d1d5db; }
-  
-  @media (max-width: 900px) {
-    .il-hide-sm { display: none !important; }
-  }
-`;
+const STATUS_FILTER_OPTIONS = ['All', 'sent', 'paid', 'overdue', 'cancelled'];
 
-if (typeof document !== 'undefined') {
-  const styleId = 'il-styles';
-  if (!document.getElementById(styleId)) {
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.textContent = styles;
-    document.head.appendChild(styleEl);
-  }
-}
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  draft:     { bg: '#f3f4f6', color: '#6b7280' },
+  sent:      { bg: '#fef3c7', color: '#92400e' },
+  paid:      { bg: '#d1fae5', color: '#047857' },
+  overdue:   { bg: '#fee2e2', color: '#dc2626' },
+  cancelled: { bg: '#f3f4f6', color: '#9ca3af' },
+};
 
-const NUMERIC_KEYS = ['subtotal', 'taxAmount', 'totalAmount'] as const;
+const getStatusColor = (status?: string) =>
+  STATUS_COLORS[status ?? ''] ?? STATUS_COLORS['draft'];
 
-function mergeCheckboxOptions(columns: TableColumn[], rows: Record<string, unknown>[]): TableColumn[] {
-  return columns.map((col) => {
-    if (col.hidden) return col;
-    if (col.filter?.type !== 'checkbox') return col;
-    if (col.filter.options.length > 0) return col;
-    return {
-      ...col,
-      filter: {
-        ...col.filter,
-        options: distinctOptions(rows, col.key),
-      },
-    };
-  });
-}
-
-function applyDateRange(row: Record<string, unknown>, from: string, to: string): boolean {
-  if (!from && !to) return true;
-  const v = row.issueDate;
-  if (v == null) return false;
-  const d = new Date(String(v)).getTime();
-  if (Number.isNaN(d)) return false;
-  if (from) {
-    const f = new Date(`${from}T00:00:00`).getTime();
-    if (d < f) return false;
-  }
-  if (to) {
-    const t = new Date(`${to}T23:59:59.999`).getTime();
-    if (d > t) return false;
-  }
-  return true;
-}
-
-function compareRowValues(a: unknown, b: unknown, dataType: TableColumn['dataType']): number {
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
-  if (dataType === 'number') {
-    const na = Number(a);
-    const nb = Number(b);
-    if (Number.isNaN(na)) return 1;
-    if (Number.isNaN(nb)) return -1;
-    return na === nb ? 0 : na < nb ? -1 : 1;
-  }
-  if (dataType === 'timestamp') {
-    const na = new Date(String(a)).getTime();
-    const nb = new Date(String(b)).getTime();
-    if (Number.isNaN(na)) return 1;
-    if (Number.isNaN(nb)) return -1;
-    return na === nb ? 0 : na < nb ? -1 : 1;
-  }
-  return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
-}
-
-function renderCell(column: TableColumn, value: unknown): ReactNode {
-  if (value == null || value === '') {
-    return <span className="il-muted">—</span>;
-  }
-
-  const { type: displayType, colorMap } = column.display;
-
-  if (displayType === 'code') {
-    return <span className="il-invoice-num">{String(value)}</span>;
-  }
-
-  if (displayType === 'badge') {
-    const raw = String(value);
-    const color = colorMap?.[raw];
-    const style = color
-      ? {
-          borderColor: color,
-          color,
-          background: `${color}14`,
-        }
-      : undefined;
-    const label =
-      column.key === 'sourceType'
-        ? ({ quotation: 'Quotation', challan: 'Challan', po: 'PO' } as Record<string, string>)[raw] ?? raw
-        : raw;
-    return (
-      <span className="il-badge" style={style} title={label}>
-        {label}
-      </span>
-    );
-  }
-
-  if (displayType === 'timestamp') {
-    return <span className="il-date">{formatDate(String(value))}</span>;
-  }
-
-  if (displayType === 'number') {
-    return <span className="il-amount">{formatCurrency(Number(value))}</span>;
-  }
-
-  return <span>{String(value)}</span>;
-}
-
-const MOBILE_HIDE_KEYS = new Set(['subtotal', 'taxAmount', 'primaryDescription']);
+const MANDATORY_COLUMNS = ['issueDate', 'invoice_no', 'client', 'totalAmount'];
+const ALL_COLUMNS = [
+  { id: 'issueDate', label: 'Date', width: '120px' },
+  { id: 'invoice_no', label: 'Invoice No', width: '140px' },
+  { id: 'client', label: 'Client', width: '350px' },
+  { id: 'prepared_by', label: 'Created By', width: '150px' },
+  { id: 'status', label: 'Status', width: '120px' },
+  { id: 'subtotal', label: 'Sub-total', width: '120px' },
+  { id: 'taxAmount', label: 'Tax Amount', width: '120px' },
+  { id: 'totalAmount', label: 'Amount', width: '120px' },
+];
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
-  const [sortKey, setSortKey] = useState<string>('issueDate');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [checkboxSelections, setCheckboxSelections] = useState<Record<string, string[]>>({});
-  const [issueDateFrom, setIssueDateFrom] = useState('');
-  const [issueDateTo, setIssueDateTo] = useState('');
-  const [sliderFilter, setSliderFilter] = useState<Record<string, { min: number; max: number }>>({});
-  const [activePdfAction, setActivePdfAction] = useState<{
-    invoiceId: string;
-    action: 'preview' | 'download' | 'print' | 'email';
-  } | null>(null);
-  const [selectedPdfTemplate, setSelectedPdfTemplate] = useState<'default' | 'progrid'>('default');
-  const [openMenuInvoiceId, setOpenMenuInvoiceId] = useState<string | null>(null);
-  const [openColumnsMenu, setOpenColumnsMenu] = useState(false);
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
-  const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
+  const { organisation } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [subTab, setSubTab] = useState('All Invoices');
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 25;
-  const [previewInvoice, setPreviewInvoice] = useState<InvoiceWithRelations | null>(null);
+  const [itemsPerPage] = useState(20);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('invoice_list_columns_v2');
+    return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
+  });
+  const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const columnCustomizerRef = useRef<HTMLDivElement>(null);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // PDF Preview state
+  const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  useEffect(() => {
-    if (!openMenuInvoiceId) return undefined;
-    const handleCloseMenu = () => setOpenMenuInvoiceId(null);
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenMenuInvoiceId(null);
-    };
-    document.addEventListener('click', handleCloseMenu);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('click', handleCloseMenu);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [openMenuInvoiceId]);
-
-  useEffect(() => {
-    if (!openColumnsMenu) return undefined;
-    const handleCloseMenu = () => setOpenColumnsMenu(false);
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenColumnsMenu(false);
-    };
-    document.addEventListener('click', handleCloseMenu);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('click', handleCloseMenu);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [openColumnsMenu]);
-
-  useEffect(() => {
-    if (!openFilterColumn) return undefined;
-    const handleClose = () => setOpenFilterColumn(null);
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenFilterColumn(null);
-    };
-    document.addEventListener('click', handleClose);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('click', handleClose);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [openFilterColumn]);
-
-  const invoicesQuery = useInvoices();
+  const { data: invoices = [], isLoading } = useInvoices();
   const { mutate: deleteMutate } = useDeleteInvoice();
 
-  const paired = useMemo(
-    () => (invoicesQuery.data ?? []).map((invoice) => ({ invoice, row: invoiceToListRow(invoice) })),
-    [invoicesQuery.data],
-  );
-
-  const allRows = useMemo(() => paired.map((p) => p.row), [paired]);
-
-  const visibleColumns = useMemo(() => {
-    const base = invoiceListTableSchema.columns.filter((c) => !c.hidden && !hiddenColumns.has(c.key));
-    return mergeCheckboxOptions(base, allRows);
-  }, [allRows, hiddenColumns]);
-
-  const dataBounds = useMemo(() => {
-    const bounds: Record<string, { min: number; max: number }> = {};
-    for (const k of NUMERIC_KEYS) {
-      const nums = paired.map(({ row }) => Number(row[k])).filter((n) => !Number.isNaN(n));
-      if (nums.length === 0) bounds[k] = { min: 0, max: 1 };
-      else bounds[k] = { min: Math.min(...nums), max: Math.max(...nums) };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginationData.currentItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginationData.currentItems.map((i: any) => i.id)));
     }
-    return bounds;
-  }, [paired]);
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
 
   useEffect(() => {
-    setSliderFilter((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const k of NUMERIC_KEYS) {
-        const b = dataBounds[k];
-        if (!b) continue;
-        if (!next[k]) {
-          next[k] = { min: b.min, max: b.max };
-          changed = true;
-        }
+    if (!openMenuId) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
       }
-      return changed ? next : prev;
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openMenuId]);
+
+  useEffect(() => {
+    if (!showStatusDropdown) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowStatusDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showStatusDropdown]);
+
+  useEffect(() => {
+    if (!showColumnCustomizer) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnCustomizerRef.current && !columnCustomizerRef.current.contains(event.target as Node)) {
+        setShowColumnCustomizer(false);
+        setVisibleColumnsTemp(visibleColumns);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowColumnCustomizer(false);
+        setVisibleColumnsTemp(visibleColumns);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showColumnCustomizer, visibleColumns]);
+
+  // Reset status filter when switching sub-tabs
+  useEffect(() => {
+    if (subTab === 'Drafts') {
+      setStatusFilter('draft');
+    } else if (subTab === 'Unpaid') {
+      setStatusFilter('sent'); // Assume 'sent' means unpaid
+    } else {
+      setStatusFilter('All');
+    }
+    setCurrentPage(1);
+  }, [subTab]);
+
+  // Reset to first page when search or status filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const filteredInvoices = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    let items = invoices.filter((inv: any) => {
+      const matchesSearch = (inv.invoice_no?.toLowerCase().includes(q) || 
+                             inv.client?.client_name?.toLowerCase().includes(q) ||
+                             inv.client?.name?.toLowerCase().includes(q));
+      const matchesStatus = statusFilter === 'All' || inv.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [dataBounds]);
 
-  const filteredPaired = useMemo(() => {
-    let list = paired;
-
-    for (const col of visibleColumns) {
-      if (col.filter?.type !== 'checkbox') continue;
-      const sel = checkboxSelections[col.key];
-      if (!sel?.length) continue;
-      list = list.filter(({ row }) => sel.includes(String(row[col.key] ?? '')));
-    }
-
-    if (issueDateFrom || issueDateTo) {
-      list = list.filter(({ row }) => applyDateRange(row, issueDateFrom, issueDateTo));
-    }
-
-    for (const col of visibleColumns) {
-      if (col.filter?.type !== 'slider') continue;
-      const r = sliderFilter[col.key];
-      if (!r) continue;
-      list = list.filter(({ row }) => {
-        const n = Number(row[col.key]);
-        return !Number.isNaN(n) && n >= r.min && n <= r.max;
+    if (sortOrder) {
+      items.sort((a: any, b: any) => {
+        const dateA = new Date(a.issue_date).getTime();
+        const dateB = new Date(b.issue_date).getTime();
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
       });
     }
 
-    return list;
-  }, [paired, visibleColumns, checkboxSelections, issueDateFrom, issueDateTo, sliderFilter]);
+    return items;
+  }, [invoices, searchTerm, statusFilter, sortOrder]);
 
-  const sortedPaired = useMemo(() => {
-    const col = visibleColumns.find((c) => c.key === sortKey);
-    if (!col) return filteredPaired;
-    const dir = sortDir === 'asc' ? 1 : -1;
-    const list = [...filteredPaired];
-    list.sort((a, b) => dir * compareRowValues(a.row[sortKey], b.row[sortKey], col.dataType));
-    return list;
-  }, [filteredPaired, visibleColumns, sortKey, sortDir]);
+  const paginationData = useMemo(() => {
+    const totalItems = filteredInvoices.length;
+    const totalValue = filteredInvoices.reduce((sum, i) => sum + (Number(i.total_amount) || 0), 0);
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredInvoices.slice(startIndex, endIndex);
+    
+    return {
+      totalItems,
+      totalValue,
+      totalPages,
+      startIndex,
+      endIndex,
+      currentItems,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    };
+  }, [filteredInvoices, currentPage, itemsPerPage]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedPaired.length / PAGE_SIZE));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-  const endIndex = startIndex + PAGE_SIZE;
-  const paginatedData = sortedPaired.slice(startIndex, endIndex);
+  const stats = useMemo(() => {
+    return {
+      draft: invoices.filter((i: any) => i.status === 'draft').length,
+      paid: invoices.filter((i: any) => i.status === 'paid').length,
+      overdue: invoices.filter((i: any) => i.status === 'overdue').length,
+    };
+  }, [invoices]);
 
-  const toggleSort = (key: string) => {
-    const col = visibleColumns.find((c) => c.key === key);
-    if (!col?.sortable) return;
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir(col.dataType === 'timestamp' || col.dataType === 'number' ? 'desc' : 'asc');
-    }
+  const toggleSort = () => {
+    if (sortOrder === null) setSortOrder('desc');
+    else if (sortOrder === 'desc') setSortOrder('asc');
+    else setSortOrder(null);
   };
 
-  const toggleCheckboxValue = (columnKey: string, value: string, checked: boolean) => {
-    setCheckboxSelections((prev) => {
-      const cur = new Set(prev[columnKey] ?? []);
-      if (checked) cur.add(value);
-      else cur.delete(value);
-      return { ...prev, [columnKey]: [...cur] };
-    });
+  const handleBulkPrint = async () => {
+    if (selectedIds.size === 0) return;
+    alert(`Bulk Print Merge for ${selectedIds.size} Invoices initialized.`);
+    setSelectedIds(new Set());
   };
 
-  const toggleColumnVisibility = (columnKey: string) => {
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(columnKey)) next.delete(columnKey);
-      else next.add(columnKey);
-      return next;
-    });
-  };
-
-  const saveColumnPreferences = () => {
-    localStorage.setItem('invoice-table-hidden-columns', JSON.stringify([...hiddenColumns]));
-    setOpenColumnsMenu(false);
-  };
-
-  useEffect(() => {
-    const saved = localStorage.getItem('invoice-table-hidden-columns');
-    if (saved) {
-      try {
-        setHiddenColumns(new Set(JSON.parse(saved)));
-      } catch (e) {
-        console.error('Failed to load column preferences', e);
-      }
-    }
-  }, []);
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [checkboxSelections, issueDateFrom, issueDateTo, sliderFilter]);
-
-  const resetFilters = () => {
-    setCheckboxSelections({});
-    setIssueDateFrom('');
-    setIssueDateTo('');
-    setSliderFilter({
-      subtotal: { ...dataBounds.subtotal },
-      taxAmount: { ...dataBounds.taxAmount },
-      totalAmount: { ...dataBounds.totalAmount },
-    });
-    setCurrentPage(1);
-  };
-
-  const handleDownloadPdf = async (invoiceId: string) => {
-    setActivePdfAction({ invoiceId, action: 'download' });
-    try {
-      if (selectedPdfTemplate === 'progrid') {
-        await generateProGridInvoicePDF(invoiceId);
-      } else {
-        await downloadInvoicePDF(invoiceId);
-      }
-    } finally {
-      setActivePdfAction(null);
-    }
-  };
-
-  const handlePreviewPdf = async (invoice: InvoiceWithRelations) => {
+  const handlePreviewPdf = async (invoice: any) => {
     setPreviewInvoice(invoice);
     setPreviewLoading(true);
     try {
@@ -701,618 +264,232 @@ export default function InvoiceListPage() {
     setPreviewLoading(false);
   };
 
-  useEffect(() => {
-    return () => {
-      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-    };
-  }, [previewPdfUrl]);
-
-  const handlePrintPdf = async (invoiceId: string) => {
-    setActivePdfAction({ invoiceId, action: 'print' });
-    try {
-      await printInvoicePDF(invoiceId);
-    } finally {
-      setActivePdfAction(null);
-    }
-  };
-
-  const handleEmailPdf = async (invoiceId: string) => {
-    setActivePdfAction({ invoiceId, action: 'email' });
-    try {
-      await emailInvoicePDF(invoiceId);
-    } finally {
-      setActivePdfAction(null);
-    }
-  };
-
-  const handleDelete = (invoice: InvoiceWithRelations) => {
-    if (!confirm(`Are you sure you want to delete invoice ${invoice.invoice_no || invoice.id}?`)) return;
-    if (!confirm('This action cannot be undone. Continue?')) return;
-    deleteMutate(invoice.id!);
-  };
-
-  const colSpan = visibleColumns.length + 1;
-
-  const renderActions = (invoice: InvoiceWithRelations) => (
-    <div className="il-actions">
-      <button
-        type="button"
-        onClick={() => void handlePreviewPdf(invoice)}
-        className="il-action-btn"
-      >
-        View
-        <Eye size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => navigate(`/invoices/edit?id=${invoice.id}`)}
-        className="il-action-btn"
-      >
-        Edit
-        <Pencil size={14} />
-      </button>
-      <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={() => setOpenMenuInvoiceId((c) => (c === invoice.id ? null : invoice.id ?? null))}
-          disabled={!invoice.id || activePdfAction?.invoiceId === invoice.id}
-          className="il-dropdown-trigger"
-          aria-label="More actions"
-        >
-          {activePdfAction?.invoiceId === invoice.id ? (
-            <Loader2 className="animate-spin" size={14} />
-          ) : (
-            <MoreHorizontal size={14} />
-          )}
-        </button>
-        {openMenuInvoiceId === invoice.id && (
-          <div className="il-dropdown">
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuInvoiceId(null);
-                navigate(`/invoices/create?from=${invoice.id}`);
-              }}
-              className="il-dropdown-item"
-            >
-              <Plus size={14} />
-              Create from Existing
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuInvoiceId(null);
-                void handlePreviewPdf(invoice);
-              }}
-              className="il-dropdown-item"
-            >
-              <Eye size={14} />
-              Preview PDF
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuInvoiceId(null);
-                void handleDownloadPdf(invoice.id ?? '');
-              }}
-              className="il-dropdown-item"
-            >
-              <Download size={14} />
-              Download PDF
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuInvoiceId(null);
-                void handlePrintPdf(invoice.id ?? '');
-              }}
-              className="il-dropdown-item"
-            >
-              <Printer size={14} />
-              Print
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuInvoiceId(null);
-                void handleEmailPdf(invoice.id ?? '');
-              }}
-              className="il-dropdown-item"
-            >
-              <Mail size={14} />
-              Email
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenMenuInvoiceId(null);
-                handleDelete(invoice);
-              }}
-              className="il-dropdown-item"
-              style={{ color: '#dc2626' }}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   return (
-    <div className="il-page">
-      <div className="il-container">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-          <h1 className="il-title">Invoices</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>PDF:</span>
-              <select
-                value={selectedPdfTemplate}
-                onChange={(e) => setSelectedPdfTemplate(e.target.value as 'default' | 'progrid')}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  border: '1px solid #e5e7eb',
-                  fontSize: 12,
-                  backgroundColor: '#fff',
-                  color: '#374151',
-                }}
-              >
-                <option value="default">Default</option>
-                <option value="progrid">Pro Grid</option>
-              </select>
+    <div className="flex flex-col h-full bg-white relative">
+      {/* Sticky Bulk Action Header */}
+      <AnimatePresence>
+        {selectedIds.size >= 2 && (
+          <motion.div 
+            initial={{ y: -64, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -64, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl"
+          >
+            <div className="flex items-center gap-6">
+              <button onClick={() => setSelectedIds(new Set())} className="p-1 hover:bg-zinc-800 rounded-full transition-colors"><XIcon className="w-5 h-5" /></button>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">{selectedIds.size} items selected</span>
+                <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold leading-none">Bulk Operations Active</span>
+              </div>
             </div>
-            <button type="button" onClick={() => navigate('/invoices/create')} className="il-btn il-btn-primary" style={{ background: '#2563eb' }}>
-              <Plus size={16} />
-              Create Invoice
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={handleBulkPrint} className="inline-flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-zinc-100 transition-all active:scale-[0.98]"><PrinterIcon className="w-3.5 h-3.5" />Print Selected</button>
+              <button onClick={() => { if (confirm(`Delete ${selectedIds.size} selected invoices?`)) { selectedIds.forEach(id => deleteMutate(id)); setSelectedIds(new Set()); } }} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-red-700 transition-all active:scale-[0.98]"><Trash2Icon className="w-3.5 h-3.5" />Delete All</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-base font-medium text-zinc-900">Invoices</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">{paginationData.totalItems}</span>
+          </div>
+          <div className="h-4 w-px bg-zinc-200" />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mx-1">Draft</span><span className="text-xs font-medium text-zinc-700 mx-1">{stats.draft}</span></div>
+            <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mx-1">Paid</span><span className="text-xs font-medium text-emerald-700 mx-1">{stats.paid}</span></div>
+            <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mx-1">Overdue</span><span className="text-xs font-medium text-rose-700 mx-1">{stats.overdue}</span></div>
+          </div>
+          <div className="h-4 w-px bg-zinc-200" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider mx-1">Total Receivables</span>
+            <span className="text-sm font-medium text-zinc-900 mx-1">{formatCurrency(paginationData.totalValue)}</span>
           </div>
         </div>
-
-        {/* Compact toolbar */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          marginBottom: '0.75rem',
-          padding: '0.5rem 0',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Filter size={12} style={{ color: 'var(--text-muted)' }} />
-            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</span>
-            <input
-              type="date"
-              className="il-input"
-              value={issueDateFrom}
-              onChange={(e) => setIssueDateFrom(e.target.value)}
-              aria-label="From"
-              style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
-            />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>–</span>
-            <input
-              type="date"
-              className="il-input"
-              value={issueDateTo}
-              onChange={(e) => setIssueDateTo(e.target.value)}
-              aria-label="To"
-              style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
-            />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input type="text" placeholder="Search invoices..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
-          <button type="button" className="il-btn il-btn-secondary" onClick={resetFilters} style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
-            <RotateCcw size={12} />
-            Reset
-          </button>
-          <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            {sortedPaired.length} invoice{sortedPaired.length === 1 ? '' : 's'}
-          </span>
         </div>
+      </div>
 
-        <div className="il-table-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border-light)' }}>
-            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                onClick={() => setOpenColumnsMenu((c) => !c)}
-                className="il-btn il-btn-secondary"
-                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }}
-              >
-                <Columns size={14} />
-                Columns
+      {/* Sub-tabs & Filter Row */}
+      <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50" style={{ paddingTop: '15px', paddingBottom: '15px' }}>
+        <div className="flex items-center gap-2">
+          {SUB_TABS.map((tab) => (
+            <button key={tab} onClick={() => setSubTab(tab)} className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${subTab === tab ? 'bg-blue-600/10 text-blue-600' : 'text-zinc-600 hover:bg-zinc-100'}`}>{tab}</button>
+          ))}
+          {subTab === 'All Invoices' && (
+            <div className="relative" ref={dropdownRef}>
+              <button onClick={() => setShowStatusDropdown(!showStatusDropdown)} className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors">
+                {statusFilter === 'All' ? 'All Statuses' : statusFilter}
+                <ChevronDownIcon className="w-4 h-4" />
               </button>
-              {openColumnsMenu && (
-                <div className="il-dropdown" style={{ right: 0, top: 'calc(100% + 0.5rem)', minWidth: '200px' }}>
-                  <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-light)', fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Show Columns
-                  </div>
-                  {invoiceListTableSchema.columns.map((col) => (
-                    <label
-                      key={col.key}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        fontSize: '0.8125rem',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!hiddenColumns.has(col.key)}
-                        onChange={() => toggleColumnVisibility(col.key)}
-                      />
-                      <span>{col.label}</span>
-                    </label>
+              {showStatusDropdown && (
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+                  {STATUS_FILTER_OPTIONS.map((status) => (
+                    <button key={status} onClick={() => { setStatusFilter(status); setShowStatusDropdown(false); }} className={`block w-full text-left px-3 py-2 text-sm transition-colors ${statusFilter === status ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'}`}>{status === 'All' ? 'All Statuses' : status}</button>
                   ))}
-                  <div style={{ padding: '0.5rem', borderTop: '1px solid var(--border-light)', marginTop: '0.25rem' }}>
-                    <button
-                      type="button"
-                      onClick={saveColumnPreferences}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        background: 'var(--accent)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '0.375rem',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-hover)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent)'}
-                    >
-                      Save
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
-          </div>
-          <div className="il-table-wrapper">
-            <table className="il-table">
-              <thead>
-                <tr>
-                  {visibleColumns.map((col) => {
-                    const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
-                    const num = col.display.type === 'number' ? ' il-th-num' : '';
-                    const sortable = col.sortable ? ' il-th-sortable' : '';
-                    const hasCheckboxFilter = col.filter?.type === 'checkbox';
-                    const isFilterOpen = openFilterColumn === col.key;
-                    const selectedCount = (checkboxSelections[col.key] ?? []).length;
-                    return (
-                      <th
-                        key={col.key}
-                        className={`${hideSm}${num}${sortable}`}
-                        style={{ minWidth: col.size }}
-                        scope="col"
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('.il-th-filter-btn, .il-th-filter-dropdown')) return;
-                          col.sortable && toggleSort(col.key);
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {col.label}
-                          {col.sortable && sortKey === col.key ? (
-                            sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-                          ) : null}
-                        </div>
-                        {hasCheckboxFilter && (
-                          <div className="il-th-filter" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className={`il-th-filter-btn${selectedCount > 0 ? ' active' : ''}`}
-                              onClick={() => setOpenFilterColumn(isFilterOpen ? null : col.key)}
-                            >
-                              <Filter size={10} />
-                              {selectedCount > 0 ? `${selectedCount} selected` : 'Filter'}
-                            </button>
-                            {isFilterOpen && (
-                              <div className="il-th-filter-dropdown">
-                                {(() => {
-                                  const opts = col.filter?.type === 'checkbox' ? col.filter.options : [];
-                                  const selected = new Set(checkboxSelections[col.key] ?? []);
-                                  return (
-                                    <>
-                                      <div style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--border-light)', fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                                        {col.label}
-                                      </div>
-                                      {opts.length === 0 ? (
-                                        <span className="il-muted" style={{ fontSize: '0.75rem', padding: '0.5rem' }}>No values</span>
-                                      ) : (
-                                        opts.map((opt) => (
-                                          <label key={opt.value} className="il-checkbox-row" style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}>
-                                            <input
-                                              type="checkbox"
-                                              checked={selected.has(opt.value)}
-                                              onChange={(e) => toggleCheckboxValue(col.key, opt.value, e.target.checked)}
-                                            />
-                                            <span title={opt.label}>{opt.label}</span>
-                                          </label>
-                                        ))
-                                      )}
-                                      {selectedCount > 0 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setCheckboxSelections((prev) => ({ ...prev, [col.key]: [] }))}
-                                          style={{ width: '100%', marginTop: '0.25rem', padding: '0.375rem', fontSize: '0.6875rem', color: 'var(--accent)', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-light)', cursor: 'pointer', textAlign: 'center' }}
-                                        >
-                                          Clear
-                                        </button>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </th>
-                    );
-                  })}
-                  <th className="il-th-actions" scope="col">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoicesQuery.isLoading && (
-                  <tr>
-                    <td colSpan={colSpan} className="il-loading">
-                      <div className="il-loading-text">Loading invoices...</div>
-                    </td>
-                  </tr>
-                )}
-
-                {!invoicesQuery.isLoading && sortedPaired.length === 0 && (
-                  <tr>
-                    <td colSpan={colSpan} className="il-empty">
-                      <FileText className="il-empty-icon" />
-                      <div className="il-empty-title">No invoices found</div>
-                      <div className="il-empty-desc">
-                        Adjust filters or create an invoice from a source document.
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {!invoicesQuery.isLoading &&
-                  paginatedData.map(({ invoice, row }) => (
-                    <tr
-                      key={invoice.id ?? String(row.invoiceNumber)}
-                      onClick={() => navigate(`/invoices/view?id=${invoice.id}`)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {visibleColumns.map((col) => {
-                        const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
-                        const num = col.display.type === 'number' ? ' il-td-num' : '';
-                        return (
-                          <td key={col.key} className={`${hideSm}${num}`}>
-                            {renderCell(col, row[col.key])}
-                          </td>
-                        );
-                      })}
-                      <td className="il-td-actions" onClick={(e) => e.stopPropagation()}>
-                        {renderActions(invoice)}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {sortedPaired.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb' }}>
-              <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
-                Showing {startIndex + 1}–{Math.min(endIndex, sortedPaired.length)} of {sortedPaired.length}
-              </span>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={safeCurrentPage === 1}
-                  style={{ padding: '0.375rem 0.625rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', background: safeCurrentPage === 1 ? '#f3f4f6' : '#fff', color: safeCurrentPage === 1 ? '#9ca3af' : '#374151', fontSize: '0.75rem', cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer' }}
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let page: number;
-                  if (totalPages <= 5) { page = i + 1; }
-                  else if (safeCurrentPage <= 3) { page = i + 1; }
-                  else if (safeCurrentPage >= totalPages - 2) { page = totalPages - 4 + i; }
-                  else { page = safeCurrentPage - 2 + i; }
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      style={{
-                        padding: '0.375rem 0.625rem',
-                        border: page === safeCurrentPage ? '1px solid #2563eb' : '1px solid #d1d5db',
-                        borderRadius: '0.375rem',
-                        background: page === safeCurrentPage ? '#eff6ff' : '#fff',
-                        color: page === safeCurrentPage ? '#2563eb' : '#374151',
-                        fontSize: '0.75rem',
-                        fontWeight: page === safeCurrentPage ? 600 : 400,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {page}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={safeCurrentPage === totalPages}
-                  style={{ padding: '0.375rem 0.625rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', background: safeCurrentPage === totalPages ? '#f3f4f6' : '#fff', color: safeCurrentPage === totalPages ? '#9ca3af' : '#374151', fontSize: '0.75rem', cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer' }}
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
           )}
+        </div>
+
+        <div className="flex items-center gap-[10px]">
+          <button onClick={() => navigate('/invoices/create')} className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]" style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}>Create Invoice</button>
+          <div className="relative" ref={columnCustomizerRef}>
+            <button onClick={() => setShowColumnCustomizer(!showColumnCustomizer)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors active:scale-[0.98]" style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}>Columns</button>
+            {showColumnCustomizer && (
+              <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="mb-4">
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</h3>
+                  <div className="space-y-[10px]">
+                    {ALL_COLUMNS.map((col) => {
+                      const isMandatory = MANDATORY_COLUMNS.includes(col.id);
+                      return (
+                        <label key={col.id} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isMandatory ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50 cursor-pointer'}`}>
+                          <input type="checkbox" checked={tempVisibleColumns.includes(col.id)} disabled={isMandatory} onChange={(e) => { if (isMandatory) return; if (e.target.checked) setVisibleColumnsTemp([...tempVisibleColumns, col.id]); else setVisibleColumnsTemp(tempVisibleColumns.filter(id => id !== col.id)); }} className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
+                          <span className="text-sm font-medium text-zinc-700">{col.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-4 border-t border-zinc-100">
+                  <button onClick={() => { setVisibleColumns(tempVisibleColumns); localStorage.setItem('invoice_list_columns_v2', JSON.stringify(tempVisibleColumns)); setShowColumnCustomizer(false); }} className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors active:scale-[0.98]">Save</button>
+                  <button onClick={() => { setVisibleColumnsTemp(visibleColumns); setShowColumnCustomizer(false); }} className="flex-1 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-[0.98]">Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-full">
+          <table className="w-full border-separate border-spacing-0">
+            <thead className="z-10">
+              <tr>
+                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
+                  <input type="checkbox" checked={selectedIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0} onChange={toggleSelectAll} className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
+                </th>
+                {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => (
+                  <th key={col.id} style={{ width: col.width }} className={`sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 ${['subtotal', 'taxAmount', 'totalAmount'].includes(col.id) ? 'text-right' : 'text-left'}`}>
+                    {col.id === 'issueDate' ? (
+                      <button onClick={toggleSort} className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
+                        {col.label}
+                        <div className="flex flex-col">
+                          {!sortOrder && <ArrowUpDownIcon className="w-3 h-3 text-zinc-300 group-hover:text-zinc-400" />}
+                          {sortOrder === 'asc' && <ArrowUpIcon className="w-3 h-3 text-indigo-600" />}
+                          {sortOrder === 'desc' && <ArrowDownIcon className="w-3 h-3 text-indigo-600" />}
+                        </div>
+                      </button>
+                    ) : col.label}
+                  </th>
+                ))}
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">Action</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {isLoading ? (
+                <tr><td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">Loading invoices...</td></tr>
+              ) : paginationData.currentItems.length === 0 ? (
+                <tr><td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">No invoices found</td></tr>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginationData.currentItems.map((i: any, index) => (
+                    <motion.tr
+                      key={i.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 30, opacity: { duration: 0.2 } }}
+                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${openMenuId === i.id ? 'z-[60]' : 'z-0'} ${index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} ${selectedIds.has(i.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
+                      onClick={() => selectedIds.size === 0 ? navigate(`/invoices/view?id=${i.id}`) : toggleSelect(i.id)}
+                    >
+                      <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <input type="checkbox" checked={selectedIds.has(i.id)} onChange={(e) => { e.stopPropagation(); toggleSelect(i.id); }} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
+                      </td>
+                      {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
+                        if (col.id === 'issueDate') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(i.issue_date)}</td>;
+                        if (col.id === 'invoice_no') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{i.invoice_no}</td>;
+                        if (col.id === 'client') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[350px] truncate" title={i.client?.client_name || i.client?.name || '-'}>{i.client?.client_name || i.client?.name || '-'}</div></td>;
+                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={i.prepared_by || '-'}>{i.prepared_by || '-'}</div></td>;
+                        if (col.id === 'status') return <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70"><span className="text-sm font-medium" style={{ color: getStatusColor(i.status).color }}>{i.status}</span></td>;
+                        if (col.id === 'subtotal') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.subtotal)}</div></td>;
+                        if (col.id === 'taxAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.tax_amount)}</div></td>;
+                        if (col.id === 'totalAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.total_amount)}</div></td>;
+                        return null;
+                      })}
+                      <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <div className="relative inline-block" ref={openMenuId === i.id ? menuRef : null}>
+                          <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === i.id ? null : i.id!); }} className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"><MoreHorizontalIcon className="w-4 h-4 text-zinc-500" /></button>
+                          {openMenuId === i.id && (
+                            <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/view?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><EyeIcon className="w-3.5 h-3.5" />View Details</button>
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/edit?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PencilIcon className="w-3.5 h-3.5" />Edit Invoice</button>
+                              <button onClick={(e) => { e.stopPropagation(); downloadInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
+                              <button onClick={(e) => { e.stopPropagation(); printInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PrinterIcon className="w-3.5 h-3.5" />Print</button>
+                              <button onClick={(e) => { e.stopPropagation(); emailInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><MailIcon className="w-3.5 h-3.5" />Email</button>
+                              <div className="my-1 border-t border-zinc-100" />
+                              <button onClick={(e) => { e.stopPropagation(); if(confirm('Delete invoice?')) deleteMutate(i.id!); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]" style={{ padding: '6px' }}><Trash2Icon className="w-3.5 h-3.5" />Delete</button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+        <div className="text-sm font-medium text-zinc-600">Showing {paginationData.totalItems === 0 ? 0 : paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} invoices</div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setCurrentPage(currentPage - 1)} disabled={!paginationData.hasPrevPage} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${paginationData.hasPrevPage ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm' : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'}`}>Previous</button>
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: Math.max(1, Math.min(5, paginationData.totalPages)) }, (_, i) => {
+              const pageNum = paginationData.totalPages <= 5 ? i + 1 : (currentPage <= 3 ? i + 1 : (currentPage >= paginationData.totalPages - 2 ? paginationData.totalPages - 4 + i : currentPage - 2 + i));
+              return <button key={pageNum} onClick={() => setCurrentPage(pageNum)} className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${currentPage === pageNum ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm' : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'}`}>{pageNum}</button>;
+            })}
+          </div>
+          <button onClick={() => setCurrentPage(currentPage + 1)} disabled={!paginationData.hasNextPage} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${paginationData.hasNextPage ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm' : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'}`}>Next</button>
         </div>
       </div>
 
       {/* PDF Preview Modal */}
       {previewInvoice && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0, 0, 0, 0.6)',
-          }}
-          onClick={closePreview}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              width: '90vw',
-              maxWidth: '1200px',
-              height: '95vh',
-              background: '#fff',
-              borderRadius: '0.75rem',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Toolbar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.625rem 1rem',
-              background: '#fff',
-              borderBottom: '1px solid #e5e7eb',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ color: '#111827', fontSize: '0.875rem', fontWeight: 600 }}>
-                  {previewInvoice.invoice_no || `Invoice ${previewInvoice.id?.slice(0, 8)}`}
-                </span>
-                {previewLoading && (
-                  <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>Loading...</span>
-                )}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closePreview}>
+          <div className="flex flex-col w-[90vw] max-w-[1200px] h-[95vh] bg-white rounded-xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-200 bg-white">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-semibold text-zinc-900">{previewInvoice.invoice_no || `Invoice ${previewInvoice.id?.slice(0, 8)}`}</span>
+                {previewLoading && <span className="text-xs text-zinc-500 animate-pulse">Loading preview...</span>}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/invoices/edit?id=${previewInvoice.id}`)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
-                    background: 'transparent',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    color: '#374151',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <Pencil size={14} />
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (previewInvoice.id) {
-                      await downloadInvoicePDF(previewInvoice);
-                    }
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
-                    background: 'transparent',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    color: '#374151',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <Download size={14} />
-                  Download
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (previewInvoice.id) {
-                      await printInvoicePDF(previewInvoice);
-                    }
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.375rem 0.75rem',
-                    background: 'transparent',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    color: '#374151',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <Printer size={14} />
-                  Print
-                </button>
-                <button
-                  type="button"
-                  onClick={closePreview}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '2rem',
-                    height: '2rem',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    color: '#6b7280',
-                    cursor: 'pointer',
-                    fontSize: '1.25rem',
-                    lineHeight: 1,
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  ×
-                </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigate(`/invoices/edit?id=${previewInvoice.id}`)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"><PencilIcon className="w-3.5 h-3.5" />Edit</button>
+                <button onClick={() => downloadInvoicePDF(previewInvoice)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"><DownloadIcon className="w-3.5 h-3.5" />Download</button>
+                <button onClick={closePreview} className="p-1.5 hover:bg-zinc-100 rounded-full transition-colors"><XIcon className="w-4 h-4 text-zinc-500" /></button>
               </div>
             </div>
-
-            {/* PDF Viewer */}
-            <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
+            <div className="flex-1 bg-zinc-100 overflow-hidden relative">
               {previewPdfUrl ? (
-                <iframe
-                  src={previewPdfUrl}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  title="Invoice PDF Preview"
-                />
+                <iframe src={previewPdfUrl} className="w-full h-full border-none" title="Invoice Preview" />
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6b7280' }}>
-                  <Loader2 className="animate-spin" size={24} />
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-400">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <span className="text-sm font-medium">Generating PDF Preview...</span>
                 </div>
               )}
             </div>
