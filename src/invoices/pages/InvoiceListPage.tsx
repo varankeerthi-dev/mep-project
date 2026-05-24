@@ -29,6 +29,7 @@ import { useInvoices, useDeleteInvoice } from '../hooks';
 import { downloadInvoicePDF, printInvoicePDF, emailInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
 import { PDFDocument } from 'pdf-lib';
 import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
+import AddSubmittedDetailsDrawer from '../components/AddSubmittedDetailsDrawer';
 
 const INVOICE_STATUSES = ['All', 'draft', 'sent', 'paid', 'overdue', 'cancelled'];
 
@@ -68,6 +69,7 @@ const ALL_COLUMNS = [
   { id: 'client', label: 'Client', width: '300px' },
   { id: 'sourceType', label: 'Source Type', width: '120px' },
   { id: 'prepared_by', label: 'Created By', width: '150px' },
+  { id: 'submission', label: 'Submission', width: '160px' },
   { id: 'status', label: 'Status', width: '110px' },
   { id: 'subtotal', label: 'Sub-total', width: '110px' },
   { id: 'taxAmount', label: 'Tax Amount', width: '110px' },
@@ -109,6 +111,10 @@ export default function InvoiceListPage() {
   // Payment state
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any | null>(null);
+
+  // Submission state
+  const [submissionOpen, setSubmissionOpen] = useState(false);
+  const [selectedInvoiceForSubmission, setSelectedInvoiceForSubmission] = useState<any | null>(null);
 
   const { data: invoices = [], isLoading } = useInvoices();
   const { mutate: deleteMutate } = useDeleteInvoice();
@@ -450,6 +456,29 @@ export default function InvoiceListPage() {
                           </td>
                         );
                         if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={i.creator?.full_name || i.prepared_by || '-'}>{i.creator?.full_name || i.prepared_by || '-'}</div></td>;
+                        if (col.id === 'submission') return (
+                          <td key={col.id} className="px-6 py-[32px] align-middle border-t border-zinc-200/70">
+                            {i.submitted_date ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="text-xs font-medium text-zinc-900">{formatDate(i.submitted_date)}</div>
+                                <div className="text-[10px] text-zinc-500 truncate max-w-[120px]" title={i.submitted_by}>By {i.submitted_by || 'Unknown'}</div>
+                                {i.submitted_file_url && (
+                                  <a 
+                                    href={i.submitted_file_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-[10px] font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <FileTextIcon size={10} /> View Proof
+                                  </a>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Not Submitted</span>
+                            )}
+                          </td>
+                        );
                         if (col.id === 'status') return (
                           <td key={col.id} className="px-6 py-[32px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
                             <span 
@@ -475,6 +504,7 @@ export default function InvoiceListPage() {
                             <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/view?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><EyeIcon className="w-3.5 h-3.5" />View Details</button>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/edit?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PencilIcon className="w-3.5 h-3.5" />Edit Invoice</button>
+                              <button onClick={(e) => { e.stopPropagation(); setSelectedInvoiceForSubmission(i); setSubmissionOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-blue-50 hover:text-blue-700 active:scale-[0.98]" style={{ padding: '6px' }}><PlusIcon className="w-3.5 h-3.5" />Add Submitted details</button>
                               <button onClick={(e) => { e.stopPropagation(); setSelectedInvoiceForPayment(i); setRecordPaymentOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 active:scale-[0.98]" style={{ padding: '6px' }}><CreditCardIcon className="w-3.5 h-3.5" />Record Payment</button>
                               <button onClick={(e) => { e.stopPropagation(); downloadInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
                               <button onClick={(e) => { e.stopPropagation(); printInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PrinterIcon className="w-3.5 h-3.5" />Print</button>
@@ -552,6 +582,18 @@ export default function InvoiceListPage() {
             setSelectedInvoiceForPayment(null);
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
           }}
+        />
+      )}
+
+      {/* Submission Details Drawer */}
+      {selectedInvoiceForSubmission && (
+        <AddSubmittedDetailsDrawer
+          open={submissionOpen}
+          onClose={() => {
+            setSubmissionOpen(false);
+            setSelectedInvoiceForSubmission(null);
+          }}
+          invoice={selectedInvoiceForSubmission}
         />
       )}
     </div>

@@ -8,33 +8,54 @@ import {
   getInvoiceTemplates,
   updateInvoice,
   deleteInvoice,
-  type InvoiceTemplateRecord,
+  updateInvoiceSubmissionDetails,
+  deleteInvoiceSubmissionDetails,
+  type InvoiceFilters,
   type InvoiceWithRelations,
+  type InvoiceTemplateRecord,
+  type SubmissionUpdateInput,
 } from './api';
-import type { InvoiceFilters } from './types';
-import type { InvoiceInput } from './schemas';
 
 export const invoiceKeys = {
   all: ['invoices'] as const,
   lists: () => [...invoiceKeys.all, 'list'] as const,
-  list: (filters: InvoiceFilters = {}) => [...invoiceKeys.lists(), filters],
+  list: (filters: InvoiceFilters) => [...invoiceKeys.lists(), filters] as const,
   details: () => [...invoiceKeys.all, 'detail'] as const,
-  detail: (id: string, orgId?: string) => [...invoiceKeys.details(), id, orgId].filter(Boolean),
+  detail: (id: string) => [...invoiceKeys.details(), id] as const,
   templates: () => [...invoiceKeys.all, 'templates'] as const,
 };
+
+export function useInvoices(filters: InvoiceFilters = {}) {
+  const { organisation } = useAuth();
+  const filtersWithOrg = { ...filters, organisationId: organisation?.id };
+
+  return useQuery<InvoiceWithRelations[]>({
+    queryKey: invoiceKeys.list(filtersWithOrg),
+    queryFn: withSessionCheck(() => getInvoices(filtersWithOrg)),
+    enabled: !!organisation?.id,
+  });
+}
+
+export function useInvoice(id: string | null) {
+  const { organisation } = useAuth();
+  return useQuery<InvoiceWithRelations>({
+    queryKey: invoiceKeys.detail(id || ''),
+    queryFn: withSessionCheck(() => getInvoiceById(id!, organisation?.id!)),
+    enabled: !!id && !!organisation?.id,
+  });
+}
 
 export function useCreateInvoice() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
-
   return useMutation({
-    mutationFn: withSessionCheck((input: InvoiceInput) => {
+    mutationFn: withSessionCheck((input: any) => {
       if (!organisation?.id) throw new Error('Not authenticated');
       return createInvoice({ ...input, organisation_id: organisation.id });
     }),
-    onSuccess: (invoice: InvoiceWithRelations) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
-      queryClient.setQueryData(invoiceKeys.detail(invoice.id!, organisation?.id), invoice);
+      queryClient.setQueryData(invoiceKeys.detail(data.id!), data);
     },
   });
 }
@@ -42,51 +63,48 @@ export function useCreateInvoice() {
 export function useUpdateInvoice(id: string) {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
-
   return useMutation({
-    mutationFn: withSessionCheck((input: InvoiceInput) => {
+    mutationFn: withSessionCheck((input: any) => {
       if (!organisation?.id) throw new Error('Not authenticated');
       return updateInvoice(id, { ...input, organisation_id: organisation.id });
     }),
-    onSuccess: (invoice: InvoiceWithRelations) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
-      queryClient.setQueryData(invoiceKeys.detail(id, organisation?.id), invoice);
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.detail(id) });
+      queryClient.setQueryData(invoiceKeys.detail(id), data);
     },
   });
 }
 
-export function useInvoice(id?: string) {
-  const { organisation } = useAuth();
-  return useQuery({
-    queryKey: id ? invoiceKeys.detail(id, organisation?.id) : [...invoiceKeys.details(), 'empty'],
-    queryFn: withSessionCheck(() => getInvoiceById(id as string, organisation?.id)),
-    enabled: Boolean(id) && !!organisation?.id,
+export function useUpdateInvoiceSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SubmissionUpdateInput) => updateInvoiceSubmissionDetails(input),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.detail(variables.invoiceId) });
+    },
   });
 }
 
-export function useInvoices(filters: InvoiceFilters = {}) {
+export function useDeleteInvoiceSubmission() {
+  const queryClient = useQueryClient();
   const { organisation } = useAuth();
-  return useQuery({
-    queryKey: invoiceKeys.list({ ...filters, organisationId: organisation?.id }),
-    queryFn: withSessionCheck(() => getInvoices({ ...filters, organisationId: organisation?.id })),
-    enabled: !!organisation?.id,
-  });
-}
-
-export function useInvoiceTemplates() {
-  const { organisation } = useAuth();
-  return useQuery<InvoiceTemplateRecord[]>({
-    queryKey: [...invoiceKeys.templates(), organisation?.id],
-    queryFn: withSessionCheck(() => getInvoiceTemplates(organisation?.id)),
-    enabled: !!organisation?.id,
-    staleTime: 5 * 60 * 1000,
+  return useMutation({
+    mutationFn: (invoiceId: string) => {
+      if (!organisation?.id) throw new Error('Not authenticated');
+      return deleteInvoiceSubmissionDetails(invoiceId, organisation.id);
+    },
+    onSuccess: (data, invoiceId) => {
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.detail(invoiceId) });
+    },
   });
 }
 
 export function useDeleteInvoice() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
-
   return useMutation({
     mutationFn: withSessionCheck((id: string) => {
       if (!organisation?.id) throw new Error('Not authenticated');
@@ -98,3 +116,11 @@ export function useDeleteInvoice() {
   });
 }
 
+export function useInvoiceTemplates() {
+  const { organisation } = useAuth();
+  return useQuery<InvoiceTemplateRecord[]>({
+    queryKey: [...invoiceKeys.templates(), organisation?.id],
+    queryFn: withSessionCheck(() => getInvoiceTemplates(organisation?.id)),
+    enabled: !!organisation?.id,
+  });
+}

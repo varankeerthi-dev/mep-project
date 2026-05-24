@@ -69,11 +69,80 @@ const INVOICE_SELECT = `
   total,
   paid_amount,
   status,
+  prepared_by,
+  submitted_date,
+  submitted_by,
+  submitted_file_url,
   created_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
   items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json),
   materials:invoice_materials(id, invoice_id, product_id, qty_used)
 `;
+
+export interface SubmissionUpdateInput {
+  invoiceId: string;
+  organisationId: string;
+  submitted_date: string;
+  submitted_by: string;
+  file?: File;
+}
+
+export async function updateInvoiceSubmissionDetails(input: SubmissionUpdateInput): Promise<void> {
+  const { invoiceId, organisationId, submitted_date, submitted_by, file } = input;
+  
+  let fileUrl = null;
+
+  if (file) {
+    // 1. Upload to Supabase Storage
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${organisationId}/${invoiceId}-${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('invoice-submissions')
+      .upload(fileName, file);
+
+    if (uploadError) throw new Error(`File upload failed: ${uploadError.message}`);
+
+    // 2. Get Public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('invoice-submissions')
+      .getPublicUrl(fileName);
+    
+    fileUrl = publicUrl;
+  }
+
+  // 3. Update Database
+  const updateData: any = {
+    submitted_date,
+    submitted_by,
+  };
+
+  if (fileUrl) {
+    updateData.submitted_file_url = fileUrl;
+  }
+
+  const { error } = await supabase
+    .from('invoices')
+    .update(updateData)
+    .eq('id', invoiceId)
+    .eq('organisation_id', organisationId);
+
+  if (error) throw error;
+}
+
+export async function deleteInvoiceSubmissionDetails(invoiceId: string, organisationId: string): Promise<void> {
+  const { error } = await supabase
+    .from('invoices')
+    .update({
+      submitted_date: null,
+      submitted_by: null,
+      submitted_file_url: null,
+    })
+    .eq('id', invoiceId)
+    .eq('organisation_id', organisationId);
+
+  if (error) throw error;
+}
 
 function parseClientSummary(client: any): InvoiceClientSummary | null {
   if (!client) return null;
@@ -191,6 +260,10 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
     total: row.total,
     paid_amount: row.paid_amount ?? 0,
     status: row.status,
+    prepared_by: row.prepared_by ?? null,
+    submitted_date: row.submitted_date ?? null,
+    submitted_by: row.submitted_by ?? null,
+    submitted_file_url: row.submitted_file_url ?? null,
     created_at: row.created_at,
     company_state: null,
     client_state: client?.state ?? null,

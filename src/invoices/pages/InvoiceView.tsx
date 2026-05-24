@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
@@ -23,16 +23,19 @@ import {
   Loader2,
   CreditCard,
   History,
+  CheckCircle2,
 } from 'lucide-react';
 import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
 import PaymentHistoryDrawer from '../components/PaymentHistoryDrawer';
 import ActivityLogDrawer from '../components/ActivityLogDrawer';
+import AddSubmittedDetailsDrawer from '../components/AddSubmittedDetailsDrawer';
 
 export default function InvoiceView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invoiceId = searchParams.get('id');
   const { organisation, user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
@@ -46,6 +49,8 @@ export default function InvoiceView() {
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [activityLogOpen, setActivityLogOpen] = useState(false);
+  const [submissionOpen, setSubmissionOpen] = useState(false);
+  const [selectedInvoiceForSubmission, setSelectedInvoiceForSubmission] = useState<any | null>(null);
   const [showPaymentMenu, setShowPaymentMenu] = useState(false);
   const [editingPayment, setEditingPayment] = useState<{
     id: string;
@@ -275,8 +280,8 @@ export default function InvoiceView() {
                 <div
                   key={inv.id}
                   onClick={() => navigate(`/invoices/view?id=${inv.id}`)}
-                  className={`px-6 cursor-pointer transition-colors hover:bg-sky-50/30 ${
-                    invoiceId === inv.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white'
+                  className={`px-4 cursor-pointer transition-colors hover:bg-sky-50/30 ${
+                    invoiceId === inv.id ? 'bg-sky-50' : 'bg-white'
                   }`}
                   style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
@@ -289,9 +294,9 @@ export default function InvoiceView() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-1 gap-4">
-                    <div className="text-[11px] font-mono" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+                    <div className="text-[11px] font-inter flex items-center" style={{ paddingLeft: '10px', paddingRight: '10px', marginLeft: '1px', gap: '5px' }}>
                       <span className="text-zinc-700 font-medium">{inv.invoice_no}</span>
-                      <span className="mx-1 text-zinc-300">•</span>
+                      <span className="text-zinc-300">•</span>
                       <span className="text-blue-500">{formatDate(inv.created_at)}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -617,6 +622,39 @@ export default function InvoiceView() {
                         <dd className="text-[13px] font-bold text-zinc-900 text-right max-w-[200px] truncate" title={selectedInvoice.remarks}>{selectedInvoice.remarks || '-'}</dd>
                       </div>
                     </dl>
+
+                    {/* Submission Details */}
+                    {selectedInvoice.submitted_date && (
+                      <div className="mt-8 pt-6 border-t border-zinc-100">
+                        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Submission Details</h4>
+                        <dl className="space-y-4">
+                          <div className="flex justify-between border-b border-zinc-50 pb-2">
+                            <dt className="text-[12px] text-zinc-500">Date</dt>
+                            <dd className="text-[12px] font-bold text-zinc-900">{formatDate(selectedInvoice.submitted_date)}</dd>
+                          </div>
+                          <div className="flex justify-between border-b border-zinc-50 pb-2">
+                            <dt className="text-[12px] text-zinc-500">Submitted By</dt>
+                            <dd className="text-[12px] font-bold text-zinc-900">{selectedInvoice.submitted_by || '-'}</dd>
+                          </div>
+                          {selectedInvoice.submitted_file_url && (
+                            <div className="flex justify-between">
+                              <dt className="text-[12px] text-zinc-500">Proof</dt>
+                              <dd>
+                                <a 
+                                  href={selectedInvoice.submitted_file_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[11px] font-bold text-sky-600 hover:text-sky-700 underline flex items-center gap-1.5"
+                                >
+                                  <Download size={12} />
+                                  View Attachment
+                                </a>
+                              </dd>
+                            </div>
+                          )}
+                        </dl>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-zinc-900 mb-6">Bill To</h3>
@@ -797,6 +835,133 @@ export default function InvoiceView() {
                     <div className="flex justify-between py-3 mt-2 border-t border-zinc-200 text-sm font-bold">
                       <span className="text-zinc-900">Total</span>
                       <span className="text-sky-600">{formatCurrency(selectedInvoice.total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Post-Invoice Summary Section (UX Enhancement) */}
+              <div className="mt-12 mb-20 px-8">
+                <div className="h-px bg-zinc-200 w-full mb-10" />
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  {/* Submission Status Column */}
+                  <div className="space-y-4">
+                    <h4 className="text-[13px] font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Submission Tracking</h4>
+                    {selectedInvoice.submitted_date ? (
+                      <div className="bg-white border border-zinc-100 py-5 px-[30px] rounded-xl shadow-sm space-y-3 relative group">
+                        <button 
+                          onClick={() => {
+                            setSelectedInvoiceForSubmission(selectedInvoice);
+                            setSubmissionOpen(true);
+                          }}
+                          className="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                          title="Edit submission details"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <div className="flex items-center gap-3 text-zinc-900">
+                          <CheckCircle2 size={18} className="text-emerald-500" />
+                          <span className="text-sm font-semibold">Submitted to Client</span>
+                        </div>
+                        <div className="text-[13px] text-zinc-500 pl-7 leading-relaxed">
+                          By <span className="font-medium text-zinc-800">{selectedInvoice.submitted_by}</span> on {formatDate(selectedInvoice.submitted_date)}
+                        </div>
+                        {selectedInvoice.submitted_file_url && (
+                          <div className="pl-7 pt-1">
+                            <a 
+                              href={selectedInvoice.submitted_file_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-700 underline"
+                            >
+                              <FileText size={14} /> View Submission Proof
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-50 border border-dashed border-zinc-200 p-5 rounded-xl text-center">
+                        <div className="text-[13px] text-zinc-400 mb-3" style={{ paddingTop: '10px', paddingBottom: '10px' }}>No submission record found</div>
+                        <button 
+                          onClick={() => {
+                            setSelectedInvoiceForSubmission(selectedInvoice);
+                            setSubmissionOpen(true);
+                          }}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                          style={{ paddingTop: '10px', paddingBottom: '10px' }}
+                        >
+                          + Add Submission Details
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment Progress Column */}
+                  <div className="space-y-4" style={{ marginLeft: '6px' }}>
+                    <h4 className="text-[13px] font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Payment Settlement</h4>
+                    
+                    <div className="bg-white border border-zinc-100 py-6 px-[34px] rounded-xl shadow-sm">
+                      {/* Financial Bar */}
+                      <div className="flex justify-between items-end mb-4">
+                        <div>
+                          <div className="text-[11px] text-zinc-400 uppercase font-bold tracking-tight" style={{ paddingTop: '10px', paddingBottom: '10px', marginLeft: '10px' }}>Settled Amount</div>
+                          <div className="text-xl font-bold text-zinc-900">{formatCurrency(totalPaid)}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[11px] text-zinc-400 uppercase font-bold tracking-tight" style={{ paddingTop: '10px', paddingBottom: '10px', marginLeft: '10px' }}>Outstanding Balance</div>
+                          <div className={`text-xl font-bold ${balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {formatCurrency(balanceDue)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden mb-6">
+                        <div 
+                          className="h-full bg-emerald-500 transition-all duration-500" 
+                          style={{ width: `${Math.min(100, (totalPaid / (selectedInvoice.total || 1)) * 100)}%` }}
+                        />
+                      </div>
+
+                      {/* Payment Details / CTA */}
+                      {paymentsQuery.data && paymentsQuery.data.length > 0 ? (
+                        <div className="space-y-3">
+                          <div className="text-xs font-bold text-zinc-500" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Recent Receipts</div>
+                          {paymentsQuery.data.slice(0, 3).map((p: any) => (
+                            <div key={p.id} className="flex justify-between items-center py-2 px-3 bg-zinc-50 rounded-lg text-[13px]">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium text-zinc-700">{p.receipt_no}</span>
+                                <span className="text-zinc-300">|</span>
+                                <span className="text-zinc-500">{formatDate(p.receipt_date)}</span>
+                                {p.payment_mode && (
+                                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-zinc-200 text-zinc-600 rounded">
+                                    {p.payment_mode.replace('_', ' ')}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-bold text-zinc-900">{formatCurrency(p.amount)}</span>
+                            </div>
+                          ))}
+                          <button 
+                            onClick={() => setPaymentHistoryOpen(true)}
+                            className="w-full text-center text-xs font-bold text-zinc-400 hover:text-zinc-600 py-2 transition-colors"
+                          >
+                            View all {paymentsQuery.data.length} transactions
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center py-4">
+                          <div className="text-[13px] text-zinc-500 mb-4">No payments have been recorded for this invoice yet.</div>
+                          <button 
+                            onClick={() => setRecordPaymentOpen(true)}
+                            className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-emerald-700 transition-all shadow-sm active:scale-[0.95]"
+                          >
+                            <CreditCard size={14} />
+                            Mark Payment?
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -984,6 +1149,16 @@ export default function InvoiceView() {
         invoice={selectedInvoice}
         payments={paymentsQuery.data || []}
       />
+
+      {selectedInvoice && (
+        <AddSubmittedDetailsDrawer
+          open={submissionOpen}
+          onClose={() => {
+            setSubmissionOpen(false);
+          }}
+          invoice={selectedInvoice}
+        />
+      )}
     </div>
   );
 }
