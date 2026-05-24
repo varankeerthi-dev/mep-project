@@ -1,19 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Activity } from 'lucide-react';
-
+import { X, Activity, Loader2 } from 'lucide-react';
+import { useItemHistory } from '../../hooks/use-item-history';
+import { useAuth } from '../../App';
 import { formatCurrency } from '../ui-utils';
 
 interface ActivityLogDrawerProps {
   open: boolean;
   onClose: () => void;
   userName?: string;
-  invoice: any; // Type it broadly or use InvoiceWithRelations
+  invoice: any; 
   payments: any[];
 }
 
 export default function ActivityLogDrawer({ open, onClose, userName, invoice, payments }: ActivityLogDrawerProps) {
+  const { organisation } = useAuth();
   const [slideIn, setSlideIn] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch real logs from database
+  const { data: dbLogs, isLoading: logsLoading } = useItemHistory(
+    organisation?.id,
+    'invoice',
+    invoice?.id
+  );
 
   useEffect(() => {
     if (open) {
@@ -74,28 +83,22 @@ export default function ActivityLogDrawer({ open, onClose, userName, invoice, pa
     return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
   };
 
-  // Generate activities dynamically
-  const activities = [];
+  // Combine dynamic logs with database logs
+  const activities: any[] = [];
 
+  // 1. Initial Creation (always from invoice object)
   if (invoice) {
     const createdDate = invoice.created_at || new Date().toISOString();
     activities.push({
       date: formatObjDate(createdDate),
       time: formatObjTime(createdDate),
       details: `${displayName} created the invoice`,
-      timestamp: new Date(createdDate).getTime()
+      timestamp: new Date(createdDate).getTime(),
+      type: 'creation'
     });
-
-    if (invoice.status !== 'draft') {
-      activities.push({
-        date: formatObjDate(createdDate),
-        time: formatObjTime(createdDate),
-        details: `Invoice approved - by ${displayName}`,
-        timestamp: new Date(createdDate).getTime() + 1000 // slightly after creation
-      });
-    }
   }
 
+  // 2. Payments (from payments prop)
   if (payments && payments.length > 0) {
     payments.forEach(p => {
       const pDate = p.created_at || p.receipt_date || new Date().toISOString();
@@ -103,13 +106,33 @@ export default function ActivityLogDrawer({ open, onClose, userName, invoice, pa
         date: formatObjDate(pDate),
         time: formatObjTime(pDate),
         details: `Payment entered - ${formatCurrency(p.amount)} - by ${displayName}`,
-        timestamp: new Date(pDate).getTime()
+        timestamp: new Date(pDate).getTime(),
+        type: 'payment'
       });
     });
   }
 
-  // Sort chronologically
-  activities.sort((a, b) => a.timestamp - b.timestamp);
+  // 3. Database Logs (Edits, Status changes, etc.)
+  if (dbLogs) {
+    dbLogs.forEach(log => {
+      // Show relevant invoice events from the activity log table
+      const relevantTypes = ['invoice_edited', 'invoice_finalized', 'invoice_reminder_sent', 'invoice_escalation_changed'];
+      if (relevantTypes.includes(log.event_type) || log.title === 'Finalized Invoice Edited') {
+        activities.push({
+          date: formatObjDate(log.created_at),
+          time: formatObjTime(log.created_at),
+          details: `${log.title}: ${log.description}`,
+          timestamp: new Date(log.created_at).getTime(),
+          type: 'db_event',
+          actor: log.actor_name
+        });
+      }
+    });
+  }
+
+  // Deduplicate and sort chronologically
+  const uniqueActivities = Array.from(new Map(activities.map(a => [`${a.timestamp}-${a.details}`, a])).values());
+  uniqueActivities.sort((a, b) => b.timestamp - a.timestamp); // Newest first
 
   return (
     <div
@@ -129,7 +152,7 @@ export default function ActivityLogDrawer({ open, onClose, userName, invoice, pa
           top: 0,
           right: 0,
           bottom: 0,
-          width: '400px',
+          width: '420px',
           maxWidth: '100vw',
           background: '#fff',
           boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.1)',
@@ -151,7 +174,7 @@ export default function ActivityLogDrawer({ open, onClose, userName, invoice, pa
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Activity size={20} color="#6b7280" />
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#111827' }}>
-              Activity Log
+              Activity History
             </h2>
           </div>
           <button
@@ -177,59 +200,73 @@ export default function ActivityLogDrawer({ open, onClose, userName, invoice, pa
 
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '32px 24px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            {activities.length === 0 && (
-              <div style={{ color: '#6b7280', fontSize: '14px' }}>No activities found.</div>
-            )}
-            {activities.map((activity, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ 
-                  width: '140px', 
-                  flexShrink: 0, 
-                  color: '#6b7280', 
-                  fontSize: '13px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px'
-                }}>
-                  <span style={{ fontWeight: 500, color: '#374151' }}>{activity.date}</span>
-                  <span>{activity.time}</span>
-                </div>
-                
-                {/* Timeline separator */}
-                <div style={{ 
-                  position: 'relative', 
-                  margin: '0 20px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center',
-                  alignSelf: 'stretch'
-                }}>
+          {logsLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6b7280' }}>
+              <Loader2 className="animate-spin" size={16} />
+              <span style={{ fontSize: '14px' }}>Loading history...</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              {uniqueActivities.length === 0 && (
+                <div style={{ color: '#6b7280', fontSize: '14px' }}>No activities found.</div>
+              )}
+              {uniqueActivities.map((activity, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start' }}>
                   <div style={{ 
-                    width: '10px', 
-                    height: '10px', 
-                    borderRadius: '50%', 
-                    background: '#d1d5db',
-                    marginTop: '4px',
-                    zIndex: 1
-                  }} />
-                  {idx < activities.length - 1 && (
+                    width: '120px', 
+                    flexShrink: 0, 
+                    color: '#6b7280', 
+                    fontSize: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px'
+                  }}>
+                    <span style={{ fontWeight: 600, color: '#374151' }}>{activity.date}</span>
+                    <span>{activity.time}</span>
+                  </div>
+                  
+                  {/* Timeline separator */}
+                  <div style={{ 
+                    position: 'relative', 
+                    margin: '0 16px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    alignSelf: 'stretch'
+                  }}>
                     <div style={{ 
-                      position: 'absolute', 
-                      top: '14px', 
-                      bottom: '-36px', 
-                      width: '2px', 
-                      background: '#e5e7eb' 
+                      width: '8px', 
+                      height: '8px', 
+                      borderRadius: '50%', 
+                      background: activity.type === 'creation' ? '#10b981' : '#d1d5db',
+                      marginTop: '4px',
+                      zIndex: 1
                     }} />
-                  )}
-                </div>
+                    {idx < uniqueActivities.length - 1 && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '12px', 
+                        bottom: '-36px', 
+                        width: '1.5px', 
+                        background: '#e5e7eb' 
+                      }} />
+                    )}
+                  </div>
 
-                <div style={{ flex: 1, color: '#111827', fontSize: '14px', paddingTop: '2px' }}>
-                  {activity.details}
+                  <div style={{ flex: 1, paddingTop: '1px' }}>
+                    <div style={{ color: '#111827', fontSize: '13px', fontWeight: 500, lineHeight: 1.4 }}>
+                      {activity.details}
+                    </div>
+                    {activity.actor && (
+                      <div style={{ color: '#6b7280', fontSize: '11px', marginTop: '2px' }}>
+                        by {activity.actor}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

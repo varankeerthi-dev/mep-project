@@ -72,7 +72,9 @@ export type ActivityEventType =
   | 'podc_pack_shared'
   | 'podc_issue_flagged'
   | 'invoice_reminder_sent'
-  | 'invoice_escalation_changed';
+  | 'invoice_escalation_changed'
+  | 'invoice_edited'
+  | 'invoice_finalized';
 
 export type EscalationStage = 0 | 1 | 2 | 3 | 4;
 

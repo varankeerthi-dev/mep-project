@@ -290,8 +290,6 @@ export default function LedgerDashboard() {
       receipt_date: toDateInput(new Date()),
       payment_type: '',
       payment_mode: '',
-      cheque_no: '',
-      utr_no: '',
       remarks: '',
     },
   });
@@ -305,8 +303,7 @@ export default function LedgerDashboard() {
         receipt_date: values.receipt_date,
         payment_type: values.payment_type || null,
         payment_mode: values.payment_mode || null,
-        cheque_no: values.cheque_no || null,
-        utr_no: values.utr_no || null,
+        reference_no: values.cheque_no || values.utr_no || null,
         remarks: values.remarks,
       }),
     onSuccess: () => {
@@ -317,8 +314,6 @@ export default function LedgerDashboard() {
         receipt_date: toDateInput(new Date()),
         payment_type: '',
         payment_mode: '',
-        cheque_no: '',
-        utr_no: '',
         remarks: '',
       });
       setPaymentDrawerOpen(false);

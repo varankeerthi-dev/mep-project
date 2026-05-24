@@ -250,7 +250,7 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
 }
 
 export default function InvoiceEditorPage() {
-  const { organisation } = useAuth();
+  const { user, organisation } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const invoiceId = queryParam(location.search, 'id');
@@ -930,6 +930,12 @@ export default function InvoiceEditorPage() {
   }, [setValue, watchedItems]);
 
   useEffect(() => {
+    if (!isEditMode && !isDuplicating && !isConverting && user?.user_metadata?.full_name) {
+      setValue('prepared_by', user.user_metadata.full_name);
+    }
+  }, [isEditMode, isDuplicating, isConverting, user, setValue]);
+
+  useEffect(() => {
     if (!invoiceQuery.data || loadedInvoiceIdRef.current === invoiceQuery.data.id) return;
 
     loadedInvoiceIdRef.current = invoiceQuery.data.id ?? '';
@@ -1171,6 +1177,7 @@ export default function InvoiceEditorPage() {
     const payload = composeInvoiceInput({
       ...values,
       invoice_no: invoiceNo || null,
+      status: 'final',
     }, totals);
 
     if (values.mode === 'lot' && (payload.materials ?? []).length === 0) {
@@ -1184,6 +1191,29 @@ export default function InvoiceEditorPage() {
     try {
       let newInvoiceId: string | null = null;
       if (isEditMode && invoiceId) {
+        // Log the edit if it's already final
+        if (invoiceQuery.data?.status === 'final') {
+          try {
+            await supabase.from('follow_up_activity_log').insert({
+              organisation_id: organisation?.id,
+              event_type: 'invoice_edited',
+              tab_source: 'invoice',
+              title: 'Finalized Invoice Edited',
+              description: `Invoice ${invoiceQuery.data.invoice_no} was updated after finalization. Total changed from ${formatCurrency(invoiceQuery.data.total)} to ${formatCurrency(payload.total)}.`,
+              actor_name: organisation?.name || 'Authorized User',
+              reference_id: invoiceId,
+              reference_label: invoiceQuery.data.invoice_no,
+              metadata: {
+                action: 'EDIT_FINALIZED',
+                old_total: invoiceQuery.data.total,
+                new_total: payload.total,
+                edit_timestamp: new Date().toISOString()
+              }
+            });
+          } catch (logError) {
+            console.warn('Failed to log invoice edit:', logError);
+          }
+        }
         await updateInvoice.mutateAsync(payload);
       } else {
         const result = await createInvoice.mutateAsync(payload);
@@ -1707,6 +1737,32 @@ export default function InvoiceEditorPage() {
             <input
               type="date"
               {...register('due_date')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Prepared By
+            </label>
+            <input
+              type="text"
+              {...register('prepared_by')}
+              placeholder="Name of the person preparing this"
               style={{
                 width: '100%',
                 padding: '6px 10px',

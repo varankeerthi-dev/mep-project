@@ -22,11 +22,13 @@ import {
   Mail as MailIcon,
   Pencil as PencilIcon,
   FileText as FileTextIcon,
+  CreditCard as CreditCardIcon,
   Loader2
 } from 'lucide-react';
 import { useInvoices, useDeleteInvoice } from '../hooks';
 import { downloadInvoicePDF, printInvoicePDF, emailInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
 import { PDFDocument } from 'pdf-lib';
+import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
 
 const INVOICE_STATUSES = ['All', 'draft', 'sent', 'paid', 'overdue', 'cancelled'];
 
@@ -40,6 +42,20 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   paid:      { bg: '#d1fae5', color: '#047857' },
   overdue:   { bg: '#fee2e2', color: '#dc2626' },
   cancelled: { bg: '#f3f4f6', color: '#9ca3af' },
+  unpaid:    { bg: '#fee2e2', color: '#dc2626' },
+  partial:   { bg: '#dcfce7', color: '#15803d' },
+};
+
+const getPaymentStatus = (invoice: any) => {
+  if (invoice.status === 'draft') return 'draft';
+  if (invoice.status === 'cancelled') return 'cancelled';
+  
+  const total = Number(invoice.total || 0);
+  const paid = Number(invoice.paid_amount || 0);
+  
+  if (paid <= 0) return 'unpaid';
+  if (paid >= total) return 'paid';
+  return 'partial';
 };
 
 const getStatusColor = (status?: string) =>
@@ -89,6 +105,10 @@ export default function InvoiceListPage() {
   const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Payment state
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any | null>(null);
 
   const { data: invoices = [], isLoading } = useInvoices();
   const { mutate: deleteMutate } = useDeleteInvoice();
@@ -229,9 +249,10 @@ export default function InvoiceListPage() {
 
   const stats = useMemo(() => {
     return {
-      draft: invoices.filter((i: any) => i.status === 'draft').length,
-      paid: invoices.filter((i: any) => i.status === 'paid').length,
-      overdue: invoices.filter((i: any) => i.status === 'overdue').length,
+      draft: invoices.filter((i: any) => getPaymentStatus(i) === 'draft').length,
+      paid: invoices.filter((i: any) => getPaymentStatus(i) === 'paid').length,
+      partial: invoices.filter((i: any) => getPaymentStatus(i) === 'partial').length,
+      unpaid: invoices.filter((i: any) => getPaymentStatus(i) === 'unpaid').length,
     };
   }, [invoices]);
 
@@ -303,7 +324,8 @@ export default function InvoiceListPage() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mx-1">Draft</span><span className="text-xs font-medium text-zinc-700 mx-1">{stats.draft}</span></div>
             <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mx-1">Paid</span><span className="text-xs font-medium text-emerald-700 mx-1">{stats.paid}</span></div>
-            <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mx-1">Overdue</span><span className="text-xs font-medium text-rose-700 mx-1">{stats.overdue}</span></div>
+            <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mx-1">Partial</span><span className="text-xs font-medium text-blue-700 mx-1">{stats.partial}</span></div>
+            <div className="flex items-center gap-1.5"><span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mx-1">Unpaid</span><span className="text-xs font-medium text-rose-700 mx-1">{stats.unpaid}</span></div>
           </div>
           <div className="h-4 w-px bg-zinc-200" />
           <div className="flex items-center gap-2">
@@ -415,32 +437,45 @@ export default function InvoiceListPage() {
                       className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${openMenuId === i.id ? 'z-[60]' : 'z-0'} ${index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} ${selectedIds.has(i.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
                       onClick={() => selectedIds.size === 0 ? navigate(`/invoices/view?id=${i.id}`) : toggleSelect(i.id)}
                     >
-                      <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                      <td className="px-4 py-[32px] align-middle text-center border-t border-zinc-200/70">
                         <input type="checkbox" checked={selectedIds.has(i.id)} onChange={(e) => { e.stopPropagation(); toggleSelect(i.id); }} onClick={(e) => e.stopPropagation()} className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
                       </td>
                       {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
-                        if (col.id === 'issueDate') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(i.invoice_date || i.created_at)}</td>;
-                        if (col.id === 'invoice_no') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{i.invoice_no}</td>;
-                        if (col.id === 'client') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[350px] truncate" title={i.client?.client_name || i.client?.name || '-'}>{i.client?.client_name || i.client?.name || '-'}</div></td>;
+                        if (col.id === 'issueDate') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(i.invoice_date || i.created_at)}</td>;
+                        if (col.id === 'invoice_no') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{i.invoice_no}</td>;
+                        if (col.id === 'client') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[350px] truncate" title={i.client?.client_name || i.client?.name || '-'}>{i.client?.client_name || i.client?.name || '-'}</div></td>;
                         if (col.id === 'sourceType') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70 uppercase">
+                          <td key={col.id} className="px-6 py-[32px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70 uppercase">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-500">{i.source_type || '-'}</span>
                           </td>
                         );
-                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={i.creator?.full_name || i.prepared_by || '-'}>{i.creator?.full_name || i.prepared_by || '-'}</div></td>;
-                        if (col.id === 'status') return <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70"><span className="text-sm font-medium" style={{ color: getStatusColor(i.status).color }}>{i.status}</span></td>;
-                        if (col.id === 'subtotal') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.subtotal)}</div></td>;
-                        if (col.id === 'taxAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.cgst + i.sgst + i.igst)}</div></td>;
-                        if (col.id === 'totalAmount') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.total)}</div></td>;
+                        if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={i.creator?.full_name || i.prepared_by || '-'}>{i.creator?.full_name || i.prepared_by || '-'}</div></td>;
+                        if (col.id === 'status') return (
+                          <td key={col.id} className="px-6 py-[32px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
+                            <span 
+                              className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" 
+                              style={{ 
+                                backgroundColor: getStatusColor(getPaymentStatus(i)).bg,
+                                color: getStatusColor(getPaymentStatus(i)).color 
+                              }}
+                            >
+                              {getPaymentStatus(i)}
+                            </span>
+                          </td>
+                        );
+                        if (col.id === 'subtotal') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.subtotal)}</div></td>;
+                        if (col.id === 'taxAmount') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.cgst + i.sgst + i.igst)}</div></td>;
+                        if (col.id === 'totalAmount') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.total)}</div></td>;
                         return null;
                       })}
-                      <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                      <td className="px-5 pl-1 py-[32px] align-middle text-center border-t border-zinc-200/70">
                         <div className="relative inline-block" ref={openMenuId === i.id ? menuRef : null}>
                           <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === i.id ? null : i.id!); }} className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"><MoreHorizontalIcon className="w-4 h-4 text-zinc-500" /></button>
                           {openMenuId === i.id && (
                             <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/view?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><EyeIcon className="w-3.5 h-3.5" />View Details</button>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/edit?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PencilIcon className="w-3.5 h-3.5" />Edit Invoice</button>
+                              <button onClick={(e) => { e.stopPropagation(); setSelectedInvoiceForPayment(i); setRecordPaymentOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 active:scale-[0.98]" style={{ padding: '6px' }}><CreditCardIcon className="w-3.5 h-3.5" />Record Payment</button>
                               <button onClick={(e) => { e.stopPropagation(); downloadInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
                               <button onClick={(e) => { e.stopPropagation(); printInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PrinterIcon className="w-3.5 h-3.5" />Print</button>
                               <button onClick={(e) => { e.stopPropagation(); emailInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><MailIcon className="w-3.5 h-3.5" />Email</button>
@@ -501,6 +536,23 @@ export default function InvoiceListPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Record Payment Drawer */}
+      {selectedInvoiceForPayment && (
+        <RecordPaymentDrawer
+          open={recordPaymentOpen}
+          onClose={() => {
+            setRecordPaymentOpen(false);
+            setSelectedInvoiceForPayment(null);
+          }}
+          invoice={selectedInvoiceForPayment}
+          onSuccess={() => {
+            setRecordPaymentOpen(false);
+            setSelectedInvoiceForPayment(null);
+            queryClient.invalidateQueries({ queryKey: ['invoices'] });
+          }}
+        />
       )}
     </div>
   );

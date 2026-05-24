@@ -48,6 +48,7 @@ export const InvoiceEditorSchema = z
     invoice_date: z.string().optional(),
     po_number: z.string().optional(),
     po_date: z.string().optional(),
+    prepared_by: z.string().optional(),
     source_type: z.enum(invoiceSourceTypes),
     source_id: z.string().uuid('Source document is required.').optional().or(z.literal('')),
     template_type: z.enum(invoiceTemplateTypes),
@@ -271,6 +272,7 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
     template_type: invoice.template_type,
     mode: invoice.mode,
     status: invoice.status,
+    prepared_by: invoice.prepared_by ?? '',
     company_state: invoice.company_state ?? DEFAULT_COMPANY_STATE,
     client_state: invoice.client_state ?? null,
     default_warehouse_id: null,
@@ -322,6 +324,7 @@ export function composeInvoiceInput(
     igst: totals.igst,
     total: totals.total,
     status: values.status,
+    prepared_by: values.prepared_by || null,
     company_state: values.company_state,
     client_state: values.client_state ?? null,
     items: values.items.map((item) => {

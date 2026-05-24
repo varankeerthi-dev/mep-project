@@ -576,7 +576,7 @@ export default function InvoiceView() {
                 style={{ paddingTop: '14px', paddingBottom: '14px', marginBottom: '14px' }}
               >
                 <div>
-                  Invoice created by: <span className="text-zinc-900 font-medium ml-1">{user?.user_metadata?.full_name || user?.email || 'Unknown User'}</span>
+                  Invoice created by: <span className="text-zinc-900 font-medium ml-1">{selectedInvoice.creator?.full_name || selectedInvoice.prepared_by || user?.user_metadata?.full_name || user?.email || 'Unknown User'}</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <div>Approved by:</div>

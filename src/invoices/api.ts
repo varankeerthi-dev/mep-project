@@ -21,6 +21,7 @@ import type {
 
 export interface InvoiceWithRelations extends Invoice {
   client: InvoiceClientSummary | null;
+  creator?: { full_name: string } | null;
 }
 
 export interface InvoiceTemplateRecord {
@@ -68,12 +69,10 @@ const INVOICE_SELECT = `
   total,
   paid_amount,
   status,
-  prepared_by,
   created_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
   items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json),
-  materials:invoice_materials(id, invoice_id, product_id, qty_used),
-  creator:user_profiles(full_name)
+  materials:invoice_materials(id, invoice_id, product_id, qty_used)
 `;
 
 function parseClientSummary(client: any): InvoiceClientSummary | null {
@@ -190,6 +189,7 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
     sgst: row.sgst,
     igst: row.igst,
     total: row.total,
+    paid_amount: row.paid_amount ?? 0,
     status: row.status,
     created_at: row.created_at,
     company_state: null,

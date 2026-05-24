@@ -1,9 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { formatCurrency } from '../utils/formatters';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder, TrendingUp, Clock, DollarSign } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder,
+  TrendingUp, Clock, DollarSign, MoreHorizontal, X,
+} from 'lucide-react';
 import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
 import { useAuth } from '../App';
 
@@ -38,543 +42,92 @@ type ProjectDetails = {
 
 // ─── Status Config ─────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG = {
-  Draft: { dot: '#94a3b8', label: 'Draft' },
-  Active: { dot: '#10b981', label: 'Active' },
-  'Execution Completed': { dot: '#f59e0b', label: 'Execution' },
+const STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
+  Draft:                { dot: '#94a3b8', label: 'Draft' },
+  Active:               { dot: '#10b981', label: 'Active' },
+  'Execution Completed':{ dot: '#f59e0b', label: 'Execution' },
   'Financially Closed': { dot: '#6366f1', label: 'Financially Closed' },
-  Closed: { dot: '#64748b', label: 'Closed' },
+  Closed:               { dot: '#64748b', label: 'Closed' },
 };
 
-const PO_STATUS_CONFIG = {
+const PO_STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
   'Not Required': { dot: '#10b981', label: 'Not Required' },
-  Pending: { dot: '#f59e0b', label: 'Pending' },
-  Received: { dot: '#3b82f6', label: 'Received' },
+  Pending:        { dot: '#f59e0b', label: 'Pending' },
+  Received:       { dot: '#3b82f6', label: 'Received' },
 };
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
+const STATUS_FILTER_OPTIONS = ['All', 'Active', 'Execution Completed', 'Financially Closed', 'Closed', 'Draft'];
+const PROJECT_STATUS_STATS = ['Active', 'Draft', 'Closed'];
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-  
-  :root {
-    --bg-primary: #faf9f7;
-    --bg-card: #ffffff;
-    --bg-hover: #f5f3f0;
-    --border: #e8e5e1;
-    --border-hover: #d4d0ca;
-    --text-primary: #1a1a1a;
-    --text-secondary: #6b6b6b;
-    --text-muted: #9ca3af;
-    --accent: #e85d04;
-    --accent-hover: #dc4c00;
-    --accent-light: #fff4ed;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-  }
-  
-  * { box-sizing: border-box; }
-  
-  body { background: var(--bg-primary); }
-  
-  .pl-page {
-    font-family: 'DM Sans', system-ui, sans-serif;
-    background: var(--bg-primary);
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  
-  .pl-container {
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  
-  /* Header */
-  .pl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-  }
-  
-  .pl-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-  
-  .pl-subtitle {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-top: 0.25rem;
-  }
-  
-  /* Buttons */
-  .pl-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-  }
-  
-  .pl-btn-primary {
-    background: var(--accent);
-    color: white;
-  }
-  
-  .pl-btn-primary:hover {
-    background: var(--accent-hover);
-    transform: translateY(-1px);
-  }
-  
-  .pl-btn-secondary {
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-  }
-  
-  .pl-btn-secondary:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-  }
-  
-  .pl-btn-icon {
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  
-  .pl-btn-icon:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-  
-  /* Search */
-  .pl-search-wrapper {
-    position: relative;
-    margin-bottom: 1.5rem;
-  }
-  
-  .pl-search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-  }
-  
-  .pl-search-input {
-    width: 100%;
-    padding: 0.875rem 1rem 0.875rem 2.75rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    font-size: 0.9375rem;
-    color: var(--text-primary);
-    transition: all 0.2s ease;
-    font-family: inherit;
-  }
-  
-  .pl-search-input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.1);
-  }
-  
-  .pl-search-input::placeholder {
-    color: var(--text-muted);
-  }
-  
-  .pl-count {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-  
-  /* Project Card */
-  .pl-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    overflow: hidden;
-    transition: all 0.25s ease;
-  }
-  
-  .pl-card:hover {
-    border-color: var(--border-hover);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  }
-  
-  .pl-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .pl-table thead {
-    background: var(--bg-primary);
-  }
-  
-  .pl-table th {
-    padding: 0.875rem 1rem;
-    text-align: left;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .pl-table th:last-child {
-    text-align: right;
-  }
-  
-  .pl-table td {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
-  
-  .pl-table tbody tr {
-    transition: background 0.15s ease;
-  }
-  
-  .pl-table tbody tr:hover {
-    background: var(--bg-hover);
-  }
-  
-  .pl-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-  
-  /* Project Name Cell */
-  .pl-project-name {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  
-  .pl-project-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: color 0.15s ease;
-  }
-  
-  .pl-project-title:hover {
-    color: var(--accent);
-  }
-  
-  .pl-project-code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.6875rem;
-    color: var(--text-muted);
-  }
-  
-  /* Status Badge */
-  .pl-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    background: var(--bg-primary);
-    border-radius: 2rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-  
-  .pl-status-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-  }
-  
-  /* Warning Badge */
-  .pl-warning {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    background: #fef2f2;
-    color: var(--danger);
-    border-radius: 0.25rem;
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  
-  /* Progress Bar */
-  .pl-progress {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  
-  .pl-progress-bar {
-    flex: 1;
-    height: 0.375rem;
-    background: var(--bg-primary);
-    border-radius: 1rem;
-    overflow: hidden;
-  }
-  
-  .pl-progress-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 1rem;
-    transition: width 0.5s ease;
-  }
-  
-  .pl-progress-value {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    min-width: 2.5rem;
-    text-align: right;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  
-  /* Action Buttons */
-  .pl-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.25rem;
-  }
-  
-  /* Empty State */
-  .pl-empty {
-    padding: 4rem 2rem;
-    text-align: center;
-  }
-  
-  .pl-empty-icon {
-    width: 4rem;
-    height: 4rem;
-    margin: 0 auto 1rem;
-    color: var(--text-muted);
-    opacity: 0.5;
-  }
-  
-  .pl-empty-text {
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-  }
-  
-  /* Loading Skeleton */
-  .pl-skeleton {
-    background: linear-gradient(90deg, var(--bg-primary) 0%, var(--bg-card) 50%, var(--bg-primary) 100%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 0.5rem;
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-  
-  /* Detail View */
-  .pl-detail-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 1rem;
-    margin-bottom: 0;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .pl-detail-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-  
-  .pl-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-    padding-bottom: 0.5rem;
-  }
-  
-  .pl-tab {
-    padding: 0.625rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-secondary);
-  }
-  
-  .pl-tab:hover {
-    background: var(--bg-hover);
-  }
-  
-  .pl-tab.active {
-    background: var(--accent);
-    color: white;
-  }
-  
-  .pl-tab-count {
-    margin-left: 0.375rem;
-    opacity: 0.7;
-  }
-  
-  /* Summary Cards */
-  .pl-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .pl-summary-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-  }
-  
-  .pl-summary-title {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 1rem;
-  }
-  
-  .pl-summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .pl-summary-row:last-child {
-    border-bottom: none;
-  }
-  
-  .pl-summary-label {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-  }
-  
-  .pl-summary-value {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  
-  /* Financial Grid */
-  .pl-financial-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .pl-financial-card {
-    background: var(--bg-primary);
-    border-radius: 0.75rem;
-    padding: 1rem;
-    text-align: center;
-  }
-  
-  .pl-financial-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
-  }
-  
-  .pl-financial-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    font-family: 'JetBrains Mono', monospace;
-  }
-  
-  .pl-financial-value.positive {
-    color: var(--success);
-  }
-  
-  .pl-financial-value.negative {
-    color: var(--danger);
-  }
-  
-  /* Responsive */
-  @media (max-width: 1024px) {
-    .pl-financial-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .pl-page {
-      padding: 1rem;
-    }
-    
-    .pl-summary-grid {
-      grid-template-columns: 1fr;
-    }
-    
-    .pl-table th:nth-child(4),
-    .pl-table td:nth-child(4) {
-      display: none;
-    }
-  }
-`;
-
-// ─── Inject Styles ─────────────────────────────────────────────────────────────
-
-if (typeof document !== 'undefined') {
-  const styleId = 'pl-styles';
-  if (!document.getElementById(styleId)) {
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.textContent = styles;
-    document.head.appendChild(styleEl);
-  }
-}
+const MANDATORY_COLUMNS = ['project', 'actions'];
+const ALL_COLUMNS = [
+  { id: 'project', label: 'Project' },
+  { id: 'client', label: 'Client' },
+  { id: 'type', label: 'Type' },
+  { id: 'est_value', label: 'Est. Value' },
+  { id: 'po_value', label: 'PO Value' },
+  { id: 'po_status', label: 'PO Status' },
+  { id: 'status', label: 'Status' },
+  { id: 'completion', label: 'Completion' },
+  { id: 'actions', label: 'Action' },
+];
 
 // ─── ProjectList ──────────────────────────────────────────────────────────────
 
 export default function ProjectList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, organisation } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [activeTab, setActiveTab] = useState('summary');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('project_list_columns');
+    return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
+  });
+  const [tempVisibleColumns, setTempVisibleColumns] = useState<string[]>(visibleColumns);
+  const itemsPerPage = 20;
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const columnCustomizerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showColumnCustomizer) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnCustomizerRef.current && !columnCustomizerRef.current.contains(event.target as Node)) {
+        setShowColumnCustomizer(false);
+        setTempVisibleColumns(visibleColumns);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowColumnCustomizer(false);
+        setTempVisibleColumns(visibleColumns);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showColumnCustomizer, visibleColumns]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ['projects', organisation?.id],
@@ -622,13 +175,10 @@ export default function ProjectList() {
 
   const financialSummary = useMemo(() => {
     if (!projectDetails) return null;
-    console.log('projectPOs:', projectPOs);
-    console.log('projectInvoices:', projectInvoices);
     const totalPOValue = projectPOs.reduce((s, p) => s + (parseFloat(p.po_total_value) || 0), 0);
     const totalInvoiceValue = projectInvoices.reduce((s, i) => s + (parseFloat(i.total_amount) || 0), 0);
     const totalPaymentReceived = projectPayments.reduce((s, p) => s + (parseFloat(p.payment_amount) || 0), 0);
     const totalExpense = projectExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-    console.log('totalPOValue:', totalPOValue);
     return {
       total_po_value: totalPOValue,
       total_invoice_value: totalInvoiceValue,
@@ -642,12 +192,30 @@ export default function ProjectList() {
 
   const filteredProjects = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return projects.filter(p =>
-      (p.project_name ?? '').toLowerCase().includes(q) ||
-      (p.project_code ?? '').toLowerCase().includes(q) ||
-      (p.client?.client_name ?? '').toLowerCase().includes(q)
-    );
-  }, [projects, searchTerm]);
+    return projects.filter(p => {
+      const matchesSearch =
+        (p.project_name ?? '').toLowerCase().includes(q) ||
+        (p.project_code ?? '').toLowerCase().includes(q) ||
+        (p.client?.client_name ?? '').toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchTerm, statusFilter]);
+
+  // ─── Stats ──────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const st: Record<string, number> = { All: projects.length };
+    PROJECT_STATUS_STATS.forEach(s => {
+      st[s] = projects.filter(p => p.status === s).length;
+    });
+    return st;
+  }, [projects]);
+
+  // ─── Pagination ─────────────────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredProjects.length);
+  const currentItems = filteredProjects.slice(startIndex, endIndex);
 
   const deleteProject = async (id: string) => {
     const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
@@ -669,7 +237,7 @@ export default function ProjectList() {
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) { alert('Error deleting project: ' + error.message); return; }
     setSelectedProject(null);
-    window.location.reload();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
   const checkPORequiredWarning = (p: Project) =>
@@ -678,28 +246,26 @@ export default function ProjectList() {
   const loadProjectDetails = (project: Project) => {
     setSelectedProject(project);
     setViewMode('detail');
+    setCurrentPage(1);
   };
 
   const fmt = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
   const fmtD = (d?: string) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LOADING STATE
+  // ═══════════════════════════════════════════════════════════════════════════════
   if (isLoading) {
     return (
-      <div className="pl-page">
-        <div className="pl-container">
-          <div className="pl-header">
-            <div>
-              <div className="pl-skeleton" style={{ width: '120px', height: '2rem' }} />
-              <div className="pl-skeleton" style={{ width: '180px', height: '1rem', marginTop: '0.5rem' }} />
-            </div>
-          </div>
-          <div className="pl-skeleton" style={{ width: '100%', height: '3rem', marginBottom: '1.5rem' }} />
-          <div className="pl-skeleton" style={{ width: '100%', height: '400px' }} />
-        </div>
+      <div className="flex items-center justify-center h-64 text-sm text-zinc-500">
+        Loading projects...
       </div>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DETAIL VIEW (preserved as-is)
+  // ═══════════════════════════════════════════════════════════════════════════════
   if (viewMode === 'detail' && selectedProject) {
     const tabs = [
       { id: 'summary', label: 'Summary' },
@@ -830,8 +396,8 @@ export default function ProjectList() {
                     <div className="pl-financial-value">{fmt(financialSummary?.total_invoice_value)}</div>
                   </div>
                   <div className="pl-financial-card">
-                    <div className="pl-financial-label">Payments</div>
-                    <div className="pl-financial-value positive">{fmt(financialSummary?.total_payment_received)}</div>
+                    <div className="pl-financial-label">PO Balance</div>
+                    <div className="pl-financial-value">{fmt(financialSummary?.po_balance)}</div>
                   </div>
                 </div>
               </div>
@@ -1021,117 +587,335 @@ export default function ProjectList() {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LIST VIEW (QuotationList UI pattern)
+  // ═══════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="pl-page">
-      <div className="pl-container">
-        <div className="pl-header">
-          <div>
-            <h1 className="pl-title">Projects</h1>
-            <p className="pl-subtitle">Manage and track all your projects</p>
+    <div className="flex flex-col h-full min-h-[400px] max-w-[1400px] mx-auto w-full">
+      {/* ── Main Header ── */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-base font-medium text-zinc-900">Projects</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+              {projects.length}
+            </span>
           </div>
-          <button className="pl-btn pl-btn-primary" onClick={() => navigate('/projects/new')}>
-            <Plus size={18} />
+          <div className="h-4 w-px bg-zinc-200" />
+          <div className="flex items-center gap-4">
+            {PROJECT_STATUS_STATS.map(s => (
+              <div key={s} className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mx-1">
+                  {s === 'Active' ? 'Active' : s === 'Draft' ? 'Draft' : 'Closed'}
+                </span>
+                <span className={`text-xs font-medium mx-1 ${
+                  s === 'Active' ? 'text-emerald-700' : s === 'Draft' ? 'text-zinc-700' : 'text-zinc-700'
+                }`}>
+                  {stats[s] || 0}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Filter Row ── */}
+      <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
+        style={{ paddingTop: '15px', paddingBottom: '15px' }}>
+        <div className="flex items-center gap-2">
+          {STATUS_FILTER_OPTIONS.map((status) => (
+            <button
+              key={status}
+              onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
+              className={`w-[130px] h-[26px] px-4 text-sm font-medium transition-colors ${
+                statusFilter === status
+                  ? 'bg-blue-600/10 text-blue-600'
+                  : 'text-zinc-600 hover:bg-zinc-100'
+              }`}
+            >
+              {status === 'All' ? 'All Projects' : status}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-[10px]">
+          <button
+            onClick={() => navigate('/projects/new')}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
             New Project
           </button>
         </div>
+      </div>
 
-        <div className="pl-search-wrapper">
-          <Search size={18} className="pl-search-icon" />
-          <input
-            type="text"
-            className="pl-search-input"
-            placeholder="Search by project name, code, or client..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-          <span className="pl-count">{filteredProjects.length} projects</span>
-        </div>
-
-        <div className="pl-card">
-          {filteredProjects.length === 0 ? (
-            <div className="pl-empty">
-              <Folder className="pl-empty-icon" />
-              <p className="pl-empty-text">No projects found</p>
-            </div>
-          ) : (
-            <table className="pl-table">
-              <thead>
+      {/* ── Table ── */}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-full">
+          <table className="w-full border-separate border-spacing-0">
+            <thead className="z-10">
+              <tr>
+                <th className="sticky top-0 z-10 h-[36px] pl-4 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[240px]">
+                  Project
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[150px]">
+                  Client
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[100px]">
+                  Type
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-right text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[130px]">
+                  Est. Value
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-right text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[130px]">
+                  PO Value
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[120px]">
+                  PO Status
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[100px]">
+                  Status
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[150px]">
+                  Completion
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-center text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {currentItems.length === 0 ? (
                 <tr>
-                  <th>Project</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Est. Value</th>
-                  <th>PO Value</th>
-                  <th>PO Status</th>
-                  <th>Status</th>
-                  <th>Completion</th>
-                  <th></th>
+                  <td colSpan={9} className="px-5 py-16 text-center text-sm text-zinc-500">
+                    No projects found
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredProjects.map(p => {
-                  const statusCfg = STATUS_CONFIG[p.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Draft;
-                  const poStatusCfg = PO_STATUS_CONFIG[p.po_status as keyof typeof PO_STATUS_CONFIG] || PO_STATUS_CONFIG.Pending;
-                  const showWarning = checkPORequiredWarning(p);
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {currentItems.map((p, index) => {
+                    const statusCfg = STATUS_CONFIG[p.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Draft;
+                    const poStatusCfg = PO_STATUS_CONFIG[p.po_status as keyof typeof PO_STATUS_CONFIG] || PO_STATUS_CONFIG.Pending;
+                    const showWarning = checkPORequiredWarning(p);
 
-                  return (
-                    <tr key={p.id}>
-                      <td>
-                        <div className="pl-project-name">
-                          <span className="pl-project-title" onClick={() => loadProjectDetails(p)}>
-                            {p.project_name || 'Unnamed Project'}
-                          </span>
-                          {p.project_code && <span className="pl-project-code">{p.project_code}</span>}
-                          {showWarning && <span className="pl-warning">⚠ PO Required</span>}
-                        </div>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{p.client?.client_name || '-'}</td>
-                      <td style={{ color: 'var(--text-secondary)' }}>{p.project_type || '-'}</td>
-                      <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
-                        {p.project_estimated_value ? fmt(p.project_estimated_value) : '-'}
-                      </td>
-                      <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
-                        {p.pos && p.pos.length > 0 ? fmt(p.pos.reduce((sum, po) => sum + (po.po_total_value || 0), 0)) : '-'}
-                      </td>
-                      <td>
-                        <span className="pl-status">
-                          <span className="pl-status-dot" style={{ background: poStatusCfg.dot }} />
-                          {poStatusCfg.label}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="pl-status">
-                          <span className="pl-status-dot" style={{ background: statusCfg.dot }} />
-                          {statusCfg.label}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="pl-progress">
-                          <div className="pl-progress-bar">
-                            <div className="pl-progress-fill" style={{ width: `${p.completion_percentage || 0}%` }} />
+                    return (
+                      <motion.tr
+                        key={p.id}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
+                          opacity: { duration: 0.2 }
+                        }}
+                        className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
+                          openMenuId === p.id ? 'z-50' : 'z-0'
+                        } ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
+                        }`}
+                        onClick={() => loadProjectDetails(p)}
+                      >
+                        {/* Project */}
+                        <td className="pl-4 py-[26px] align-middle border-t border-zinc-200/70">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-semibold text-zinc-900 hover:text-blue-600 transition-colors">
+                              {p.project_name || 'Unnamed Project'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {p.project_code && (
+                                <span className="text-[11px] font-mono text-zinc-400">{p.project_code}</span>
+                              )}
+                              {showWarning && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-semibold uppercase tracking-wider">
+                                  ⚠ PO Required
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <span className="pl-progress-value">{p.completion_percentage || 0}%</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="pl-actions">
-                          <button className="pl-btn-icon" onClick={() => loadProjectDetails(p)} title="View">
-                            <ChevronRight size={18} />
-                          </button>
-                          <button className="pl-btn-icon" onClick={() => navigate(`/projects/edit?id=${p.id}`)} title="Edit">
-                            <Edit size={16} />
-                          </button>
-                          <button className="pl-btn-icon" onClick={() => deleteProject(p.id)} title="Delete" style={{ '--hover-color': 'var(--danger)' } as any}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                        </td>
+                        {/* Client */}
+                        <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                          <div className="max-w-[200px] truncate" title={p.client?.client_name || '-'}>
+                            {p.client?.client_name || '-'}
+                          </div>
+                        </td>
+                        {/* Type */}
+                        <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                          {p.project_type || '-'}
+                        </td>
+                        {/* Est. Value */}
+                        <td className="px-6 py-[26px] align-middle text-sm font-mono font-medium text-zinc-900 text-right border-t border-zinc-200/70">
+                          {p.project_estimated_value ? fmt(p.project_estimated_value) : '-'}
+                        </td>
+                        {/* PO Value */}
+                        <td className="px-6 py-[26px] align-middle text-sm font-mono font-medium text-zinc-900 text-right border-t border-zinc-200/70">
+                          {p.pos && p.pos.length > 0 ? fmt(p.pos.reduce((sum, po) => sum + (po.po_total_value || 0), 0)) : '-'}
+                        </td>
+                        {/* PO Status */}
+                        <td className="px-6 py-[26px] align-middle border-t border-zinc-200/70">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600">
+                            <span className="w-2 h-2 rounded-full" style={{ background: poStatusCfg.dot }} />
+                            {poStatusCfg.label}
+                          </span>
+                        </td>
+                        {/* Status */}
+                        <td className="px-6 py-[26px] align-middle border-t border-zinc-200/70">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600">
+                            <span className="w-2 h-2 rounded-full" style={{ background: statusCfg.dot }} />
+                            {statusCfg.label}
+                          </span>
+                        </td>
+                        {/* Completion */}
+                        <td className="px-6 py-[26px] align-middle border-t border-zinc-200/70">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                style={{ width: `${p.completion_percentage || 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium text-zinc-500 font-mono min-w-[36px] text-right">
+                              {p.completion_percentage || 0}%
+                            </span>
+                          </div>
+                        </td>
+                        {/* Actions */}
+                        <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                          <div className="relative inline-block" ref={openMenuId === p.id ? menuRef : null}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(openMenuId === p.id ? null : p.id);
+                              }}
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
+                            >
+                              <MoreHorizontal className="w-4 h-4 text-zinc-500" />
+                            </button>
+                          {openMenuId === p.id && (
+                            <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
+                              index >= currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
+                            }`}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  loadProjectDetails(p);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                <Folder className="w-3.5 h-3.5" />
+                                View Details
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  navigate(`/projects/edit?id=${p.id}`);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                Edit
+                              </button>
+
+                              <div className="my-1 border-t border-zinc-100" />
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  deleteProject(p.id);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Pagination ── */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+        <div className="text-sm font-medium text-zinc-600">
+          Showing {filteredProjects.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, filteredProjects.length)} of {filteredProjects.length} projects
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+              currentPage > 1
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Previous
+          </button>
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: Math.max(1, Math.min(5, totalPages)) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
+                    currentPage === pageNum
+                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
+                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+              currentPage < totalPages
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

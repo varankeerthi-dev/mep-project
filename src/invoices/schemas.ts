@@ -107,7 +107,9 @@ export const InvoiceSchema = z
     sgst: CurrencySchema,
     igst: CurrencySchema,
     total: CurrencySchema,
+    paid_amount: CurrencySchema.default(0),
     status: z.enum(invoiceStatuses).default('draft'),
+    prepared_by: z.string().optional().nullable(),
     created_at: z.string().datetime({ offset: true }).optional(),
     company_state: z.preprocess(
       (val) => (val === '' ? null : val),
