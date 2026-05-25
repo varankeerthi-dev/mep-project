@@ -115,6 +115,40 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+const numberToWords = (num: number): string => {
+  if (Math.abs(num) < 0.01) return 'Zero';
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const convertBelow1000 = (n: number): string => {
+    if (n === 0) return '';
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+    return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertBelow1000(n % 100) : '');
+  };
+
+  const rupees = Math.floor(num);
+  const paise = Math.round((num - rupees) * 100);
+
+  let result = 'Rupees ';
+  const crore = Math.floor(rupees / 10000000);
+  const lakh = Math.floor((rupees % 10000000) / 100000);
+  const thousand = Math.floor((rupees % 100000) / 1000);
+  const hundred = rupees % 1000;
+
+  if (crore) result += convertBelow1000(crore) + ' Crore ';
+  if (lakh) result += convertBelow1000(lakh) + ' Lakh ';
+  if (thousand) result += convertBelow1000(thousand) + ' Thousand ';
+  if (hundred) result += convertBelow1000(hundred) + ' ';
+
+  if (paise > 0) {
+    result = result.trim() + ' and ' + convertBelow1000(paise) + ' Paise';
+  }
+
+  return result.trim() + ' Only';
+};
+
 export const PurchaseOrders: React.FC = () => {
   const { organisation } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1110,6 +1144,12 @@ export const PurchaseOrders: React.FC = () => {
                       )}
                     </div>
                   </div>
+                  {currency === 'INR' && totals.total > 0 && (
+                    <div className="mt-4 pt-3 border-t border-zinc-200/60">
+                      <p className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold mb-1">Amount in Words</p>
+                      <p className="text-sm text-zinc-700 italic font-medium leading-relaxed">{numberToWords(totals.total)}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
