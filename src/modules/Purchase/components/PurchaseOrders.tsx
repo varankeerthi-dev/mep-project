@@ -259,46 +259,95 @@ export const PurchaseOrders: React.FC = () => {
     }
   };
 
-  const generatePONumber = async () => {
-    if (!organisation?.id) return '';
-    
+  const poSeriesRef = useRef<any>(null);
+
+  const getFyPrefix = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    if (month < 3) return `${year - 1}-${String(year).slice(-2)}`;
+    return `${year}-${String(year + 1).slice(-2)}`;
+  };
+
+  const getPOSeriesNumber = (seriesRow: any): number => {
+    const cfg = seriesRow?.configs?.po;
+    if (cfg && cfg.enabled) {
+      return parseInt(cfg.start_number || 1, 10);
+    }
+    return parseInt(seriesRow?.current_number || 1, 10);
+  };
+
+  const buildPONumber = (seriesRow: any): string => {
+    if (!seriesRow) return '';
+    const cfg = seriesRow?.configs?.po || {};
+    const rawPrefix = cfg.prefix || 'PO-';
+    const suffix = cfg.suffix || '';
+    const number = getPOSeriesNumber(seriesRow);
+    const padding = parseInt(cfg.padding || 4, 10);
+    const padded = String(number).padStart(padding, '0');
+    const fy = getFyPrefix();
+    const prefix = String(rawPrefix).replace('{FY}', fy);
+    return `${prefix}${padded}${suffix}`;
+  };
+
+  const generatePONumber = async (): Promise<string> => {
+    if (!organisation?.id) return 'PO-FALLBACK';
+
     try {
-      // Get PO settings from document_settings
-      const { data: settings, error } = await supabase
-        .from('document_settings')
-        .select('po_prefix, po_start_number, po_suffix, po_padding, po_current_number')
-        .eq('organisation_id', organisation.id)
+      const orgId = organisation.id;
+
+      const { data: primary } = await supabase
+        .from('document_series')
+        .select('id, configs, current_number')
+        .eq('is_default', true)
+        .eq('organisation_id', orgId)
+        .limit(1)
         .maybeSingle();
-      
-      if (error) throw error;
-      
-      if (!settings) {
-        // No settings found, generate default
-        const timestamp = Date.now().toString(36).toUpperCase();
-        return `PO-${timestamp}`;
+
+      if (primary) {
+        poSeriesRef.current = primary;
+        return buildPONumber(primary);
       }
-      
-      const prefix = settings.po_prefix || 'PO';
-      const suffix = settings.po_suffix || '';
-      const padding = settings.po_padding || 4;
-      const currentNumber = (settings.po_current_number || settings.po_start_number || 1);
-      
-      // Format number with padding
-      const paddedNumber = currentNumber.toString().padStart(padding, '0');
-      const generatedNumber = `${prefix}${paddedNumber}${suffix}`;
-      
-      // Update current number in settings
-      await supabase
-        .from('document_settings')
-        .update({ po_current_number: currentNumber + 1 })
-        .eq('organisation_id', organisation.id);
-      
-      return generatedNumber;
+
+      const { data: byOrg } = await supabase
+        .from('document_series')
+        .select('id, configs, current_number')
+        .eq('organisation_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (byOrg && byOrg.length > 0) {
+        poSeriesRef.current = byOrg[0];
+        return buildPONumber(byOrg[0]);
+      }
+
+      const { data: byDefault } = await supabase
+        .from('document_series')
+        .select('id, configs, current_number')
+        .eq('is_default', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (byDefault && byDefault.length > 0) {
+        poSeriesRef.current = byDefault[0];
+        return buildPONumber(byDefault[0]);
+      }
+
+      const { data: global } = await supabase
+        .from('document_series')
+        .select('id, configs, current_number')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (global && global.length > 0) {
+        poSeriesRef.current = global[0];
+        return buildPONumber(global[0]);
+      }
+
+      return 'PO-0001';
     } catch (error) {
       console.error('Error generating PO number:', error);
-      // Fallback to timestamp-based number
-      const timestamp = Date.now().toString(36).toUpperCase();
-      return `PO-${timestamp}`;
+      return `PO-${Date.now().toString().slice(-6)}`;
     }
   };
 
@@ -429,7 +478,7 @@ export const PurchaseOrders: React.FC = () => {
       total_amount: item.total_amount || 0,
     }));
     setItems(poItems);
-    setOpenDialog(true);
+    navigate('/purchase/orders?mode=create');
   };
 
   const handleDeletePO = async () => {
@@ -592,6 +641,15 @@ export const PurchaseOrders: React.FC = () => {
             done_by_name: organisation?.name || 'System'
           });
         }
+
+        // Increment document_series after successful creation (fire-and-forget)
+        if (poSeriesRef.current) {
+          const nextNo = getPOSeriesNumber(poSeriesRef.current) + 1;
+          const cfg = poSeriesRef.current.configs || {};
+          const poCfg = cfg.po || {};
+          const updatedCfg = { ...cfg, po: { ...poCfg, start_number: nextNo } };
+          supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', poSeriesRef.current.id).then();
+        }
       }
 
       setOpenDialog(false);
@@ -605,6 +663,7 @@ export const PurchaseOrders: React.FC = () => {
 
   const cancelForm = () => {
     setSelectedPO(null);
+    poSeriesRef.current = null;
     navigate('/purchase/orders');
   };
 
