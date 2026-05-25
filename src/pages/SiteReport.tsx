@@ -904,7 +904,7 @@ export function SiteReport() {
     );
   }
 
-  if (view === 'create') {
+  if (view === 'create' || view === 'edit' || view === 'view') {
     return (
       <div className="min-h-screen bg-zinc-50/30 py-8 px-6">
         <div className="max-w-5xl mx-auto">
@@ -918,14 +918,24 @@ export function SiteReport() {
               Site Reports
             </button>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="text-zinc-800 font-medium">Create Report</span>
+            <span className="text-zinc-800 font-medium">
+              {view === 'create' ? 'Create Report' : view === 'edit' ? 'Edit Report' : 'View Report'}
+            </span>
           </div>
 
           {/* Header */}
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-200">
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900">Create Site Report</h1>
-              <p className="text-sm text-zinc-500 mt-1">Record daily activities, manpower logs, and progress reports</p>
+              <h1 className="text-2xl font-bold text-zinc-900">
+                {view === 'create' ? 'Create Site Report' : view === 'edit' ? 'Edit Site Report' : 'Site Report Details'}
+              </h1>
+              <p className="text-sm text-zinc-500 mt-1">
+                {view === 'create' 
+                  ? 'Record daily activities, manpower logs, and progress reports' 
+                  : view === 'edit' 
+                    ? 'Update daily activities, manpower logs, and progress reports' 
+                    : 'Review daily activities, manpower logs, and progress reports'}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -933,43 +943,60 @@ export function SiteReport() {
                 onClick={() => setView('list')}
                 className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-semibold text-zinc-700 bg-white hover:bg-zinc-50 transition-colors active:scale-[0.98]"
               >
-                Cancel
+                {view === 'view' ? 'Back to List' : 'Cancel'}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  form.setValue('reporting.pmStatus', 'Draft');
-                  const values = form.getValues();
-                  if (!values.date) {
-                    values.date = new Date().toISOString().split('T')[0];
-                  }
-                  saveMutation.mutate({
-                    ...values,
-                    reporting: {
-                      ...values.reporting,
-                      pmStatus: 'Draft'
+              
+              {view === 'view' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedReportId) {
+                      downloadReportPDF(selectedReportId);
                     }
-                  } as SiteReportFormValues);
-                }}
-                disabled={saveMutation.isPending}
-                className="px-4 py-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm bg-white"
-              >
-                {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
-              </button>
-              <button
-                type="button"
-                onClick={form.handleSubmit(onSubmit, onInvalid)}
-                disabled={saveMutation.isPending}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
-              >
-                {saveMutation.isPending ? 'Saving...' : 'Submit Report'}
-              </button>
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98]"
+                >
+                  Download PDF
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      form.setValue('reporting.pmStatus', 'Draft');
+                      const values = form.getValues();
+                      if (!values.date) {
+                        values.date = new Date().toISOString().split('T')[0];
+                      }
+                      saveMutation.mutate({
+                        ...values,
+                        reporting: {
+                          ...values.reporting,
+                          pmStatus: 'Draft'
+                        }
+                      } as SiteReportFormValues);
+                    }}
+                    disabled={saveMutation.isPending}
+                    className="px-4 py-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm bg-white"
+                  >
+                    {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={form.handleSubmit(onSubmit, onInvalid)}
+                    disabled={saveMutation.isPending}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
+                  >
+                    {saveMutation.isPending ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Report'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Form Content - Styled per SiteVisits design reference */}
           <form onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <fieldset disabled={view === 'view'} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* 1. Identification Section */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
@@ -1062,13 +1089,15 @@ export function SiteReport() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sub-Contractors on Site</label>
-                    <button 
-                      type="button" 
-                      onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
-                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      + Add Entry
-                    </button>
+                    {view !== 'view' && (
+                      <button 
+                        type="button" 
+                        onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
+                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Add Entry
+                      </button>
+                    )}
                   </div>
                   
                   <div className="border border-zinc-100 rounded-lg overflow-hidden bg-white">
@@ -1079,7 +1108,7 @@ export function SiteReport() {
                           <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[100px]">Count</TableHead>
                           <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">In</TableHead>
                           <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">Out</TableHead>
-                          <TableHead className="w-[40px] h-8"></TableHead>
+                          {view !== 'view' && <TableHead className="w-[40px] h-8"></TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1097,22 +1126,24 @@ export function SiteReport() {
                             <TableCell className="p-1">
                               <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
                             </TableCell>
-                            <TableCell className="p-1 text-center">
-                              <ShadcnButton 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-7 w-7 text-zinc-300 hover:text-red-500"
-                                onClick={() => removeSubContractor(index)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </ShadcnButton>
-                            </TableCell>
+                            {view !== 'view' && (
+                              <TableCell className="p-1 text-center">
+                                <ShadcnButton 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-zinc-300 hover:text-red-500"
+                                  onClick={() => removeSubContractor(index)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </ShadcnButton>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                         {subContractorFields.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={5} className="h-12 text-center text-[11px] text-zinc-400 italic">No sub-contractors added</TableCell>
+                            <TableCell colSpan={view === 'view' ? 4 : 5} className="h-12 text-center text-[11px] text-zinc-400 italic">No sub-contractors added</TableCell>
                           </TableRow>
                         )}
                       </TableBody>
@@ -1126,27 +1157,31 @@ export function SiteReport() {
                 <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Done Today *</label>
-                    <button 
-                      type="button" 
-                      onClick={() => appendWork({ value: '' })}
-                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      + Add Activity
-                    </button>
+                    {view !== 'view' && (
+                      <button 
+                        type="button" 
+                        onClick={() => appendWork({ value: '' })}
+                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Add Activity
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {workFields.map((field, index) => (
                       <div key={field.id} className="flex gap-2 items-start group">
                         <Input className="h-9 text-sm bg-white flex-1" {...form.register(`workCarriedOut.${index}.value`)} placeholder="Describe activity..." />
-                        <ShadcnButton 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 text-zinc-300 hover:text-red-500"
-                          onClick={() => removeWork(index)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </ShadcnButton>
+                        {view !== 'view' && (
+                          <ShadcnButton 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 text-zinc-300 hover:text-red-500"
+                            onClick={() => removeWork(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </ShadcnButton>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1155,27 +1190,31 @@ export function SiteReport() {
                 <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Milestones Hit</label>
-                    <button 
-                      type="button" 
-                      onClick={() => appendMilestone({ value: '' })}
-                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      + Add Milestone
-                    </button>
+                    {view !== 'view' && (
+                      <button 
+                        type="button" 
+                        onClick={() => appendMilestone({ value: '' })}
+                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Add Milestone
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {milestoneFields.map((field, index) => (
                       <div key={field.id} className="flex gap-2 items-start group">
                         <Input className="h-9 text-sm bg-white flex-1" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone description..." />
-                        <ShadcnButton 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 text-zinc-300 hover:text-red-500"
-                          onClick={() => removeMilestone(index)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </ShadcnButton>
+                        {view !== 'view' && (
+                          <ShadcnButton 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 text-zinc-300 hover:text-red-500"
+                            onClick={() => removeMilestone(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </ShadcnButton>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1309,28 +1348,32 @@ export function SiteReport() {
                 <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', background: '#fff5f5', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Issues Faced</label>
-                    <button 
-                      type="button" 
-                      onClick={() => appendIssue({ issue: '', solution: '' })}
-                      style={{ fontSize: '11px', color: '#b91c1c', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      + Log Issue
-                    </button>
+                    {view !== 'view' && (
+                      <button 
+                        type="button" 
+                        onClick={() => appendIssue({ issue: '', solution: '' })}
+                        style={{ fontSize: '11px', color: '#b91c1c', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Log Issue
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {issueFields.map((field, index) => (
                       <div key={field.id} className="space-y-1 p-2 bg-white rounded border border-red-100 relative group">
                         <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.issue`)} placeholder="Issue..." />
                         <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.solution`)} placeholder="Action..." />
-                        <ShadcnButton 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full" 
-                          onClick={() => removeIssue(index)}
-                        >
-                          <Plus className="w-3 h-3 rotate-45" />
-                        </ShadcnButton>
+                        {view !== 'view' && (
+                          <ShadcnButton 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full" 
+                            onClick={() => removeIssue(index)}
+                          >
+                            <Plus className="w-3 h-3 rotate-45" />
+                          </ShadcnButton>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1340,21 +1383,25 @@ export function SiteReport() {
                 <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next Day Plan *</label>
-                    <button 
-                      type="button" 
-                      onClick={() => appendPlan({ value: '' })}
-                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      + Add Task
-                    </button>
+                    {view !== 'view' && (
+                      <button 
+                        type="button" 
+                        onClick={() => appendPlan({ value: '' })}
+                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Add Task
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {planFields.map((field, index) => (
                       <div key={field.id} className="flex gap-1 group items-center">
                         <Input className="h-8 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
-                        <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removePlan(index)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </ShadcnButton>
+                        {view !== 'view' && (
+                          <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removePlan(index)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </ShadcnButton>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1364,21 +1411,25 @@ export function SiteReport() {
                 <div style={{ border: '1px solid #fef3c7', borderRadius: '8px', padding: '16px', background: '#fffbeb', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client Requirements</label>
-                    <button 
-                      type="button" 
-                      onClick={() => appendClientReq({ value: '' })}
-                      style={{ fontSize: '11px', color: '#b45309', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      + Add Req
-                    </button>
+                    {view !== 'view' && (
+                      <button 
+                        type="button" 
+                        onClick={() => appendClientReq({ value: '' })}
+                        style={{ fontSize: '11px', color: '#b45309', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Add Req
+                      </button>
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
                     {clientReqFields.map((field, index) => (
                       <div key={field.id} className="flex gap-1 group items-center">
                         <Input className="h-8 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Requirement..." />
-                        <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removeClientReq(index)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </ShadcnButton>
+                        {view !== 'view' && (
+                          <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removeClientReq(index)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </ShadcnButton>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1405,18 +1456,22 @@ export function SiteReport() {
                   {photos.map((photo, index) => (
                     <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 shadow-sm bg-zinc-50 group">
                       <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </ShadcnButton>
-                      </div>
+                      {view !== 'view' && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </ShadcnButton>
+                        </div>
+                      )}
                     </div>
                   ))}
-                  <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-zinc-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-zinc-50/30">
-                    <Upload className="w-5 h-5 text-zinc-400 mb-1" />
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase">Upload</span>
-                    <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
-                  </label>
+                  {view !== 'view' && (
+                    <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-zinc-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-zinc-50/30">
+                      <Upload className="w-5 h-5 text-zinc-400 mb-1" />
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase">Upload</span>
+                      <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -1435,8 +1490,7 @@ export function SiteReport() {
                   </div>
                 </div>
               </div>
-
-            </div>
+            </fieldset>
 
             {/* Footer Buttons */}
             <div style={{
@@ -1461,58 +1515,62 @@ export function SiteReport() {
                   cursor: 'pointer',
                 }}
               >
-                Cancel
+                {view === 'view' ? 'Back to List' : 'Cancel'}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  form.setValue('reporting.pmStatus', 'Draft');
-                  const values = form.getValues();
-                  if (!values.date) {
-                    values.date = new Date().toISOString().split('T')[0];
-                  }
-                  saveMutation.mutate({
-                    ...values,
-                    reporting: {
-                      ...values.reporting,
-                      pmStatus: 'Draft'
-                    }
-                  } as SiteReportFormValues);
-                }}
-                disabled={saveMutation.isPending}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '6px',
-                  background: '#fff',
-                  color: '#374151',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-                  opacity: saveMutation.isPending ? 0.6 : 1,
-                }}
-              >
-                {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
-              </button>
-              <button
-                type="submit"
-                disabled={saveMutation.isPending}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: '#2563eb',
-                  color: '#fff',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-                  opacity: saveMutation.isPending ? 0.6 : 1,
-                }}
-              >
-                {saveMutation.isPending ? 'Saving...' : 'Submit Site Report'}
-              </button>
+              {view !== 'view' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      form.setValue('reporting.pmStatus', 'Draft');
+                      const values = form.getValues();
+                      if (!values.date) {
+                        values.date = new Date().toISOString().split('T')[0];
+                      }
+                      saveMutation.mutate({
+                        ...values,
+                        reporting: {
+                          ...values.reporting,
+                          pmStatus: 'Draft'
+                        }
+                      } as SiteReportFormValues);
+                    }}
+                    disabled={saveMutation.isPending}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '6px',
+                      background: '#fff',
+                      color: '#374151',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+                      opacity: saveMutation.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saveMutation.isPending}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      border: 'none',
+                      borderRadius: '6px',
+                      background: '#2563eb',
+                      color: '#fff',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+                      opacity: saveMutation.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    {saveMutation.isPending ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Site Report'}
+                  </button>
+                </>
+              )}
             </div>
           </form>
         </div>
