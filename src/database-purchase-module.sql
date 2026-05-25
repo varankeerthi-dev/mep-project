@@ -414,3 +414,16 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ==========================================
+-- MIGRATION: Additional columns for PO form features
+-- Run these ALTER TABLE statements if columns don't exist
+-- ==========================================
+
+-- add attachment_url to purchase_orders if missing
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+
+-- add make/variant/sr to purchase_order_items if missing
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS make VARCHAR(255);
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS variant VARCHAR(255);
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS sr INTEGER;

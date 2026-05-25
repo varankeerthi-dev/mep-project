@@ -396,7 +396,7 @@ export const PurchaseOrders: React.FC = () => {
       setNotes(editingPO.internal_notes || '');
       setDeliveryLocation(editingPO.delivery_location || '');
       setReferenceNo(editingPO.reference_no || '');
-      setTermsContent(editingPO.terms_content || '');
+      setTermsContent(editingPO.terms_conditions || '');
       setAttachmentUrl(editingPO.attachment_url || '');
       if (editingPO.items) {
         setItems(editingPO.items.map((item: any, idx: number) => ({
@@ -761,10 +761,9 @@ export const PurchaseOrders: React.FC = () => {
       delivery_date: deliveryDate || null,
       currency,
       exchange_rate: currency === 'INR' ? 1 : exchangeRate,
-      terms,
       status,
       approval_status: status,
-      terms_content: termsContent || null,
+      terms_conditions: termsContent || null,
       internal_notes: notes || null,
       delivery_location: deliveryLocation || null,
       reference_no: referenceNo || null,
@@ -776,16 +775,12 @@ export const PurchaseOrders: React.FC = () => {
       cgst_amount: totals.cgst,
       sgst_amount: totals.sgst,
       igst_amount: totals.igst,
-      total_inr: totals.totalInr,
+      total_amount_inr: totals.totalInr,
     };
 
     const itemsData = items.map(item => ({
-      sr: item.sr,
       item_name: item.item_name,
       item_id: item.item_id || null,
-      make: item.make || null,
-      variant: item.variant || null,
-      description: item.description || null,
       hsn_code: item.hsn_code || null,
       quantity: item.quantity,
       unit: item.unit || 'Nos',
