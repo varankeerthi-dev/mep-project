@@ -320,6 +320,7 @@ export function SiteVisits() {
   const [isGlobalActivityOpen, setIsGlobalActivityOpen] = useState(false);
   const [globalActivityLogs, setGlobalActivityLogs] = useState<any[]>([]);
   const [globalActivityLoading, setGlobalActivityLoading] = useState(false);
+  const [formSection, setFormSection] = useState<'schedule' | 'report' | 'expenses'>('schedule');
 
   const fetchVisitActivity = async (visitId: string) => {
     if (!organisation?.id || !visitId) return;
@@ -586,6 +587,7 @@ export function SiteVisits() {
     });
     setCurrentStep(1);
     setSelectedVisit(null);
+    setFormSection('schedule');
   };
 
   const logSiteVisitActivity = async (visitId: string, eventType: string, title: string, description: string = '') => {
@@ -1370,13 +1372,14 @@ export function SiteVisits() {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '8px',
+            borderRadius: '12px',
             width: '95%',
-            maxWidth: '650px',
+            maxWidth: '750px',
             maxHeight: '90vh',
             overflowY: 'auto',
-            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
           }}>
+            {/* Header */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -1395,29 +1398,18 @@ export function SiteVisits() {
               <button
                 type="button"
                 onClick={() => { setIsFormOpen(false); resetForm(); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '4px',
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#525252',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                }}
+                style={{ padding: '4px', border: 'none', background: 'transparent', color: '#737373', cursor: 'pointer' }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-
             <form onSubmit={handleFormSubmit} style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 
-                {/* Section 1: Core Details */}
+                {/* Core scheduling fields */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>CLIENT *</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CLIENT *</label>
                     <CustomSelect
                       value={formData.client_id}
                       onChange={handleClientChange}
@@ -1427,23 +1419,26 @@ export function SiteVisits() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>VISIT DATE *</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT DATE *</label>
                     <input
                       type="date"
                       value={formData.visit_date}
                       onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
                       required
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717' }}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
+                </div>
 
+                {/* Grid 2 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>PURPOSE</label>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PURPOSE</label>
                       <button 
                         type="button"
                         onClick={() => setIsAddPurposeModalOpen(true)}
-                        style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
                       >
                         + Add Purpose
                       </button>
@@ -1451,7 +1446,7 @@ export function SiteVisits() {
                     <select
                       value={formData.purpose_of_visit}
                       onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
                     >
                       <option value="">Select purpose</option>
                       {purposes?.map((purpose: any) => (
@@ -1461,32 +1456,35 @@ export function SiteVisits() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>ENGINEER / ASSIGNED TO</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ENGINEER / ASSIGNED TO</label>
                     <input
                       type="text"
                       value={formData.engineer}
                       onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
                       placeholder="Engineer name"
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717' }}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
+                </div>
 
+                {/* Grid 3 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>VISIT TIME</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT TIME</label>
                     <input
                       type="time"
                       value={formData.visit_time}
                       onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717' }}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>STATUS</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>STATUS</label>
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
                     >
                       <option value="scheduled">Scheduled</option>
                       <option value="in_progress">In Progress</option>
@@ -1494,30 +1492,148 @@ export function SiteVisits() {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
-                </div>
-
-                {/* Section 2: Text Areas */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>SITE ADDRESS</label>
-                    <textarea
-                      value={formData.site_address}
-                      onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
-                      placeholder="Enter site address..."
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', minHeight: '60px', resize: 'vertical' }}
-                    />
-                  </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>DISCUSSION POINTS / NOTES</label>
-                    <textarea
-                      value={formData.discussion_points}
-                      onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
-                      placeholder="Pre-visit notes, objectives, or agenda items..."
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', minHeight: '80px', resize: 'vertical' }}
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PO / WO / CONTRACT</label>
+                    <input
+                      type="text"
+                      value={formData.po_wo_contract}
+                      onChange={(e) => setFormData({ ...formData, po_wo_contract: e.target.value })}
+                      placeholder="PO/WO Number"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
                 </div>
+
+                {/* Grid 4 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PROJECT MANAGER</label>
+                    <select
+                      value={formData.project_manager_id}
+                      onChange={(e) => setFormData({ ...formData, project_manager_id: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                    >
+                      <option value="">Select manager</option>
+                      {projectManagers?.map((pm: any) => (
+                        <option key={pm.id} value={pm.id}>{pm.full_name || pm.email}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT TYPE</label>
+                    <select
+                      value={formData.visit_type}
+                      onChange={(e) => setFormData({ ...formData, visit_type: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                    >
+                      {['Survey','Installation','Maintenance','Inspection','Repair','Handover','Consultation','Other'].map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PRIORITY</label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                    >
+                      <option value="Standard">Standard</option>
+                      <option value="Urgent">Urgent</option>
+                      <option value="Emergency">Emergency</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Site Contact Details */}
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '14px', background: '#fafafa' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Site Contact Info</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>PERSON NAME</label>
+                      <input
+                        type="text"
+                        value={formData.site_contact_person}
+                        onChange={(e) => setFormData({ ...formData, site_contact_person: e.target.value })}
+                        placeholder="Contact person"
+                        style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>PHONE NUMBER</label>
+                      <input
+                        type="text"
+                        value={formData.site_contact_phone}
+                        onChange={(e) => setFormData({ ...formData, site_contact_phone: e.target.value })}
+                        placeholder="Phone number"
+                        style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>DESIGNATION</label>
+                      <input
+                        type="text"
+                        value={formData.site_contact_designation}
+                        onChange={(e) => setFormData({ ...formData, site_contact_designation: e.target.value })}
+                        placeholder="e.g. Site Engineer"
+                        style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Requirements & Restrictions */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PPE REQUIREMENTS</label>
+                    <input
+                      type="text"
+                      value={formData.ppe_requirements}
+                      onChange={(e) => setFormData({ ...formData, ppe_requirements: e.target.value })}
+                      placeholder="e.g. Helmet, Safety Shoes"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ACCESS RESTRICTIONS</label>
+                    <input
+                      type="text"
+                      value={formData.access_restrictions}
+                      onChange={(e) => setFormData({ ...formData, access_restrictions: e.target.value })}
+                      placeholder="e.g. Work permit required"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SITE ADDRESS</label>
+                  <textarea
+                    value={formData.site_address}
+                    onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
+                    placeholder="Enter site address..."
+                    style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', minHeight: '60px', resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Chargeable Checkbox */}
+                <div style={{ display: 'flex', itemsCenter: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="is_chargeable"
+                    checked={formData.is_chargeable}
+                    onChange={(e) => setFormData({ ...formData, is_chargeable: e.target.checked })}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="is_chargeable" style={{ fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                    This visit is chargeable to the client
+                  </label>
+                </div>
+
               </div>
 
               {/* Action Buttons */}
@@ -1535,11 +1651,11 @@ export function SiteVisits() {
                     flex: 1,
                     padding: '10px 16px',
                     border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     background: '#fff',
                     color: '#525252',
                     fontSize: '14px',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -1554,11 +1670,11 @@ export function SiteVisits() {
                       flex: 1,
                       padding: '10px 16px',
                       border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
+                      borderRadius: '6px',
                       background: '#f5f5f5',
                       color: '#525252',
                       fontSize: '14px',
-                      fontWeight: 500,
+                      fontWeight: 600,
                       cursor: saveVisit.isPending ? 'not-allowed' : 'pointer',
                       opacity: saveVisit.isPending ? 0.6 : 1,
                     }}
@@ -1573,11 +1689,11 @@ export function SiteVisits() {
                     flex: 1,
                     padding: '10px 16px',
                     border: 'none',
-                    borderRadius: '4px',
-                    background: selectedVisit ? '#171717' : '#16a34a',
+                    borderRadius: '6px',
+                    background: selectedVisit ? '#171717' : '#2563eb',
                     color: '#fff',
                     fontSize: '14px',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     cursor: saveVisit.isPending ? 'not-allowed' : 'pointer',
                     opacity: saveVisit.isPending ? 0.6 : 1,
                   }}
@@ -1767,6 +1883,36 @@ export function SiteVisits() {
                       style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '100px' }}
                     />
                   </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>EQUIPMENT USED</label>
+                    <textarea
+                      value={formData.equipment_used}
+                      onChange={(e) => setFormData({ ...formData, equipment_used: e.target.value })}
+                      placeholder="Tools and equipment..."
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SAFETY HAZARDS IDENTIFIED</label>
+                    <textarea
+                      value={formData.safety_hazards}
+                      onChange={(e) => setFormData({ ...formData, safety_hazards: e.target.value })}
+                      placeholder="List safety concerns..."
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>RECOMMENDATIONS</label>
+                    <textarea
+                      value={formData.recommendations}
+                      onChange={(e) => setFormData({ ...formData, recommendations: e.target.value })}
+                      placeholder="Actionable site recommendations..."
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                    />
+                  </div>
                 </div>
 
                 {/* RIGHT COLUMN */}
@@ -1856,6 +2002,81 @@ export function SiteVisits() {
                       placeholder="Technical measurements or dimensions..."
                       style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '80px' }}
                     />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>WEATHER CONDITIONS</label>
+                    <input
+                      type="text"
+                      value={formData.weather_conditions}
+                      onChange={(e) => setFormData({ ...formData, weather_conditions: e.target.value })}
+                      placeholder="e.g. Sunny, Rainy"
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>TRAVEL TIME (MINS)</label>
+                      <input
+                        type="number"
+                        value={formData.travel_time_minutes || ''}
+                        onChange={(e) => setFormData({ ...formData, travel_time_minutes: e.target.value ? parseInt(e.target.value) : null })}
+                        placeholder="Minutes"
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>TOTAL MAN HOURS</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={formData.total_man_hours || ''}
+                        onChange={(e) => setFormData({ ...formData, total_man_hours: e.target.value ? parseFloat(e.target.value) : null })}
+                        placeholder="Man hours"
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Expenses details */}
+                  <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '14px', background: '#fafafa' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#404040', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visit Expenses</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>TRAVEL</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.travel_expense || ''}
+                          onChange={(e) => setFormData({ ...formData, travel_expense: e.target.value ? parseFloat(e.target.value) : null })}
+                          placeholder="₹ 0.00"
+                          style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>STAY</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.accommodation_expense || ''}
+                          onChange={(e) => setFormData({ ...formData, accommodation_expense: e.target.value ? parseFloat(e.target.value) : null })}
+                          placeholder="₹ 0.00"
+                          style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>MISC</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.misc_expense || ''}
+                          onChange={(e) => setFormData({ ...formData, misc_expense: e.target.value ? parseFloat(e.target.value) : null })}
+                          placeholder="₹ 0.00"
+                          style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
