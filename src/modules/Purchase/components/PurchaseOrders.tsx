@@ -958,7 +958,8 @@ export const PurchaseOrders: React.FC = () => {
           </div>
 
           {/* Section 2: Items */}
-          <div>
+          <div className="flex gap-6 items-start">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">Order Items</h3>
               <div className="flex items-center gap-2">
@@ -1152,80 +1153,84 @@ export const PurchaseOrders: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Section 3: Summary */}
-          <div className="max-w-[400px]">
-            <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Order Summary</h3>
-              <div className="space-y-2.5">
-                <div className="flex justify-between text-[13px] text-zinc-600">
-                  <span>Subtotal</span>
-                  <span className="font-semibold">₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <div className="flex gap-6 mt-8">
+              {/* Terms & Conditions */}
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">
+                    <FileText className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                    Terms & Conditions
+                  </h3>
+                  <button onClick={() => setShowTermsDrawer(true)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                    <Edit className="w-4 h-4 mr-1.5" /> Edit
+                  </button>
                 </div>
-                {totals.discount > 0 && (
-                  <div className="flex justify-between text-[13px] text-zinc-600">
-                    <span>Discount</span>
-                    <span className="font-semibold text-rose-500">-₹{totals.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-[13px] text-zinc-600">
-                  <span>Taxable</span>
-                  <span className="font-semibold">₹{totals.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50 min-h-[60px]">
+                  {termsContent ? (
+                    <p className="text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed">{termsContent}</p>
+                  ) : (
+                    <p className="text-sm text-zinc-400 italic">No terms & conditions defined. Click "Edit" to add.</p>
+                  )}
                 </div>
-                <div className="flex justify-between text-[12px] text-zinc-500">
-                  <span>CGST</span>
-                  <span>₹{totals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-[12px] text-zinc-500">
-                  <span>SGST</span>
-                  <span>₹{totals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-                {totals.igst > 0 && (
-                  <div className="flex justify-between text-[12px] text-zinc-500">
-                    <span>IGST</span>
-                    <span>₹{totals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                )}
-                <div className="h-px bg-zinc-300 my-3" />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold uppercase tracking-widest text-zinc-800">Grand Total</span>
-                  <span className="text-lg font-black">
-                    ₹{totals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                {currency !== 'INR' && (
-                  <div className="flex justify-between text-[11px] text-zinc-400">
-                    <span>in INR</span>
-                    <span>₹{totals.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                )}
-                {currency === 'INR' && totals.total > 0 && (
-                  <div className="pt-2 border-t border-zinc-200/60">
-                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mb-1">Amount in Words</p>
-                    <p className="text-[12px] text-zinc-700 italic font-medium leading-relaxed">{numberToWords(totals.total)}</p>
-                  </div>
-                )}
               </div>
+              {/* Order Summary */}
+              <div className="w-72 shrink-0">
+                <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-5 sticky top-4">
+                  <h3 className="text-xs font-bold text-zinc-700 uppercase tracking-tight mb-4">Order Summary</h3>
+                  <div className="space-y-2.5">
+                    <div className="flex justify-between text-[13px] text-zinc-600">
+                      <span>Subtotal</span>
+                      <span className="font-semibold">₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {totals.discount > 0 && (
+                      <div className="flex justify-between text-[13px] text-zinc-600">
+                        <span>Discount</span>
+                        <span className="font-semibold text-rose-500">-₹{totals.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-[13px] text-zinc-600">
+                      <span>Taxable</span>
+                      <span className="font-semibold">₹{totals.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-[12px] text-zinc-500">
+                      <span>CGST</span>
+                      <span>₹{totals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-[12px] text-zinc-500">
+                      <span>SGST</span>
+                      <span>₹{totals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {totals.igst > 0 && (
+                      <div className="flex justify-between text-[12px] text-zinc-500">
+                        <span>IGST</span>
+                        <span>₹{totals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="h-px bg-zinc-300 my-3" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold uppercase tracking-widest text-zinc-800">Grand Total</span>
+                      <span className="text-lg font-black">
+                        ₹{totals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {currency !== 'INR' && (
+                      <div className="flex justify-between text-[11px] text-zinc-400">
+                        <span>in INR</span>
+                        <span>₹{totals.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {currency === 'INR' && totals.total > 0 && (
+                      <div className="pt-2 border-t border-zinc-200/60">
+                        <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mb-1">Amount in Words</p>
+                        <p className="text-[12px] text-zinc-700 italic font-medium leading-relaxed">{numberToWords(totals.total)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-
-          {/* Section 4: Terms & Conditions */}
-          <div className="max-w-[400px]">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">
-                <FileText className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
-                Terms & Conditions
-              </h3>
-              <button onClick={() => setShowTermsDrawer(true)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-                <Edit className="w-4 h-4 mr-1.5" /> Edit
-              </button>
-            </div>
-            <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50 min-h-[60px]">
-              {termsContent ? (
-                <p className="text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed">{termsContent}</p>
-              ) : (
-                <p className="text-sm text-zinc-400 italic">No terms & conditions defined. Click "Edit" to add.</p>
-              )}
-            </div>
           </div>
 
           {/* Terms & Conditions Drawer */}
