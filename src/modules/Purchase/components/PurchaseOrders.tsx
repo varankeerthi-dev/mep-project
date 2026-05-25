@@ -150,8 +150,41 @@ export const PurchaseOrders: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<Set<string>>(new Set());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const isDirtyRef = useRef(false);
+  const initializedRef = useRef(false);
+
+  const markDirty = () => {
+    if (initializedRef.current) {
+      setIsDirty(true);
+      isDirtyRef.current = true;
+    }
+  };
+
+  useEffect(() => {
+    const fp = searchParams.get('mode') === 'create' || searchParams.get('mode') === 'edit';
+    if (!fp) return;
+    initializedRef.current = true;
+  }, [searchParams]);
+
+  useEffect(() => {
+    const fp = searchParams.get('mode') === 'create' || searchParams.get('mode') === 'edit';
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    if (isDirty && fp) {
+      window.addEventListener('beforeunload', handler);
+    }
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty, searchParams]);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -198,6 +231,8 @@ export const PurchaseOrders: React.FC = () => {
     setIsSubmitting(true);
     try {
       await handleSave('Draft');
+      setIsDirty(false);
+      isDirtyRef.current = false;
       cancelForm();
     } finally {
       setIsSubmitting(false);
@@ -209,6 +244,8 @@ export const PurchaseOrders: React.FC = () => {
     setIsSubmitting(true);
     try {
       await handleSave('Pending Approval');
+      setIsDirty(false);
+      isDirtyRef.current = false;
       cancelForm();
     } finally {
       setIsSubmitting(false);
@@ -422,7 +459,80 @@ export const PurchaseOrders: React.FC = () => {
     }
   }, [isFormPage, editingPOId]);
 
+  const openItemPicker = () => {
+    setPickerSearch('');
+    setSelectedMaterialIds(new Set());
+    setItemPickerOpen(true);
+  };
+
+  const addSelectedMaterials = async () => {
+    const selected = materials.filter(m => selectedMaterialIds.has(m.id));
+    if (selected.length === 0) return;
+    const newItems: POItem[] = [];
+    for (const material of selected) {
+      let rate = material.purchase_price || material.sale_price || 0;
+      let make = material.make || '';
+      let discount = 0;
+      if (vendorId) {
+        const { data: pricingData } = await supabase
+          .from('vendor_material_pricing')
+          .select('*')
+          .eq('material_id', material.id)
+          .eq('vendor_id', vendorId)
+          .order('is_preferred', { ascending: false })
+          .limit(1)
+          .single();
+        if (pricingData) {
+          rate = pricingData.base_rate || rate;
+          make = pricingData.make || make;
+          discount = pricingData.discount_percent || discount;
+        }
+      }
+      const gst = material.gst_rate || 0;
+      newItems.push({
+        sr: 0,
+        item_id: material.id,
+        item_name: material.display_name || material.name || '',
+        make: make || '',
+        variant: '',
+        description: '',
+        hsn_code: material.hsn_code || '',
+        quantity: 1,
+        unit: material.unit || 'Nos',
+        rate,
+        discount_percent: discount,
+        discount_amount: 0,
+        taxable_value: 0,
+        cgst_percent: gst / 2,
+        cgst_amount: 0,
+        sgst_percent: gst / 2,
+        sgst_amount: 0,
+        igst_percent: gst,
+        igst_amount: 0,
+        total_amount: 0,
+      });
+    }
+    setItems(prev => {
+      const maxSr = prev.reduce((max, item) => Math.max(max, item.sr), 0);
+      return [...prev, ...newItems.map((item, i) => ({ ...item, sr: maxSr + i + 1 }))];
+    });
+    markDirty();
+    setItemPickerOpen(false);
+    setSelectedMaterialIds(new Set());
+  };
+
+  const filteredPickerMaterials = useMemo(() => {
+    if (!pickerSearch) return materials;
+    const q = pickerSearch.toLowerCase();
+    return materials.filter((m: any) =>
+      (m.display_name || m.name || '').toLowerCase().includes(q) ||
+      (m.hsn_code || '').toLowerCase().includes(q) ||
+      (m.make || '').toLowerCase().includes(q)
+    );
+  }, [materials, pickerSearch]);
+
   const addItem = () => {
+    markDirty();
     const newSr = items.length + 1;
     setItems(prev => [...prev, {
       sr: newSr,
@@ -448,10 +558,12 @@ export const PurchaseOrders: React.FC = () => {
   };
 
   const updateItem = (index: number, field: string, value: any) => {
+    markDirty();
     setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
   };
 
   const removeItem = (index: number) => {
+    markDirty();
     setItems(prev => {
       const filtered = prev.filter((_, i) => i !== index);
       return filtered.map((item, i) => ({ ...item, sr: i + 1 }));
@@ -610,6 +722,8 @@ export const PurchaseOrders: React.FC = () => {
   };
 
   const cancelForm = () => {
+    setIsDirty(false);
+    isDirtyRef.current = false;
     setSearchParams({});
     setSelectedPO(null);
     resetForm();
@@ -692,7 +806,7 @@ export const PurchaseOrders: React.FC = () => {
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">Vendor <span className="text-rose-500">*</span></Label>
-                  <Select value={vendorId} onValueChange={(val) => { setVendorId(val); setFormErrors(prev => { const next = { ...prev }; delete next.vendor_id; return next; }); }}>
+                  <Select value={vendorId} onValueChange={(val) => { setVendorId(val); markDirty(); setFormErrors(prev => { const next = { ...prev }; delete next.vendor_id; return next; }); }}>
                     <SelectTrigger className={cn("border-zinc-200", formErrors.vendor_id && "border-rose-400")}>
                       <SelectValue placeholder="Select a vendor" />
                     </SelectTrigger>
@@ -706,23 +820,23 @@ export const PurchaseOrders: React.FC = () => {
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">PO Date</Label>
-                  <Input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} className={cn("border-zinc-200", formErrors.po_date && "border-rose-400")} />
+                  <Input type="date" value={poDate} onChange={(e) => { setPoDate(e.target.value); markDirty(); }} className={cn("border-zinc-200", formErrors.po_date && "border-rose-400")} />
                   {formErrors.po_date && <span className="text-[11px] text-rose-500">{formErrors.po_date}</span>}
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">Reference / RFQ</Label>
-                  <Input value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="e.g. RFQ-001, PR-2024-001" className="border-zinc-200" />
+                  <Input value={referenceNo} onChange={(e) => { setReferenceNo(e.target.value); markDirty(); }} placeholder="e.g. RFQ-001, PR-2024-001" className="border-zinc-200" />
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">Delivery Date</Label>
-                  <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} className="border-zinc-200" />
+                  <Input type="date" value={deliveryDate} onChange={(e) => { setDeliveryDate(e.target.value); markDirty(); }} className="border-zinc-200" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-1.5">
                     <Label className="text-sm font-semibold">Currency</Label>
-                    <Select value={currency} onValueChange={setCurrency}>
+                    <Select value={currency} onValueChange={(val) => { setCurrency(val); markDirty(); }}>
                       <SelectTrigger className="border-zinc-200">
                         <SelectValue />
                       </SelectTrigger>
@@ -735,18 +849,18 @@ export const PurchaseOrders: React.FC = () => {
                   </div>
                   <div className="grid gap-1.5">
                     <Label className="text-sm font-semibold">Exchange Rate</Label>
-                    <Input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(Number(e.target.value))} disabled={currency === 'INR'} className="border-zinc-200" />
+                    <Input type="number" value={exchangeRate} onChange={(e) => { setExchangeRate(Number(e.target.value)); markDirty(); }} disabled={currency === 'INR'} className="border-zinc-200" />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">Payment Terms</Label>
-                  <Input value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="e.g. Net 30" className="border-zinc-200" />
+                  <Input value={terms} onChange={(e) => { setTerms(e.target.value); markDirty(); }} placeholder="e.g. Net 30" className="border-zinc-200" />
                 </div>
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">Delivery Address</Label>
                   <textarea
                     value={deliveryLocation}
-                    onChange={(e) => setDeliveryLocation(e.target.value)}
+                    onChange={(e) => { setDeliveryLocation(e.target.value); markDirty(); }}
                     placeholder="Shipping address, delivery instructions, or site location..."
                     rows={3}
                     className="w-full px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -760,9 +874,14 @@ export const PurchaseOrders: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">Order Items</h3>
-              <button onClick={addItem} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-                <Plus className="w-4 h-4 mr-1.5" /> Add Item
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={openItemPicker} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                  <ShoppingCart className="w-4 h-4 mr-1.5" /> Browse Catalog
+                </button>
+                <button onClick={addItem} className="inline-flex items-center justify-center text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Item
+                </button>
+              </div>
             </div>
             {formErrors.items && <p className="text-[11px] text-rose-500 mb-2">{formErrors.items}</p>}
             <div className="border border-zinc-200 rounded-lg overflow-hidden bg-white shadow-sm">
@@ -952,7 +1071,7 @@ export const PurchaseOrders: React.FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => { setAttachmentFile(null); setAttachmentUrl(''); }}
+                    onClick={() => { setAttachmentFile(null); setAttachmentUrl(''); markDirty(); }}
                     className="text-xs font-medium text-rose-500 hover:text-rose-700"
                   >
                     <X className="w-4 h-4" />
@@ -988,7 +1107,7 @@ export const PurchaseOrders: React.FC = () => {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setAttachmentFile(file);
+                      if (file) { setAttachmentFile(file); markDirty(); }
                     }}
                   />
                 </label>
@@ -1001,12 +1120,137 @@ export const PurchaseOrders: React.FC = () => {
             <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Notes</h3>
             <textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => { setNotes(e.target.value); markDirty(); }}
               placeholder="Internal notes, remarks, or special instructions..."
               className="w-full h-24 px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
         </div>
+
+        {/* Item Picker Modal */}
+        {itemPickerOpen && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+            <div style={{ background: '#fff', borderRadius: '12px', padding: '0', maxWidth: '800px', width: '95%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+                <h3 className="text-base font-bold text-zinc-900">Browse Material Catalog</h3>
+                <button onClick={() => setItemPickerOpen(false)} className="p-1 rounded hover:bg-zinc-100 text-zinc-400"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="px-6 py-3 border-b border-zinc-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                  <input
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    placeholder="Search materials by name, HSN code, or make..."
+                    className="w-full pl-10 pr-4 h-[38px] text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2.5 font-bold w-10">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
+                          checked={filteredPickerMaterials.length > 0 && selectedMaterialIds.size === filteredPickerMaterials.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMaterialIds(new Set(filteredPickerMaterials.map((m: any) => m.id)));
+                            } else {
+                              setSelectedMaterialIds(new Set());
+                            }
+                          }}
+                        />
+                      </th>
+                      <th className="px-3 py-2.5 font-bold">Item Name</th>
+                      <th className="px-3 py-2.5 font-bold w-24">HSN Code</th>
+                      <th className="px-3 py-2.5 font-bold w-16">Unit</th>
+                      <th className="px-3 py-2.5 font-bold w-20">Make</th>
+                      <th className="px-3 py-2.5 font-bold w-16 text-right">Rate</th>
+                      <th className="px-3 py-2.5 font-bold w-12 text-center">GST</th>
+                      <th className="px-3 py-2.5 font-bold w-20">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {filteredPickerMaterials.length === 0 && (
+                      <tr><td colSpan={8} className="px-4 py-12 text-center text-zinc-400 italic">No materials found.</td></tr>
+                    )}
+                    {filteredPickerMaterials.map((m: any) => (
+                      <tr
+                        key={m.id}
+                        className={cn(
+                          "hover:bg-zinc-50 cursor-pointer transition-colors",
+                          selectedMaterialIds.has(m.id) && "bg-indigo-50/40"
+                        )}
+                        onClick={() => {
+                          setSelectedMaterialIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(m.id)) next.delete(m.id);
+                            else next.add(m.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
+                            checked={selectedMaterialIds.has(m.id)}
+                            onChange={() => {
+                              setSelectedMaterialIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(m.id)) next.delete(m.id);
+                                else next.add(m.id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2.5 font-medium text-zinc-800 max-w-[200px] truncate">{m.display_name || m.name}</td>
+                        <td className="px-3 py-2.5 text-zinc-500 font-mono text-[10px]">{m.hsn_code || '-'}</td>
+                        <td className="px-3 py-2.5 text-zinc-600">{m.unit || '-'}</td>
+                        <td className="px-3 py-2.5 text-zinc-600 max-w-[100px] truncate">{m.make || '-'}</td>
+                        <td className="px-3 py-2.5 text-right font-medium tabular-nums text-zinc-700">
+                          {(m.purchase_price || m.sale_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600">{m.gst_rate || 0}%</span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className="text-[10px] uppercase text-zinc-400 font-medium">{m.type || 'material'}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-between">
+                <span className="text-sm text-zinc-500">
+                  {selectedMaterialIds.size > 0 ? (
+                    <><strong className="text-zinc-700">{selectedMaterialIds.size}</strong> material(s) selected</>
+                  ) : (
+                    'Select materials to add'
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setItemPickerOpen(false)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                    Cancel
+                  </button>
+                  <button
+                    onClick={addSelectedMaterials}
+                    disabled={selectedMaterialIds.size === 0}
+                    className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> Add Selected
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="sticky bottom-0 px-6 py-4 border-t bg-white flex items-center justify-between z-10">
           <button onClick={handleBack} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
