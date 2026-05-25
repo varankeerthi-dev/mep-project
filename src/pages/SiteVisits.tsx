@@ -1146,21 +1146,10 @@ export function SiteVisits() {
                           
                           {/* Visit ID & Purpose */}
                           <td className="px-6 py-[26px] align-middle">
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-10 h-10 rounded-lg flex items-center justify-center",
-                                visit.purpose_of_visit?.toLowerCase().includes('measurement') ? 'bg-blue-100 text-blue-600' :
-                                visit.purpose_of_visit?.toLowerCase().includes('follow') ? 'bg-orange-100 text-orange-600' :
-                                visit.purpose_of_visit?.toLowerCase().includes('inspection') ? 'bg-green-100 text-green-600' :
-                                'bg-zinc-100 text-zinc-600'
-                              )}>
-                                {getPurposeIcon(visit.purpose_of_visit)}
-                              </div>
-                              <div>
-                                <div className="font-semibold text-zinc-900 text-sm">SV-{visit.id.slice(0, 6)}</div>
-                                <div className="text-xs text-zinc-600 max-w-[180px] truncate" title={visit.purpose_of_visit || 'Site Measurement'}>
-                                  {visit.purpose_of_visit || 'Site Measurement'}
-                                </div>
+                            <div>
+                              <div className="font-semibold text-zinc-900 text-sm">SV-{visit.id.slice(0, 6)}</div>
+                              <div className="text-xs text-zinc-600 max-w-[180px] truncate" title={visit.purpose_of_visit || 'Site Measurement'}>
+                                {visit.purpose_of_visit || 'Site Measurement'}
                               </div>
                             </div>
                           </td>
