@@ -912,547 +912,422 @@ export function SiteVisits() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50/50">
-      <div className="max-w-[1600px] mx-auto p-6 space-y-6">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-zinc-900">Site Visits</h1>
-            <p className="text-sm text-zinc-600 mt-1">Manage and track all site visits efficiently</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <Input
-                placeholder="Search by client, engineer, location..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-[320px] bg-white border-zinc-200"
-              />
-            </div>
-          <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => { setIsGlobalActivityOpen(true); fetchGlobalActivity(); }}
-                  style={{
-                    height: '44px', padding: '0 14px', borderRadius: '12px',
-                    border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280',
-                    fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <History size={15} />
-                  Activity Log
-                </button>
-                <Button 
-                  onClick={() => setIsUpdateModalOpen(true)}
-                  variant="outline"
-                  className="h-11 px-6 rounded-xl border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-sm flex items-center gap-2"
-                >
-                  <RefreshCcw className="w-4 h-4 text-blue-500" />
-                  Site Visit Update
-                </Button>
-                <Button 
-                  onClick={() => setIsFormOpen(true)}
-                  className="h-11 px-6 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-lg shadow-zinc-900/10 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Site Visit
-                </Button>
-              </div>
-          </div>
+    <div className="flex flex-col h-full bg-white min-h-screen">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-white">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">Site Visits</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {stats.total}
+          </span>
+          
+          <div className="h-4 w-px bg-zinc-200 mx-2" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Scheduled</span>
+          <span className="text-xs font-medium text-blue-600">{stats.scheduled}</span>
+          
+          <div className="h-4 w-px bg-zinc-200 mx-2" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">In Progress</span>
+          <span className="text-xs font-medium text-purple-600">{stats.in_progress}</span>
+
+          <div className="h-4 w-px bg-zinc-200 mx-2" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-green-600">Completed</span>
+          <span className="text-xs font-medium text-green-600">{stats.completed}</span>
+
+          <div className="h-4 w-px bg-zinc-200 mx-2" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">Cancelled</span>
+          <span className="text-xs font-medium text-red-600">{stats.cancelled}</span>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* Total Visits */}
-          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <CalendarDays className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.total}</div>
-                <div className="text-sm text-zinc-600 font-medium">Total Visits</div>
-                <div className="flex items-center gap-1 mt-2">
-                  <TrendingUp className="w-3 h-3 text-green-600" />
-                  <span className="text-xs text-green-600 font-medium">12% from last month</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Scheduled */}
-          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.scheduled}</div>
-                <div className="text-sm text-zinc-600 font-medium">Scheduled</div>
-                <div className="text-xs text-orange-600 font-medium mt-2 cursor-pointer hover:underline">
-                  View upcoming
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* In Progress */}
-          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
-                    <RefreshCcw className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.in_progress}</div>
-                <div className="text-sm text-zinc-600 font-medium">In Progress</div>
-                <div className="text-xs text-purple-600 font-medium mt-2">
-                  Currently ongoing
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Completed */}
-          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
-                    <CheckCircle2 className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.completed}</div>
-                <div className="text-sm text-zinc-600 font-medium">Completed</div>
-                <div className="flex items-center gap-1 mt-2">
-                  <TrendingUp className="w-3 h-3 text-green-600" />
-                  <span className="text-xs text-green-600 font-medium">8% from last month</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Cancelled */}
-          <Card className="p-6 bg-white border border-zinc-200 rounded-2xl hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center">
-                    <XCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.cancelled}</div>
-                <div className="text-sm text-zinc-600 font-medium">Cancelled</div>
-                <div className="flex items-center gap-1 mt-2">
-                  <TrendingDown className="w-3 h-3 text-red-600" />
-                  <span className="text-xs text-red-600 font-medium">4% from last month</span>
-                </div>
-              </div>
-            </div>
-          </Card>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setIsGlobalActivityOpen(true); fetchGlobalActivity(); }}
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            <History className="w-4 h-4 mr-1.5" />
+            Activity Log
+          </button>
+          <button
+            onClick={() => setIsUpdateModalOpen(true)}
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            <RefreshCcw className="w-4 h-4 mr-1.5 text-blue-500" />
+            Site Visit Update
+          </button>
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98] transition-all"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            New Site Visit
+          </button>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="bg-white border border-zinc-200 rounded-2xl p-1.5 inline-flex gap-1">
+      {/* Sub-tab row */}
+      <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50" style={{ paddingTop: '15px', paddingBottom: '15px' }}>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setActiveTab('all');
               setViewMode('table');
             }}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              "w-[150px] h-[26px] px-4 text-sm font-medium transition-colors rounded-md flex items-center justify-center gap-1.5",
               activeTab === 'all' && viewMode === 'table'
-                ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-700"
+                ? "bg-blue-600/10 text-blue-600"
+                : "text-zinc-600 hover:bg-zinc-100"
             )}
           >
             <CalendarDays className="w-4 h-4" />
             All Visits
           </button>
-          <button 
+          <button
             onClick={() => setViewMode('calendar')}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              viewMode === 'calendar' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              "w-[150px] h-[26px] px-4 text-sm font-medium transition-colors rounded-md flex items-center justify-center gap-1.5",
+              viewMode === 'calendar' ? "bg-blue-600/10 text-blue-600" : "text-zinc-600 hover:bg-zinc-100"
             )}
           >
             <CalendarIcon className="w-4 h-4" />
             Calendar
           </button>
-          <button 
+          <button
             onClick={() => setViewMode('updates')}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              viewMode === 'updates' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              "w-[150px] h-[26px] px-4 text-sm font-medium transition-colors rounded-md flex items-center justify-center gap-1.5",
+              viewMode === 'updates' ? "bg-blue-600/10 text-blue-600" : "text-zinc-600 hover:bg-zinc-100"
             )}
           >
             <FileText className="w-4 h-4" />
-            Site Visit Updates
+            Updates
           </button>
         </div>
 
-        {/* Filters & Table */}
+        <div className="flex items-center gap-3">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Status Dropdown */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-[150px] h-[26px] px-2 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="all">All Status</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 bg-white">
+        
+        {/* Table View */}
         {viewMode === 'table' && (
-          <Card className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-          {/* Filter Controls */}
-          <div className="p-5 border-b border-zinc-200 bg-zinc-50/50">
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Search */}
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                <Input
-                  placeholder="Search by client, engineer, address..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-12 bg-white border-zinc-200 text-sm"
-                />
-              </div>
-
-              {/* Date Range */}
-              <button className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 flex items-center gap-2 text-sm text-zinc-700 h-12">
-                <CalendarIcon className="w-4 h-4" />
-                Select date range
-              </button>
-
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 text-sm text-zinc-700 h-12"
-              >
-                <option value="all">All Status</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-
-              {/* Projects Filter */}
-              <select
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 text-sm text-zinc-700 h-12"
-              >
-                <option value="all">All Projects</option>
-                {clients?.map((client: any) => (
-                  <option key={client.id} value={client.id}>{client.client_name}</option>
-                ))}
-              </select>
-
-              {/* Engineers Filter */}
-              <select
-                value={engineerFilter}
-                onChange={(e) => setEngineerFilter(e.target.value)}
-                className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 text-sm text-zinc-700 h-12"
-              >
-                <option value="all">All Engineers</option>
-                {engineers.map((engineer: string) => (
-                  <option key={engineer} value={engineer}>{engineer}</option>
-                ))}
-              </select>
-
-              {/* Filters Button */}
-              <button className="px-5 py-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 flex items-center gap-2 text-sm text-zinc-700 h-12">
-                <Filter className="w-4 h-4" />
-                Filters
-              </button>
-
-              {/* Reset */}
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setStatusFilter('all');
-                  setProjectFilter('all');
-                  setEngineerFilter('all');
-                  setActiveTab('all');
-                  setViewMode('table');
-                }}
-                className="px-5 py-3 text-sm text-blue-600 hover:underline h-12"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-
-          {/* Bulk Actions */}
-          {selectedVisits.length > 0 && (
-            <div className="px-4 py-3 border-b border-zinc-200 bg-blue-50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  checked={selectedVisits.length === paginatedVisits.length}
-                  onCheckedChange={toggleSelectAll}
-                />
-                <span className="text-sm font-medium text-zinc-700">
-                  {selectedVisits.length} selected
-                </span>
-              </div>
-              <button
-                onClick={handleBatchDelete}
-                className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2 font-medium"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Selected
-              </button>
-            </div>
-          )}
-
-          {/* Table */}
-          <div className="overflow-x-auto pt-4">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-zinc-50/50">
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedVisits.length === paginatedVisits.length && paginatedVisits.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
-                    Visit ID & Purpose
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
-                    Client
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
-                    Location
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
-                    Date & Time
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
-                    Status
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide">
-                    Assigned To
-                  </TableHead>
-                  <TableHead className="font-semibold text-zinc-700 uppercase text-xs tracking-wide text-right">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedVisits.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-2">
-                        <CalendarDays className="w-12 h-12 text-zinc-300" />
-                        <p className="text-zinc-600 font-medium">No site visits found</p>
-                        <p className="text-sm text-zinc-500">Try adjusting your filters or create a new visit</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedVisits.map((visit: any) => (
-                    <TableRow key={visit.id} className="hover:bg-zinc-50/50">
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedVisits.includes(visit.id)}
-                          onCheckedChange={(checked) => toggleVisitSelection(visit.id)}
-                        />
-                      </TableCell>
-                      
-                      {/* Visit ID & Purpose */}
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-lg flex items-center justify-center",
-                            visit.purpose_of_visit?.toLowerCase().includes('measurement') ? 'bg-blue-100 text-blue-600' :
-                            visit.purpose_of_visit?.toLowerCase().includes('follow') ? 'bg-orange-100 text-orange-600' :
-                            visit.purpose_of_visit?.toLowerCase().includes('inspection') ? 'bg-green-100 text-green-600' :
-                            'bg-zinc-100 text-zinc-600'
-                          )}>
-                            {getPurposeIcon(visit.purpose_of_visit)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-zinc-900">SV-{visit.id.slice(0, 6)}</div>
-                            <div className="text-xs text-zinc-600">{visit.purpose_of_visit || 'Site Measurement'}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Client */}
-                      <TableCell>
-                        <div>
-                          <div className="font-medium text-zinc-900">{visit.clients?.client_name || 'N/A'}</div>
-                          <div className="text-xs text-zinc-500">{visit.clients?.phone || ''}</div>
-                        </div>
-                      </TableCell>
-
-                      {/* Location */}
-                      <TableCell>
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
-                          <div className="text-sm text-zinc-700 line-clamp-2 max-w-[200px]">
-                            {visit.site_address || 'No address'}
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Date & Time */}
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-sm text-zinc-900">
-                            <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                            {format(parseISO(visit.visit_date), 'd MMM yyyy')}
-                          </div>
-                          {visit.visit_time && (
-                            <div className="flex items-center gap-2 text-xs text-zinc-600">
-                              <Clock className="w-3 h-3 text-zinc-400" />
-                              {visit.visit_time}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      {/* Status */}
-                      <TableCell>
-                        <div className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
-                          getStatusBadgeColor(visit.status)
-                        )}>
-                          {getStatusIcon(visit.status)}
-                          <span className="capitalize">{visit.status.replace('_', ' ')}</span>
-                        </div>
-                      </TableCell>
-
-                      {/* Assigned To */}
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                            {(visit.engineer || visit.visited_by || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-zinc-900">{visit.engineer || visit.visited_by || 'Unassigned'}</div>
-                            <div className="text-xs text-zinc-500">Engineer</div>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Actions */}
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setVisitToView(visit)}
-                            className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Eye className="w-4 h-4 text-blue-600" />
-                          </button>
-                          <button
-                            onClick={() => handleEditVisit(visit)}
-                            className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4 text-zinc-600" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteVisit(visit)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50/50 flex items-center justify-between">
-              <span className="text-sm text-zinc-600">
-                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredVisits.length)} of {filteredVisits.length} entries
-              </span>
-              
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                  disabled={currentPage === 1}
-                  className={cn(
-                    "p-2 rounded-lg border transition-colors",
-                    currentPage === 1
-                      ? "border-zinc-200 text-zinc-400 cursor-not-allowed"
-                      : "border-zinc-300 text-zinc-700 hover:bg-zinc-100"
-                  )}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {/* Page Numbers */}
-                <div className="flex items-center gap-1">
-                  {[...Array(Math.min(totalPages, 7))].map((_, idx) => {
-                    let pageNum;
-                    if (totalPages <= 7) {
-                      pageNum = idx + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = idx + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 6 + idx;
-                    } else {
-                      pageNum = currentPage - 3 + idx;
-                    }
-
-                    if (pageNum === currentPage - 3 && currentPage > 4) {
-                      return <span key="ellipsis1" className="px-2">...</span>;
-                    }
-                    if (pageNum === currentPage + 3 && currentPage < totalPages - 3) {
-                      return <span key="ellipsis2" className="px-2">...</span>;
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={cn(
-                          "w-8 h-8 rounded-lg text-sm font-medium transition-colors",
-                          pageNum === currentPage
-                            ? "bg-blue-600 text-white"
-                            : "text-zinc-700 hover:bg-zinc-100"
-                        )}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+          <div className="flex flex-col h-full bg-white">
+            
+            {/* Bulk Action Header */}
+            {selectedVisits.length > 0 && (
+              <div className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">
+                <div>
+                  <span className="text-sm font-semibold">{selectedVisits.length} selected</span>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold ml-3">Bulk Actions</span>
                 </div>
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className={cn(
-                    "p-2 rounded-lg border transition-colors",
-                    currentPage === totalPages
-                      ? "border-zinc-200 text-zinc-400 cursor-not-allowed"
-                      : "border-zinc-300 text-zinc-700 hover:bg-zinc-100"
-                  )}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-
-                {/* Items per page */}
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => setCurrentPage(1)}
-                  className="ml-3 px-3 py-1.5 border border-zinc-200 rounded-lg bg-white text-sm text-zinc-700"
-                >
-                  <option value={5}>5 / page</option>
-                  <option value={10}>10 / page</option>
-                  <option value={15}>15 / page</option>
-                  <option value={25}>25 / page</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 active:scale-[0.98] transition-all hover:bg-zinc-100"
+                  >
+                    Print
+                  </button>
+                  <button
+                    onClick={handleBatchDelete}
+                    className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 active:scale-[0.98] transition-all hover:bg-red-700"
+                  >
+                    Delete Selected
+                  </button>
+                </div>
               </div>
+            )}
+
+            {/* Table */}
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full border-separate border-spacing-0">
+                <thead>
+                  <tr className="bg-white">
+                    <th className="sticky top-0 z-10 h-[36px] w-[50px] px-4 text-center align-middle bg-white border-b border-zinc-200">
+                      <Checkbox
+                        checked={selectedVisits.length === paginatedVisits.length && paginatedVisits.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                        Visit ID & Purpose
+                      </span>
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                        Client
+                      </span>
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                        Location
+                      </span>
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                        Date & Time
+                      </span>
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                        Status
+                      </span>
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                        Assigned To
+                      </span>
+                    </th>
+                    <th className="sticky top-0 z-10 h-[36px] w-[70px] px-6 pl-1 text-center align-middle bg-white border-b border-zinc-200">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedVisits.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-16 text-center text-sm text-zinc-500">
+                        <div className="flex flex-col items-center gap-2">
+                          <CalendarDays className="w-12 h-12 text-zinc-300" />
+                          <p className="text-zinc-600 font-medium">No site visits found</p>
+                          <p className="text-sm text-zinc-500">Try adjusting your filters or create a new visit</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedVisits.map((visit: any, index: number) => {
+                      const isSelected = selectedVisits.includes(visit.id);
+                      return (
+                        <tr 
+                          key={visit.id} 
+                          className={cn(
+                            "border-t border-zinc-200/70 transition-all",
+                            index % 2 === 0 ? "bg-white" : "bg-zinc-50/30",
+                            isSelected ? "bg-indigo-50/50 border-l-blue-600" : "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm"
+                          )}
+                        >
+                          <td className="px-4 py-[26px] text-center align-middle">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => toggleVisitSelection(visit.id)}
+                            />
+                          </td>
+                          
+                          {/* Visit ID & Purpose */}
+                          <td className="px-6 py-[26px] align-middle">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center",
+                                visit.purpose_of_visit?.toLowerCase().includes('measurement') ? 'bg-blue-100 text-blue-600' :
+                                visit.purpose_of_visit?.toLowerCase().includes('follow') ? 'bg-orange-100 text-orange-600' :
+                                visit.purpose_of_visit?.toLowerCase().includes('inspection') ? 'bg-green-100 text-green-600' :
+                                'bg-zinc-100 text-zinc-600'
+                              )}>
+                                {getPurposeIcon(visit.purpose_of_visit)}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-zinc-900 text-sm">SV-{visit.id.slice(0, 6)}</div>
+                                <div className="text-xs text-zinc-600 max-w-[180px] truncate" title={visit.purpose_of_visit || 'Site Measurement'}>
+                                  {visit.purpose_of_visit || 'Site Measurement'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Client */}
+                          <td className="px-6 py-[26px] align-middle">
+                            <div>
+                              <div className="font-medium text-zinc-900 text-sm">{visit.clients?.client_name || 'N/A'}</div>
+                              <div className="text-xs text-zinc-500">{visit.clients?.phone || ''}</div>
+                            </div>
+                          </td>
+
+                          {/* Location */}
+                          <td className="px-6 py-[26px] align-middle">
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm text-zinc-800 max-w-[220px] truncate" title={visit.site_address || 'No address'}>
+                                {visit.site_address || 'No address'}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Date & Time */}
+                          <td className="px-6 py-[26px] align-middle">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2 text-sm text-zinc-900">
+                                <CalendarIcon className="w-4 h-4 text-zinc-400" />
+                                {format(parseISO(visit.visit_date), 'd MMM yyyy')}
+                              </div>
+                              {visit.visit_time && (
+                                <div className="flex items-center gap-2 text-xs text-zinc-600 font-mono">
+                                  <Clock className="w-3 h-3 text-zinc-400" />
+                                  {visit.visit_time}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-6 py-[26px] align-middle">
+                            <div className={cn(
+                              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase",
+                              getStatusBadgeColor(visit.status)
+                            )}>
+                              {getStatusIcon(visit.status)}
+                              <span>{visit.status.replace('_', ' ')}</span>
+                            </div>
+                          </td>
+
+                          {/* Assigned To */}
+                          <td className="px-6 py-[26px] align-middle">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                                {(visit.engineer || visit.visited_by || 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-zinc-900">{visit.engineer || visit.visited_by || 'Unassigned'}</div>
+                                <div className="text-xs text-zinc-500">Engineer</div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-6 py-[26px] text-center align-middle">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setVisitToView(visit)}
+                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors active:scale-[0.98]"
+                              >
+                                <Eye className="w-4 h-4 text-blue-600" />
+                              </button>
+                              <button
+                                onClick={() => handleEditVisit(visit)}
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors active:scale-[0.98]"
+                              >
+                                <Edit2 className="w-4 h-4 text-zinc-600" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteVisit(visit)}
+                                className="p-2 hover:bg-red-50 rounded-lg transition-colors active:scale-[0.98]"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
-        </Card>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+                <span className="text-sm font-medium text-zinc-600">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredVisits.length)} of {filteredVisits.length} entries
+                </span>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                    className={cn(
+                      currentPage === 1
+                        ? "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium rounded-md px-3 border border-zinc-100 bg-zinc-50 text-zinc-400 cursor-not-allowed"
+                        : "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium transition-all rounded-md px-3 border border-zinc-200 shadow-sm text-zinc-700 hover:bg-zinc-200 bg-white"
+                    )}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Prev
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1.5">
+                    {[...Array(Math.min(totalPages, 7))].map((_, idx) => {
+                      let pageNum;
+                      if (totalPages <= 7) {
+                        pageNum = idx + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = idx + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 6 + idx;
+                      } else {
+                        pageNum = currentPage - 3 + idx;
+                      }
+
+                      if (pageNum === currentPage - 3 && currentPage > 4) {
+                        return <span key="ellipsis1" className="px-2 text-zinc-400">...</span>;
+                      }
+                      if (pageNum === currentPage + 3 && currentPage < totalPages - 3) {
+                        return <span key="ellipsis2" className="px-2 text-zinc-400">...</span>;
+                      }
+
+                      const isPageActive = pageNum === currentPage;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={cn(
+                            "h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-all flex items-center justify-center",
+                            isPageActive
+                              ? "bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm font-semibold"
+                              : "text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200"
+                          )}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className={cn(
+                      currentPage === totalPages
+                        ? "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium rounded-md px-3 border border-zinc-100 bg-zinc-50 text-zinc-400 cursor-not-allowed"
+                        : "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium transition-all rounded-md px-3 border border-zinc-200 shadow-sm text-zinc-700 hover:bg-zinc-200 bg-white"
+                    )}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
       {/* Delete Confirmation Dialog */}
