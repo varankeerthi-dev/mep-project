@@ -155,6 +155,63 @@ export const useCreatePurchaseOrder = () => {
   });
 };
 
+export const useUpdatePurchaseOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ id, poData, items }: any) => {
+      const { data: po, error: poError } = await supabase
+        .from('purchase_orders')
+        .update(poData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (poError) throw poError;
+
+      const { error: deleteItemsError } = await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('po_id', id);
+
+      if (deleteItemsError) throw deleteItemsError;
+
+      const itemsWithPO = items.map((item: any) => ({
+        ...item,
+        po_id: id,
+        organisation_id: po.organisation_id,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .insert(itemsWithPO);
+
+      if (itemsError) throw itemsError;
+
+      return po;
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', data.id] });
+    },
+  });
+};
+
+export const useDeletePO = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ id, organisationId }: { id: string; organisationId: string }) => {
+      const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
+      if (error) throw error;
+      return { id, organisationId };
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisationId] });
+    },
+  });
+};
+
 export const useUpdatePOStatus = () => {
   const queryClient = useQueryClient();
   
