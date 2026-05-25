@@ -269,6 +269,7 @@ function ItemsTab() {
 
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
+  const [vendorMappings, setVendorMappings] = useState([]);
   const [clientMappings, setClientMappings] = useState([]);
   const [clientPricing, setClientPricing] = useState([]);
   const [clientMappingTab, setClientMappingTab] = useState('code');
@@ -291,6 +292,18 @@ function ItemsTab() {
   // Pass orgId so query is enabled; without it enabled:!!orgId=false and page never loads
   const orgId = organisation?.id ?? null;
   const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData(orgId);
+
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['purchase-vendors', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('purchase_vendors').select('id, company_name').eq('organisation_id', orgId).eq('status', 'Active');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId
+  });
+
+
   
   // Extract datasets from parallel query result
   const materials = pageData?.materials ?? [];
@@ -350,6 +363,17 @@ function ItemsTab() {
       return { ...old, materials: next };
     });
   }, [queryClient, orgId]);
+
+  const loadVendorMappings = useCallback(async (itemId: string) => {
+    try {
+      const { data, error } = await supabase.from('vendor_material_pricing').select('*').eq('material_id', itemId);
+      if (error) throw error;
+      setVendorMappings(data || []);
+    } catch (err) {
+      console.error('Error loading vendor mappings:', err);
+      setVendorMappings([]);
+    }
+  }, []);
 
   const loadClientMappings = useCallback(async (itemId: string) => {
     if (!itemId) return;
@@ -1042,7 +1066,7 @@ function ItemsTab() {
         createdMaterial = data;
       }
 
-      if (formData.uses_variant) {
+      if (formData.uses_variant && variantPricing.length > 0) {
         // Delete old pricing first to avoid duplicates if make changed
         await supabase.from('item_variant_pricing').delete().eq('item_id', itemId);
         
@@ -1096,6 +1120,31 @@ function ItemsTab() {
             if (stockError) console.error('Error saving warehouse stock:', stockError);
         }
       }
+
+      // Save Vendor Mappings
+      const vendorMappingsToInsert = vendorMappings
+        .filter(m => m.vendor_id)
+        .map(m => ({
+          ...(m.id.toString().startsWith('new_') ? {} : { id: m.id }),
+          material_id: itemId,
+          variant_id: m.variant_id || null,
+          make: m.make || null,
+          vendor_id: m.vendor_id,
+          base_rate: parseFloat(m.base_rate) || 0,
+          discount_percent: parseFloat(m.discount_percent) || 0,
+          is_preferred: m.is_preferred || false,
+          organisation_id: organisation?.id,
+          updated_at: new Date().toISOString()
+        }));
+      
+      if (editingMaterial) {
+        await supabase.from('vendor_material_pricing').delete().eq('material_id', itemId);
+      }
+      if (vendorMappingsToInsert.length > 0) {
+        const { error: vmError } = await supabase.from('vendor_material_pricing').insert(vendorMappingsToInsert);
+        if (vmError) throw vmError;
+      }
+
 
       // Save Client Mappings
       await supabase.from('material_client_mappings').delete().eq('material_id', itemId);
@@ -1197,6 +1246,7 @@ function ItemsTab() {
       uses_variant: false, track_inventory: false
     });
     setVariantPricing([]);
+    setVendorMappings([]);
     
     // Initialize default warehouse stock
     const defaultWStock = {};
@@ -1256,6 +1306,7 @@ function ItemsTab() {
     });
     setShowForm(true);
     loadVariantPricing(material.id);
+    loadVendorMappings(material.id);
     loadClientMappings(material.id);
     loadClientPricing(material.id);
   }, [warehouses, stock]);
@@ -1291,6 +1342,21 @@ function ItemsTab() {
 
   const handleVariantPricingRowChange = (id, field, value) => {
     setVariantPricing(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const addVendorMappingRow = () => {
+    setVendorMappings(prev => [
+      ...prev,
+      { id: `new_${Date.now()}`, variant_id: null, make: '', vendor_id: '', base_rate: 0, discount_percent: 0, is_preferred: false }
+    ]);
+  };
+
+  const removeVendorMappingRow = (id) => {
+    setVendorMappings(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleVendorMappingChange = (id, field, value) => {
+    setVendorMappings(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const addClientMappingRow = () => {
@@ -2895,7 +2961,122 @@ function ItemsTab() {
                 )}
               </div>
 
-              <div className="item-form-section">
+                            <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <div>
+                    <h4 className="item-form-section-title">Purchase & Vendor Mapping</h4>
+                    <div className="item-form-section-hint">Map preferred vendors and base rates</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={addVendorMappingRow}>+ Add Row</button>
+                </div>
+                {vendorMappings.length > 0 && (
+                  <table className="table" style={{ fontSize: '12px', marginBottom: '16px' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '15%' }}>Variant</th>
+                        <th style={{ width: '15%' }}>Make</th>
+                        <th style={{ width: '20%' }}>Vendor</th>
+                        <th style={{ width: '15%' }}>Base Rate</th>
+                        <th style={{ width: '10%' }}>Discount %</th>
+                        <th style={{ width: '10%', textAlign: 'center' }}>Preferred</th>
+                        <th style={{ width: '15%' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vendorMappings.map((mapping) => (
+                        <tr key={mapping.id}>
+                          <td>
+                            <select
+                              className="form-select"
+                              value={mapping.variant_id || ''}
+                              onChange={(e) => handleVendorMappingChange(mapping.id, 'variant_id', e.target.value)}
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            >
+                              <option value="">No Variant</option>
+                              {Array.from(new Set(variantPricing.map(p => p.company_variant_id).filter(Boolean))).map(vId => {
+                                const v = variants.find(v => v.id === vId);
+                                if (!v) return null;
+                                return <option key={v.id} value={v.id}>{v.variant_name}</option>;
+                              })}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={mapping.make || ''}
+                              onChange={(e) => handleVendorMappingChange(mapping.id, 'make', e.target.value)}
+                              placeholder="e.g. Brand A"
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            />
+                          </td>
+                          <td>
+                            <select
+                              className="form-select"
+                              value={mapping.vendor_id}
+                              onChange={(e) => handleVendorMappingChange(mapping.id, 'vendor_id', e.target.value)}
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            >
+                              <option value="">Select Vendor</option>
+                              {vendors.map(v => (
+                                <option key={v.id} value={v.id}>{v.company_name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-input"
+                              value={mapping.base_rate}
+                              onChange={(e) => handleVendorMappingChange(mapping.id, 'base_rate', e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-input"
+                              value={mapping.discount_percent}
+                              onChange={(e) => handleVendorMappingChange(mapping.id, 'discount_percent', e.target.value)}
+                              placeholder="0"
+                              step="0.1"
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={mapping.is_preferred}
+                              onChange={(e) => handleVendorMappingChange(mapping.id, 'is_preferred', e.target.checked)}
+                              style={{ cursor: 'pointer', width: '16px', height: '16px', margin: '0 auto', display: 'block' }}
+                            />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => removeVendorMappingRow(mapping.id)}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {vendorMappings.length === 0 && (
+                  <div style={{ padding: '12px', textAlign: 'center', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db', color: '#6b7280', fontSize: '12px', marginBottom: '16px' }}>
+                    No vendor mapping added. Click "+ Add Row" to set purchase rates for preferred vendors.
+                  </div>
+                )}
+              </div>
+
+<div className="item-form-section">
                 <div className="item-form-section-header">
                   <div>
                     <h4 className="item-form-section-title">Client Mapping</h4>

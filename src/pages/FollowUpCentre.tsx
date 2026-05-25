@@ -1,10 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../App';
 import { FollowupTabs } from '@/components/follow-up/followup-tabs';
-import { MetricsCards } from '@/components/follow-up/metrics-cards';
 import { FollowupSearch } from '@/components/follow-up/followup-search';
 import { FollowupFilterBar } from '@/components/follow-up/followup-filter-bar';
-import { VirtualizedTableShell } from '@/components/follow-up/virtualized-table-shell';
 import {
   QuotationFollowupRow,
   quotationTableHeader,
@@ -64,8 +62,6 @@ import type {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFollowupAccess } from '@/hooks/use-followup-access';
 
-const ROW_HEIGHT = 40;
-
 export default function FollowUpCentre() {
   const { user, organisation } = useAuth();
   const { canManage, isReadOnly, role } = useFollowupAccess();
@@ -88,6 +84,12 @@ export default function FollowUpCentre() {
   const currentUserId = user?.id ?? null;
 
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [queuePage, setQueuePage] = useState(1);
+  const [quotationPage, setQuotationPage] = useState(1);
+  const [podcPage, setPodcPage] = useState(1);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [activityPage, setActivityPage] = useState(1);
+  const itemsPerPage = 20;
 
   const [drawerItem, setDrawerItem] = useState<{
     linkedType: LinkedItemType;
@@ -169,6 +171,52 @@ export default function FollowUpCentre() {
       ),
     [priorityQueue, search, filters.status, filters.sort, filters.assignee, currentUserId]
   );
+
+  const queuePagination = useMemo(() => {
+    const totalItems = filteredQueue.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (queuePage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredQueue.slice(startIndex, endIndex), hasNextPage: queuePage < totalPages, hasPrevPage: queuePage > 1 };
+  }, [filteredQueue, queuePage, itemsPerPage]);
+
+  const quotationPagination = useMemo(() => {
+    const totalItems = filteredQuotations.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (quotationPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredQuotations.slice(startIndex, endIndex), hasNextPage: quotationPage < totalPages, hasPrevPage: quotationPage > 1 };
+  }, [filteredQuotations, quotationPage, itemsPerPage]);
+
+  const podcPagination = useMemo(() => {
+    const totalItems = filteredPodc.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (podcPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredPodc.slice(startIndex, endIndex), hasNextPage: podcPage < totalPages, hasPrevPage: podcPage > 1 };
+  }, [filteredPodc, podcPage, itemsPerPage]);
+
+  const invoicePagination = useMemo(() => {
+    const totalItems = filteredInvoices.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (invoicePage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredInvoices.slice(startIndex, endIndex), hasNextPage: invoicePage < totalPages, hasPrevPage: invoicePage > 1 };
+  }, [filteredInvoices, invoicePage, itemsPerPage]);
+
+  const activityPagination = useMemo(() => {
+    const totalItems = filteredActivity.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (activityPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredActivity.slice(startIndex, endIndex), hasNextPage: activityPage < totalPages, hasPrevPage: activityPage > 1 };
+  }, [filteredActivity, activityPage, itemsPerPage]);
+
+  useEffect(() => { setQueuePage(1); }, [filters, search]);
+  useEffect(() => { setQuotationPage(1); }, [filters, search]);
+  useEffect(() => { setPodcPage(1); }, [filters, search]);
+  useEffect(() => { setInvoicePage(1); }, [filters, search]);
+  useEffect(() => { setActivityPage(1); }, [filters, search]);
 
   const handleAssigneeChange = useCallback(
     (source: 'quotation' | 'podc' | 'invoice', sourceId: string, userId: string | null) => {
@@ -410,6 +458,69 @@ export default function FollowUpCentre() {
     (filters.tab === 'invoice' && loadingI) ||
     (filters.tab === 'activity' && loadingA);
 
+  const PaginationFooter = useCallback(
+    ({ page, setPage, pagination }: { page: number; setPage: (p: number) => void; pagination: { totalItems: number; totalPages: number; startIndex: number; endIndex: number; hasNextPage: boolean; hasPrevPage: boolean } }) => {
+      return (
+        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50/50 px-6 py-4">
+          <div className="text-sm font-medium text-zinc-600">
+            Showing {pagination.totalItems === 0 ? 0 : pagination.startIndex + 1} to{' '}
+            {Math.min(pagination.endIndex, pagination.totalItems)} of {pagination.totalItems} items
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={!pagination.hasPrevPage}
+              className={`flex h-[32px] min-w-[80px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                pagination.hasPrevPage
+                  ? 'border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-200'
+                  : 'cursor-not-allowed border border-zinc-100 bg-zinc-50 text-zinc-400'
+              }`}
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: Math.max(1, Math.min(5, pagination.totalPages)) }, (_, i) => {
+                const pageNum =
+                  pagination.totalPages <= 5
+                    ? i + 1
+                    : page <= 3
+                      ? i + 1
+                      : page >= pagination.totalPages - 2
+                        ? pagination.totalPages - 4 + i
+                        : page - 2 + i;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`flex h-[32px] min-w-[32px] items-center justify-center rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                      page === pageNum
+                        ? 'border border-blue-600/20 bg-blue-600/10 text-blue-600 shadow-sm'
+                        : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={!pagination.hasNextPage}
+              className={`flex h-[32px] min-w-[80px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                pagination.hasNextPage
+                  ? 'border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-200'
+                  : 'cursor-not-allowed border border-zinc-100 bg-zinc-50 text-zinc-400'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      );
+    },
+    []
+  );
+
   const renderTabContent = (tab: FollowUpTab) => {
     if (isLoading) {
       return (
@@ -424,103 +535,102 @@ export default function FollowUpCentre() {
     switch (tab) {
       case 'queue':
         return (
-          <VirtualizedTableShell
-            items={filteredQueue}
-            rowHeight={44}
-            header={priorityQueueTableHeader}
-            renderRow={(item, index) => (
-              <PriorityQueueRow
-                item={item}
-                rank={index + 1}
-                assignees={assignees}
-                disabled={isReadOnly}
-                onOpenSource={handleQueueOpen}
-                onQuickAction={handleQueueQuickAction}
-              />
-            )}
-            emptyMessage="No follow-up items in the queue. Check other tabs or relax filters."
-          />
+          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+              {priorityQueueTableHeader}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {queuePagination.currentItems.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-zinc-500">
+                  No follow-up items in the queue. Check other tabs or relax filters.
+                </p>
+              ) : (
+                queuePagination.currentItems.map((item, index) => (
+                  <PriorityQueueRow
+                    key={item.id}
+                    item={item}
+                    rank={queuePagination.startIndex + index + 1}
+                    assignees={assignees}
+                    disabled={isReadOnly}
+                    onOpenSource={handleQueueOpen}
+                    onQuickAction={handleQueueQuickAction}
+                  />
+                ))
+              )}
+            </div>
+            <PaginationFooter page={queuePage} setPage={setQueuePage} pagination={queuePagination} />
+          </div>
         );
       case 'quotation':
         return (
-          <VirtualizedTableShell
-            items={filteredQuotations}
-            rowHeight={ROW_HEIGHT}
-            header={quotationTableHeader}
-            renderRow={(item) => (
-              <QuotationFollowupRow
-                item={item}
-                assignees={assignees}
-                disabled={isReadOnly}
-                onReminder={handleQuotationReminder}
-                onSelect={() =>
-                  handleOpenHistory(
-                    'quotation',
-                    item.id,
-                    item.quotation_no,
-                    item.client_name,
-                    item.status
-                  )
-                }
-                onAssigneeChange={(id, userId) => handleAssigneeChange('quotation', id, userId)}
-                onLogResponse={(id, response) =>
-                  logResponse.mutate({
-                    id,
-                    response,
-                    quotation_no: item.quotation_no,
-                    client_name: item.client_name,
-                    previousStatus: item.status,
-                  })
-                }
-              />
-            )}
-            emptyMessage="No quotations match your filters."
-          />
+          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+              {quotationTableHeader}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {quotationPagination.currentItems.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-zinc-500">No quotations match your filters.</p>
+              ) : (
+                quotationPagination.currentItems.map((item) => (
+                  <QuotationFollowupRow
+                    key={item.id}
+                    item={item}
+                    assignees={assignees}
+                    disabled={isReadOnly}
+                    onReminder={handleQuotationReminder}
+                    onSelect={() =>
+                      handleOpenHistory('quotation', item.id, item.quotation_no, item.client_name, item.status)
+                    }
+                    onAssigneeChange={(id, userId) => handleAssigneeChange('quotation', id, userId)}
+                    onLogResponse={(id, response) =>
+                      logResponse.mutate({ id, response, quotation_no: item.quotation_no, client_name: item.client_name, previousStatus: item.status })
+                    }
+                  />
+                ))
+              )}
+            </div>
+            <PaginationFooter page={quotationPage} setPage={setQuotationPage} pagination={quotationPagination} />
+          </div>
         );
       case 'podc':
         return (
-          <VirtualizedTableShell
-            items={filteredPodc}
-            rowHeight={ROW_HEIGHT}
-            header={podcTableHeader}
-            renderRow={(item) => (
-              <PodcBacklogRow
-                item={item}
-                assignees={assignees}
-                disabled={isReadOnly}
-                onSharePack={handlePodcShare}
-                onSelect={() =>
-                  handleOpenHistory(
-                    'podc',
-                    item.id,
-                    item.dc_wo_number,
-                    item.client_name
-                  )
-                }
-                onAssigneeChange={(id, userId) => handleAssigneeChange('podc', id, userId)}
-                onFlagIssue={(id, issue) =>
-                  flagIssue.mutate({ id, issue, dc_wo_number: item.dc_wo_number })
-                }
-              />
-            )}
-            emptyMessage="No PO/DC backlog items match your filters."
-            maxHeight="calc(100vh - 280px)"
-          />
+          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+              {podcTableHeader}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {podcPagination.currentItems.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-zinc-500">No PO/DC backlog items match your filters.</p>
+              ) : (
+                podcPagination.currentItems.map((item) => (
+                  <PodcBacklogRow
+                    key={item.id}
+                    item={item}
+                    assignees={assignees}
+                    disabled={isReadOnly}
+                    onSharePack={handlePodcShare}
+                    onSelect={() => handleOpenHistory('podc', item.id, item.dc_wo_number, item.client_name)}
+                    onAssigneeChange={(id, userId) => handleAssigneeChange('podc', id, userId)}
+                    onFlagIssue={(id, issue) => flagIssue.mutate({ id, issue, dc_wo_number: item.dc_wo_number })}
+                  />
+                ))
+              )}
+            </div>
+            <PaginationFooter page={podcPage} setPage={setPodcPage} pagination={podcPagination} />
+          </div>
         );
       case 'invoice':
         return (
           <div className="flex min-h-0 flex-1 gap-3">
-            <div className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white overflow-hidden">
-              <div className="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50/95">
+            <div className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
+              <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95">
                 {invoiceTableHeader}
               </div>
-              <div className="max-h-[calc(100vh-280px)] overflow-auto">
-                {filteredInvoices.length === 0 ? (
-                  <p className="px-4 py-12 text-center text-sm text-zinc-500">
-                    No invoices match your filters.
-                  </p>
+              <div className="flex-1 overflow-auto">
+                {invoicePagination.currentItems.length === 0 ? (
+                  <p className="px-4 py-12 text-center text-sm text-zinc-500">No invoices match your filters.</p>
                 ) : (
-                  filteredInvoices.map((inv) => (
+                  invoicePagination.currentItems.map((inv) => (
                     <InvoiceEscalationCard
                       key={inv.id}
                       invoice={inv}
@@ -529,13 +639,7 @@ export default function FollowUpCentre() {
                       selected={selectedInvoiceId === inv.id}
                       onSelect={() => {
                         setSelectedInvoiceId(inv.id);
-                        handleOpenHistory(
-                          'invoice',
-                          inv.id,
-                          inv.invoice_no,
-                          inv.client_name,
-                          inv.collection_risk
-                        );
+                        handleOpenHistory('invoice', inv.id, inv.invoice_no, inv.client_name, inv.collection_risk);
                       }}
                       onReminder={() => handleInvoiceReminder(inv)}
                       onAssigneeChange={(id, userId) => handleAssigneeChange('invoice', id, userId)}
@@ -543,6 +647,7 @@ export default function FollowUpCentre() {
                   ))
                 )}
               </div>
+              <PaginationFooter page={invoicePage} setPage={setInvoicePage} pagination={invoicePagination} />
             </div>
             <InvoiceDetailPanel
               invoice={selectedInvoice}
@@ -554,13 +659,21 @@ export default function FollowUpCentre() {
         );
       case 'activity':
         return (
-          <VirtualizedTableShell
-            items={filteredActivity}
-            rowHeight={52}
-            header={activityTableHeader}
-            renderRow={(item) => <ActivityLogItem log={item} />}
-            emptyMessage="No activity logs match your filters."
-          />
+          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+              {activityTableHeader}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {activityPagination.currentItems.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-zinc-500">No activity logs match your filters.</p>
+              ) : (
+                activityPagination.currentItems.map((item) => (
+                  <ActivityLogItem key={item.id} log={item} />
+                ))
+              )}
+            </div>
+            <PaginationFooter page={activityPage} setPage={setActivityPage} pagination={activityPagination} />
+          </div>
         );
       default:
         return null;
@@ -599,12 +712,8 @@ export default function FollowUpCentre() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-4 pb-5 pt-5">
-        <section className="shrink-0">
-          <MetricsCards metrics={metrics} />
-        </section>
-
         <section className="sticky top-0 z-20 shrink-0">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-[10px] shadow-sm">
             <FollowupSearch value={search} onChange={setSearch} />
             <FollowupFilterBar
             tab={filters.tab}

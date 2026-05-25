@@ -17,9 +17,9 @@ type FollowupTabsProps = {
 
 export function FollowupTabs({ activeTab, onTabChange, counts }: FollowupTabsProps) {
   return (
-    <div className="shrink-0 border-b border-zinc-200 bg-white px-4 pb-4 pt-3">
+    <div className="shrink-0 border-b border-zinc-200 bg-white px-4 py-2.5">
       <nav
-        className="flex min-h-[88px] gap-2 overflow-x-auto"
+        className="flex gap-2 overflow-x-auto"
         aria-label="Follow-up sections"
       >
         {TABS.map((tab) => {
@@ -31,7 +31,7 @@ export function FollowupTabs({ activeTab, onTabChange, counts }: FollowupTabsPro
               type="button"
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                'group relative flex min-h-[88px] min-w-[200px] shrink-0 flex-col justify-center rounded-t-lg border border-b-2 px-4 pt-[12px] pb-[12px] text-left transition-all duration-150',
+                'group relative flex min-w-[200px] shrink-0 flex-col justify-center rounded-t-lg border border-b-2 px-4 py-6 text-left transition-all duration-150',
                 active
                   ? 'border-indigo-200 border-b-indigo-600 bg-indigo-50 text-indigo-900 shadow-sm'
                   : 'border-transparent border-b-transparent bg-transparent text-zinc-600 hover:border-zinc-200 hover:border-b-indigo-300 hover:bg-zinc-50 hover:text-zinc-900'

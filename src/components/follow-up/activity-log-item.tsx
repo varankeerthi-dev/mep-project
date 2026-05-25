@@ -37,7 +37,7 @@ type ActivityLogItemProps = {
 
 export const ActivityLogItem = memo(function ActivityLogItem({ log }: ActivityLogItemProps) {
   return (
-    <div className="grid grid-cols-[24px_minmax(120px,1fr)_minmax(200px,2fr)_100px_120px] items-start gap-3 border-b border-zinc-100 px-3 py-2 text-xs hover:bg-zinc-50/60">
+    <div className="grid grid-cols-[24px_minmax(120px,1fr)_minmax(200px,2fr)_100px_120px] items-start gap-3 border-b border-zinc-100 px-3 py-[14px] text-xs hover:bg-zinc-50/60">
       <EventIcon type={log.event_type} />
       <div>
         <p className="font-medium text-zinc-900">{log.title}</p>

@@ -43,7 +43,7 @@ export function VirtualizedTableShell<T>({
 
   return (
     <div className={cn('rounded-xl border border-zinc-200 bg-white overflow-hidden', className)}>
-      <div className="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+      <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
         {header}
       </div>
       <div ref={parentRef} style={{ maxHeight, overflow: 'auto' }} className="relative">

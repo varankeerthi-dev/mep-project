@@ -674,12 +674,16 @@ export default function InvoiceView() {
                       <div className="overflow-x-auto">
                         <table className="min-w-full border-collapse">
                           <thead>
-                            <tr className="bg-zinc-50/50 border-b border-zinc-200">
+                            <tr className="bg-zinc-100/80 border-b border-zinc-200">
                               {(() => {
                                 const template = templates.find(t => t.id === selectedTemplateId);
                                 const optCols = template?.column_settings?.optional || {};
                                 const hasHSN = selectedInvoice.items?.some((i: any) => i.sac_code || i.hsn_code || i.item?.hsn_code);
                                 const hasItemCode = selectedInvoice.items?.some((i: any) => i.item?.item_code || i.item_code);
+                                const hasMake = selectedInvoice.items?.some((i: any) => i.make);
+                                const hasVariant = selectedInvoice.items?.some((i: any) => i.variant_id);
+                                const hasDiscount = selectedInvoice.items?.some((i: any) => i.discount_percent !== undefined && i.discount_percent !== null && i.discount_percent !== 0);
+                                const hasTax = selectedInvoice.items?.some((i: any) => i.tax_percent !== undefined && i.tax_percent !== null && i.tax_percent !== 0);
 
                                 return (
                                   <>
@@ -692,10 +696,22 @@ export default function InvoiceView() {
                                     {hasItemCode && (
                                       <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Part No</th>
                                     )}
+                                    {hasMake && (
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Make</th>
+                                    )}
                                     <th className="px-8 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Description</th>
+                                    {hasVariant && (
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Variant</th>
+                                    )}
                                     <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Qty</th>
                                     <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left w-20">Unit</th>
                                     <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-40">Rate</th>
+                                    {hasDiscount && (
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Disc %</th>
+                                    )}
+                                    {hasTax && (
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Tax %</th>
+                                    )}
                                     <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-48">Amount</th>
                                   </>
                                 );
@@ -703,27 +719,55 @@ export default function InvoiceView() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100">
-                            {selectedInvoice.items.map((item: any, index: number) => (
-                              <tr key={index} className="hover:bg-zinc-50/30 transition-colors align-top">
-                                <td className="px-6 py-6 border-r border-zinc-100 text-[12px] text-zinc-400 font-medium">{String(index + 1).padStart(2, '0')}</td>
-                                {(selectedInvoice.items?.some((i: any) => i.sac_code || i.hsn_code || i.item?.hsn_code)) && (
-                                  <td className="px-6 py-6 border-r border-zinc-100 text-[11px] text-zinc-500 font-mono">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>
-                                )}
-                                {(selectedInvoice.items?.some((i: any) => i.item?.item_code || i.item_code)) && (
-                                  <td className="px-6 py-6 border-r border-zinc-100 text-[11px] text-zinc-500">{item.item?.item_code || item.item_code || '-'}</td>
-                                )}
-                                <td className="px-8 py-6 border-r border-zinc-100">
-                                  <div className="text-[13px] font-bold text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || item.description || '-'}</div>
-                                  {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
-                                    <div className="text-[12px] text-zinc-500 leading-relaxed mt-2">{item.description}</div>
+                            {selectedInvoice.items.map((item: any, index: number) => {
+                               const template = templates.find(t => t.id === selectedTemplateId);
+                               const optCols = template?.column_settings?.optional || {};
+                               const hasHSN = selectedInvoice.items?.some((i: any) => i.sac_code || i.hsn_code || i.item?.hsn_code);
+                               const hasItemCode = selectedInvoice.items?.some((i: any) => i.item?.item_code || i.item_code);
+                               const hasMake = selectedInvoice.items?.some((i: any) => i.make);
+                               const hasVariant = selectedInvoice.items?.some((i: any) => i.variant_id);
+                               const hasDiscount = selectedInvoice.items?.some((i: any) => i.discount_percent !== undefined && i.discount_percent !== null && i.discount_percent !== 0);
+                               const hasTax = selectedInvoice.items?.some((i: any) => i.tax_percent !== undefined && i.tax_percent !== null && i.tax_percent !== 0);
+
+                               return (
+                                <tr 
+                                  key={index} 
+                                  className={`transition-colors align-top ${index % 2 === 1 ? 'bg-zinc-100/30' : 'bg-white'} hover:bg-sky-50/40`}
+                                >
+                                  {optCols.sno !== false && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[12px] text-zinc-400 font-medium text-left">{String(index + 1).padStart(2, '0')}</td>
                                   )}
-                                </td>
-                                <td className="px-6 py-6 border-r border-zinc-100 text-[14px] text-zinc-900 text-right font-bold">{item.qty}</td>
-                                <td className="px-6 py-6 border-r border-zinc-100 text-[11px] text-zinc-400 uppercase font-medium">{item.uom || item.unit || 'Nos'}</td>
-                                <td className="px-6 py-6 border-r border-zinc-100 text-[13px] text-zinc-900 text-right">{formatCurrency(item.rate)}</td>
-                                <td className="px-8 py-6 bg-zinc-50/20 text-[14px] font-bold text-zinc-900 text-right">{formatCurrency(item.amount || item.line_total)}</td>
-                              </tr>
-                            ))}
+                                  {hasHSN && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 font-inter text-left">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>
+                                  )}
+                                  {hasItemCode && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 text-left">{item.item?.item_code || item.item_code || '-'}</td>
+                                  )}
+                                  {hasMake && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 text-left">{item.make || '-'}</td>
+                                  )}
+                                  <td className="px-8 py-4 border-r border-zinc-100 text-left">
+                                    <div className="text-[13px] font-bold text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || item.description || '-'}</div>
+                                    {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
+                                      <div className="text-[12px] text-zinc-500 leading-relaxed mt-1.5">{item.description}</div>
+                                    )}
+                                  </td>
+                                  {hasVariant && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 text-left">{item.variant_name || item.variant?.variant_name || '-'}</td>
+                                  )}
+                                  <td className="px-6 py-4 border-r border-zinc-100 text-[14px] text-zinc-900 text-right font-bold">{item.qty}</td>
+                                  <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-400 uppercase font-medium text-left">{item.uom || item.unit || 'Nos'}</td>
+                                  <td className="px-6 py-4 border-r border-zinc-100 text-[13px] text-zinc-900 text-right font-medium">{formatCurrency(item.rate)}</td>
+                                  {hasDiscount && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[13px] text-red-500 text-right font-medium">{item.discount_percent}%</td>
+                                  )}
+                                  {hasTax && (
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-[13px] text-zinc-600 text-right font-medium">{item.tax_percent}%</td>
+                                  )}
+                                  <td className="px-8 py-4 bg-zinc-50/10 text-[14px] font-bold text-zinc-900 text-right">{formatCurrency(item.amount || item.line_total)}</td>
+                                </tr>
+                               );
+                            })}
                           </tbody>
                         </table>
                       </div>

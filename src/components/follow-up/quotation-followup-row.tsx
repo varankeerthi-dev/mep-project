@@ -73,7 +73,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
   return (
     <div
       className={cn(
-        'grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_88px_80px_minmax(108px,120px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-1.5 text-xs hover:bg-zinc-50/80',
+        'grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_88px_80px_minmax(108px,120px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-[14px] text-xs hover:bg-zinc-50/80',
         terminal && 'bg-zinc-50/40 opacity-80',
         expired && !terminal && 'bg-purple-50/30'
       )}

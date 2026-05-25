@@ -42,7 +42,7 @@ export function InvoiceEscalationCard({
   return (
     <div
       className={cn(
-        'cursor-pointer border-b border-zinc-100 px-3 py-2 transition-colors',
+        'cursor-pointer border-b border-zinc-100 px-3 py-[14px] transition-colors',
         rowClass,
         selected && 'ring-2 ring-inset ring-indigo-400 bg-indigo-50/30'
       )}

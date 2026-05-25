@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
+import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle, Trash2, GripVertical, Settings } from 'lucide-react';
 import { useClients } from '../hooks/useClients';
 import { useProjects } from '../hooks/useProjects';
+import { useVariants } from '../hooks/useVariants';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog';
 import { useAuth } from '../contexts/AuthContext';
 
 type POFormData = {
+  vendor_id: string
+  save_as_vendor_default: boolean
   client_id: string
   project_id: string
   po_number: string
@@ -34,7 +38,7 @@ type PaymentMilestone = {
 }
 
 type POLineItem = {
-  id?: string
+  id?: string | number
   material_id?: string  // Reference to inventory material
   is_manual: boolean    // true = manual entry, false = inventory item
   description: string
@@ -45,6 +49,24 @@ type POLineItem = {
   item_code?: string
   hsn_sac_code?: string
   remarks?: string
+  
+  // Advanced Table Features
+  is_header: boolean
+  is_subtotal: boolean
+  subtotal_label?: string
+  display_order: number
+  variant_id?: string | null
+  make?: string | null
+  original_discount_percent: number
+  discount_percent: number
+  discount_amount: number
+  override_flag: boolean
+  base_rate_snapshot: number
+  applied_discount_percent: number
+  is_override: boolean
+  final_rate_snapshot: number
+  custom1?: string
+  custom2?: string
 }
 
 export default function CreatePO() {
@@ -56,6 +78,15 @@ export default function CreatePO() {
 
   // Use shared hooks — they handle org filtering, session, and caching
   const { data: clients = [] } = useClients();
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['purchase-vendors', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('purchase_vendors').select('id, company_name').eq('organisation_id', organisation?.id).eq('status', 'Active');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id
+  });
   const { data: allProjects = [] } = useProjects();
   
   // Load materials for inventory selection
@@ -78,6 +109,8 @@ export default function CreatePO() {
   const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState<POFormData>({
+    vendor_id: '',
+    save_as_vendor_default: true,
     client_id: '',
     project_id: preSelectedProjectId || '',
     po_number: '',
@@ -97,7 +130,164 @@ export default function CreatePO() {
   const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestone[]>([]);
   
   // PO line items state
+  
   const [lineItems, setLineItems] = useState<POLineItem[]>([]);
+  const { data: variants = [] } = useVariants();
+  const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
+  const [draggingItemId, setDraggingItemId] = useState<string | number | null>(null);
+  const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
+  const [inputDialog, setInputDialog] = useState<{
+    open: boolean;
+    title: string;
+    placeholder: string;
+    defaultValue?: string;
+    onSubmit: (value: string) => void;
+  } | null>(null);
+  
+  const [templateSettings, setTemplateSettings] = useState<any>({
+    column_settings: {
+      optional: {
+        item_code: true,
+        variant: true,
+        make: true,
+        description: true,
+        hsn_sac_code: true,
+        rate_per_unit: true,
+        discount_percent: true,
+        rate_after_discount: true,
+        gst_percentage: true,
+        line_total: true,
+        custom1: false,
+        custom2: false
+      },
+      labels: {
+        custom1: 'Custom 1',
+        custom2: 'Custom 2',
+        rate_after_discount: 'Final Rate'
+      }
+    }
+  });
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, itemId: string | number) => {
+    setDraggingItemId(itemId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropOnRow = (e: React.DragEvent, targetId: string | number) => {
+    e.preventDefault();
+    if (!draggingItemId || draggingItemId === targetId) return;
+    setLineItems((prev) => {
+      const fromIndex = prev.findIndex((r) => r.id === draggingItemId);
+      const toIndex = prev.findIndex((r) => r.id === targetId);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+    setDraggingItemId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingItemId(null);
+  };
+
+  // Row Additions
+  const addEmptyItemRow = () => {
+    const newItem: POLineItem = {
+      id: Date.now() + Math.random(),
+      is_manual: true,
+      description: '',
+      quantity: 1,
+      unit: '',
+      rate_per_unit: 0,
+      gst_percentage: 18,
+      is_header: false,
+      is_subtotal: false,
+      display_order: 0,
+      original_discount_percent: 0,
+      discount_percent: 0,
+      discount_amount: 0,
+      override_flag: false,
+      base_rate_snapshot: 0,
+      applied_discount_percent: 0,
+      is_override: false,
+      final_rate_snapshot: 0
+    };
+    setLineItems([...lineItems, newItem]);
+  };
+
+  const addSectionHeader = () => {
+    setInputDialog({
+      open: true,
+      title: 'Add Section Header',
+      placeholder: 'Enter section name (e.g. First Floor)',
+      onSubmit: (val) => {
+        const newItem: POLineItem = {
+          id: Date.now() + Math.random(),
+          is_header: true,
+          description: val,
+          is_manual: true,
+          quantity: 0,
+          unit: '',
+          rate_per_unit: 0,
+          gst_percentage: 0,
+          is_subtotal: false,
+          display_order: 0,
+          original_discount_percent: 0,
+          discount_percent: 0,
+          discount_amount: 0,
+          override_flag: false,
+          base_rate_snapshot: 0,
+          applied_discount_percent: 0,
+          is_override: false,
+          final_rate_snapshot: 0
+        };
+        setLineItems(prev => [...prev, newItem]);
+        setInputDialog(null);
+      }
+    });
+  };
+
+  const addSubtotal = () => {
+    setInputDialog({
+      open: true,
+      title: 'Add Sub-total',
+      placeholder: 'Enter sub-total label (e.g. Total A)',
+      onSubmit: (val) => {
+        const newItem: POLineItem = {
+          id: Date.now() + Math.random(),
+          is_subtotal: true,
+          subtotal_label: val,
+          description: '',
+          is_manual: true,
+          quantity: 0,
+          unit: '',
+          rate_per_unit: 0,
+          gst_percentage: 0,
+          is_header: false,
+          display_order: 0,
+          original_discount_percent: 0,
+          discount_percent: 0,
+          discount_amount: 0,
+          override_flag: false,
+          base_rate_snapshot: 0,
+          applied_discount_percent: 0,
+          is_override: false,
+          final_rate_snapshot: 0
+        };
+        setLineItems(prev => [...prev, newItem]);
+        setInputDialog(null);
+      }
+    });
+  };
+
 
   // projects filtered for current client (uses hook data)
   const projects = allProjects.filter(p => !formData.client_id || p.client_id === formData.client_id);
@@ -185,17 +375,7 @@ export default function CreatePO() {
     }
   };
 
-  const addLineItem = () => {
-    const newItem: POLineItem = {
-      is_manual: true,  // Default to manual entry
-      description: '',
-      quantity: 1,
-      unit: '',
-      rate_per_unit: 0,
-      gst_percentage: 18
-    };
-    setLineItems([...lineItems, newItem]);
-  };
+  const addLineItem = addEmptyItemRow;
 
   const removeLineItem = (index: number) => {
     setLineItems(lineItems.filter((_, i) => i !== index));
@@ -207,10 +387,37 @@ export default function CreatePO() {
     setLineItems(updated);
   };
 
-  const handleMaterialSelection = (index: number, materialId: string) => {
+  const handleMaterialSelection = async (index: number, materialId: string) => {
     const material = materials.find(m => m.id === materialId);
     if (!material) return;
     
+    let rate = material.sale_price || 0;
+    let make = material.make || null;
+    let variant_id = null;
+    let discount = 0;
+
+    if (formData.vendor_id) {
+      try {
+        const { data: pricingData } = await supabase
+          .from('vendor_material_pricing')
+          .select('*')
+          .eq('material_id', materialId)
+          .eq('vendor_id', formData.vendor_id)
+          .order('is_preferred', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (pricingData) {
+          rate = pricingData.base_rate || rate;
+          make = pricingData.make || make;
+          variant_id = pricingData.variant_id || variant_id;
+          discount = pricingData.discount_percent || discount;
+        }
+      } catch (err) {
+        console.error('Error fetching vendor pricing for material:', err);
+      }
+    }
+
     const updated = [...lineItems];
     updated[index] = {
       ...updated[index],
@@ -218,9 +425,13 @@ export default function CreatePO() {
       is_manual: false,
       description: material.display_name || material.name,
       unit: material.unit || 'Nos',
-      rate_per_unit: material.sale_price || 0,
+      rate_per_unit: rate,
+      base_rate_snapshot: rate,
       hsn_sac_code: material.hsn_code || null,
-      item_code: material.make || null
+      make: make,
+      variant_id: variant_id,
+      discount_percent: discount,
+      applied_discount_percent: discount
     };
     setLineItems(updated);
   };
@@ -241,19 +452,22 @@ export default function CreatePO() {
   };
 
   const calculateLineTotal = (item: POLineItem) => {
-    const basic = (item.quantity || 0) * (item.rate_per_unit || 0);
-    const gst = basic * ((item.gst_percentage || 0) / 100);
-    return basic + gst;
+    if (item.is_header || item.is_subtotal) return 0;
+    const baseRate = parseFloat(item.base_rate_snapshot?.toString() || item.rate_per_unit?.toString() || '0');
+    const discount = parseFloat(item.applied_discount_percent?.toString() || item.discount_percent?.toString() || '0');
+    const finalRate = baseRate - (baseRate * discount / 100);
+    return (item.quantity || 0) * finalRate;
   };
 
   const calculateBasicTotal = () => {
-    return lineItems.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate_per_unit || 0)), 0);
+    return lineItems.reduce((sum, item) => sum + calculateLineTotal(item), 0);
   };
 
   const calculateGSTTotal = () => {
     return lineItems.reduce((sum, item) => {
-      const basic = (item.quantity || 0) * (item.rate_per_unit || 0);
-      return sum + (basic * ((item.gst_percentage || 0) / 100));
+      if (item.is_header || item.is_subtotal) return sum;
+      const lineBasic = calculateLineTotal(item);
+      return sum + (lineBasic * ((item.gst_percentage || 0) / 100));
     }, 0);
   };
 
@@ -611,6 +825,47 @@ export default function CreatePO() {
           throw lineItemError;
         } else {
           console.log('Line items inserted successfully:', lineItemData);
+
+          // LOG ACTIVITY
+          await supabase.from('po_activity_log').insert({
+            organisation_id: organisation?.id,
+            po_id: poId,
+            action_type: editId ? 'UPDATE' : 'CREATE',
+            entity_type: 'PO',
+            action_details: { total_value: totalValue },
+            created_by: organisation?.id || null
+          });
+
+          // AUTO-LEARN VENDOR PRICING
+          if (formData.save_as_vendor_default && formData.vendor_id) {
+            const pricingToUpsert = lineItems
+              .filter(item => !item.is_header && !item.is_subtotal && item.material_id)
+              .map(item => {
+                 const baseRate = parseFloat(item.base_rate_snapshot?.toString() || item.rate_per_unit?.toString() || '0');
+                 const discount = parseFloat(item.applied_discount_percent?.toString() || item.discount_percent?.toString() || '0');
+                 
+                 return {
+                   organisation_id: organisation?.id,
+                   vendor_id: formData.vendor_id,
+                   material_id: item.material_id,
+                   variant_id: item.variant_id || null,
+                   make: item.make || null,
+                   base_rate: baseRate,
+                   discount_percent: discount,
+                   is_preferred: true,
+                   created_by: organisation?.id || null,
+                   updated_by: organisation?.id || null
+                 };
+              });
+
+            if (pricingToUpsert.length > 0) {
+              const { error: pricingError } = await supabase.from('vendor_material_pricing').upsert(
+                pricingToUpsert, 
+                { onConflict: 'vendor_id, material_id, variant_id, make', ignoreDuplicates: false }
+              );
+              if (pricingError) console.error('Error auto-learning vendor pricing:', pricingError);
+            }
+          }
         }
       } else {
         console.log('No line items to save');
@@ -852,6 +1107,39 @@ export default function CreatePO() {
           gap: '16px',
           marginBottom: '20px'
         }}>
+          {/* Vendor */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Vendor *
+            </label>
+            <select
+              name="vendor_id"
+              value={formData.vendor_id}
+              onChange={handleInputChange}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select vendor</option>
+              {vendors.map((v: any) => (
+                <option key={v.id} value={v.id}>{v.company_name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Client */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
@@ -1151,7 +1439,7 @@ export default function CreatePO() {
           />
         </div>
 
-        {/* Line Items Section */}
+                {/* Line Items Section */}
         <div style={{
           marginTop: '32px',
           padding: '24px',
@@ -1171,272 +1459,341 @@ export default function CreatePO() {
               gap: '8px'
             }}>
               <FileText size={20} style={{ color: '#525252' }} />
-              <h2 style={{
-                fontSize: '16px',
-                fontWeight: 600,
-                color: '#171717',
-                margin: 0
-              }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#171717', margin: 0 }}>
                 Line Items
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={addLineItem}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                background: '#fff',
-                color: '#525252',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}
-            >
-              <Plus size={14} />
-              Add Line Item
-            </button>
+            
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={addEmptyItemRow}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add Row
+              </button>
+              <button
+                type="button"
+                onClick={addSectionHeader}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add Header
+              </button>
+              <button
+                type="button"
+                onClick={addSubtotal}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add Sub-total
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCustomLabelEditor(true)}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '4px'
+                }}
+              >
+                <Settings size={14}/> Columns
+              </button>
+            </div>
           </div>
 
-          {lineItems.length === 0 ? (
-            <div style={{
-              padding: '24px',
-              textAlign: 'center',
-              color: '#a3a3a3',
-              fontSize: '13px',
-              background: '#fff',
-              border: '1px dashed #d4d4d4',
-              borderRadius: '6px'
-            }}>
-              No line items added. Click "Add Line Item" to start.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {lineItems.map((item, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    padding: '12px',
-                    background: '#fff',
-                    border: '1px solid #e5e5e5',
-                    borderRadius: '6px'
-                  }}
-                >
-                  {/* Entry Mode Toggle */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    marginBottom: '4px'
-                  }}>
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: '#525252'
-                    }}>
-                      Entry Mode:
-                    </span>
-                    <div style={{
-                      display: 'flex',
-                      background: '#f5f5f5',
-                      borderRadius: '4px',
-                      padding: '2px'
-                    }}>
-                      <button
-                        type="button"
-                        onClick={() => toggleEntryMode(index)}
-                        style={{
-                          padding: '4px 12px',
-                          border: 'none',
-                          borderRadius: '3px',
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          background: item.is_manual ? '#fff' : 'transparent',
-                          color: item.is_manual ? '#171717' : '#737373',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s'
-                        }}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #e5e5e5' }}>
+                  <th style={{ padding: '10px 8px', textAlign: 'center', width: '40px' }}></th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>#</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Description</th>
+                  {templateSettings?.column_settings?.optional?.variant && (
+                    <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Variant</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.make && (
+                    <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Make</th>
+                  )}
+                  <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Qty</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Unit</th>
+                  
+                  {templateSettings?.column_settings?.optional?.rate_per_unit && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Base Rate</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.discount_percent && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Disc %</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.rate_after_discount && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>
+                      {templateSettings.column_settings.labels?.rate_after_discount || 'Final Rate'}
+                    </th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.gst_percentage && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>GST %</th>
+                  )}
+                  <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Total</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'center', width: '40px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, index) => {
+                  if (item.is_header) {
+                    return (
+                      <tr 
+                        key={item.id} 
+                        draggable 
+                        onDragStart={(e) => handleDragStart(e, item.id!)} 
+                        onDragOver={handleDragOver} 
+                        onDrop={(e) => handleDropOnRow(e, item.id!)}
+                        onDragEnd={handleDragEnd}
+                        style={{ background: '#f3f4f6', borderBottom: '1px solid #e5e5e5', opacity: draggingItemId === item.id ? 0.5 : 1 }}
                       >
-                        Manual Entry
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleEntryMode(index)}
-                        style={{
-                          padding: '4px 12px',
-                          border: 'none',
-                          borderRadius: '3px',
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          background: !item.is_manual ? '#fff' : 'transparent',
-                          color: !item.is_manual ? '#171717' : '#737373',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        From Inventory
-                      </button>
-                    </div>
-                  </div>
+                        <td style={{ padding: '12px 8px', textAlign: 'center', cursor: 'grab' }}><GripVertical size={16} color="#9ca3af"/></td>
+                        <td colSpan={100} style={{ padding: '12px 8px' }}>
+                          <input 
+                            value={item.description} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].description = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '100%', background: 'transparent', border: 'none', fontWeight: 'bold', fontSize: '14px', outline: 'none' }}
+                          />
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <button type="button" onClick={() => {
+                            const newItems = lineItems.filter((_, i) => i !== index);
+                            setLineItems(newItems);
+                          }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    );
+                  }
 
-                  {/* Input Fields */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr 1fr auto',
-                    gap: '8px',
-                    alignItems: 'center'
-                  }}>
-                    <input
-                      type="text"
-                      value={item.hsn_sac_code || ''}
-                      onChange={(e) => updateLineItem(index, 'hsn_sac_code', e.target.value)}
-                      placeholder="HSN/SAC Code"
-                      style={{
-                        padding: '6px 10px',
-                        border: '1px solid #d4d4d4',
-                        borderRadius: '4px',
-                        fontSize: '13px',
-                        width: '33px'
-                      }}
-                    />
-                    {item.is_manual ? (
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                        placeholder="Description"
-                        style={{
-                          padding: '6px 10px',
-                          border: '1px solid #d4d4d4',
-                          borderRadius: '4px',
-                          fontSize: '13px',
-                          width: '100%'
-                        }}
-                      />
-                    ) : (
-                      <select
-                        value={item.material_id || ''}
-                        onChange={(e) => handleMaterialSelection(index, e.target.value)}
-                        style={{
-                          padding: '6px 10px',
-                          border: '1px solid #d4d4d4',
-                          borderRadius: '4px',
-                          fontSize: '13px',
-                          width: '100%',
-                          background: '#fff'
-                        }}
+                  if (item.is_subtotal) {
+                    return (
+                      <tr 
+                        key={item.id} 
+                        draggable 
+                        onDragStart={(e) => handleDragStart(e, item.id!)} 
+                        onDragOver={handleDragOver} 
+                        onDrop={(e) => handleDropOnRow(e, item.id!)}
+                        onDragEnd={handleDragEnd}
+                        style={{ background: '#fef9c3', borderBottom: '1px solid #e5e5e5', opacity: draggingItemId === item.id ? 0.5 : 1 }}
                       >
-                        <option value="">Select Material</option>
-                        {materials.map(material => (
-                          <option key={material.id} value={material.id}>
-                            {material.display_name || material.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  <input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                    placeholder="Qty"
-                    min="0"
-                    step="0.01"
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                      width: '100%'
-                    }}
-                  />
-                  <input
-                    type="text"
-                    value={item.unit}
-                    onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
-                    placeholder="Unit"
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                      width: '100%'
-                    }}
-                  />
-                  <input
-                    type="number"
-                    value={item.rate_per_unit}
-                    onChange={(e) => updateLineItem(index, 'rate_per_unit', parseFloat(e.target.value) || 0)}
-                    placeholder="Rate"
-                    min="0"
-                    step="0.01"
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                      width: '100%'
-                    }}
-                  />
-                  <input
-                    type="number"
-                    value={item.gst_percentage}
-                    onChange={(e) => updateLineItem(index, 'gst_percentage', parseFloat(e.target.value) || 0)}
-                    placeholder="GST %"
-                    min="0"
-                    max="100"
-                    step="1"
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                      width: '100%'
-                    }}
-                  />
-                  <div style={{
-                    padding: '6px 10px',
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    borderRadius: '4px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#166534',
-                    textAlign: 'right',
-                    minWidth: '100px'
-                  }}>
-                    ₹{calculateLineTotal(item).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeLineItem(index)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '6px',
-                      border: '1px solid #fecaca',
-                      borderRadius: '4px',
-                      background: '#fef2f2',
-                      color: '#dc2626',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                        <td style={{ padding: '12px 8px', textAlign: 'center', cursor: 'grab' }}><GripVertical size={16} color="#ca8a04"/></td>
+                        <td colSpan={100} style={{ padding: '12px 8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#854d0e' }}>
+                            <input 
+                              value={item.subtotal_label || ''} 
+                              onChange={e => {
+                                const updated = [...lineItems];
+                                updated[index].subtotal_label = e.target.value;
+                                setLineItems(updated);
+                              }}
+                              style={{ background: 'transparent', border: 'none', fontWeight: 'bold', color: '#854d0e', outline: 'none', width: '300px' }}
+                            />
+                            <span>SUBTOTAL ROW</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <button type="button" onClick={() => {
+                            const newItems = lineItems.filter((_, i) => i !== index);
+                            setLineItems(newItems);
+                          }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // Normal Material Row
+                  const baseRate = parseFloat(item.base_rate_snapshot?.toString() || item.rate_per_unit?.toString() || '0');
+                  const discount = parseFloat(item.applied_discount_percent?.toString() || item.discount_percent?.toString() || '0');
+                  const finalRate = baseRate - (baseRate * discount / 100);
+                  const lineTotal = (item.quantity || 0) * finalRate;
+
+                  return (
+                    <tr 
+                      key={item.id} 
+                      draggable 
+                      onDragStart={(e) => handleDragStart(e, item.id!)} 
+                      onDragOver={handleDragOver} 
+                      onDrop={(e) => handleDropOnRow(e, item.id!)}
+                      onDragEnd={handleDragEnd}
+                      style={{ borderBottom: '1px solid #e5e5e5', background: '#fff', opacity: draggingItemId === item.id ? 0.5 : 1 }}
+                    >
+                      <td style={{ padding: '8px', textAlign: 'center', cursor: 'grab' }}><GripVertical size={16} color="#d1d5db"/></td>
+                      <td style={{ padding: '8px', color: '#6b7280' }}>{index + 1}</td>
+                      <td style={{ padding: '8px' }}>
+                        {item.is_manual ? (
+                          <input 
+                            value={item.description} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].description = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            placeholder="Description"
+                            style={{ width: '100%', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px' }}
+                          />
+                        ) : (
+                          <select
+                            value={item.material_id || ''}
+                            onChange={(e) => handleMaterialSelection(index, e.target.value)}
+                            style={{ width: '100%', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', background: '#fff' }}
+                          >
+                            <option value="">Select Material</option>
+                            {materials.map(m => (
+                              <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <div style={{ marginTop: '4px', textAlign: 'right' }}>
+                          <button type="button" onClick={() => {
+                            const updated = [...lineItems];
+                            updated[index].is_manual = !updated[index].is_manual;
+                            setLineItems(updated);
+                          }} style={{ background: 'none', border: 'none', fontSize: '10px', color: '#3b82f6', cursor: 'pointer' }}>Toggle Entry Mode</button>
+                        </div>
+                      </td>
+                      
+                      {templateSettings?.column_settings?.optional?.variant && (
+                        <td style={{ padding: '8px' }}>
+                          <select 
+                            value={item.variant_id || ''} 
+                            onChange={e => {
+                               const updated = [...lineItems];
+                               updated[index].variant_id = e.target.value;
+                               setLineItems(updated);
+                            }}
+                            style={{ width: '100px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', background: '#fff' }}
+                          >
+                            <option value="">N/A</option>
+                            {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
+                          </select>
+                        </td>
+                      )}
+                      
+                      {templateSettings?.column_settings?.optional?.make && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            value={item.make || ''} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].make = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            placeholder="Make"
+                            style={{ width: '80px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px' }}
+                          />
+                        </td>
+                      )}
+                      
+                      <td style={{ padding: '8px' }}>
+                        <input 
+                          type="number" 
+                          value={item.quantity} 
+                          onChange={e => {
+                            const updated = [...lineItems];
+                            updated[index].quantity = parseFloat(e.target.value) || 0;
+                            setLineItems(updated);
+                          }}
+                          style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                        />
+                      </td>
+                      
+                      <td style={{ padding: '8px' }}>
+                        <input 
+                          value={item.unit} 
+                          onChange={e => {
+                            const updated = [...lineItems];
+                            updated[index].unit = e.target.value;
+                            setLineItems(updated);
+                          }}
+                          style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px' }}
+                        />
+                      </td>
+
+                      {templateSettings?.column_settings?.optional?.rate_per_unit && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={item.base_rate_snapshot ?? item.rate_per_unit ?? 0} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              const val = parseFloat(e.target.value) || 0;
+                              updated[index].base_rate_snapshot = val;
+                              updated[index].rate_per_unit = val;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '80px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                          />
+                        </td>
+                      )}
+
+                      {templateSettings?.column_settings?.optional?.discount_percent && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={item.applied_discount_percent ?? item.discount_percent ?? 0} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              const val = parseFloat(e.target.value) || 0;
+                              updated[index].applied_discount_percent = val;
+                              updated[index].discount_percent = val;
+                              updated[index].is_override = true;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                          />
+                        </td>
+                      )}
+
+                      {templateSettings?.column_settings?.optional?.rate_after_discount && (
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#374151' }}>
+                          ₹{finalRate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      )}
+                      
+                      {templateSettings?.column_settings?.optional?.gst_percentage && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={item.gst_percentage || 0} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].gst_percentage = parseFloat(e.target.value) || 0;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                          />
+                        </td>
+                      )}
+
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: '#166534' }}>
+                        ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+
+                      <td style={{ padding: '8px', textAlign: 'center' }}>
+                        <button type="button" onClick={() => {
+                          const newItems = lineItems.filter((_, i) => i !== index);
+                          setLineItems(newItems);
+                        }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {lineItems.length > 0 && (
             <div style={{
@@ -1468,11 +1825,23 @@ export default function CreatePO() {
                   </div>
                 </div>
               </div>
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input 
+                  type="checkbox" 
+                  id="save_as_vendor_default"
+                  checked={formData.save_as_vendor_default}
+                  onChange={(e) => setFormData(p => ({ ...p, save_as_vendor_default: e.target.checked }))}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="save_as_vendor_default" style={{ fontSize: '13px', color: '#525252', cursor: 'pointer', fontWeight: 600 }}>
+                  Save Rates as Vendor Default
+                </label>
+              </div>
             </div>
           )}
         </div>
-
         {/* Payment Terms Section */}
+\n        {/* Payment Terms Section */}
         <div style={{
           marginTop: '32px',
           padding: '24px',
@@ -1946,6 +2315,171 @@ export default function CreatePO() {
           </div>
         </div>
       </form>
+
+      {/* Input Dialog for Headers/Subtotals */}
+      {inputDialog?.open && (
+        <Dialog open={inputDialog.open} onOpenChange={(open) => !open && setInputDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{inputDialog.title}</DialogTitle>
+              <DialogDescription>
+                Please enter the details below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <input
+                type="text"
+                className="w-full rounded-md border border-zinc-200 p-2 text-sm outline-none focus:ring-1 focus:ring-blue-600"
+                placeholder={inputDialog.placeholder}
+                defaultValue={inputDialog.defaultValue || ''}
+                id="input-dialog-field"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    inputDialog.onSubmit((e.target as HTMLInputElement).value);
+                  }
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium hover:bg-zinc-50"
+                onClick={() => setInputDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                onClick={() => {
+                  const val = (document.getElementById('input-dialog-field') as HTMLInputElement)?.value;
+                  inputDialog.onSubmit(val || '');
+                }}
+              >
+                Submit
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Column Customizer Dialog */}
+      {showCustomLabelEditor && (
+        <Dialog open={showCustomLabelEditor} onOpenChange={setShowCustomLabelEditor}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Column Settings</DialogTitle>
+              <DialogDescription>
+                Choose which columns to show in the PO line items table.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+              {Object.keys(templateSettings.column_settings.optional).map((colKey) => (
+                <div key={colKey} className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-zinc-700 capitalize">
+                    {colKey.replace(/_/g, ' ')}
+                  </label>
+                  <input
+                    type="checkbox"
+                    checked={templateSettings.column_settings.optional[colKey]}
+                    onChange={(e) => {
+                      setTemplateSettings((prev: any) => ({
+                        ...prev,
+                        column_settings: {
+                          ...prev.column_settings,
+                          optional: {
+                            ...prev.column_settings.optional,
+                            [colKey]: e.target.checked
+                          }
+                        }
+                      }));
+                    }}
+                    className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+              
+              <hr className="my-2 border-zinc-200" />
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-zinc-500 uppercase">Column Labels</label>
+                <div className="grid gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-600">Rate After Discount Label</label>
+                    <input
+                      type="text"
+                      value={templateSettings.column_settings.labels?.rate_after_discount || 'Final Rate'}
+                      onChange={(e) => {
+                        setTemplateSettings((prev: any) => ({
+                          ...prev,
+                          column_settings: {
+                            ...prev.column_settings,
+                            labels: {
+                              ...prev.column_settings.labels,
+                              rate_after_discount: e.target.value
+                            }
+                          }
+                        }));
+                      }}
+                      className="rounded-md border border-zinc-200 p-2 text-sm outline-none focus:ring-1 focus:ring-blue-600"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-600">Custom 1 Label</label>
+                    <input
+                      type="text"
+                      value={templateSettings.column_settings.labels?.custom1 || 'Custom 1'}
+                      onChange={(e) => {
+                        setTemplateSettings((prev: any) => ({
+                          ...prev,
+                          column_settings: {
+                            ...prev.column_settings,
+                            labels: {
+                              ...prev.column_settings.labels,
+                              custom1: e.target.value
+                            }
+                          }
+                        }));
+                      }}
+                      className="rounded-md border border-zinc-200 p-2 text-sm outline-none focus:ring-1 focus:ring-blue-600"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-600">Custom 2 Label</label>
+                    <input
+                      type="text"
+                      value={templateSettings.column_settings.labels?.custom2 || 'Custom 2'}
+                      onChange={(e) => {
+                        setTemplateSettings((prev: any) => ({
+                          ...prev,
+                          column_settings: {
+                            ...prev.column_settings,
+                            labels: {
+                              ...prev.column_settings.labels,
+                              custom2: e.target.value
+                        }
+                          }
+                        }));
+                      }}
+                      className="rounded-md border border-zinc-200 p-2 text-sm outline-none focus:ring-1 focus:ring-blue-600"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                onClick={() => setShowCustomLabelEditor(false)}
+              >
+                Save & Close
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

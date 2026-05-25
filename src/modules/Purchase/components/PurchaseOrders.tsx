@@ -19,6 +19,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
@@ -453,7 +454,7 @@ export const PurchaseOrders: React.FC = () => {
         vendor_id: vendorId,
         currency,
         exchange_rate: exchangeRate,
-        delivery_date: deliveryDate,
+        delivery_date: deliveryDate || null,
         terms_conditions: terms,
         subtotal: totals.subtotal,
         discount_amount: totals.discount,
@@ -962,10 +963,12 @@ export const PurchaseOrders: React.FC = () => {
                       <tr>
                         <th className="px-3 py-2.5 font-bold w-10">#</th>
                         <th className="px-3 py-2.5 font-bold">Item & Description</th>
-                        <th className="px-3 py-2.5 font-bold w-24">HSN</th>
+                        <th className="px-3 py-2.5 font-bold w-20">Variant</th>
+                        <th className="px-3 py-2.5 font-bold w-20">Make</th>
                         <th className="px-3 py-2.5 font-bold w-20 text-center">Qty</th>
                         <th className="px-3 py-2.5 font-bold w-16">Unit</th>
                         <th className="px-3 py-2.5 font-bold w-24">Rate</th>
+                        <th className="px-3 py-2.5 font-bold w-16 text-center">Disc%</th>
                         <th className="px-3 py-2.5 font-bold w-16 text-center">GST%</th>
                         <th className="px-3 py-2.5 font-bold w-28 text-right">Total</th>
                         <th className="px-3 py-2.5 font-bold w-10"></th>
@@ -979,15 +982,51 @@ export const PurchaseOrders: React.FC = () => {
                             <div className="space-y-1.5">
                               <Select 
                                 value={item.item_id || ""} 
-                                onValueChange={(val) => {
+                                onValueChange={async (val) => {
                                   const material = materials.find((m: any) => m.id === val);
                                   if (material) {
                                     updateItem(index, 'item_name', material.display_name || material.name);
                                     updateItem(index, 'item_id', material.id);
                                     updateItem(index, 'hsn_code', material.hsn_code || '');
                                     updateItem(index, 'unit', material.unit || 'Nos');
-                                    updateItem(index, 'rate', material.purchase_price || material.sale_price || 0);
-                                    updateItem(index, 'make', material.make || '');
+                                    
+                                    let rate = material.purchase_price || material.sale_price || 0;
+                                    let make = material.make || '';
+                                    let variant = '';
+                                    let discount = 0;
+
+                                    if (vendorId) {
+                                      const { data: pricingData, error } = await supabase
+                                        .from('vendor_material_pricing')
+                                        .select('*')
+                                        .eq('material_id', material.id)
+                                        .eq('vendor_id', vendorId)
+                                        .order('is_preferred', { ascending: false })
+                                        .limit(1)
+                                        .single();
+                                      
+                                      if (error && error.code !== 'PGRST116') {
+                                        console.error("Error fetching vendor pricing:", error);
+                                      }
+                                      
+                                      if (pricingData) {
+                                        rate = pricingData.base_rate || rate;
+                                        make = pricingData.make || make;
+                                        discount = pricingData.discount_percent || discount;
+                                        if (pricingData.variant_id) {
+                                          const foundVariant = variants.find(v => v.id === pricingData.variant_id);
+                                          if (foundVariant) {
+                                            variant = foundVariant.variant_name;
+                                          }
+                                        }
+                                      }
+                                    }
+
+                                    updateItem(index, 'rate', rate);
+                                    updateItem(index, 'make', make);
+                                    updateItem(index, 'variant', variant);
+                                    updateItem(index, 'discount_percent', discount);
+
                                     if (material.gst_rate) {
                                       const gst = material.gst_rate;
                                       updateItem(index, 'cgst_percent', gst / 2);
@@ -1008,18 +1047,21 @@ export const PurchaseOrders: React.FC = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <Input 
-                                placeholder="Description/Make" 
-                                value={item.make} 
-                                onChange={(e) => updateItem(index, 'make', e.target.value)}
-                                className="h-7 text-[10px] border-zinc-100 bg-transparent shadow-none rounded-sm px-2 focus:ring-0"
-                              />
                             </div>
                           </td>
                           <td className="px-3 py-2">
                             <Input 
-                              value={item.hsn_code} 
-                              onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
+                              placeholder="Variant" 
+                              value={item.variant} 
+                              onChange={(e) => updateItem(index, 'variant', e.target.value)}
+                              className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input 
+                              placeholder="Make" 
+                              value={item.make} 
+                              onChange={(e) => updateItem(index, 'make', e.target.value)}
                               className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0"
                             />
                           </td>
@@ -1044,6 +1086,14 @@ export const PurchaseOrders: React.FC = () => {
                               value={item.rate} 
                               onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
                               className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input 
+                              type="number" 
+                              value={item.discount_percent} 
+                              onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))}
+                              className="h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0"
                             />
                           </td>
                           <td className="px-3 py-2">

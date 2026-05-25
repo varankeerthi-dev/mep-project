@@ -43,7 +43,7 @@ export const PodcBacklogRow = memo(function PodcBacklogRow({
 
   return (
     <div
-      className="grid grid-cols-[minmax(92px,1fr)_minmax(100px,1fr)_minmax(118px,1.1fr)_72px_64px_92px_92px_72px_72px_minmax(108px,118px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-1.5 text-xs hover:bg-zinc-50/80"
+      className="grid grid-cols-[minmax(92px,1fr)_minmax(100px,1fr)_minmax(118px,1.1fr)_72px_64px_92px_92px_72px_72px_minmax(108px,118px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-[14px] text-xs hover:bg-zinc-50/80"
       onClick={onSelect}
       role={onSelect ? 'button' : undefined}
       tabIndex={onSelect ? 0 : undefined}
