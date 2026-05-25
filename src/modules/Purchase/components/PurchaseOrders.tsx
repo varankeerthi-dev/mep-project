@@ -72,9 +72,9 @@ const CURRENCIES = [
 const GST_RATES = [0, 5, 12, 18, 28];
 
 interface POItem {
-  id?: string;
-  item_id?: string;
   sr: number;
+  item_id?: string;
+  section?: string;
   item_name: string;
   make: string;
   variant: string;
@@ -306,6 +306,7 @@ export const PurchaseOrders: React.FC = () => {
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
   const ITEM_COLUMNS = [
+    { key: 'section', label: 'Section', default: false },
     { key: 'item_name', label: 'Item & Description', default: true },
     { key: 'variant', label: 'Variant', default: true },
     { key: 'make', label: 'Make', default: true },
@@ -548,6 +549,7 @@ export const PurchaseOrders: React.FC = () => {
       const gst = material.gst_rate || 0;
       newItems.push({
         sr: 0,
+        section: material.type || '',
         item_id: material.id,
         item_name: material.display_name || material.name || '',
         make: make || '',
@@ -982,6 +984,7 @@ export const PurchaseOrders: React.FC = () => {
                 <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600">
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-10">#</th>
+                    {itemCols.has('section') && <th className="px-3 py-2.5 font-bold w-24">Section</th>}
                     {itemCols.has('item_name') && <th className="px-3 py-2.5 font-bold">Item & Description</th>}
                     {itemCols.has('variant') && <th className="px-3 py-2.5 font-bold w-20">Variant</th>}
                     {itemCols.has('make') && <th className="px-3 py-2.5 font-bold w-20">Make</th>}
@@ -998,6 +1001,7 @@ export const PurchaseOrders: React.FC = () => {
                   {items.map((item, index) => (
                     <tr key={index} className="hover:bg-zinc-50/50">
                       <td className="px-3 py-2 text-zinc-400 font-medium">{item.sr}</td>
+                      {itemCols.has('section') && <td className="px-3 py-2"><Input placeholder="Section" value={item.section || ''} onChange={(e) => updateItem(index, 'section', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
                       {itemCols.has('item_name') && (
                         <td className="px-3 py-2">
                           <div className="space-y-1.5">
@@ -1089,6 +1093,32 @@ export const PurchaseOrders: React.FC = () => {
                       </td>
                     </tr>
                   ))}
+                  {items.length > 0 && items.some(i => i.section) && (() => {
+                    const groups: { section: string; items: typeof items }[] = [];
+                    let currentGroup: typeof items = [];
+                    let currentSection = '';
+                    items.forEach(item => {
+                      const sec = item.section || '';
+                      if (sec && sec !== currentSection && currentGroup.length > 0) {
+                        groups.push({ section: currentSection, items: currentGroup });
+                        currentGroup = [];
+                      }
+                      currentSection = sec;
+                      currentGroup.push(item);
+                    });
+                    if (currentGroup.length > 0) groups.push({ section: currentSection, items: currentGroup });
+                    return groups.filter(g => g.items.length > 1 && g.section).map((g, gi) => {
+                      const sub = g.items.reduce((s, i) => s + i.total_amount, 0);
+                      return (
+                        <tr key={`sec-sub-${gi}`} className="bg-zinc-100/70">
+                          <td colSpan={1 + itemCols.size + 1} className="px-3 py-2 text-right text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                            Subtotal — {g.section} &nbsp;
+                            <span className="font-mono text-zinc-800">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                   {items.length === 0 && (
                     <tr><td colSpan={itemCols.size + 2} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" to start.</td></tr>
                   )}
