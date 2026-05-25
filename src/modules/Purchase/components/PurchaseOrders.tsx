@@ -147,6 +147,8 @@ export const PurchaseOrders: React.FC = () => {
   });
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [termsContent, setTermsContent] = useState('');
+  const [showTermsDrawer, setShowTermsDrawer] = useState(false);
   const [notes, setNotes] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
@@ -359,6 +361,7 @@ export const PurchaseOrders: React.FC = () => {
       setNotes(editingPO.internal_notes || '');
       setDeliveryLocation(editingPO.delivery_location || '');
       setReferenceNo(editingPO.reference_no || '');
+      setTermsContent(editingPO.terms_content || '');
       setAttachmentUrl(editingPO.attachment_url || '');
       if (editingPO.items) {
         setItems(editingPO.items.map((item: any, idx: number) => ({
@@ -697,6 +700,7 @@ export const PurchaseOrders: React.FC = () => {
       terms,
       status,
       approval_status: status,
+      terms_content: termsContent || null,
       internal_notes: notes || null,
       delivery_location: deliveryLocation || null,
       reference_no: referenceNo || null,
@@ -1111,7 +1115,56 @@ export const PurchaseOrders: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 4: Attachments */}
+          {/* Section 4: Terms & Conditions */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">
+                <FileText className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                Terms & Conditions
+              </h3>
+              <button onClick={() => setShowTermsDrawer(true)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                <Edit className="w-4 h-4 mr-1.5" /> Edit
+              </button>
+            </div>
+            <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50 min-h-[60px]">
+              {termsContent ? (
+                <p className="text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed">{termsContent}</p>
+              ) : (
+                <p className="text-sm text-zinc-400 italic">No terms & conditions defined. Click "Edit" to add.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Terms & Conditions Drawer */}
+          {showTermsDrawer && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+              <div style={{ background: '#fff', borderRadius: '12px', padding: '0', maxWidth: '700px', width: '95%', display: 'flex', flexDirection: 'column' }}>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+                  <h3 className="text-base font-bold text-zinc-900">Terms & Conditions</h3>
+                  <button onClick={() => setShowTermsDrawer(false)} className="p-1 rounded hover:bg-zinc-100 text-zinc-400"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-6">
+                  <textarea
+                    value={termsContent}
+                    onChange={(e) => { setTermsContent(e.target.value); markDirty(); }}
+                    placeholder={`Enter terms and conditions for this purchase order...\n\nCommon clauses:\n- Delivery schedule and penalties for delay\n- Payment terms and conditions\n- Warranty and guarantee\n- Inspection and acceptance\n- Force majeure\n- Dispute resolution`}
+                    rows={16}
+                    className="w-full px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono leading-relaxed"
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-200">
+                  <button onClick={() => setShowTermsDrawer(false)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                    Cancel
+                  </button>
+                  <button onClick={() => setShowTermsDrawer(false)} className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                    <CheckSquare className="w-4 h-4 mr-1.5" /> Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Section 5: Attachments */}
           <div>
             <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">
               <Paperclip className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
