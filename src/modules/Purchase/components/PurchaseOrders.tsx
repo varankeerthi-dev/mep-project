@@ -39,7 +39,6 @@ import {
   SelectValue 
 } from '../../../components/ui/select';
 import { Label } from '../../../components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { cn } from '../../../lib/utils';
 
 import { useAuth } from '../../../contexts/AuthContext';
@@ -611,219 +610,175 @@ export const PurchaseOrders: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-zinc-50/50">
-      {/* Header Card */}
-      <Card className="border-none shadow-sm overflow-hidden">
-        <CardHeader className="py-4 px-6 bg-white border-b border-zinc-200">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-bold text-zinc-800">Purchase Orders</CardTitle>
-                <p className="text-xs text-zinc-500 font-medium">Manage your procurement workflow</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <Input
-                  placeholder="Search POs..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-sm border-zinc-200 focus:ring-primary/20"
-                />
-              </div>
-              <ShadcnButton 
-                onClick={handleAdd} 
-                className="h-9 gap-2 shadow-sm font-semibold"
-              >
-                <Plus className="h-4 w-4" />
-                Create PO
-              </ShadcnButton>
-            </div>
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">Purchase Orders</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {filteredPOs.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <input
+              placeholder="Search POs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 pl-8 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-        </CardHeader>
-      </Card>
+          <button
+            onClick={handleAdd}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
+            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Create PO
+          </button>
+        </div>
+      </div>
 
-      {/* Table Card */}
-      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
-        <div className="h-[calc(100vh-220px)] overflow-auto">
-          <table className="w-full caption-bottom text-sm border-collapse">
-            {/* Table Header */}
-            <thead className="border-b border-zinc-200 bg-zinc-100 sticky top-0">
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-separate border-spacing-0">
+          <thead>
+            <tr>
+              <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[50px]">
+                <button
+                  onClick={() => {
+                    if (selectedRows.length === filteredPOs.length) {
+                      setSelectedRows([]);
+                    } else {
+                      setSelectedRows(filteredPOs.map((po: any) => po.id));
+                    }
+                  }}
+                  className="flex items-center justify-center"
+                >
+                  {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
+                    <CheckSquare className="h-3.5 w-3.5 text-indigo-600" />
+                  ) : (
+                    <Square className="h-3.5 w-3.5 text-zinc-300" />
+                  )}
+                </button>
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">PO #</th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Date</th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Vendor</th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Curr</th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-right">Amount</th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Status</th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[70px] text-center">Actions</th>
+            </tr>
+          </thead>
+          
+          <tbody>
+            {isLoading ? (
               <tr>
-                <th className="w-8 px-2 py-1.5 text-center align-middle text-xs font-medium text-zinc-500">
-                  <button
-                    onClick={() => {
-                      if (selectedRows.length === filteredPOs.length) {
-                        setSelectedRows([]);
-                      } else {
-                        setSelectedRows(filteredPOs.map((po: any) => po.id));
-                      }
-                    }}
-                    className="flex items-center justify-center"
-                  >
-                    {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
-                      <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <Square className="h-3.5 w-3.5 text-zinc-400" />
-                    )}
-                  </button>
-                </th>
-                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">PO #</th>
-                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
-                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Vendor</th>
-                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Curr</th>
-                <th className="px-2 py-1.5 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
-                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Status</th>
-                <th className="px-2 py-1.5 text-right align-middle text-xs font-medium text-zinc-500 w-24"></th>
+                <td colSpan={8} className="px-5 py-16 text-center text-sm text-zinc-500">Loading...</td>
               </tr>
-            </thead>
-            
-            {/* Table Body */}
-            <tbody className="[&_tr:last-child]:border-0">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="px-2 py-6 text-center text-xs text-zinc-500">
-                    Loading...
+            ) : filteredPOs.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-5 py-16 text-center text-sm text-zinc-500">No purchase orders found</td>
+              </tr>
+            ) : (
+              filteredPOs.map((po: any, idx: number) => (
+                <tr
+                  key={po.id}
+                  className={cn(
+                    "border-t border-zinc-200/70 transition-all",
+                    idx % 2 === 0 ? "bg-white" : "bg-zinc-50/30",
+                    "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm",
+                    selectedRows.includes(po.id) && "bg-indigo-50/50 border-l-blue-600"
+                  )}
+                >
+                  <td className="px-4 py-[26px] text-center align-middle">
+                    <button
+                      onClick={() => {
+                        if (selectedRows.includes(po.id)) {
+                          setSelectedRows(prev => prev.filter(id => id !== po.id));
+                        } else {
+                          setSelectedRows(prev => [...prev, po.id]);
+                        }
+                      }}
+                      className="flex items-center justify-center"
+                    >
+                      {selectedRows.includes(po.id) ? (
+                        <CheckSquare className="h-3.5 w-3.5 text-indigo-600" />
+                      ) : (
+                        <Square className="h-3.5 w-3.5 text-zinc-300" />
+                      )}
+                    </button>
                   </td>
-                </tr>
-              ) : filteredPOs.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-2 py-6 text-center">
-                    <div className="space-y-1">
-                      <div className="text-xs font-medium text-zinc-950">No purchase orders found</div>
-                      <div className="text-[10px] text-zinc-500">Create your first purchase order to get started.</div>
+                  <td className="px-6 py-[26px] align-middle">
+                    <span className="text-sm font-medium text-zinc-900">{po.po_number}</span>
+                  </td>
+                  <td className="px-6 py-[26px] align-middle text-sm text-zinc-800">
+                    {new Date(po.po_date).toLocaleDateString('en-IN')}
+                  </td>
+                  <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 max-w-[180px] truncate" title={po.vendor?.company_name}>
+                    {po.vendor?.company_name || '-'}
+                  </td>
+                  <td className="px-6 py-[26px] align-middle">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">{po.currency}</span>
+                  </td>
+                  <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 tabular-nums text-right">
+                    {po.currency === 'INR' ? '₹' : po.currency + ' '}{Number(po.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-6 py-[26px] align-middle">
+                    <StatusBadge status={po.status || po.approval_status} />
+                  </td>
+                  <td className="px-6 py-[26px] align-middle text-center w-[70px]">
+                    <div className="relative inline-flex items-center gap-0.5">
+                      <button
+                        className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 transition-colors"
+                        onClick={() => handleViewPDF(po)}
+                        title="View PDF"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 transition-colors"
+                        title="Email"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
-              ) : (
-                filteredPOs.map((po: any) => (
-                  <tr key={po.id} className="border-b border-zinc-100 hover:bg-zinc-50/80">
-                    <td className="px-2 py-1 text-center align-middle">
-                      <button
-                        onClick={() => {
-                          if (selectedRows.includes(po.id)) {
-                            setSelectedRows(prev => prev.filter(id => id !== po.id));
-                          } else {
-                            setSelectedRows(prev => [...prev, po.id]);
-                          }
-                        }}
-                        className="flex items-center justify-center"
-                      >
-                        {selectedRows.includes(po.id) ? (
-                          <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                        ) : (
-                          <Square className="h-3.5 w-3.5 text-zinc-300" />
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-2 py-1 text-left align-middle whitespace-nowrap">
-                      <span className="text-xs font-semibold text-primary hover:underline cursor-pointer">
-                        {po.po_number}
-                      </span>
-                    </td>
-                    <td className="px-2 py-1 text-left align-middle whitespace-nowrap text-xs text-zinc-600">
-                      {new Date(po.po_date).toLocaleDateString('en-IN')}
-                    </td>
-                    <td className="px-2 py-1 text-left align-middle whitespace-nowrap text-xs text-zinc-600">
-                      {po.vendor?.company_name || '-'}
-                    </td>
-                    <td className="px-2 py-1 text-left align-middle">
-                      <Badge variant="secondary" className="text-[10px] font-medium px-1 py-0.5">
-                        {po.currency}
-                      </Badge>
-                    </td>
-                    <td className="px-2 py-1 text-right align-middle whitespace-nowrap text-xs font-medium text-zinc-700">
-                      {po.currency === 'INR' ? '₹' : po.currency + ' '}{Number(po.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-2 py-1 text-left align-middle">
-                      <StatusBadge status={po.status || po.approval_status} />
-                    </td>
-                    <td className="px-2 py-1 text-right align-middle">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <ShadcnButton 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-rose-600 hover:bg-rose-50"
-                          onClick={() => handleViewPDF(po)}
-                        >
-                          <FileText className="h-3 w-3" />
-                        </ShadcnButton>
-                        <ShadcnButton 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-primary hover:bg-primary/10"
-                        >
-                          <Mail className="h-3 w-3" />
-                        </ShadcnButton>
-                        <ShadcnButton 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-zinc-500 hover:bg-zinc-100"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </ShadcnButton>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Bulk Actions Bar */}
-        {selectedRows.length > 0 && (
-          <div className="sticky bottom-0 bg-zinc-900/95 backdrop-blur-sm border-t border-zinc-200 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSelectedRows([])}
-                className="flex items-center gap-2"
-              >
-                {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
-                  <CheckSquare className="h-4 w-4 text-white" />
-                ) : (
-                  <Square className="h-4 w-4 text-zinc-400" />
-                )}
-              </button>
-              <span className="text-sm font-medium text-white">
-                {selectedRows.length} selected
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <ShadcnButton 
-                size="sm" 
-                variant="ghost"
-                className="h-8 text-white hover:bg-zinc-800"
-                onClick={() => console.log('Bulk print:', selectedRows)}
-              >
-                <Printer className="w-4 h-4 mr-2" />
-                Print All
-              </ShadcnButton>
-              <ShadcnButton 
-                size="sm" 
-                variant="ghost"
-                className="h-8 text-white hover:bg-zinc-800"
-                onClick={() => console.log('Bulk email:', selectedRows)}
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                Email
-              </ShadcnButton>
-              <ShadcnButton 
-                size="sm" 
-                variant="ghost"
-                className="h-8 text-white hover:bg-zinc-800"
-                onClick={() => setSelectedRows([])}
-              >
-                Clear
-              </ShadcnButton>
-            </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {selectedRows.length > 0 && (
+        <div className="sticky bottom-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">
+          <div>
+            <span className="text-sm font-semibold">{selectedRows.length} selected</span>
           </div>
-        )}
-      </Card>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => console.log('Bulk print:', selectedRows)}
+              className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2"
+            >
+              <Printer className="w-3.5 h-3.5 inline mr-1.5" />
+              Print All
+            </button>
+            <button
+              onClick={() => setSelectedRows([])}
+              className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
 
       {/* Create PO Dialog */}

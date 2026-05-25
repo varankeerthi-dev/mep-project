@@ -134,27 +134,20 @@ export default function VendorLedgerDialog({
     >
       <div className="space-y-6">
         {/* Header Info */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900">{vendor?.company_name || 'Select a vendor'}</h2>
-            <div className="flex items-center gap-2 mt-1 text-sm text-zinc-500">
-              <span className="px-2 py-0.5 bg-zinc-200 rounded text-zinc-700 font-mono text-xs">{vendor?.vendor_code || '-'}</span>
-              <span>•</span>
-              <div className="flex items-center gap-1">
-                <FileText className="w-4 h-4" />
-                <span>Vendor Activity Log</span>
-              </div>
-            </div>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-white">
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-medium text-zinc-900">{vendor?.company_name || 'Select a vendor'}</h2>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">{vendor?.vendor_code || '-'}</span>
           </div>
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
+          <button
             onClick={() => vendor && downloadVendorLedgerPdf(organisationName, vendor, summary, entries)}
             disabled={!vendor}
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50"
+            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
           >
-            <Download className="w-4 h-4" />
-            <span>Export PDF</span>
-          </Button>
+            <Download className="w-4 h-4 mr-1.5" />
+            Export PDF
+          </button>
         </div>
 
         {/* Filters */}

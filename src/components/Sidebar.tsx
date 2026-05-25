@@ -183,7 +183,14 @@ const menuData: MenuSection[] = [
       { 
         id: 'purchase', 
         label: 'Purchase', 
-        path: '/purchase'
+        submenu: [
+          { id: 'purchase-vendors', label: 'Vendors', path: '/purchase/vendors' },
+          { id: 'purchase-orders', label: 'Purchase Orders', path: '/purchase/orders' },
+          { id: 'purchase-bills', label: 'Bills', path: '/purchase/bills' },
+          { id: 'purchase-debit-notes', label: 'Debit Notes', path: '/purchase/debit-notes' },
+          { id: 'purchase-payments', label: 'Payments', path: '/purchase/payments' },
+          { id: 'purchase-payment-queue', label: 'Payment Queue', path: '/purchase/payment-queue' },
+        ]
       }
     ]
   },
@@ -273,6 +280,12 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   issue: 'ExclamationTriangleIcon',
   store: 'CubeIcon',
   purchase: 'ShoppingCartIcon',
+  'purchase-vendors': 'BuildingOffice2Icon',
+  'purchase-orders': 'DocumentTextIcon',
+  'purchase-bills': 'ReceiptRefundIcon',
+  'purchase-debit-notes': 'PencilSquareIcon',
+  'purchase-payments': 'BanknotesIcon',
+  'purchase-payment-queue': 'ClockIcon',
   procurement: 'ClipboardDocumentListIcon',
   dc: 'TruckIcon',
   'non-billable-dc': 'TruckIcon',

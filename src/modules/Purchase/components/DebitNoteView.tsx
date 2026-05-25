@@ -145,21 +145,21 @@ export const DebitNoteView: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full gap-5">
+    <div className="flex h-full gap-0">
       {/* Left Sidebar */}
-      <div className="w-[300px] flex flex-col bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="py-4 px-5 border-b bg-zinc-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-zinc-700">All Debit Notes</h2>
+      <div className="w-[300px] flex flex-col bg-white border-r border-zinc-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-white">
+          <h2 className="text-[13px] font-semibold text-zinc-700">All Debit Notes</h2>
         </div>
-        <div className="px-4 py-3 border-b">
+        <div className="px-4 py-2 border-b border-zinc-100">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
             <input
               type="text"
               placeholder="Search DN..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-rose-200"
+              className="w-full px-4 pl-8 h-[30px] text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -211,9 +211,10 @@ export const DebitNoteView: React.FC = () => {
               </div>
               <button
                 onClick={handlePreview}
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-rose-600 to-rose-700 text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none"
+                className="inline-flex items-center justify-center text-sm font-medium text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-sm active:scale-[0.98]"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
               >
-                <Printer className="w-[14px] h-[14px]" /> Print
+                <Printer className="w-[14px] h-[14px] mr-1.5" /> Print
               </button>
             </div>
 
@@ -223,28 +224,30 @@ export const DebitNoteView: React.FC = () => {
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('edit-dn', { detail: { dn: selectedDN } }));
                 }}
-                className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
+                className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
               >
-                <Pencil className="w-[14px] h-[14px]" /> Edit
+                <Pencil className="w-[14px] h-[14px] mr-1.5" /> Edit
               </button>
 
               <div className="relative" ref={printMenuRef}>
                 <button
                   onClick={() => setPrintMenuOpen(!printMenuOpen)}
-                  className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]"
+                  style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
                 >
-                  <FileText className="w-[14px] h-[14px]" /> Print Template <ChevronDown className="w-[12px] h-[12px]" />
+                  <FileText className="w-[14px] h-[14px] mr-1.5" /> Print Template <ChevronDown className="w-[12px] h-[12px] ml-1" />
                 </button>
                 {printMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
-                    <button onClick={() => { handlePreview(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded">
-                      <Eye className="w-[14px] h-[14px]" /> Preview PDF
+                  <div className="absolute left-0 top-full mt-1 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5">
+                    <button onClick={() => { handlePreview(); setPrintMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700" style={{ padding: '6px' }}>
+                      <Eye className="w-3.5 h-3.5" /> Preview PDF
                     </button>
-                    <button onClick={() => { handleDownload(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded">
-                      <Download className="w-[14px] h-[14px]" /> Download PDF
+                    <button onClick={() => { handleDownload(); setPrintMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700" style={{ padding: '6px' }}>
+                      <Download className="w-3.5 h-3.5" /> Download PDF
                     </button>
-                    <button onClick={() => { handlePrint(); setPrintMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 rounded">
-                      <Printer className="w-[14px] h-[14px]" /> Print PDF
+                    <button onClick={() => { handlePrint(); setPrintMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700" style={{ padding: '6px' }}>
+                      <Printer className="w-3.5 h-3.5" /> Print PDF
                     </button>
                   </div>
                 )}
@@ -253,9 +256,10 @@ export const DebitNoteView: React.FC = () => {
               {selectedDN.approval_status === 'Pending' && (
                 <button
                   onClick={() => setDeleteConfirmOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-red-600 border border-red-200 rounded hover:bg-red-50 transition-all text-[12px] font-bold"
+                  className="inline-flex items-center justify-center text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
+                  style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
                 >
-                  <Trash2 className="w-[14px] h-[14px]" /> Delete
+                  <Trash2 className="w-[14px] h-[14px] mr-1.5" /> Delete
                 </button>
               )}
             </div>

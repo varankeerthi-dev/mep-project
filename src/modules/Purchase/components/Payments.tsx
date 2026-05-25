@@ -31,7 +31,6 @@ import {
   SelectValue 
 } from '../../../components/ui/select';
 import { Label } from '../../../components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Checkbox } from '../../../components/ui/checkbox';
 import { cn } from '../../../lib/utils';
 
@@ -254,49 +253,41 @@ export const Payments: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-zinc-50/50">
-      <Card className="border-none shadow-sm overflow-hidden text-sm">
-        <CardHeader className="py-4 px-6 bg-white border-b">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-50 rounded-lg">
-                <Banknote className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-bold text-zinc-800">Payments Made</CardTitle>
-                <p className="text-xs text-zinc-500 font-medium">Record and track vendor payments</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <ShadcnButton 
-                variant="outline"
-                onClick={handleCreateRequest} 
-                className="h-9 gap-2 shadow-sm font-semibold border-zinc-200"
-              >
-                <Plus className="h-4 w-4" />
-                Payment Request
-              </ShadcnButton>
-              <ShadcnButton 
-                onClick={handleAddPayment} 
-                className="h-9 gap-2 shadow-sm font-semibold bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Plus className="h-4 w-4" />
-                Record Payment
-              </ShadcnButton>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
-        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
-          <AppTable
-            data={payments}
-            columns={columns}
-            loading={isLoading}
-          />
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">Payments Made</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {payments.length}
+          </span>
         </div>
-      </Card>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCreateRequest}
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]"
+            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Payment Request
+          </button>
+          <button
+            onClick={handleAddPayment}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm active:scale-[0.98]"
+            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Record Payment
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        <AppTable
+          data={payments}
+          columns={columns}
+          loading={isLoading}
+        />
+      </div>
 
       {/* Record Payment Dialog */}
       <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>

@@ -478,59 +478,43 @@ export const Vendors: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-6 p-6 h-full animate-in fade-in duration-500">
-      {/* Header Card */}
-      <Card className="rounded-[2rem] border-none shadow-xl shadow-zinc-200/50 bg-white overflow-hidden">
-        <div className="p-8 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200 ring-4 ring-blue-50">
-              <Building2 className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Vendors</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="default">
-                  {filteredVendors.length} Suppliers
-                </Badge>
-                <span className="text-zinc-300">/</span>
-                <span className="text-sm font-medium text-zinc-500">Directory & Ledger Management</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-            <div className="relative group min-w-[300px]">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-zinc-400">
-                <Search className="w-5 h-5" />
-              </div>
-              <Input
-                placeholder="Search vendors by name, GST or material..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 bg-zinc-50 border-zinc-200 focus:bg-white focus:ring-4 focus:ring-blue-100 transition-all rounded-2xl h-12"
-              />
-            </div>
-            <Button 
-              onClick={handleAdd}
-              className="rounded-2xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center gap-2 font-bold transition-all hover:translate-y-[-2px] active:translate-y-[0px]"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Vendor</span>
-            </Button>
-          </div>
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">Vendors</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {filteredVendors.length}
+          </span>
         </div>
-      </Card>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <input
+              placeholder="Search vendors..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 pl-8 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={handleAdd}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
+            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Vendor
+          </button>
+        </div>
+      </div>
 
-      {/* Main Table Card */}
-      <Card className="flex-1 rounded-[2rem] border-none shadow-xl shadow-zinc-200/50 bg-white overflow-hidden p-0 relative">
-        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
+      <div className="flex-1 overflow-auto">
         <AppTable
           columns={columns}
           data={filteredVendors}
-          isLoading={isLoading}
+          loading={isLoading}
           emptyMessage="No vendors found"
         />
-      </Card>
+      </div>
 
       {/* Add/Edit Modal */}
       <Modal

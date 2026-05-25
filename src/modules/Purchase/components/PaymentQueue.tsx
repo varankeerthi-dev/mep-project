@@ -16,7 +16,6 @@ import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
 import { Input } from '../../../components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/Tabs';
 import { cn } from '../../../lib/utils';
 
@@ -175,12 +174,22 @@ export const PaymentQueue: React.FC = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col space-y-6 p-4 md:p-6 bg-zinc-50/50">
-      {/* Header & Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="flex flex-col h-full bg-white">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">Payment Queue</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {criticalCount} Due
+          </span>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-6 py-4">
         {summaryCards.map((card, i) => (
-          <Card key={i} className="border-none shadow-sm overflow-hidden bg-white group hover:ring-2 hover:ring-rose-500/10 transition-all">
-            <CardContent className="p-5 flex items-center justify-between">
+          <div key={i} className="bg-white border border-zinc-200 rounded-xl overflow-hidden group">
+            <div className="p-5 flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{card.label}</p>
                 <h4 className={cn("text-xl font-bold tracking-tight", card.color)}>{card.value}</h4>
@@ -188,41 +197,39 @@ export const PaymentQueue: React.FC = () => {
               <div className={cn("p-2.5 rounded-xl transition-colors", card.bg)}>
                 <card.icon className={cn("h-5 w-5", card.color)} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 
-      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden border-t border-zinc-100">
         <Tabs defaultValue="all" className="flex-1 flex flex-col" onValueChange={(v) => {
           const tabMap: any = { 'all': 0, 'overdue': 1, '7days': 2, '30days': 3 };
           setActiveTab(tabMap[v]);
         }}>
-          <div className="px-6 border-b border-zinc-100 bg-white z-10">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2">
-              <TabsList className="bg-zinc-50/50 p-1 rounded-xl h-10 border border-zinc-100">
-                <TabsTrigger value="all" className="px-4 text-[11px] font-bold uppercase tracking-wider rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                  All Pending ({filteredBills.length})
-                </TabsTrigger>
-                <TabsTrigger value="overdue" className="px-4 text-[11px] font-bold uppercase tracking-wider rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-rose-600">
-                  Overdue ({filteredBills.filter((b: any) => calculateDaysOverdue(b.due_date) > 0).length})
-                </TabsTrigger>
-                <TabsTrigger value="7days" className="px-4 text-[11px] font-bold uppercase tracking-wider rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-600">
-                  Next 7 Days
-                </TabsTrigger>
-                <TabsTrigger value="30days" className="px-4 text-[11px] font-bold uppercase tracking-wider rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                  Next 30 Days
-                </TabsTrigger>
-              </TabsList>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <Input
-                  placeholder="Filter queue..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-xs border-zinc-200"
-                />
-              </div>
+          <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50" style={{ paddingTop: 15, paddingBottom: 15 }}>
+            <TabsList className="flex items-center gap-1 bg-transparent p-0">
+              <TabsTrigger value="all" className="w-[150px] h-[26px] px-4 text-sm font-medium transition-colors data-[state=active]:bg-blue-600/10 data-[state=active]:text-blue-600 text-zinc-600 hover:bg-zinc-100">
+                All Pending ({filteredBills.length})
+              </TabsTrigger>
+              <TabsTrigger value="overdue" className="w-[150px] h-[26px] px-4 text-sm font-medium transition-colors data-[state=active]:bg-blue-600/10 data-[state=active]:text-blue-600 text-zinc-600 hover:bg-zinc-100">
+                Overdue ({filteredBills.filter((b: any) => calculateDaysOverdue(b.due_date) > 0).length})
+              </TabsTrigger>
+              <TabsTrigger value="7days" className="w-[150px] h-[26px] px-4 text-sm font-medium transition-colors data-[state=active]:bg-blue-600/10 data-[state=active]:text-blue-600 text-zinc-600 hover:bg-zinc-100">
+                Next 7 Days
+              </TabsTrigger>
+              <TabsTrigger value="30days" className="w-[150px] h-[26px] px-4 text-sm font-medium transition-colors data-[state=active]:bg-blue-600/10 data-[state=active]:text-blue-600 text-zinc-600 hover:bg-zinc-100">
+                Next 30 Days
+              </TabsTrigger>
+            </TabsList>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+              <input
+                placeholder="Filter queue..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-4 pl-8 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
             </div>
           </div>
 
@@ -246,7 +253,7 @@ export const PaymentQueue: React.FC = () => {
             />
           </div>
         </Tabs>
-      </Card>
+      </div>
     </div>
 
   );

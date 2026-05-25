@@ -31,7 +31,7 @@ import {
   SelectValue 
 } from '../../../components/ui/select';
 import { Label } from '../../../components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
+
 import { Checkbox } from '../../../components/ui/checkbox';
 import { cn } from '../../../lib/utils';
 import { 
@@ -276,50 +276,42 @@ export const Bills: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-zinc-50/50">
-      <Card className="border-none shadow-sm overflow-hidden text-sm">
-        <CardHeader className="py-4 px-6 bg-white border-b">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Receipt className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-bold text-zinc-800">Purchase Bills</CardTitle>
-                <p className="text-xs text-zinc-500 font-medium">Record and manage vendor invoices</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <Input
-                  placeholder="Search bills..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-xs border-zinc-200 focus:ring-primary/20"
-                />
-              </div>
-              <ShadcnButton 
-                onClick={handleAdd} 
-                className="h-9 gap-2 shadow-sm font-semibold"
-              >
-                <Plus className="h-4 w-4" />
-                Enter Bill
-              </ShadcnButton>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
-        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
-          <AppTable
-            data={bills}
-            columns={columns}
-            loading={isLoading}
-          />
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">Purchase Bills</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {bills.length}
+          </span>
         </div>
-      </Card>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <input
+              placeholder="Search bills..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 pl-8 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={handleAdd}
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
+            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Enter Bill
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        <AppTable
+          data={bills}
+          columns={columns}
+          loading={isLoading}
+        />
+      </div>
 
       <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
         <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
