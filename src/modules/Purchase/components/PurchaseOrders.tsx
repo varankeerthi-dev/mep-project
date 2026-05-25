@@ -21,8 +21,18 @@ import {
   Columns,
   Copy,
   Paperclip,
-  Upload
+  Upload,
+  GripVertical,
+  Building2,
+  MapPin,
+  Phone,
+  Mail as MailIcon,
+  Clock,
+  User
 } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button as ShadcnButton } from '../../../components/ui/button';
@@ -149,8 +159,35 @@ const numberToWords = (num: number): string => {
   return result.trim() + ' Only';
 };
 
+const DragHandleContext = React.createContext<{ listeners: Record<string, Function>; attributes: Record<string, any> }>({ listeners: {}, attributes: {} });
+
+function SortableRow({ children, id }: { children: React.ReactNode; id: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <DragHandleContext.Provider value={{ listeners, attributes }}>
+      <tr ref={setNodeRef} style={style} className="hover:bg-zinc-50/50">
+        {children}
+      </tr>
+    </DragHandleContext.Provider>
+  );
+}
+
+function DragHandle() {
+  const { listeners, attributes } = React.useContext(DragHandleContext);
+  return (
+    <td className="px-1 py-2 text-zinc-300 cursor-grab active:cursor-grabbing w-8" {...listeners} {...attributes}>
+      <GripVertical className="w-3.5 h-3.5 mx-auto" />
+    </td>
+  );
+}
+
 export const PurchaseOrders: React.FC = () => {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
   
@@ -186,6 +223,10 @@ export const PurchaseOrders: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
+  const [roundOff, setRoundOff] = useState(false);
+  const [authorizedSignatoryId, setAuthorizedSignatoryId] = useState('');
+  const [activityLog, setActivityLog] = useState<any[]>([]);
+  const [showActivityLog, setShowActivityLog] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [pickerItems, setPickerItems] = useState<any[]>([]);
@@ -400,6 +441,7 @@ export const PurchaseOrders: React.FC = () => {
       setDeliveryLocation(editingPO.delivery_location || '');
       setReferenceNo(editingPO.reference_no || '');
       setTermsContent(editingPO.terms_conditions || '');
+      setAuthorizedSignatoryId(editingPO.authorized_signatory_id || '');
       setAttachmentUrl(editingPO.attachment_url || '');
       if (editingPO.items) {
         setItems(editingPO.items.map((item: any, idx: number) => ({
@@ -409,6 +451,39 @@ export const PurchaseOrders: React.FC = () => {
       }
     }
   }, [editingPO]);
+
+  // Fetch activity logs when editing
+  useEffect(() => {
+    const poId = selectedPO?.id || searchParams.get('id');
+    if (!poId) return;
+    const fetchActivity = async () => {
+      const { data } = await supabase
+        .from('po_activity_log')
+        .select('*')
+        .eq('po_id', poId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (data) setActivityLog(data);
+    };
+    fetchActivity();
+  }, [selectedPO?.id, searchParams]);
+
+  // Log activity after save
+  const logPOActivity = async (poId: string, action: string, description: string) => {
+    try {
+      const actorName = (user as any)?.user_metadata?.full_name || (user as any)?.email || 'System';
+      await supabase.from('po_activity_log').insert({
+        po_id: poId,
+        user_id: (user as any)?.id,
+        organisation_id: organisation?.id,
+        action,
+        description,
+        details: {},
+      });
+    } catch (err) {
+      console.error('Failed to log activity:', err);
+    }
+  };
 
   // Recalculate totals whenever items change
   useEffect(() => {
@@ -429,7 +504,7 @@ export const PurchaseOrders: React.FC = () => {
       item.cgst_amount = cgst;
       item.sgst_amount = sgst;
       item.igst_amount = igst;
-      item.total_amount = total;
+      item.total_amount = taxable;
 
       subtotal += lineValue;
       discountTotal += discountAmt;
@@ -661,6 +736,28 @@ export const PurchaseOrders: React.FC = () => {
     });
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((_, i) => `item-${i}` === active.id);
+      const newIndex = items.findIndex((_, i) => `item-${i}` === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setItems(prev => {
+          const updated = [...prev];
+          const [moved] = updated.splice(oldIndex, 1);
+          updated.splice(newIndex, 0, moved);
+          return updated.map((item, i) => ({ ...item, sr: i + 1 }));
+        });
+        markDirty();
+      }
+    }
+  };
+
   const handleAdd = () => {
     setSearchParams({ mode: 'create' });
     setSelectedPO(null);
@@ -772,14 +869,15 @@ export const PurchaseOrders: React.FC = () => {
       delivery_location: deliveryLocation || null,
       reference_no: referenceNo || null,
       attachment_url: attachment_url || null,
-      total_amount: totals.total,
+      total_amount: roundOff ? Math.round(totals.total) : totals.total,
       subtotal: totals.subtotal,
       discount_amount: totals.discount,
       taxable_amount: totals.taxable,
       cgst_amount: totals.cgst,
       sgst_amount: totals.sgst,
       igst_amount: totals.igst,
-      total_amount_inr: totals.totalInr,
+      total_amount_inr: roundOff ? Math.round(totals.totalInr) : totals.totalInr,
+      authorized_signatory_id: authorizedSignatoryId || null,
     };
 
     const itemsData = items.map(item => ({
@@ -801,10 +899,15 @@ export const PurchaseOrders: React.FC = () => {
       total_amount: item.total_amount || 0,
     }));
 
+    let poId: string;
     if (editingPOId) {
-      await updatePO.mutateAsync({ id: editingPOId, poData, items: itemsData });
+      const result = await updatePO.mutateAsync({ id: editingPOId, poData, items: itemsData });
+      poId = editingPOId;
+      logPOActivity(poId, 'UPDATED', `PO updated by ${(user as any)?.user_metadata?.full_name || 'System'}`);
     } else {
-      await createPO.mutateAsync({ poData, items: itemsData });
+      const result = await createPO.mutateAsync({ poData, items: itemsData }) as any;
+      poId = result.id;
+      logPOActivity(poId, 'CREATED', `PO created by ${(user as any)?.user_metadata?.full_name || 'System'}`);
     }
   };
 
@@ -882,6 +985,37 @@ export const PurchaseOrders: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-auto p-6 max-w-[1400px] mx-auto w-full space-y-10">
+          {/* Section 0: Header / Letterhead */}
+          {organisation && (
+            <div className="border border-zinc-200 rounded-xl p-6 bg-white">
+              <div className="flex items-start gap-5">
+                {(organisation as any).logo_url && (
+                  <img src={(organisation as any).logo_url} alt="Logo" className="w-16 h-16 rounded-lg object-contain border border-zinc-100" />
+                )}
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-zinc-900">{(organisation as any).name || 'Organisation'}</h2>
+                  {(organisation as any).address && (
+                    <p className="text-sm text-zinc-500 mt-1 flex items-start gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      {(organisation as any).address}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-zinc-500">
+                    {(organisation as any).email && (
+                      <span className="flex items-center gap-1.5"><MailIcon className="w-3.5 h-3.5" />{(organisation as any).email}</span>
+                    )}
+                    {(organisation as any).phone && (
+                      <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{(organisation as any).phone}</span>
+                    )}
+                    {(organisation as any).gst_no && (
+                      <span className="text-zinc-400">GST: {(organisation as any).gst_no}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Section 1: Details */}
           <div>
             <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Details</h3>
@@ -953,6 +1087,38 @@ export const PurchaseOrders: React.FC = () => {
                     className="w-full px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-sm font-semibold">Authorized Signatory</Label>
+                  <Select value={authorizedSignatoryId} onValueChange={(val) => { setAuthorizedSignatoryId(val); markDirty(); }}>
+                    <SelectTrigger className="border-zinc-200">
+                      <SelectValue placeholder="Select signatory..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {((organisation as any)?.signatures || []).length > 0 ? (
+                        ((organisation as any)?.signatures || []).map((sig: any) => (
+                          <SelectItem key={String(sig.id)} value={String(sig.id)}>{sig.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="__no_sigs__">No signatures — Add in Settings → Organisation</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {authorizedSignatoryId && (
+                    <div className="mt-2 border border-zinc-200 rounded-lg p-3 bg-zinc-50">
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Signature Preview</p>
+                      <div className="h-12 flex items-center">
+                        {(() => {
+                          const sigId = String(authorizedSignatoryId);
+                          const selectedSig = ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === sigId);
+                          if (selectedSig?.url) {
+                            return <img src={selectedSig.url} alt={selectedSig.name} className="max-h-10 max-w-[160px] object-contain" />;
+                          }
+                          return <span className="text-xs text-zinc-400">No signature image</span>;
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1011,6 +1177,7 @@ export const PurchaseOrders: React.FC = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600">
                   <tr>
+                    <th className="px-1 py-2.5 font-bold w-8"></th>
                     <th className="px-3 py-2.5 font-bold w-10">#</th>
                     {itemCols.has('section') && <th className="px-3 py-2.5 font-bold w-24">Section</th>}
                     {itemCols.has('item_name') && <th className="px-3 py-2.5 font-bold">Item & Description</th>}
@@ -1025,9 +1192,12 @@ export const PurchaseOrders: React.FC = () => {
                     <th className="px-3 py-2.5 font-bold w-10"></th>
                   </tr>
                 </thead>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={items.map((_, i) => `item-${i}`)} strategy={verticalListSortingStrategy}>
                 <tbody className="divide-y divide-zinc-100">
                   {items.map((item, index) => (
-                    <tr key={index} className="hover:bg-zinc-50/50">
+                    <SortableRow key={`item-${index}`} id={`item-${index}`}>
+                      <DragHandle />
                       <td className="px-3 py-2 text-zinc-400 font-medium">{item.sr}</td>
                       {itemCols.has('section') && <td className="px-3 py-2"><Input placeholder="Section" value={item.section || ''} onChange={(e) => updateItem(index, 'section', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
                       {itemCols.has('item_name') && (
@@ -1119,7 +1289,7 @@ export const PurchaseOrders: React.FC = () => {
                       <td className="px-3 py-2">
                         <button onClick={() => removeItem(index)} className="p-1 rounded hover:bg-red-50 text-zinc-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                       </td>
-                    </tr>
+                    </SortableRow>
                   ))}
                   {items.length > 0 && items.some(i => i.section) && (() => {
                     const groups: { section: string; items: typeof items }[] = [];
@@ -1139,7 +1309,7 @@ export const PurchaseOrders: React.FC = () => {
                       const sub = g.items.reduce((s, i) => s + i.total_amount, 0);
                       return (
                         <tr key={`sec-sub-${gi}`} className="bg-zinc-100/70">
-                          <td colSpan={1 + itemCols.size + 1} className="px-3 py-2 text-right text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                          <td colSpan={1 + itemCols.size + 2} className="px-3 py-2 text-right text-xs font-bold text-zinc-600 uppercase tracking-wider">
                             Subtotal — {g.section} &nbsp;
                             <span className="font-mono text-zinc-800">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                           </td>
@@ -1148,9 +1318,11 @@ export const PurchaseOrders: React.FC = () => {
                     });
                   })()}
                   {items.length === 0 && (
-                    <tr><td colSpan={itemCols.size + 2} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" or "Add Multiple Items" to start.</td></tr>
+                    <tr><td colSpan={itemCols.size + 3} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" or "Add Multiple Items" to start.</td></tr>
                   )}
                 </tbody>
+                </SortableContext>
+                </DndContext>
               </table>
             </div>
 
@@ -1208,24 +1380,50 @@ export const PurchaseOrders: React.FC = () => {
                       </div>
                     )}
                     <div className="h-px bg-zinc-300 my-3" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-widest text-zinc-800">Grand Total</span>
-                      <span className="text-lg font-black">
-                        ₹{totals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
+                    <div className="flex items-center justify-between py-0.5">
+                      <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium">Round off</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={roundOff}
+                        onClick={() => setRoundOff(!roundOff)}
+                        className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border border-zinc-300 transition-colors ${roundOff ? 'bg-indigo-600 border-indigo-600' : 'bg-zinc-100'}`}
+                      >
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow-sm transition-transform ${roundOff ? 'translate-x-[14px]' : 'translate-x-[1px]'}`} />
+                      </button>
                     </div>
-                    {currency !== 'INR' && (
-                      <div className="flex justify-between text-[11px] text-zinc-400">
-                        <span>in INR</span>
-                        <span>₹{totals.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    )}
-                    {currency === 'INR' && totals.total > 0 && (
-                      <div className="pt-2 border-t border-zinc-200/60">
-                        <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mb-1">Amount in Words</p>
-                        <p className="text-[12px] text-zinc-700 italic font-medium leading-relaxed">{numberToWords(totals.total)}</p>
-                      </div>
-                    )}
+                    {(() => {
+                      const display = roundOff ? Math.round(totals.total) : totals.total;
+                      const diff = display - totals.total;
+                      return (
+                        <>
+                          {diff !== 0 && (
+                            <div className="flex justify-between text-[11px] text-zinc-400">
+                              <span>Rounding</span>
+                              <span>{diff > 0 ? '+' : ''}₹{diff.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold uppercase tracking-widest text-zinc-800">Grand Total</span>
+                            <span className="text-lg font-black">
+                              ₹{display.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          {currency !== 'INR' && (
+                            <div className="flex justify-between text-[11px] text-zinc-400">
+                              <span>in INR</span>
+                              <span>₹{(roundOff ? Math.round(totals.totalInr) : totals.totalInr).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+                          {currency === 'INR' && display > 0 && (
+                            <div className="pt-2 border-t border-zinc-200/60">
+                              <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mb-1">Amount in Words</p>
+                              <p className="text-[12px] text-zinc-700 italic font-medium leading-relaxed">{numberToWords(display)}</p>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1335,6 +1533,51 @@ export const PurchaseOrders: React.FC = () => {
               className="w-full h-24 px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
+
+          {/* Section 6: Activity Log */}
+          {selectedPO?.id && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">
+                  <Clock className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                  Activity Log
+                </h3>
+                <button
+                  onClick={() => setShowActivityLog(!showActivityLog)}
+                  className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100"
+                  style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+                >
+                  {showActivityLog ? 'Hide' : 'Show'} ({activityLog.length})
+                </button>
+              </div>
+              {showActivityLog && (
+                <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-[300px] overflow-y-auto">
+                  {activityLog.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-zinc-400 italic">No activity recorded yet.</div>
+                  ) : (
+                    activityLog.map((log: any) => (
+                      <div key={log.id} className="px-4 py-3 flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <User className="w-3 h-3 text-zinc-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-zinc-800">{log.action}</p>
+                            <span className="text-[10px] text-zinc-400 whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          {log.description && (
+                            <p className="text-xs text-zinc-500 mt-0.5">{log.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Item Picker Modal — two-panel layout */}

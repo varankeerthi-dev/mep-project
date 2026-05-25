@@ -81,3 +81,6 @@ CREATE TABLE IF NOT EXISTS public.po_activity_log (
 ALTER TABLE public.client_purchase_orders
 ADD COLUMN IF NOT EXISTS created_by uuid,
 ADD COLUMN IF NOT EXISTS updated_by uuid;
+
+ALTER TABLE public.client_purchase_orders
+ADD COLUMN IF NOT EXISTS authorized_signatory_id uuid;
