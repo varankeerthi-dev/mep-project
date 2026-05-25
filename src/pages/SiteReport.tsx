@@ -235,7 +235,7 @@ export function SiteReport() {
     queryFn: async () => {
       let query = supabase
         .from('site_reports')
-        .select('id, report_date, pm_status, engineer_name, client_id, project_id')
+        .select('id, report_date, pm_status, engineer_name, client_id, project_id, clients(client_name), projects(project_name)')
         .order('report_date', { ascending: false })
         .limit(50); // Only fetch recent 50 reports
       
@@ -583,267 +583,321 @@ export function SiteReport() {
     toast.success("PDF generated successfully");
   }, [form, clients, projects, photos]);
 
+  const downloadReportPDF = async (reportId: string) => {
+    try {
+      const { data: report, error } = await supabase
+        .from('site_reports')
+        .select(`
+          id,
+          report_date,
+          pm_name,
+          pm_status,
+          weather,
+          engineer_name,
+          signature_date,
+          organisation_id,
+          clients (client_name),
+          projects (project_name),
+          sub_contractors (name, count, start_time, end_time),
+          work_carried_out (description),
+          milestones_completed (description)
+        `)
+        .eq('id', reportId)
+        .single();
+
+      if (error || !report) throw error || new Error('Report not found');
+
+      const siteReportData = {
+        id: report.id,
+        report_date: report.report_date,
+        client_name: (report.clients as any)?.client_name,
+        project_name: (report.projects as any)?.project_name,
+        pm_name: report.pm_name || '',
+        pm_status: report.pm_status,
+        weather: report.weather || '',
+        manpower: {
+          subContractors: (report as any).sub_contractors || [],
+          workCarriedOut: (report as any).work_carried_out || [],
+          milestonesCompleted: (report as any).milestones_completed || []
+        },
+        photos: [],
+        footer: {
+          enginear: report.engineer_name || '',
+          signatureDate: report.signature_date || ''
+        }
+      };
+
+      const doc = generateProGridSiteReportPdf({
+        siteReport: siteReportData,
+        organisation: organisation || { id: report.organisation_id, name: 'MEP Project' },
+        orientation: 'portrait',
+        pageFormat: 'a4'
+      });
+
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `site-report-${report.report_date}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("PDF downloaded successfully");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to download PDF: ${err.message}`);
+    }
+  };
+
   if (view === 'list') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 pt-0 pb-8">
-          {/* Header */}
-          <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                  <FileSearch className="w-7 h-7 text-white" />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                    Site Operations
-                  </span>
-                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
-                    Site Reports
-                  </h1>
-                  <p className="text-sm text-zinc-600 font-medium">
-                    View and manage daily progress reports
-                  </p>
-                </div>
+      <div className="flex flex-col h-full bg-white">
+        {/* Bulk Action Header */}
+        {selectedReports.length > 0 && (
+          <div className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">
+            <div className="flex items-center gap-3">
+              <Checkbox 
+                checked={true}
+                onCheckedChange={() => setSelectedReports([])}
+                className="h-4 w-4 border-2 border-white rounded data-[state=checked]:bg-white data-[state=checked]:border-white"
+              />
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">{selectedReports.length} Selected</span>
+                <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Bulk Actions</span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white/80 backdrop-blur-sm px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200">
-                <Search className="w-4 h-4 text-zinc-400" />
-                <Input 
-                  placeholder="Search reports..." 
-                  className="h-8 w-56 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 placeholder:text-zinc-400"
-                />
-              </div>
-              <Badge
-                variant="neutral"
-                className="text-[13px] h-8 font-bold px-3 bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-50 transition-all cursor-default"
-              >
-                {reportsLoading ? "..." : `${reports?.length || 0} reports`}
-              </Badge>
-              <ShadcnButton 
-                onClick={() => {
-                  form.reset();
-                  setView('create');
+            <div className="flex items-center gap-3">
+              <button 
+                type="button"
+                className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-zinc-100 transition-colors active:scale-[0.98]"
+                onClick={async () => {
+                  for (const id of selectedReports) {
+                    await downloadReportPDF(id);
+                  }
                 }}
-                className="h-9 px-4 text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 shadow-lg shadow-zinc-900/10 transition-all active:scale-95"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Report
-              </ShadcnButton>
-              <ShadcnButton 
-                variant="outline"
-                onClick={handlePrintPDF}
-                disabled={view !== 'edit'}
-                className="h-9 px-4 text-sm font-bold border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-all active:scale-95 disabled:opacity-50"
+                Print
+              </button>
+              <button 
+                type="button"
+                className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-red-700 transition-colors active:scale-[0.98]"
+                onClick={() => setSelectedReports([])}
               >
-                <FileText className="w-4 h-4 mr-2" />
-                Print PDF
-              </ShadcnButton>
+                Cancel
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Table */}
-          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-zinc-200 bg-zinc-50/80 hover:bg-zinc-50/80">
-                    <TableHead className="w-12 px-4 align-middle">
-                      <Checkbox 
-                        checked={selectedReports.length === reports?.length && reports?.length > 0}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedReports(reports?.map((r: any) => r.id) || []);
-                          } else {
-                            setSelectedReports([]);
-                          }
-                        }}
-                        className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                      />
-                    </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[120px]">
-                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
-                        Date
-                        <ChevronRight className="w-3 h-3 rotate-90" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[160px]">
-                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
-                        Client
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[160px]">
-                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
-                        Project
-                      </button>
-                    </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[140px]">
-                      <button className="inline-flex items-center gap-1 hover:text-zinc-900 transition-colors">
-                        Engineer
-                      </button>
-                    </TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 min-w-[120px]">
-                      Status
-                    </TableHead>
-                    <TableHead className="h-10 px-4 text-right align-middle text-[13px] font-semibold text-zinc-600 w-[80px]">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="[&_tr:last-child]:border-0">
-                  {reportsLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="px-4 py-12 text-center">
-                        <div className="flex items-center justify-center gap-2 text-zinc-500">
-                          <div className="w-4 h-4 border-2 border-zinc-300 border-t-blue-600 rounded-full animate-spin" />
-                          <span className="text-sm">Loading reports...</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : reports?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="px-4 py-16 text-center">
-                        <div className="mx-auto max-w-sm space-y-2">
-                          <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-zinc-400" />
-                          </div>
-                          <div className="text-sm font-semibold text-zinc-900">No reports found</div>
-                          <div className="text-xs text-zinc-500">Create your first site report to get started.</div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    reports?.map((report: any) => (
-                      <TableRow 
-                        key={report.id} 
-                        className={cn(
-                          "border-b border-zinc-100 transition-colors duration-150",
-                          selectedReports.includes(report.id) ? "bg-blue-50/50" : "hover:bg-zinc-50/60"
-                        )}
-                      >
-                        <TableCell className="px-4 py-4 align-middle">
-                          <Checkbox 
-                            checked={selectedReports.includes(report.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedReports(prev => [...prev, report.id]);
-                              } else {
-                                setSelectedReports(prev => prev.filter(id => id !== report.id));
-                              }
-                            }}
-                            className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                          />
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm font-medium text-zinc-900">{new Date(report.report_date).toLocaleDateString()}</span>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm text-zinc-700">{report.clients?.client_name || '-'}</span>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm text-zinc-700">{report.projects?.project_name || '-'}</span>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-middle">
-                          <span className="text-sm text-zinc-700">{report.engineer_name || '-'}</span>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 align-middle">
-                          <Badge 
-                            variant={report.pm_status === 'Reported' ? 'default' : 'neutral'}
-                            className={cn(
-                              "text-xs font-semibold px-3 py-1 rounded-full",
-                              report.pm_status === 'Reported' 
-                                ? "bg-green-100 text-green-700 border border-green-200" 
-                                : "bg-amber-100 text-amber-700 border border-amber-200"
-                            )}
-                          >
-                            {report.pm_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-4 text-right align-middle">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all"
-                              >
-                                <MoreHorizontal size={14} />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              <DropdownMenuItem 
-                                className="flex items-center gap-2 text-sm px-3 py-2 cursor-pointer"
-                                onClick={() => {
-                                  console.log('View report:', report.id);
-                                }}
-                              >
-                                <Clipboard size={14} />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="flex items-center gap-2 text-sm px-3 py-2 cursor-pointer"
-                                onClick={() => {
-                                  console.log('Edit report:', report.id);
-                                }}
-                              >
-                                <Pencil size={14} />
-                                Edit Report
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="flex items-center gap-2 text-sm px-3 py-2 cursor-pointer"
-                                onClick={() => {
-                                  console.log('Download report:', report.id);
-                                }}
-                              >
-                                <Download size={14} />
-                                Download PDF
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {/* Bulk Actions Bar */}
-            {selectedReports.length > 0 && (
-              <div className="sticky bottom-0 bg-zinc-900/95 backdrop-blur-sm border-t border-zinc-200 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Checkbox 
-                    checked={true}
-                    onCheckedChange={() => setSelectedReports([])}
-                    className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-white data-[state=checked]:border-white"
-                  />
-                  <span className="text-sm font-medium text-white">
-                    {selectedReports.length} selected
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ShadcnButton 
-                    size="sm" 
-                    variant="ghost"
-                    className="h-8 text-white hover:bg-zinc-800"
-                    onClick={() => console.log('Bulk download:', selectedReports)}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download All
-                  </ShadcnButton>
-                  <ShadcnButton 
-                    size="sm" 
-                    variant="ghost"
-                    className="h-8 text-white hover:bg-zinc-800"
-                    onClick={() => setSelectedReports([])}
-                  >
-                    Clear
-                  </ShadcnButton>
-                </div>
-              </div>
-            )}
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+          <div className="flex items-center gap-3">
+            <h1 className="text-base font-medium text-zinc-900">Site Reports</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+              {reportsLoading ? "..." : `${reports?.length || 0}`}
+            </span>
           </div>
+          
+          <div className="flex items-center gap-4">
+            <input 
+              type="text"
+              placeholder="Search reports..." 
+              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            
+            <button 
+              type="button"
+              onClick={() => {
+                form.reset();
+                setView('create');
+              }}
+              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Report
+            </button>
+          </div>
+        </div>
+
+        {/* Table container */}
+        <div className="flex-1 overflow-auto">
+          <table className="w-full border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <th className="sticky top-0 z-10 h-[36px] w-[50px] px-4 text-center align-middle bg-white border-b border-zinc-200">
+                  <Checkbox 
+                    checked={selectedReports.length === reports?.length && reports?.length > 0}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedReports(reports?.map((r: any) => r.id) || []);
+                      } else {
+                        setSelectedReports([]);
+                      }
+                    }}
+                    className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                  />
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
+                    Date
+                    <ChevronRight className="w-3 h-3 rotate-90 text-zinc-300 group-hover:text-zinc-400" />
+                  </button>
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
+                    Client
+                  </button>
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
+                    Project
+                  </button>
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
+                    Engineer
+                  </button>
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
+                  Status
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] w-[70px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {reportsLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-[26px] align-middle text-center bg-white">
+                    <div className="flex items-center justify-center gap-2 text-zinc-500">
+                      <div className="w-4 h-4 border-2 border-zinc-300 border-t-blue-600 rounded-full animate-spin" />
+                      <span className="text-sm">Loading reports...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : reports?.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-16 text-center text-sm text-zinc-500 bg-white">
+                    <div className="mx-auto max-w-sm space-y-2">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 flex items-center justify-center">
+                         <FileText className="w-6 h-6 text-zinc-400" />
+                      </div>
+                      <div className="text-sm font-semibold text-zinc-900">No reports found</div>
+                      <div className="text-xs text-zinc-500">Create your first site report to get started.</div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                reports?.map((report: any, idx: number) => {
+                  const isSelected = selectedReports.includes(report.id);
+                  const isEven = idx % 2 === 0;
+                  return (
+                    <tr 
+                      key={report.id}
+                      className={cn(
+                        "border-t border-zinc-200/70 transition-all duration-150 group",
+                        isEven ? "bg-white" : "bg-zinc-50/30",
+                        isSelected ? "bg-indigo-50/50 border-l-2 border-l-blue-600" : "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm"
+                      )}
+                    >
+                      <td className="px-4 py-[26px] text-center align-middle">
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedReports(prev => [...prev, report.id]);
+                            } else {
+                              setSelectedReports(prev => prev.filter(id => id !== report.id));
+                            }
+                          }}
+                          className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        />
+                      </td>
+                      <td className="px-6 py-[26px] align-middle">
+                        <span className="text-sm font-medium text-zinc-900">
+                          {new Date(report.report_date).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle max-w-[180px] truncate" title={report.clients?.client_name || '-'}>
+                        <span className="text-sm text-zinc-800">
+                          {report.clients?.client_name || '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle max-w-[350px] truncate" title={report.projects?.project_name || '-'}>
+                        <span className="text-sm text-zinc-800">
+                          {report.projects?.project_name || '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle">
+                        <span className="text-sm text-zinc-800">
+                          {report.engineer_name || '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle">
+                        <span 
+                          className="text-sm font-medium inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border"
+                          style={{
+                            color: report.pm_status === 'Reported' ? '#047857' : '#b45309',
+                            backgroundColor: report.pm_status === 'Reported' ? '#ecfdf5' : '#fffbeb',
+                            borderColor: report.pm_status === 'Reported' ? '#a7f3d0' : '#fde68a'
+                          }}
+                        >
+                          {report.pm_status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] text-center align-middle w-[70px]">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all active:scale-[0.98]"
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44 bg-white border border-zinc-200/60 p-1 shadow-lg shadow-black/5 rounded-lg z-[100]">
+                            <DropdownMenuItem 
+                              style={{ padding: '6px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
+                              onClick={() => {
+                                console.log('View report:', report.id);
+                              }}
+                            >
+                              <Clipboard className="w-3.5 h-3.5" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              style={{ padding: '6px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
+                              onClick={() => {
+                                console.log('Edit report:', report.id);
+                              }}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Edit Report
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              style={{ padding: '6px' }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98] cursor-pointer"
+                              onClick={() => {
+                                downloadReportPDF(report.id);
+                              }}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Download PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     );
