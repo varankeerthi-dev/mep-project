@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDeferredValue } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { useSiteVisits, useClients, useVisitPurposes, useProjectManagers, useAddSiteVisit, useUpdateSiteVisit, useAddPurpose } from '../hooks/useSiteVisits';
+import { useProjects } from '../hooks/useProjects';
+import { siteVisitScheduleSchema } from '../lib/validations/siteVisit';
 import { 
   Plus, 
   MapPin, 
@@ -28,7 +31,11 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCcw,
-  X
+  X,
+  Eye,
+  Download,
+  Activity,
+  History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
@@ -169,7 +176,7 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
   );
 };
 
-const SiteVisitUpdatesView = ({ visits, onEdit, onDelete }: any) => {
+const SiteVisitUpdatesView = ({ visits, onEdit, onDelete, onView }: any) => {
   return (
     <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
@@ -236,6 +243,13 @@ const SiteVisitUpdatesView = ({ visits, onEdit, onDelete }: any) => {
                 <td className="px-4 py-[8px] align-top">
                   <div className="flex items-center gap-2">
                     <button 
+                      onClick={() => onView?.(v)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                      title="View"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button 
                       onClick={() => onEdit(v)}
                       className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
                       title="Edit"
@@ -267,10 +281,29 @@ const SiteVisitUpdatesView = ({ visits, onEdit, onDelete }: any) => {
   );
 };
 
+const PaginationBar = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }: any) => {
+  const pages = [];
+  for (let i = 1; i <= totalPages; i++) pages.push(i);
+  return (
+    <div className="flex items-center justify-between">
+      <div className="text-sm text-zinc-500">
+        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}–{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
+      </div>
+      <div className="flex items-center gap-2">
+        <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} style={{ padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', color: currentPage === 1 ? '#d4d4d4' : '#525252', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px' }}>Prev</button>
+        {pages.map(p => (
+          <button key={p} onClick={() => onPageChange(p)} style={{ padding: '6px 12px', border: p === currentPage ? '1px solid #3b82f6' : '1px solid #d4d4d4', borderRadius: '6px', background: p === currentPage ? '#eff6ff' : '#fff', color: p === currentPage ? '#3b82f6' : '#525252', cursor: 'pointer', fontSize: '13px', fontWeight: p === currentPage ? 600 : 400 }}>{p}</button>
+        ))}
+        <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} style={{ padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', color: currentPage === totalPages ? '#d4d4d4' : '#525252', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: '13px' }}>Next</button>
+      </div>
+    </div>
+  );
+};
+
 export function SiteVisits() {
   const { user, organisation } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'calendar' | 'updates'>('table');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isAddPurposeModalOpen, setIsAddPurposeModalOpen] = useState(false);
@@ -281,6 +314,51 @@ export function SiteVisits() {
   const [batchDeleteProgress, setBatchDeleteProgress] = useState<{ current: number; total: number } | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [newPurposeName, setNewPurposeName] = useState('');
+  const [visitToView, setVisitToView] = useState<any | null>(null);
+  const [visitActivityLogs, setVisitActivityLogs] = useState<any[]>([]);
+  const [visitActivityLoading, setVisitActivityLoading] = useState(false);
+  const [isGlobalActivityOpen, setIsGlobalActivityOpen] = useState(false);
+  const [globalActivityLogs, setGlobalActivityLogs] = useState<any[]>([]);
+  const [globalActivityLoading, setGlobalActivityLoading] = useState(false);
+
+  const fetchVisitActivity = async (visitId: string) => {
+    if (!organisation?.id || !visitId) return;
+    setVisitActivityLoading(true);
+    try {
+      const { data } = await supabase
+        .from('site_visit_activity_log')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .eq('site_visit_id', visitId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      setVisitActivityLogs(data || []);
+    } catch { setVisitActivityLogs([]); }
+    setVisitActivityLoading(false);
+  };
+
+  const fetchGlobalActivity = async () => {
+    if (!organisation?.id) return;
+    setGlobalActivityLoading(true);
+    try {
+      const { data } = await supabase
+        .from('site_visit_activity_log')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      setGlobalActivityLogs(data || []);
+    } catch { setGlobalActivityLogs([]); }
+    setGlobalActivityLoading(false);
+  };
+
+  useEffect(() => {
+    if (visitToView?.id) {
+      fetchVisitActivity(visitToView.id);
+    } else {
+      setVisitActivityLogs([]);
+    }
+  }, [visitToView?.id]);
 
   const toggleVisitSelection = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -307,7 +385,29 @@ export function SiteVisits() {
     next_step: '',
     follow_up_date: '',
     postponed_reason: '',
-    is_client_meeting: false
+    is_client_meeting: false,
+    project_id: '',
+    po_wo_contract: '',
+    project_manager_id: '',
+    site_contact_person: '',
+    site_contact_phone: '',
+    site_contact_designation: '',
+    visit_type: 'Survey',
+    priority: 'Standard',
+    ppe_requirements: '',
+    is_chargeable: false,
+    access_restrictions: '',
+    attendees: [],
+    equipment_used: '',
+    travel_time_minutes: null,
+    total_man_hours: null,
+    weather_conditions: '',
+    safety_hazards: '',
+    issues_found: [],
+    recommendations: '',
+    travel_expense: null,
+    accommodation_expense: null,
+    misc_expense: null,
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -316,7 +416,8 @@ export function SiteVisits() {
   const [projectFilter, setProjectFilter] = useState('all');
   const [engineerFilter, setEngineerFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [updatesPage, setUpdatesPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Memoize status filter button onClick
   const setStatusFilterCallback = useCallback((filter: string) => {
@@ -351,135 +452,44 @@ export function SiteVisits() {
 
   const queryClient = useQueryClient();
 
-  const { data: visits, isLoading: isLoadingVisits } = useQuery({
-    queryKey: ['site-visits', organisation?.id],
-    queryFn: async () => {
-      let query = supabase
-        .from('site_visits')
-        .select(`
-          *,
-          clients (*)
-        `);
-      
-      if (organisation?.id) {
-        query = query.eq('organisation_id', organisation?.id);
+  const { data: visits, isLoading: isLoadingVisits } = useSiteVisits();
+  const { data: clients } = useClients();
+  const { data: purposes } = useVisitPurposes();
+  const { data: projectManagers } = useProjectManagers();
+  const { data: projects } = useProjects();
+
+  const addPurposeMutation = useAddPurpose();
+  const addVisitMutation = useAddSiteVisit();
+  const updateVisitMutation = useUpdateSiteVisit();
+
+  const saveVisit = useMutation({
+    mutationFn: async (data: any) => {
+      if (data.id) {
+        return updateVisitMutation.mutateAsync(data);
       }
-
-      const { data, error } = await query.order('visit_date', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+      return addVisitMutation.mutateAsync(data);
     },
-    enabled: !!organisation?.id,
-    refetchInterval: 30000
-  });
-
-  const { data: clients } = useQuery({
-    queryKey: ['clients', organisation?.id],
-    queryFn: async () => {
-      let query = supabase.from('clients').select('id, client_name');
-      
-      if (organisation?.id) {
-        query = query.eq('organisation_id', organisation?.id);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organisation?.id,
-    refetchInterval: 30000
-  });
-
-  const { data: purposes } = useQuery({
-    queryKey: ['visit-purposes', organisation?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('visit_purposes')
-        .select('id, name')
-        .eq('organisation_id', organisation?.id)
-        .order('name');
-      
-      if (error) {
-        return [
-          { id: '1', name: 'Measurement' },
-          { id: '2', name: 'Complaint' },
-          { id: '3', name: 'Friendly Call' },
-          { id: '4', name: 'Bill Submission' },
-          { id: '5', name: 'Meeting' }
-        ];
-      }
-      return data;
-    },
-    enabled: !!organisation?.id
-  });
-
-  const addPurposeMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const { data, error } = await supabase
-        .from('visit_purposes')
-        .insert([{ name, organisation_id: organisation?.id }])
-        .select();
-      if (error) throw error;
-      return data[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visit-purposes'] });
-      toast.success('Purpose added successfully');
-      setIsAddPurposeModalOpen(false);
-    },
-    onError: (error: any) => {
-      toast.error(`Error adding purpose: ${error.message}`);
-    }
-  });
-
-  const addVisitMutation = useMutation({
-    mutationFn: async (newVisit: any) => {
-      const { data, error } = await supabase
-        .from('site_visits')
-        .insert([newVisit])
-        .select();
-      
-      if (error) throw error;
-      return data[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-      setIsFormOpen(false);
-      setIsUpdateModalOpen(false);
-      resetForm();
-      toast.success('Site visit saved successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Error saving visit: ${error.message}`);
-    },
-  });
-
-  const updateVisitMutation = useMutation({
-    mutationFn: async (updatedVisit: any) => {
-      const { id, ...updateData } = updatedVisit;
-      // Ensure we don't send relational data back to Supabase
-      delete (updateData as any).clients;
-      
-      const { data, error } = await supabase
-        .from('site_visits')
-        .update(updateData)
-        .eq('id', id)
-        .select();
-      
-      if (error) throw error;
-      return data[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+    onSuccess: (returnedData: any, variables: any) => {
       setIsFormOpen(false);
       setIsUpdateModalOpen(false);
       setSelectedVisit(null);
       resetForm();
-      toast.success('Visit updated successfully');
+      toast.success('Site visit saved successfully');
+
+      const visitId = returnedData?.id || variables?.id;
+      if (visitId) {
+        const isDraft = variables?.status === 'pending' && !variables?.id;
+        if (isDraft) {
+          logSiteVisitActivity(visitId, 'site_visit_draft_saved', 'Site visit saved as draft', `Draft saved for ${variables?.client_id || 'unknown'} by ${user?.email}`);
+        } else if (variables?.id) {
+          logSiteVisitActivity(visitId, 'site_visit_updated', 'Site visit updated', `Visit details updated by ${user?.email}`);
+        } else {
+          logSiteVisitActivity(visitId, 'site_visit_created', 'Site visit created', `New visit created for client ${variables?.client_id || 'unknown'} by ${user?.email}`);
+        }
+      }
     },
     onError: (error: any) => {
-      toast.error(`Error updating visit: ${error.message}`);
+      toast.error(`Error saving visit: ${error.message}`);
     },
   });
 
@@ -491,11 +501,13 @@ export function SiteVisits() {
         .eq('id', id);
       
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id: string) => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setVisitToDelete(null);
       toast.success('Visit deleted successfully');
+      logSiteVisitActivity(id, 'site_visit_deleted', 'Site visit deleted', `Visit ${id} deleted by ${user?.email}`);
     },
     onError: (error: any) => {
       toast.error(`Error deleting visit: ${error.message}`);
@@ -514,12 +526,16 @@ export function SiteVisits() {
         if (error) throw error;
         setBatchDeleteProgress({ current: i + 1, total: ids.length });
       }
+      return ids;
     },
-    onSuccess: () => {
+    onSuccess: (ids: string[]) => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setSelectedVisits([]);
       setBatchDeleteProgress(null);
       toast.success('Selected visits deleted successfully');
+      ids.forEach((id) => {
+        logSiteVisitActivity(id, 'site_visit_deleted', 'Site visit deleted', `Batch delete by ${user?.email}`);
+      });
     },
     onError: (error: any) => {
       setBatchDeleteProgress(null);
@@ -544,15 +560,61 @@ export function SiteVisits() {
       next_step: '',
       follow_up_date: '',
       postponed_reason: '',
-      is_client_meeting: false
+      is_client_meeting: false,
+      project_id: '',
+      po_wo_contract: '',
+      project_manager_id: '',
+      site_contact_person: '',
+      site_contact_phone: '',
+      site_contact_designation: '',
+      visit_type: 'Survey',
+      priority: 'Standard',
+      ppe_requirements: '',
+      is_chargeable: false,
+      access_restrictions: '',
+      attendees: [],
+      equipment_used: '',
+      travel_time_minutes: null,
+      total_man_hours: null,
+      weather_conditions: '',
+      safety_hazards: '',
+      issues_found: [],
+      recommendations: '',
+      travel_expense: null,
+      accommodation_expense: null,
+      misc_expense: null,
     });
     setCurrentStep(1);
     setSelectedVisit(null);
   };
 
+  const logSiteVisitActivity = async (visitId: string, eventType: string, title: string, description: string = '') => {
+    try {
+      const actorName = user?.user_metadata?.full_name || user?.email || 'System';
+      await supabase.from('site_visit_activity_log').insert({
+        organisation_id: organisation?.id,
+        site_visit_id: visitId,
+        event_type: eventType,
+        title,
+        description,
+        actor_id: user?.id,
+        actor_name: actorName,
+      });
+    } catch (err) {
+      console.error('Failed to log activity:', err);
+    }
+  };
+
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    submitVisit(false);
+  };
+
+  const handleSaveDraft = () => {
+    submitVisit(true);
+  };
+
+  const submitVisit = (isDraft: boolean) => {
     if (!organisation?.id) {
       toast.error('Organisation ID missing. Please reload.');
       return;
@@ -561,51 +623,16 @@ export function SiteVisits() {
     // Filter out empty string values for date fields to avoid PostgreSQL errors
     const visitData = {
       ...formData,
+      status: isDraft ? 'pending' : formData.status,
       organisation_id: organisation.id,
       created_by: user?.id,
       follow_up_date: formData.follow_up_date || null,
     };
 
     if (selectedVisit) {
-      updateVisitMutation.mutate({ ...visitData, id: selectedVisit.id });
+      saveVisit.mutate({ ...visitData, id: selectedVisit.id });
     } else {
-      addVisitMutation.mutate(visitData, {
-        onSuccess: async (data) => {
-          // If marked as client meeting, create a meeting record
-          if (formData.is_client_meeting && data?.[0]) {
-            try {
-              const { createMeeting } = await import('../meetings/api/meetings');
-              const clientName = clients?.find((c: any) => c.id === formData.client_id)?.client_name || 'Unknown';
-              
-              const meeting = await createMeeting({
-                organisation_id: organisation.id,
-                project_id: formData.project_id || null,
-                client_name: clientName,
-                meeting_date: formData.visit_date,
-                meeting_time: formData.visit_time || null,
-                location: formData.site_address || null,
-                description: formData.purpose_of_visit || null,
-                meeting_type: 'client',
-                is_site_visit_meeting: true,
-                site_visit_id: data[0].id,
-                status: 'upcoming',
-                minutes_status: 'pending'
-              });
-
-              // Update site visit with meeting_id
-              await supabase
-                .from('site_visits')
-                .update({ meeting_id: meeting.id })
-                .eq('id', data[0].id);
-
-              toast.success('Site visit created with meeting record');
-            } catch (error) {
-              console.error('Failed to create meeting:', error);
-              toast.error('Site visit created but failed to create meeting record');
-            }
-          }
-        }
-      });
+      saveVisit.mutate(visitData);
     }
   };
 
@@ -627,7 +654,29 @@ export function SiteVisits() {
       next_step: visit.next_step || '',
       follow_up_date: visit.follow_up_date || '',
       postponed_reason: visit.postponed_reason || '',
-      is_client_meeting: visit.is_client_meeting || false
+      is_client_meeting: visit.is_client_meeting || false,
+      project_id: visit.project_id || '',
+      po_wo_contract: visit.po_wo_contract || '',
+      project_manager_id: visit.project_manager_id || '',
+      site_contact_person: visit.site_contact_person || '',
+      site_contact_phone: visit.site_contact_phone || '',
+      site_contact_designation: visit.site_contact_designation || '',
+      visit_type: visit.visit_type || 'Survey',
+      priority: visit.priority || 'Standard',
+      ppe_requirements: visit.ppe_requirements || '',
+      is_chargeable: visit.is_chargeable || false,
+      access_restrictions: visit.access_restrictions || '',
+      attendees: visit.attendees || [],
+      equipment_used: visit.equipment_used || '',
+      travel_time_minutes: visit.travel_time_minutes || null,
+      total_man_hours: visit.total_man_hours || null,
+      weather_conditions: visit.weather_conditions || '',
+      safety_hazards: visit.safety_hazards || '',
+      issues_found: visit.issues_found || [],
+      recommendations: visit.recommendations || '',
+      travel_expense: visit.travel_expense || null,
+      accommodation_expense: visit.accommodation_expense || null,
+      misc_expense: visit.misc_expense || null,
     });
     // Open the simple form only if the detailed update modal is not active
     if (!isUpdateModalOpen) {
@@ -702,6 +751,12 @@ export function SiteVisits() {
     return filteredVisits.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredVisits, currentPage, itemsPerPage]);
 
+  const updatesTotalPages = Math.ceil(filteredVisits.length / itemsPerPage);
+  const paginatedUpdates = useMemo(() => {
+    const startIndex = (updatesPage - 1) * itemsPerPage;
+    return filteredVisits.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredVisits, updatesPage, itemsPerPage]);
+
   // Get unique engineers for filter
   const engineers = useMemo(() => {
     if (!visits) return [];
@@ -712,6 +767,95 @@ export function SiteVisits() {
     });
     return Array.from(engineerSet);
   }, [visits]);
+
+  // Filter projects by selected client
+  const filteredProjects = useMemo(() => {
+    if (!formData.client_id || !projects) return [];
+    return projects.filter((p: any) => p.client_id === formData.client_id);
+  }, [formData.client_id, projects]);
+
+  const handleClientChange = (value: string) => {
+    setFormData({ ...formData, client_id: value, project_id: '' });
+  };
+
+  const CustomSelect = ({ value, options, onChange, placeholder, style }: { value: string; options: { value: string; label: string }[]; onChange: (val: string) => void; placeholder?: string; style?: React.CSSProperties }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selectedLabel = options.find((o) => o.value === value)?.label;
+
+    return (
+      <div ref={ref} style={{ position: 'relative', ...style }}>
+        <div
+          onClick={() => setOpen(!open)}
+          style={{
+            padding: '8px 12px',
+            border: '1px solid #d4d4d4',
+            borderRadius: '4px',
+            fontSize: '14px',
+            color: value ? '#171717' : '#999',
+            background: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            userSelect: 'none',
+          }}
+        >
+          {selectedLabel || placeholder || 'Select...'}
+          <span style={{ marginLeft: '8px', fontSize: '10px', color: '#999' }}>▾</span>
+        </div>
+        {open && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 1000,
+              maxHeight: '200px',
+              overflowY: 'auto',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
+              background: '#fff',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              marginTop: '2px',
+            }}
+          >
+            {options.length === 0 && (
+              <div style={{ padding: '8px 12px', color: '#999', fontSize: '13px' }}>No options</div>
+            )}
+            {options.map((option) => (
+              <div
+                key={option.value}
+                onClick={() => { onChange(option.value); setOpen(false); }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.background = option.value === value ? '#f0f7ff' : '#fff'}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  background: option.value === value ? '#f0f7ff' : '#fff',
+                  color: '#171717',
+                  fontSize: '14px',
+                  borderBottom: '1px solid #f0f0f0',
+                }}
+              >
+                {option.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Select all toggle
   const toggleSelectAll = () => {
@@ -788,6 +932,19 @@ export function SiteVisits() {
               />
             </div>
           <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => { setIsGlobalActivityOpen(true); fetchGlobalActivity(); }}
+                  style={{
+                    height: '44px', padding: '0 14px', borderRadius: '12px',
+                    border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280',
+                    fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <History size={15} />
+                  Activity Log
+                </button>
                 <Button 
                   onClick={() => setIsUpdateModalOpen(true)}
                   variant="outline"
@@ -1183,6 +1340,12 @@ export function SiteVisits() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
+                            onClick={() => setVisitToView(visit)}
+                            className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-4 h-4 text-blue-600" />
+                          </button>
+                          <button
                             onClick={() => handleEditVisit(visit)}
                             className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
                           >
@@ -1380,17 +1543,12 @@ export function SiteVisits() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>CLIENT *</label>
-                    <select
+                    <CustomSelect
                       value={formData.client_id}
-                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                      required
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', background: '#fff' }}
-                    >
-                      <option value="">Select client</option>
-                      {clients?.map((client: any) => (
-                        <option key={client.id} value={client.id}>{client.client_name}</option>
-                      ))}
-                    </select>
+                      onChange={handleClientChange}
+                      placeholder="Select client"
+                      options={clients?.map((c: any) => ({ value: c.id, label: c.client_name })) || []}
+                    />
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1480,7 +1638,7 @@ export function SiteVisits() {
                     <textarea
                       value={formData.discussion_points}
                       onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
-                      placeholder="What was discussed or observed..."
+                      placeholder="Pre-visit notes, objectives, or agenda items..."
                       style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', minHeight: '80px', resize: 'vertical' }}
                     />
                   </div>
@@ -1512,23 +1670,44 @@ export function SiteVisits() {
                 >
                   Cancel
                 </button>
+                {!selectedVisit && (
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={saveVisit.isPending}
+                    style={{
+                      flex: 1,
+                      padding: '10px 16px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      background: '#f5f5f5',
+                      color: '#525252',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      cursor: saveVisit.isPending ? 'not-allowed' : 'pointer',
+                      opacity: saveVisit.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    {saveVisit.isPending ? 'Saving...' : 'Save as Draft'}
+                  </button>
+                )}
                 <button
                   type="submit"
-                  disabled={addVisitMutation.isPending || updateVisitMutation.isPending}
+                  disabled={saveVisit.isPending}
                   style={{
                     flex: 1,
                     padding: '10px 16px',
                     border: 'none',
                     borderRadius: '4px',
-                    background: '#171717',
+                    background: selectedVisit ? '#171717' : '#16a34a',
                     color: '#fff',
                     fontSize: '14px',
                     fontWeight: 500,
-                    cursor: (addVisitMutation.isPending || updateVisitMutation.isPending) ? 'not-allowed' : 'pointer',
-                    opacity: (addVisitMutation.isPending || updateVisitMutation.isPending) ? 0.6 : 1,
+                    cursor: saveVisit.isPending ? 'not-allowed' : 'pointer',
+                    opacity: saveVisit.isPending ? 0.6 : 1,
                   }}
                 >
-                  {addVisitMutation.isPending || updateVisitMutation.isPending
+                  {saveVisit.isPending
                     ? 'Saving...'
                     : selectedVisit
                     ? 'Update Visit'
@@ -1653,17 +1832,13 @@ export function SiteVisits() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CLIENT *</label>
-                    <select
+                    <CustomSelect
                       value={formData.client_id}
-                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                      required
-                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
-                    >
-                      <option value="">Select client</option>
-                      {clients?.map((client: any) => (
-                        <option key={client.id} value={client.id}>{client.client_name}</option>
-                      ))}
-                    </select>
+                      onChange={handleClientChange}
+                      placeholder="Select client"
+                      options={clients?.map((c: any) => ({ value: c.id, label: c.client_name })) || []}
+                      style={{ fontSize: '13px' }}
+                    />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1874,10 +2049,10 @@ export function SiteVisits() {
                 </button>
                 <button
                   type="submit"
-                  disabled={addVisitMutation.isPending || updateVisitMutation.isPending}
+                  disabled={saveVisit.isPending}
                   style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: '#171717', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  {addVisitMutation.isPending || updateVisitMutation.isPending ? 'Processing...' : selectedVisit ? 'Update Records' : 'Save Update'}
+                  {saveVisit.isPending ? 'Processing...' : selectedVisit ? 'Update Records' : 'Save Update'}
                 </button>
               </div>
             </form>
@@ -1886,11 +2061,23 @@ export function SiteVisits() {
       )}
 
       {viewMode === 'updates' && (
-        <SiteVisitUpdatesView 
-          visits={filteredVisits} 
-          onEdit={handleEditVisit}
-          onDelete={handleDeleteVisit}
-        />
+        <>
+          <SiteVisitUpdatesView 
+            visits={paginatedUpdates} 
+            onEdit={handleEditVisit}
+            onDelete={handleDeleteVisit}
+            onView={(v: any) => setVisitToView(v)}
+          />
+          {updatesTotalPages >= 1 && (
+            <PaginationBar
+              currentPage={updatesPage}
+              totalPages={updatesTotalPages}
+              totalItems={filteredVisits.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setUpdatesPage}
+            />
+          )}
+        </>
       )}
 
       {viewMode === 'calendar' && (
@@ -1903,6 +2090,171 @@ export function SiteVisits() {
           }}
           onVisitClick={(visit) => handleEditVisit(visit)}
         />
+      )}
+
+      {/* View Visit Modal */}
+      {visitToView && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }} onClick={() => setVisitToView(null)}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', width: '95%',
+            maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px', borderBottom: '1px solid #e5e5e5',
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#171717', margin: 0 }}>
+                Site Visit Details
+              </h3>
+              <button onClick={() => setVisitToView(null)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '4px', border: 'none', background: 'transparent',
+                color: '#525252', cursor: 'pointer', borderRadius: '4px',
+              }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Client</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#171717' }}>{visitToView.clients?.client_name || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Date</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#171717' }}>{visitToView.visit_date ? format(parseISO(visitToView.visit_date), 'dd MMM yyyy') : '--'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Purpose</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#171717' }}>{visitToView.purpose_of_visit || '--'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Status</div>
+                  <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider",
+                    visitToView.status === 'completed' ? 'bg-green-100 text-green-700' :
+                    visitToView.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                    visitToView.status === 'postponed' ? 'bg-amber-100 text-amber-700' :
+                    'bg-zinc-100 text-zinc-600'
+                  )}>{visitToView.status}</span>
+                </div>
+              </div>
+
+              {/* Activity Log Section */}
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Activity size={14} color="#6b7280" />
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Activity Log</span>
+                </div>
+                {visitActivityLoading ? (
+                  <div style={{ fontSize: '13px', color: '#999', padding: '8px 0' }}>Loading...</div>
+                ) : visitActivityLogs.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: '#999', padding: '8px 0' }}>No activity recorded yet.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {visitActivityLogs.map((log: any) => (
+                      <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#d1d5db', marginTop: '6px', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: '#171717' }}>{log.title}</div>
+                          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{log.description}</div>
+                          <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
+                            {log.actor_name} &middot; {log.created_at ? format(parseISO(log.created_at), 'dd MMM yyyy, h:mm a') : ''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Activity Log Modal */}
+      {isGlobalActivityOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px',
+            width: '95%', maxWidth: '650px', maxHeight: '80vh',
+            overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px', borderBottom: '1px solid #f0f0f0',
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#171717', margin: 0 }}>
+                <Activity size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#6b7280' }} />
+                Activity Log
+              </h3>
+              <button onClick={() => setIsGlobalActivityOpen(false)}
+                style={{ padding: '6px', border: 'none', background: 'transparent', color: '#a3a3a3', cursor: 'pointer', borderRadius: '50%' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              {globalActivityLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : globalActivityLogs.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
+                  <Activity size={24} />
+                  <p className="text-sm font-medium">No activity recorded yet</p>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  {globalActivityLogs.map((log: any, idx: number) => (
+                    <div key={log.id || idx} style={{ display: 'flex', gap: '12px', paddingBottom: idx < globalActivityLogs.length - 1 ? '16px' : 0 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{
+                          width: '10px', height: '10px', borderRadius: '50%',
+                          background: log.event_type?.includes('created') ? '#16a34a' :
+                            log.event_type?.includes('updated') ? '#3b82f6' :
+                            log.event_type?.includes('deleted') ? '#ef4444' : '#6b7280',
+                          flexShrink: 0, marginTop: '4px',
+                        }} />
+                        {idx < globalActivityLogs.length - 1 && (
+                          <div style={{ width: '1px', flex: 1, background: '#e5e7eb', marginTop: '4px' }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: '#171717', margin: 0 }}>
+                            {log.title || 'Activity'}
+                          </p>
+                          <span style={{ fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                            {log.created_at ? format(parseISO(log.created_at), 'dd MMM HH:mm') : ''}
+                          </span>
+                        </div>
+                        {log.description && (
+                          <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', lineHeight: 1.4 }}>
+                            {log.description}
+                          </p>
+                        )}
+                        {log.actor_name && (
+                          <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0 0' }}>
+                            by {log.actor_name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
     </div>

@@ -82,10 +82,7 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
         <button className="mobile-menu-btn" onClick={onMenuToggle}>
           {icons.menu}
         </button>
-        <div className="logo">
-          <div className="logo-icon">D</div>
-          <span className="logo-text">DOT ERP</span>
-        </div>
+
       </div>
       
       <div className="top-navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
