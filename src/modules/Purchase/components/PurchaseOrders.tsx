@@ -188,7 +188,7 @@ export const PurchaseOrders: React.FC = () => {
   const [referenceNo, setReferenceNo] = useState('');
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
-  const [selectedMaterialIds, setSelectedMaterialIds] = useState<Set<string>>(new Set());
+  const [pickerItems, setPickerItems] = useState<any[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -519,16 +519,44 @@ export const PurchaseOrders: React.FC = () => {
 
   const openItemPicker = () => {
     setPickerSearch('');
-    setSelectedMaterialIds(new Set());
+    setPickerItems([]);
     setItemPickerOpen(true);
   };
 
-  const addSelectedMaterials = async () => {
-    const selected = materials.filter(m => selectedMaterialIds.has(m.id));
-    if (selected.length === 0) return;
+  const handleAddToPicker = (material: any) => {
+    const existing = pickerItems.find((p: any) => p.item_id === material.id);
+    if (existing) {
+      setPickerItems(pickerItems.map((p: any) =>
+        p.item_id === material.id ? { ...p, qty: p.qty + 1 } : p
+      ));
+    } else {
+      setPickerItems([...pickerItems, {
+        item_id: material.id,
+        material,
+        qty: 1,
+        rate: material.purchase_price || material.sale_price || 0,
+        unit: material.unit || 'Nos',
+        gst_rate: material.gst_rate || 0,
+      }]);
+    }
+  };
+
+  const handlePickerQtyChange = (itemId: string, qty: number) => {
+    setPickerItems(pickerItems.map((p: any) =>
+      p.item_id === itemId ? { ...p, qty: Math.max(0.01, qty) } : p
+    ));
+  };
+
+  const handleRemoveFromPicker = (itemId: string) => {
+    setPickerItems(pickerItems.filter((p: any) => p.item_id !== itemId));
+  };
+
+  const handleAddItemsToPO = async () => {
+    if (pickerItems.length === 0) return;
     const newItems: POItem[] = [];
-    for (const material of selected) {
-      let rate = material.purchase_price || material.sale_price || 0;
+    for (const p of pickerItems) {
+      const material = p.material;
+      let rate = p.rate;
       let make = material.make || '';
       let discount = 0;
       if (vendorId) {
@@ -556,8 +584,8 @@ export const PurchaseOrders: React.FC = () => {
         variant: '',
         description: '',
         hsn_code: material.hsn_code || '',
-        quantity: 1,
-        unit: material.unit || 'Nos',
+        quantity: p.qty,
+        unit: p.unit || 'Nos',
         rate,
         discount_percent: discount,
         discount_amount: 0,
@@ -576,8 +604,8 @@ export const PurchaseOrders: React.FC = () => {
       return [...prev, ...newItems.map((item, i) => ({ ...item, sr: maxSr + i + 1 }))];
     });
     markDirty();
+    setPickerItems([]);
     setItemPickerOpen(false);
-    setSelectedMaterialIds(new Set());
   };
 
   const filteredPickerMaterials = useMemo(() => {
@@ -970,8 +998,8 @@ export const PurchaseOrders: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <button onClick={openItemPicker} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-                  <ShoppingCart className="w-4 h-4 mr-1.5" /> Browse Catalog
+                <button onClick={openItemPicker} className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Multiple Items
                 </button>
                 <button onClick={addItem} className="inline-flex items-center justify-center text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
                   <Plus className="w-4 h-4 mr-1.5" /> Add Item
@@ -1120,7 +1148,7 @@ export const PurchaseOrders: React.FC = () => {
                     });
                   })()}
                   {items.length === 0 && (
-                    <tr><td colSpan={itemCols.size + 2} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" to start.</td></tr>
+                    <tr><td colSpan={itemCols.size + 2} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" or "Add Multiple Items" to start.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1309,126 +1337,121 @@ export const PurchaseOrders: React.FC = () => {
           </div>
         </div>
 
-        {/* Item Picker Modal */}
+        {/* Item Picker Modal — two-panel layout */}
         {itemPickerOpen && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-            <div style={{ background: '#fff', borderRadius: '12px', padding: '0', maxWidth: '800px', width: '95%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999]" onClick={() => setItemPickerOpen(false)}>
+            <div style={{ background: '#fff', borderRadius: '12px', padding: '0', maxWidth: '750px', width: '95%', height: '80vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-                <h3 className="text-base font-bold text-zinc-900">Browse Material Catalog</h3>
+                <h3 className="text-base font-bold text-zinc-900">Add Multiple Items</h3>
                 <button onClick={() => setItemPickerOpen(false)} className="p-1 rounded hover:bg-zinc-100 text-zinc-400"><X className="w-4 h-4" /></button>
               </div>
-              <div className="px-6 py-3 border-b border-zinc-100">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                  <input
-                    value={pickerSearch}
-                    onChange={(e) => setPickerSearch(e.target.value)}
-                    placeholder="Search materials by name, HSN code, or make..."
-                    className="w-full pl-10 pr-4 h-[38px] text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div className="flex-1 overflow-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2.5 font-bold w-10">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
-                          checked={filteredPickerMaterials.length > 0 && selectedMaterialIds.size === filteredPickerMaterials.length}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedMaterialIds(new Set(filteredPickerMaterials.map((m: any) => m.id)));
-                            } else {
-                              setSelectedMaterialIds(new Set());
-                            }
-                          }}
-                        />
-                      </th>
-                      <th className="px-3 py-2.5 font-bold">Item Name</th>
-                      <th className="px-3 py-2.5 font-bold w-24">HSN Code</th>
-                      <th className="px-3 py-2.5 font-bold w-16">Unit</th>
-                      <th className="px-3 py-2.5 font-bold w-20">Make</th>
-                      <th className="px-3 py-2.5 font-bold w-16 text-right">Rate</th>
-                      <th className="px-3 py-2.5 font-bold w-12 text-center">GST</th>
-                      <th className="px-3 py-2.5 font-bold w-20">Type</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {filteredPickerMaterials.length === 0 && (
-                      <tr><td colSpan={8} className="px-4 py-12 text-center text-zinc-400 italic">No materials found.</td></tr>
-                    )}
-                    {filteredPickerMaterials.map((m: any) => (
-                      <tr
-                        key={m.id}
-                        className={cn(
-                          "hover:bg-zinc-50 cursor-pointer transition-colors",
-                          selectedMaterialIds.has(m.id) && "bg-indigo-50/40"
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                {/* Left panel — searchable material list */}
+                <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb' }}>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <input
+                        value={pickerSearch}
+                        onChange={(e) => setPickerSearch(e.target.value)}
+                        placeholder="Search materials by name, HSN, or make..."
+                        className="w-full pl-10 pr-4 h-[38px] text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                        <tr>
+                          <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb' }}>Item Name</th>
+                          <th style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '80px' }}>Rate</th>
+                          <th style={{ padding: '8px', textAlign: 'center', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '60px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPickerMaterials.length === 0 && (
+                          <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>No materials found.</td></tr>
                         )}
-                        onClick={() => {
-                          setSelectedMaterialIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(m.id)) next.delete(m.id);
-                            else next.add(m.id);
-                            return next;
-                          });
-                        }}
-                      >
-                        <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
-                            checked={selectedMaterialIds.has(m.id)}
-                            onChange={() => {
-                              setSelectedMaterialIds(prev => {
-                                const next = new Set(prev);
-                                if (next.has(m.id)) next.delete(m.id);
-                                else next.add(m.id);
-                                return next;
-                              });
-                            }}
-                          />
-                        </td>
-                        <td className="px-3 py-2.5 font-medium text-zinc-800 max-w-[200px] truncate">{m.display_name || m.name}</td>
-                        <td className="px-3 py-2.5 text-zinc-500 font-mono text-[10px]">{m.hsn_code || '-'}</td>
-                        <td className="px-3 py-2.5 text-zinc-600">{m.unit || '-'}</td>
-                        <td className="px-3 py-2.5 text-zinc-600 max-w-[100px] truncate">{m.make || '-'}</td>
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums text-zinc-700">
-                          {(m.purchase_price || m.sale_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-3 py-2.5 text-center">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600">{m.gst_rate || 0}%</span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className="text-[10px] uppercase text-zinc-400 font-medium">{m.type || 'material'}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-between">
-                <span className="text-sm text-zinc-500">
-                  {selectedMaterialIds.size > 0 ? (
-                    <><strong className="text-zinc-700">{selectedMaterialIds.size}</strong> material(s) selected</>
-                  ) : (
-                    'Select materials to add'
-                  )}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setItemPickerOpen(false)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-                    Cancel
-                  </button>
-                  <button
-                    onClick={addSelectedMaterials}
-                    disabled={selectedMaterialIds.size === 0}
-                    className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
-                  >
-                    <Plus className="w-4 h-4 mr-1.5" /> Add Selected
-                  </button>
+                        {filteredPickerMaterials.map((m: any) => {
+                          const isSelected = pickerItems.some((p: any) => p.item_id === m.id);
+                          return (
+                            <tr
+                              key={m.id}
+                              style={{ cursor: isSelected ? 'default' : 'pointer', background: isSelected ? '#f0fdf4' : '#fff' }}
+                              onClick={() => { if (!isSelected) handleAddToPicker(m); }}
+                            >
+                              <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                                <div style={{ fontWeight: 500, color: '#1e293b', fontSize: '12px' }}>{m.display_name || m.name}</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>{m.hsn_code || ''} {m.make ? '| ' + m.make : ''}</div>
+                              </td>
+                              <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#64748b', fontSize: '12px' }}>
+                                ₹{(m.purchase_price || m.sale_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
+                                {isSelected ? (
+                                  <span style={{ color: '#16a34a', fontSize: '14px' }}>✓</span>
+                                ) : (
+                                  <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>+</button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+                {/* Right panel — selected items with quantity */}
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: '#334155' }}>Selected Items ({pickerItems.length})</h4>
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px' }}>
+                    {pickerItems.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', fontSize: '13px' }}>
+                        No items selected. Click items on the left to add them here.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {pickerItems.map((p: any) => (
+                          <div key={p.item_id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: 500, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.material?.display_name || p.material?.name}</div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <input
+                                type="number"
+                                value={p.qty}
+                                onChange={(e) => handlePickerQtyChange(p.item_id, Number(e.target.value))}
+                                min="0.01"
+                                step="0.01"
+                                style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px', textAlign: 'center' }}
+                              />
+                              <button
+                                onClick={() => handleRemoveFromPicker(p.item_id)}
+                                style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '4px', width: '24px', height: '24px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >×</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-200">
+                <button onClick={() => setItemPickerOpen(false)} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddItemsToPO}
+                  disabled={pickerItems.length === 0}
+                  className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+                  style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+                >
+                  Add to Purchase Order ({pickerItems.length})
+                </button>
               </div>
             </div>
           </div>
