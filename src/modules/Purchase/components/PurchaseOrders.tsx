@@ -373,15 +373,21 @@ export const PurchaseOrders: React.FC = () => {
   }, [poList, searchTerm]);
 
   // Materials for item select
-  useEffect(() => {
-    if (!organisation?.id) return;
-    supabase.from('materials').select('id, name, display_name, hsn_code, unit, purchase_price, sale_price, make, gst_rate, type').eq('organisation_id', organisation.id).order('name').then(({ data }) => {
+  const fetchMaterials = useCallback((orgId: string) => {
+    supabase.from('materials').select('id, name, display_name, hsn_code, unit, purchase_price, sale_price, make, gst_rate, type').eq('organisation_id', orgId).order('name').then(({ data, error }) => {
+      if (error) console.error('Failed to fetch materials:', error);
       if (data) setMaterials(data);
     });
-    supabase.from('material_variants').select('id, variant_name, material_id').eq('organisation_id', organisation.id).then(({ data }) => {
+    supabase.from('material_variants').select('id, variant_name, material_id').eq('organisation_id', orgId).then(({ data, error }) => {
+      if (error) console.error('Failed to fetch variants:', error);
       if (data) setVariants(data);
     });
-  }, [organisation?.id]);
+  }, []);
+
+  useEffect(() => {
+    if (!organisation?.id) return;
+    fetchMaterials(organisation.id);
+  }, [organisation?.id, fetchMaterials]);
 
   // Load PO data for editing
   useEffect(() => {
@@ -518,6 +524,7 @@ export const PurchaseOrders: React.FC = () => {
   }, [isFormPage, editingPOId]);
 
   const openItemPicker = () => {
+    if (materials.length === 0 && organisation?.id) fetchMaterials(organisation.id);
     setPickerSearch('');
     setPickerItems([]);
     setItemPickerOpen(true);
