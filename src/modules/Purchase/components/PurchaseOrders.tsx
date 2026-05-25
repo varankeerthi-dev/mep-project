@@ -269,6 +269,23 @@ export const PurchaseOrders: React.FC = () => {
   const [actionMenuPO, setActionMenuPO] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
+  const ITEM_COLUMNS = [
+    { key: 'item_name', label: 'Item & Description', default: true },
+    { key: 'variant', label: 'Variant', default: true },
+    { key: 'make', label: 'Make', default: true },
+    { key: 'quantity', label: 'Qty', default: true },
+    { key: 'unit', label: 'Unit', default: true },
+    { key: 'rate', label: 'Rate', default: true },
+    { key: 'discount', label: 'Disc%', default: false },
+    { key: 'gst', label: 'GST%', default: true },
+    { key: 'total', label: 'Total', default: true },
+  ];
+  const [itemCols, setItemCols] = useState<Set<string>>(
+    new Set(ITEM_COLUMNS.filter(c => c.default).map(c => c.key))
+  );
+  const [itemColMenuOpen, setItemColMenuOpen] = useState(false);
+  const itemColMenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (colCustomiserRef.current && !colCustomiserRef.current.contains(e.target as Node)) {
@@ -277,12 +294,15 @@ export const PurchaseOrders: React.FC = () => {
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
         setActionMenuPO(null);
       }
+      if (itemColMenuRef.current && !itemColMenuRef.current.contains(e.target as Node)) {
+        setItemColMenuOpen(false);
+      }
     };
-    if (colCustomiserOpen || actionMenuPO) {
+    if (colCustomiserOpen || actionMenuPO || itemColMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [colCustomiserOpen, actionMenuPO]);
+  }, [colCustomiserOpen, actionMenuPO, itemColMenuOpen]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns(prev => {
@@ -875,6 +895,41 @@ export const PurchaseOrders: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">Order Items</h3>
               <div className="flex items-center gap-2">
+                <div className="relative" ref={itemColMenuRef}>
+                  <button
+                    onClick={() => setItemColMenuOpen(!itemColMenuOpen)}
+                    className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100"
+                    style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+                  >
+                    <Columns className="w-4 h-4 mr-1.5" /> Columns
+                  </button>
+                  {itemColMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5">
+                      {ITEM_COLUMNS.map(col => (
+                        <label
+                          key={col.key}
+                          className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+                          style={{ padding: '6px' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={itemCols.has(col.key)}
+                            onChange={() => {
+                              setItemCols(prev => {
+                                const next = new Set(prev);
+                                if (next.has(col.key)) next.delete(col.key);
+                                else next.add(col.key);
+                                return next;
+                              });
+                            }}
+                            className="w-3.5 h-3.5 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
+                          />
+                          {col.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button onClick={openItemPicker} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
                   <ShoppingCart className="w-4 h-4 mr-1.5" /> Browse Catalog
                 </button>
@@ -889,15 +944,15 @@ export const PurchaseOrders: React.FC = () => {
                 <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600">
                   <tr>
                     <th className="px-3 py-2.5 font-bold w-10">#</th>
-                    <th className="px-3 py-2.5 font-bold">Item & Description</th>
-                    <th className="px-3 py-2.5 font-bold w-20">Variant</th>
-                    <th className="px-3 py-2.5 font-bold w-20">Make</th>
-                    <th className="px-3 py-2.5 font-bold w-20 text-center">Qty</th>
-                    <th className="px-3 py-2.5 font-bold w-16">Unit</th>
-                    <th className="px-3 py-2.5 font-bold w-24">Rate</th>
-                    <th className="px-3 py-2.5 font-bold w-16 text-center">Disc%</th>
-                    <th className="px-3 py-2.5 font-bold w-16 text-center">GST%</th>
-                    <th className="px-3 py-2.5 font-bold w-28 text-right">Total</th>
+                    {itemCols.has('item_name') && <th className="px-3 py-2.5 font-bold">Item & Description</th>}
+                    {itemCols.has('variant') && <th className="px-3 py-2.5 font-bold w-20">Variant</th>}
+                    {itemCols.has('make') && <th className="px-3 py-2.5 font-bold w-20">Make</th>}
+                    {itemCols.has('quantity') && <th className="px-3 py-2.5 font-bold w-20 text-center">Qty</th>}
+                    {itemCols.has('unit') && <th className="px-3 py-2.5 font-bold w-16">Unit</th>}
+                    {itemCols.has('rate') && <th className="px-3 py-2.5 font-bold w-24">Rate</th>}
+                    {itemCols.has('discount') && <th className="px-3 py-2.5 font-bold w-16 text-center">Disc%</th>}
+                    {itemCols.has('gst') && <th className="px-3 py-2.5 font-bold w-16 text-center">GST%</th>}
+                    {itemCols.has('total') && <th className="px-3 py-2.5 font-bold w-28 text-right">Total</th>}
                     <th className="px-3 py-2.5 font-bold w-10"></th>
                   </tr>
                 </thead>
@@ -905,95 +960,99 @@ export const PurchaseOrders: React.FC = () => {
                   {items.map((item, index) => (
                     <tr key={index} className="hover:bg-zinc-50/50">
                       <td className="px-3 py-2 text-zinc-400 font-medium">{item.sr}</td>
-                      <td className="px-3 py-2">
-                        <div className="space-y-1.5">
-                          <Select value={item.item_id || ""} onValueChange={async (val) => {
-                            const material = materials.find((m: any) => m.id === val);
-                            if (material) {
-                              updateItem(index, 'item_name', material.display_name || material.name);
-                              updateItem(index, 'item_id', material.id);
-                              updateItem(index, 'hsn_code', material.hsn_code || '');
-                              updateItem(index, 'unit', material.unit || 'Nos');
-                              let rate = material.purchase_price || material.sale_price || 0;
-                              let make = material.make || '';
-                              let variant = '';
-                              let discount = 0;
-                              if (vendorId) {
-                                const { data: pricingData } = await supabase
-                                  .from('vendor_material_pricing')
-                                  .select('*')
-                                  .eq('material_id', material.id)
-                                  .eq('vendor_id', vendorId)
-                                  .order('is_preferred', { ascending: false })
-                                  .limit(1)
-                                  .single();
-                                if (pricingData) {
-                                  rate = pricingData.base_rate || rate;
-                                  make = pricingData.make || make;
-                                  discount = pricingData.discount_percent || discount;
-                                  if (pricingData.variant_id) {
-                                    const foundVariant = variants.find(v => v.id === pricingData.variant_id);
-                                    if (foundVariant) variant = foundVariant.variant_name;
+                      {itemCols.has('item_name') && (
+                        <td className="px-3 py-2">
+                          <div className="space-y-1.5">
+                            <Select value={item.item_id || ""} onValueChange={async (val) => {
+                              const material = materials.find((m: any) => m.id === val);
+                              if (material) {
+                                updateItem(index, 'item_name', material.display_name || material.name);
+                                updateItem(index, 'item_id', material.id);
+                                updateItem(index, 'hsn_code', material.hsn_code || '');
+                                updateItem(index, 'unit', material.unit || 'Nos');
+                                let rate = material.purchase_price || material.sale_price || 0;
+                                let make = material.make || '';
+                                let variant = '';
+                                let discount = 0;
+                                if (vendorId) {
+                                  const { data: pricingData } = await supabase
+                                    .from('vendor_material_pricing')
+                                    .select('*')
+                                    .eq('material_id', material.id)
+                                    .eq('vendor_id', vendorId)
+                                    .order('is_preferred', { ascending: false })
+                                    .limit(1)
+                                    .single();
+                                  if (pricingData) {
+                                    rate = pricingData.base_rate || rate;
+                                    make = pricingData.make || make;
+                                    discount = pricingData.discount_percent || discount;
+                                    if (pricingData.variant_id) {
+                                      const foundVariant = variants.find(v => v.id === pricingData.variant_id);
+                                      if (foundVariant) variant = foundVariant.variant_name;
+                                    }
                                   }
                                 }
+                                updateItem(index, 'rate', rate);
+                                updateItem(index, 'make', make);
+                                updateItem(index, 'variant', variant);
+                                updateItem(index, 'discount_percent', discount);
+                                if (material.gst_rate) {
+                                  const gst = material.gst_rate;
+                                  updateItem(index, 'cgst_percent', gst / 2);
+                                  updateItem(index, 'sgst_percent', gst / 2);
+                                  updateItem(index, 'igst_percent', gst);
+                                }
                               }
-                              updateItem(index, 'rate', rate);
-                              updateItem(index, 'make', make);
-                              updateItem(index, 'variant', variant);
-                              updateItem(index, 'discount_percent', discount);
-                              if (material.gst_rate) {
-                                const gst = material.gst_rate;
-                                updateItem(index, 'cgst_percent', gst / 2);
-                                updateItem(index, 'sgst_percent', gst / 2);
-                                updateItem(index, 'igst_percent', gst);
-                              }
-                            }
+                            }}>
+                              <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0">
+                                <SelectValue placeholder="Select item" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60">
+                                {materials.map((m: any) => (
+                                  <SelectItem key={m.id} value={m.id} className="text-xs">{m.display_name || m.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {formErrors[`items.${index}.item_name`] && (
+                              <span className="text-[11px] text-rose-500 block">{formErrors[`items.${index}.item_name`]}</span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {itemCols.has('variant') && <td className="px-3 py-2"><Input placeholder="Variant" value={item.variant} onChange={(e) => updateItem(index, 'variant', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
+                      {itemCols.has('make') && <td className="px-3 py-2"><Input placeholder="Make" value={item.make} onChange={(e) => updateItem(index, 'make', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
+                      {itemCols.has('quantity') && <td className="px-3 py-2"><Input type="number" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))} className={cn("h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0", formErrors[`items.${index}.quantity`] && "border-rose-400")} /></td>}
+                      {itemCols.has('unit') && <td className="px-3 py-2"><Input value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
+                      {itemCols.has('rate') && <td className="px-3 py-2"><Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', Number(e.target.value))} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
+                      {itemCols.has('discount') && <td className="px-3 py-2"><Input type="number" value={item.discount_percent} onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))} className="h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
+                      {itemCols.has('gst') && (
+                        <td className="px-3 py-2">
+                          <Select value={String(item.cgst_percent + item.sgst_percent)} onValueChange={(val) => {
+                            const gst = Number(val);
+                            updateItem(index, 'cgst_percent', gst / 2);
+                            updateItem(index, 'sgst_percent', gst / 2);
+                            updateItem(index, 'igst_percent', gst);
                           }}>
-                            <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0">
-                              <SelectValue placeholder="Select item" />
+                            <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none text-center focus:ring-0 pr-1">
+                              <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                              {materials.map((m: any) => (
-                                <SelectItem key={m.id} value={m.id} className="text-xs">{m.display_name || m.name}</SelectItem>
+                            <SelectContent>
+                              {GST_RATES.map((rate) => (
+                                <SelectItem key={rate} value={String(rate)} className="text-xs">{rate}%</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          {formErrors[`items.${index}.item_name`] && (
-                            <span className="text-[11px] text-rose-500 block">{formErrors[`items.${index}.item_name`]}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2"><Input placeholder="Variant" value={item.variant} onChange={(e) => updateItem(index, 'variant', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>
-                      <td className="px-3 py-2"><Input placeholder="Make" value={item.make} onChange={(e) => updateItem(index, 'make', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>
-                      <td className="px-3 py-2"><Input type="number" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))} className={cn("h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0", formErrors[`items.${index}.quantity`] && "border-rose-400")} /></td>
-                      <td className="px-3 py-2"><Input value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>
-                      <td className="px-3 py-2"><Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', Number(e.target.value))} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>
-                      <td className="px-3 py-2"><Input type="number" value={item.discount_percent} onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))} className="h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>
-                      <td className="px-3 py-2">
-                        <Select value={String(item.cgst_percent + item.sgst_percent)} onValueChange={(val) => {
-                          const gst = Number(val);
-                          updateItem(index, 'cgst_percent', gst / 2);
-                          updateItem(index, 'sgst_percent', gst / 2);
-                          updateItem(index, 'igst_percent', gst);
-                        }}>
-                          <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none text-center focus:ring-0 pr-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {GST_RATES.map((rate) => (
-                              <SelectItem key={rate} value={String(rate)} className="text-xs">{rate}%</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium text-zinc-700">{item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </td>
+                      )}
+                      {itemCols.has('total') && <td className="px-3 py-2 text-right font-medium text-zinc-700">{item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>}
                       <td className="px-3 py-2">
                         <button onClick={() => removeItem(index)} className="p-1 rounded hover:bg-red-50 text-zinc-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                       </td>
                     </tr>
                   ))}
                   {items.length === 0 && (
-                    <tr><td colSpan={11} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" to start.</td></tr>
+                    <tr><td colSpan={itemCols.size + 2} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" to start.</td></tr>
                   )}
                 </tbody>
               </table>
