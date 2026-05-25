@@ -58,7 +58,8 @@ import {
   Pencil,
   Download,
   Clipboard,
-  Search
+  Search,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../App';
@@ -139,7 +140,7 @@ const siteReportSchema = z.object({
   }),
   
   reporting: z.object({
-    pmStatus: z.enum(['Reported', 'Pending']),
+    pmStatus: z.enum(['Reported', 'Pending', 'Draft']),
     materialArrangement: z.enum(['Arranged', 'Pending', 'Not Required', 'Informed to stores'])
   }),
   
@@ -250,7 +251,7 @@ export function SiteReport() {
       }
       return data || [];
     },
-    enabled: view === 'list',
+    enabled: !!organisation?.id,
     staleTime: 1000 * 60 * 2,  // Cache for 2 minutes
     gcTime: 1000 * 60 * 5,     // Keep in memory for 5 minutes
   });
@@ -260,7 +261,7 @@ export function SiteReport() {
     queryKey: ['site-report-clients', organisation?.id],
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
     gcTime: 1000 * 60 * 30,    // Keep in memory for 30 minutes
-    enabled: view === 'create' && !!organisation?.id, // Only fetch when creating report and org is available
+    enabled: !!organisation?.id, // Fetch when org is available so it is ready
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
@@ -280,7 +281,7 @@ export function SiteReport() {
   // Fetch Projects
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery({
     queryKey: ['site-report-projects', selectedClientId, organisation?.id],
-    enabled: !!selectedClientId && view === 'create' && !!organisation?.id,
+    enabled: !!selectedClientId && !!organisation?.id,
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
     gcTime: 1000 * 60 * 30,    // Keep in memory for 30 minutes
     queryFn: async () => {
@@ -302,7 +303,7 @@ export function SiteReport() {
   // Fetch linked Issue if we came from an Issue
   const { data: linkedIssue } = useQuery({
     queryKey: ['issue-for-site-report', issueIdParam],
-    enabled: !!issueIdParam && view === 'create',
+    enabled: !!issueIdParam,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('issues')
@@ -840,9 +841,9 @@ export function SiteReport() {
                         <span 
                           className="text-sm font-medium inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border"
                           style={{
-                            color: report.pm_status === 'Reported' ? '#047857' : '#b45309',
-                            backgroundColor: report.pm_status === 'Reported' ? '#ecfdf5' : '#fffbeb',
-                            borderColor: report.pm_status === 'Reported' ? '#a7f3d0' : '#fde68a'
+                            color: report.pm_status === 'Reported' ? '#047857' : report.pm_status === 'Draft' ? '#4b5563' : '#b45309',
+                            backgroundColor: report.pm_status === 'Reported' ? '#ecfdf5' : report.pm_status === 'Draft' ? '#f3f4f6' : '#fffbeb',
+                            borderColor: report.pm_status === 'Reported' ? '#a7f3d0' : report.pm_status === 'Draft' ? '#e5e7eb' : '#fde68a'
                           }}
                         >
                           {report.pm_status}
@@ -903,609 +904,619 @@ export function SiteReport() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-50 pt-0 pb-20">
-      {/* Sticky Top Header */}
-      <div className="bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 sm:px-8 lg:px-12 py-4 sticky top-0 z-20 shadow-lg">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <ShadcnButton 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => {
-                if (issueIdParam) {
-                  navigate(`/issue/${issueIdParam}`);
-                } else {
-                  setView('list');
-                }
-              }}
-              className="text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-all duration-200"
+  if (view === 'create') {
+    return (
+      <div className="min-h-screen bg-zinc-50/30 py-8 px-6">
+        <div className="max-w-5xl mx-auto">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-4">
+            <button 
+              type="button" 
+              onClick={() => setView('list')} 
+              className="hover:text-zinc-800 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
-            </ShadcnButton>
-            <div className="h-6 w-px bg-zinc-200" />
+              Site Reports
+            </button>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="text-zinc-800 font-medium">Create Report</span>
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-200">
+            <div>
+              <h1 className="text-2xl font-bold text-zinc-900">Create Site Report</h1>
+              <p className="text-sm text-zinc-500 mt-1">Record daily activities, manpower logs, and progress reports</p>
+            </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                <FileSearch className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-zinc-900 leading-none">Daily Site Report</h1>
-                <p className="text-xs text-zinc-500 mt-1 font-medium">Capturing progress for site operations</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-semibold text-zinc-700 bg-white hover:bg-zinc-50 transition-colors active:scale-[0.98]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  form.setValue('reporting.pmStatus', 'Draft');
+                  const values = form.getValues();
+                  if (!values.date) {
+                    values.date = new Date().toISOString().split('T')[0];
+                  }
+                  saveMutation.mutate({
+                    ...values,
+                    reporting: {
+                      ...values.reporting,
+                      pmStatus: 'Draft'
+                    }
+                  } as SiteReportFormValues);
+                }}
+                disabled={saveMutation.isPending}
+                className="px-4 py-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm bg-white"
+              >
+                {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
+              </button>
+              <button
+                type="button"
+                onClick={form.handleSubmit(onSubmit, onInvalid)}
+                disabled={saveMutation.isPending}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
+              >
+                {saveMutation.isPending ? 'Saving...' : 'Submit Report'}
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <ShadcnButton 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setView('list')}
-              className="h-9 px-4 border-zinc-300"
-            >
-              Cancel
-            </ShadcnButton>
-            <ShadcnButton 
-              size="sm"
-              onClick={form.handleSubmit(onSubmit, onInvalid)} 
-              className="bg-blue-600 hover:bg-blue-700 h-9 px-6 font-semibold"
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Save className="w-4 h-4" /> Save Report
-                </div>
-              )}
-            </ShadcnButton>
-          </div>
-        </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 mt-2">
-        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
-          {/* 1. Identification Section */}
-          <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
-            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-500" />
-                Report Identification
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-zinc-700">Client <span className="text-red-500">*</span></Label>
-                  <Select 
-                    value={form.watch('client')} 
-                    onValueChange={(val) => {
-                      form.setValue('client', val);
-                      form.setValue('projectName', ''); 
-                    }}
-                  >
-                    <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.client || clientsError) && "border-red-500")}>
-                      <SelectValue placeholder={clientsLoading ? "Loading clients..." : "Select Client"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients?.map((client: any) => (
-                        <SelectItem key={client.id} value={client.id}>{client.client_name}</SelectItem>
-                      ))}
-                      {clients?.length === 0 && !clientsLoading && (
-                        <SelectItem value="_empty" disabled>No clients found</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {errors.client && <p className="text-[10px] text-red-500 font-medium">{errors.client.message}</p>}
-                  {clientsError && <p className="text-[10px] text-red-500 font-medium">Error loading clients</p>}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-zinc-700">Project <span className="text-red-500">*</span></Label>
-                  <Select 
-                    value={form.watch('projectName')} 
-                    onValueChange={(val) => form.setValue('projectName', val)}
-                    disabled={!selectedClientId}
-                  >
-                    <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.projectName || projectsError) && "border-red-500")}>
-                      <SelectValue placeholder={!selectedClientId ? "Select client first" : projectsLoading ? "Fetching projects..." : "Select Project"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects?.map((project: any) => (
-                        <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
-                      ))}
-                      {projects?.length === 0 && !projectsLoading && (
-                        <SelectItem value="_empty" disabled>No projects for this client</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {errors.projectName && <p className="text-[10px] text-red-500 font-medium">{errors.projectName.message}</p>}
-                  {projectsError && <p className="text-[10px] text-red-500 font-medium">Error loading projects</p>}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-zinc-700">Report Date <span className="text-red-500">*</span></Label>
-                  <Input 
-                    type="date" 
-                    className={cn("h-9 text-sm bg-white", errors.date && "border-red-500")}
-                    {...form.register('date')} 
-                  />
-                  {errors.date && <p className="text-[10px] text-red-500 font-medium">{errors.date.message}</p>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 2. Manpower Section */}
-          <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
-            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
-                <Users className="w-4 h-4 text-indigo-500" />
-                Manpower Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Skilled Force</Label>
-                  <Input className="h-9 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Unskilled Force</Label>
-                  <Input className="h-9 bg-white text-sm" {...form.register('manpower.unskilled')} placeholder="0" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Total Force</Label>
-                  <Input className="h-9 bg-zinc-50 font-bold text-sm" {...form.register('manpower.total')} placeholder="0" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">In Time</Label>
-                  <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.startTime')} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Out Time</Label>
-                  <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.endTime')} />
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-bold uppercase text-indigo-600 tracking-wide">Sub-Contractors on Site</Label>
-                  <ShadcnButton 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-[10px] px-3 font-bold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
-                    onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
-                  >
-                    <Plus className="w-3 h-3 mr-1" /> Add Entry
-                  </ShadcnButton>
-                </div>
-                
-                <div className="border border-zinc-100 rounded-lg overflow-hidden shadow-inner bg-zinc-50/20">
-                  <Table>
-                    <TableHeader className="bg-zinc-50/50">
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500">Company/Vendor Name</TableHead>
-                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[100px]">Count</TableHead>
-                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">In</TableHead>
-                        <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">Out</TableHead>
-                        <TableHead className="w-[40px] h-8"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subContractorFields.map((field, index) => (
-                        <TableRow key={field.id} className="bg-white border-b-zinc-50 last:border-0 hover:bg-transparent">
-                          <TableCell className="p-1">
-                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter vendor name..." />
-                          </TableCell>
-                          <TableCell className="p-1">
-                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.count`)} placeholder="0" />
-                          </TableCell>
-                          <TableCell className="p-1">
-                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.start`)} />
-                          </TableCell>
-                          <TableCell className="p-1">
-                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
-                          </TableCell>
-                          <TableCell className="p-1 text-center">
-                            <ShadcnButton 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7 text-zinc-300 hover:text-red-500"
-                              onClick={() => removeSubContractor(index)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </ShadcnButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {subContractorFields.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="h-12 text-center text-[11px] text-zinc-400 italic">No sub-contractors added</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 3. Work Carried Out & Milestones */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
-                  <HardHat className="w-4 h-4 text-blue-500" />
-                  Work Done Today
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {workFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 items-start group">
-                    <div className="flex-1">
-                      <Input className="h-9 text-sm bg-white" {...form.register(`workCarriedOut.${index}.value`)} placeholder="Describe activity..." />
-                    </div>
-                    <ShadcnButton 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9 text-zinc-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeWork(index)}
+          {/* Form Content - Styled per SiteVisits design reference */}
+          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* 1. Identification Section */}
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Report Identification</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client *</label>
+                    <Select 
+                      value={form.watch('client')} 
+                      onValueChange={(val) => {
+                        form.setValue('client', val);
+                        form.setValue('projectName', ''); 
+                      }}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </ShadcnButton>
-                  </div>
-                ))}
-                <ShadcnButton 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full h-8 text-[10px] font-bold text-blue-600 bg-blue-50/50 hover:bg-blue-50 border-dashed border border-blue-100" 
-                  onClick={() => appendWork({ value: '' })}
-                >
-                  <Plus className="w-3 h-3 mr-1" /> Add Activity
-                </ShadcnButton>
-              </CardContent>
-            </Card>
-
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  Milestones Hit
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {milestoneFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 items-start group">
-                    <div className="flex-1">
-                      <Input className="h-9 text-sm bg-white" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone description..." />
-                    </div>
-                    <ShadcnButton 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9 text-zinc-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeMilestone(index)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </ShadcnButton>
-                  </div>
-                ))}
-                <ShadcnButton 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full h-8 text-[10px] font-bold text-emerald-600 bg-emerald-50/50 hover:bg-emerald-50 border-dashed border border-emerald-100" 
-                  onClick={() => appendMilestone({ value: '' })}
-                >
-                  <Plus className="w-3 h-3 mr-1" /> Add Milestone
-                </ShadcnButton>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* 4. Progress, Equipment, Safety (Three Columns) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Progress Tracking */}
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-zinc-600">Progress Monitoring</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Planned for Today</Label>
-                  <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.planned')} placeholder="..." />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Actual Progress</Label>
-                  <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.actual')} placeholder="..." />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">% Complete</Label>
-                  <div className="relative">
-                    <Input className="h-9 text-xs pr-8 font-bold" {...form.register('progress.percentComplete')} placeholder="0" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-[10px]">%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Equipment Status */}
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
-                  <Wrench className="w-4 h-4 text-orange-500" />
-                  Equipment
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Machines on Site</Label>
-                  <Textarea className="min-h-[100px] text-xs bg-white" {...form.register('equipment.onSite')} placeholder="List tools/machinery..." />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-red-500 uppercase tracking-tight">Issues/Breakdowns</Label>
-                  <Textarea className="min-h-[100px] text-xs bg-white border-red-50" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues..." />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Safety & Quality */}
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
-                  <ClipboardCheck className="w-4 h-4 text-emerald-500" />
-                  Safety & Quality
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-5">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center justify-between p-2 bg-zinc-50 rounded border border-zinc-100">
-                    <Label className="text-[11px] font-medium text-zinc-700">Toolbox Meeting Conducted</Label>
-                    <Checkbox checked={form.watch('safety.toolboxMeeting')} onCheckedChange={(c) => form.setValue('safety.toolboxMeeting', !!c)} />
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-zinc-50 rounded border border-zinc-100">
-                    <Label className="text-[11px] font-medium text-zinc-700">PPE Protocols Followed</Label>
-                    <Checkbox checked={form.watch('safety.ppe')} onCheckedChange={(c) => form.setValue('safety.ppe', !!c)} />
-                  </div>
-                </div>
-                
-                <div className="h-px bg-zinc-100 my-2" />
-                
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Site Inspection</Label>
-                    <Select value={form.watch('quality.inspection')} onValueChange={(val: any) => form.setValue('quality.inspection', val)}>
-                      <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.client || clientsError) && "border-red-500")}>
+                        <SelectValue placeholder={clientsLoading ? "Loading clients..." : "Select Client"} />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Yes">Yes</SelectItem>
+                        {clients?.map((client: any) => (
+                          <SelectItem key={client.id} value={client.id}>{client.client_name}</SelectItem>
+                        ))}
+                        {clients?.length === 0 && !clientsLoading && (
+                          <SelectItem value="_empty" disabled>No clients found</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors.client && <p className="text-[10px] text-red-500 font-medium">{errors.client.message}</p>}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Project *</label>
+                    <Select 
+                      value={form.watch('projectName')} 
+                      onValueChange={(val) => form.setValue('projectName', val)}
+                      disabled={!selectedClientId}
+                    >
+                      <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.projectName || projectsError) && "border-red-500")}>
+                        <SelectValue placeholder={!selectedClientId ? "Select client first" : projectsLoading ? "Fetching projects..." : "Select Project"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects?.map((project: any) => (
+                          <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
+                        ))}
+                        {projects?.length === 0 && !projectsLoading && (
+                          <SelectItem value="_empty" disabled>No projects for this client</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors.projectName && <p className="text-[10px] text-red-500 font-medium">{errors.projectName.message}</p>}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Report Date *</label>
+                    <Input 
+                      type="date" 
+                      className={cn("h-9 text-sm bg-white", errors.date && "border-red-500")}
+                      {...form.register('date')} 
+                    />
+                    {errors.date && <p className="text-[10px] text-red-500 font-medium">{errors.date.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Manpower Section */}
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Manpower Details</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SKILLED FORCE</label>
+                    <Input className="h-9 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>UNSKILLED FORCE</label>
+                    <Input className="h-9 bg-white text-sm" {...form.register('manpower.unskilled')} placeholder="0" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>TOTAL FORCE</label>
+                    <Input className="h-9 bg-zinc-50 font-bold text-sm" {...form.register('manpower.total')} placeholder="0" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>IN TIME</label>
+                    <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.startTime')} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>OUT TIME</label>
+                    <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.endTime')} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sub-Contractors on Site</label>
+                    <button 
+                      type="button" 
+                      onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
+                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Add Entry
+                    </button>
+                  </div>
+                  
+                  <div className="border border-zinc-100 rounded-lg overflow-hidden bg-white">
+                    <Table>
+                      <TableHeader className="bg-zinc-50/50">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500">Company/Vendor Name</TableHead>
+                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[100px]">Count</TableHead>
+                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">In</TableHead>
+                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">Out</TableHead>
+                          <TableHead className="w-[40px] h-8"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {subContractorFields.map((field, index) => (
+                          <TableRow key={field.id} className="bg-white border-b-zinc-50 last:border-0 hover:bg-transparent">
+                            <TableCell className="p-1">
+                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter vendor name..." />
+                            </TableCell>
+                            <TableCell className="p-1">
+                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.count`)} placeholder="0" />
+                            </TableCell>
+                            <TableCell className="p-1">
+                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.start`)} />
+                            </TableCell>
+                            <TableCell className="p-1">
+                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
+                            </TableCell>
+                            <TableCell className="p-1 text-center">
+                              <ShadcnButton 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-zinc-300 hover:text-red-500"
+                                onClick={() => removeSubContractor(index)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </ShadcnButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {subContractorFields.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="h-12 text-center text-[11px] text-zinc-400 italic">No sub-contractors added</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Work Carried Out & Milestones */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Done Today *</label>
+                    <button 
+                      type="button" 
+                      onClick={() => appendWork({ value: '' })}
+                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Add Activity
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {workFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2 items-start group">
+                        <Input className="h-9 text-sm bg-white flex-1" {...form.register(`workCarriedOut.${index}.value`)} placeholder="Describe activity..." />
+                        <ShadcnButton 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 text-zinc-300 hover:text-red-500"
+                          onClick={() => removeWork(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </ShadcnButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Milestones Hit</label>
+                    <button 
+                      type="button" 
+                      onClick={() => appendMilestone({ value: '' })}
+                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Add Milestone
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {milestoneFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2 items-start group">
+                        <Input className="h-9 text-sm bg-white flex-1" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone description..." />
+                        <ShadcnButton 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 text-zinc-300 hover:text-red-500"
+                          onClick={() => removeMilestone(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </ShadcnButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Progress, Equipment, Safety & Quality */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                {/* Progress Monitoring */}
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Progress Monitoring</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>PLANNED FOR TODAY</label>
+                    <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.planned')} placeholder="..." />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>ACTUAL PROGRESS</label>
+                    <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.actual')} placeholder="..." />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>% COMPLETE</label>
+                    <div className="relative">
+                      <Input className="h-9 text-xs pr-8 font-bold" {...form.register('progress.percentComplete')} placeholder="0" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-[10px]">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Equipment Status */}
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Equipment Status</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>MACHINES ON SITE</label>
+                    <Textarea className="min-h-[80px] text-xs bg-white" {...form.register('equipment.onSite')} placeholder="List tools/machinery..." />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#ef4444' }}>ISSUES / BREAKDOWNS</label>
+                    <Textarea className="min-h-[80px] text-xs bg-white border-red-50" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues..." />
+                  </div>
+                </div>
+
+                {/* Safety & Quality */}
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Safety & Quality</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="flex items-center justify-between p-2 bg-white rounded border border-zinc-100 shadow-sm">
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Toolbox Meeting</label>
+                      <Checkbox checked={form.watch('safety.toolboxMeeting')} onCheckedChange={(c) => form.setValue('safety.toolboxMeeting', !!c)} />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-white rounded border border-zinc-100 shadow-sm">
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>PPE Protocols</label>
+                      <Checkbox checked={form.watch('safety.ppe')} onCheckedChange={(c) => form.setValue('safety.ppe', !!c)} />
+                    </div>
+                  </div>
+                  
+                  <div className="h-px bg-zinc-200 my-1" />
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>INSPECTION</label>
+                      <Select value={form.watch('quality.inspection')} onValueChange={(val: any) => form.setValue('quality.inspection', val)}>
+                        <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Yes">Yes</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Not Required">Not Required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SATISFIED %</label>
+                      <Input className="h-8 text-xs bg-white" {...form.register('quality.satisfiedPercent')} placeholder="0%" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Logistics & Internal Reporting */}
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#404040', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Logistics & Internal Reporting</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>REPORTED TO PM</label>
+                    <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
+                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Reported">Reported</SelectItem>
                         <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Not Required">Not Required</SelectItem>
+                        <SelectItem value="Draft">Draft</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Satisfied %</Label>
-                    <Input className="h-8 text-xs bg-white" {...form.register('quality.satisfiedPercent')} placeholder="0%" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>MATERIAL ARRANGEMENT</label>
+                    <Select value={form.watch('reporting.materialArrangement')} onValueChange={(v: any) => form.setValue('reporting.materialArrangement', v)}>
+                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Arranged">Arranged</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Not Required">Not Required</SelectItem>
+                        <SelectItem value="Informed to stores">Informed to stores</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SITE PHOTO STATUS</label>
+                    <Select value={form.watch('documentation.sitePictures')} onValueChange={(v: any) => form.setValue('documentation.sitePictures', v)}>
+                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Taken">Taken</SelectItem>
+                        <SelectItem value="Not Allowed">Not Allowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px', paddingLeft: '8px' }}>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={form.watch('documentation.filed')} onCheckedChange={(c) => form.setValue('documentation.filed', !!c)} />
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Hardcopy Filed</label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={form.watch('documentation.toolsLocked')} onCheckedChange={(c) => form.setValue('documentation.toolsLocked', !!c)} />
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Tools Secured</label>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
 
-          {/* 5. Reporting, Logistics & Logistics (Clean Aligned Row) */}
-          <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
-            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-2 px-5">
-              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Logistics & Internal Reporting</CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Reported to PM</Label>
-                <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
-                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Reported">Reported</SelectItem>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Material Arrangement</Label>
-                <Select value={form.watch('reporting.materialArrangement')} onValueChange={(v: any) => form.setValue('reporting.materialArrangement', v)}>
-                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Arranged">Arranged</SelectItem>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Not Required">Not Required</SelectItem>
-                    <SelectItem value="Informed to stores">Informed to stores</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Site Photo Status</Label>
-                <Select value={form.watch('documentation.sitePictures')} onValueChange={(v: any) => form.setValue('documentation.sitePictures', v)}>
-                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Taken">Taken</SelectItem>
-                    <SelectItem value="Not Allowed">Not Allowed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col justify-end space-y-3">
-                <div className="flex items-center gap-3">
-                  <Checkbox checked={form.watch('documentation.filed')} onCheckedChange={(c) => form.setValue('documentation.filed', !!c)} />
-                  <Label className="text-xs font-medium text-zinc-700">Hardcopy Filed</Label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Checkbox checked={form.watch('documentation.toolsLocked')} onCheckedChange={(c) => form.setValue('documentation.toolsLocked', !!c)} />
-                  <Label className="text-xs font-medium text-zinc-700">Tools/Materials Secured</Label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 6. Issues, Plan, Instructions (Dynamic Lists) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Issues */}
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-red-50/50 border-b border-red-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-red-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" /> Issues Encountered
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {issueFields.map((field, index) => (
-                  <div key={field.id} className="space-y-2 p-2 bg-red-50/20 rounded border border-red-50 group relative">
-                    <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.issue`)} placeholder="Issue..." />
-                    <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.solution`)} placeholder="Action Taken..." />
-                    <ShadcnButton 
+              {/* 6. Issues, Plan, Client Requirements */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                {/* Issues */}
+                <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', background: '#fff5f5', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Issues Faced</label>
+                    <button 
                       type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" 
-                      onClick={() => removeIssue(index)}
+                      onClick={() => appendIssue({ issue: '', solution: '' })}
+                      style={{ fontSize: '11px', color: '#b91c1c', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
                     >
-                      <Plus className="w-3 h-3 rotate-45" />
-                    </ShadcnButton>
+                      + Log Issue
+                    </button>
                   </div>
-                ))}
-                <ShadcnButton type="button" variant="outline" size="sm" className="w-full h-8 text-[10px] border-red-100 text-red-600" onClick={() => appendIssue({ issue: '', solution: '' })}>
-                  <Plus className="w-3 h-3 mr-1" /> Log Issue
-                </ShadcnButton>
-              </CardContent>
-            </Card>
-
-            {/* Next Day Plan */}
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-blue-500" /> Work Plan (Next Day)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {planFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 group">
-                    <Input className="h-9 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
-                    <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-zinc-200 hover:text-red-500" onClick={() => removePlan(index)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </ShadcnButton>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {issueFields.map((field, index) => (
+                      <div key={field.id} className="space-y-1 p-2 bg-white rounded border border-red-100 relative group">
+                        <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.issue`)} placeholder="Issue..." />
+                        <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.solution`)} placeholder="Action..." />
+                        <ShadcnButton 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full" 
+                          onClick={() => removeIssue(index)}
+                        >
+                          <Plus className="w-3 h-3 rotate-45" />
+                        </ShadcnButton>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <ShadcnButton type="button" variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold text-zinc-500 bg-zinc-50 hover:bg-zinc-100 border-dashed border border-zinc-200" onClick={() => appendPlan({ value: '' })}>
-                  <Plus className="w-3 h-3 mr-1" /> Add Task
-                </ShadcnButton>
-              </CardContent>
-            </Card>
+                </div>
 
-            {/* Client Req */}
-            <Card className="border-zinc-200 shadow-sm bg-white">
-              <CardHeader className="bg-amber-50/50 border-b border-amber-100 py-3 px-5">
-                <CardTitle className="text-xs font-bold uppercase text-amber-700">Client Side Requirements</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-2">
-                  {clientReqFields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2 group">
-                      <Input className="h-9 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Deviation/Req..." />
-                      <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-zinc-200 hover:text-red-500" onClick={() => removeClientReq(index)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </ShadcnButton>
+                {/* Next Day Plan */}
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next Day Plan *</label>
+                    <button 
+                      type="button" 
+                      onClick={() => appendPlan({ value: '' })}
+                      style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Add Task
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {planFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-1 group items-center">
+                        <Input className="h-8 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
+                        <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removePlan(index)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </ShadcnButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Client Side Req */}
+                <div style={{ border: '1px solid #fef3c7', borderRadius: '8px', padding: '16px', background: '#fffbeb', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client Requirements</label>
+                    <button 
+                      type="button" 
+                      onClick={() => appendClientReq({ value: '' })}
+                      style={{ fontSize: '11px', color: '#b45309', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      + Add Req
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                    {clientReqFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-1 group items-center">
+                        <Input className="h-8 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Requirement..." />
+                        <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removeClientReq(index)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </ShadcnButton>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={form.watch('clientRequirements.quoteToBe_sent')} onCheckedChange={(c) => form.setValue('clientRequirements.quoteToBe_sent', !!c)} />
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Quote to be sent</label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={form.watch('clientRequirements.mailReceived')} onCheckedChange={(c) => form.setValue('clientRequirements.mailReceived', !!c)} />
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Mail Received from client</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 7: Photos */}
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visual Documentation (Photos)</label>
+                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 shadow-sm bg-zinc-50 group">
+                      <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </ShadcnButton>
+                      </div>
                     </div>
                   ))}
-                  <ShadcnButton type="button" variant="outline" size="sm" className="w-full h-8 text-[10px] border-amber-100 text-amber-600" onClick={() => appendClientReq({ value: '' })}>
-                    <Plus className="w-3 h-3 mr-1" /> Add Entry
-                  </ShadcnButton>
+                  <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-zinc-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-zinc-50/30">
+                    <Upload className="w-5 h-5 text-zinc-400 mb-1" />
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase">Upload</span>
+                    <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
+                  </label>
                 </div>
-                <div className="pt-2 flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <Checkbox checked={form.watch('clientRequirements.quoteToBe_sent')} onCheckedChange={(c) => form.setValue('clientRequirements.quoteToBe_sent', !!c)} />
-                    <Label className="text-xs font-medium text-zinc-700">Quote to be sent</Label>
+              </div>
+
+              {/* Section 8: Engineer Signature & Date */}
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Engineer/Supervisor Name *</label>
+                    <Input className="h-10 bg-white font-semibold" {...form.register('footer.engineer')} placeholder="Enter your name" />
+                    {errors.footer?.engineer && <p className="text-[10px] text-red-500 font-medium">{errors.footer.engineer.message}</p>}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Checkbox checked={form.watch('clientRequirements.mailReceived')} onCheckedChange={(c) => form.setValue('clientRequirements.mailReceived', !!c)} />
-                    <Label className="text-xs font-medium text-zinc-700">Mail Received from client</Label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Signature Date *</label>
+                    <Input type="date" className="h-10 bg-white" {...form.register('footer.signatureDate')} />
+                    {errors.footer?.signatureDate && <p className="text-[10px] text-red-500 font-medium">{errors.footer.signatureDate.message}</p>}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
 
-          {/* 7. Photos Section */}
-          <Card className="border-zinc-200 shadow-sm bg-white">
-            <CardHeader className="bg-zinc-50/80 border-b border-zinc-100 py-3 px-5 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-bold uppercase text-zinc-600 flex items-center gap-2">
-                <Camera className="w-4 h-4 text-blue-500" /> Visual Documentation (Site Photos)
-              </CardTitle>
-              <Label className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</Label>
-            </CardHeader>
-            <CardContent className="p-5">
-              <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 shadow-sm bg-zinc-50 group">
-                    <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </ShadcnButton>
-                    </div>
-                  </div>
-                ))}
-                <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-zinc-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-zinc-50/30">
-                  <Upload className="w-5 h-5 text-zinc-400 mb-1" />
-                  <span className="text-[9px] font-bold text-zinc-500 uppercase">Upload</span>
-                  <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
-                </label>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 8. Submission Footer */}
-          <div className="flex flex-col items-end gap-4 pt-10 border-t border-zinc-200">
-            <div className="flex items-center gap-6 w-full max-w-2xl">
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Engineer/Supervisor Name</Label>
-                <Input className="h-10 bg-white font-semibold" {...form.register('footer.engineer')} placeholder="Enter your name" />
-              </div>
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-[10px] font-bold text-zinc-500 uppercase">Signature Date</Label>
-                <Input type="date" className="h-10 bg-white" {...form.register('footer.signatureDate')} />
-              </div>
             </div>
-            
-            <div className="flex gap-4 w-full justify-end mt-4">
-              <ShadcnButton 
-                type="button" 
-                variant="outline" 
-                className="h-12 px-10 border-zinc-300 text-zinc-600 font-bold"
-                onClick={() => { if(confirm('Discard all entered data?')) form.reset(); }}
+
+            {/* Footer Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '24px',
+              paddingTop: '16px',
+              borderTop: '1px solid #e5e5e5',
+            }}>
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '6px',
+                  background: '#fff',
+                  color: '#525252',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
               >
-                Discard Form
-              </ShadcnButton>
-              <ShadcnButton 
-                type="submit" 
-                className="bg-blue-600 hover:bg-blue-700 h-12 px-16 text-base font-bold shadow-xl shadow-blue-600/30"
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  form.setValue('reporting.pmStatus', 'Draft');
+                  const values = form.getValues();
+                  if (!values.date) {
+                    values.date = new Date().toISOString().split('T')[0];
+                  }
+                  saveMutation.mutate({
+                    ...values,
+                    reporting: {
+                      ...values.reporting,
+                      pmStatus: 'Draft'
+                    }
+                  } as SiteReportFormValues);
+                }}
                 disabled={saveMutation.isPending}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '6px',
+                  background: '#fff',
+                  color: '#374151',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: saveMutation.isPending ? 0.6 : 1,
+                }}
               >
-                {saveMutation.isPending ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                    Finalizing...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Save className="w-5 h-5" /> Submit Site Report
-                  </div>
-                )}
-              </ShadcnButton>
+                {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
+              </button>
+              <button
+                type="submit"
+                disabled={saveMutation.isPending}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: '#2563eb',
+                  color: '#fff',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: saveMutation.isPending ? 0.6 : 1,
+                }}
+              >
+                {saveMutation.isPending ? 'Saving...' : 'Submit Site Report'}
+              </button>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 }
