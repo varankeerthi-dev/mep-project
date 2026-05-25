@@ -2432,3 +2432,14 @@ body {
     @apply font-sans;
   }
 }
+
+/* ==========================================
+   SITE REPORT FORM — scoped input padding
+   Adds 4px left padding to all inputs and
+   textareas so placeholder text isn't flush
+   against the border.
+   ========================================== */
+[data-site-report] input,
+[data-site-report] textarea {
+  padding-left: 4px;
+}

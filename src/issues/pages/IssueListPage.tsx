@@ -1,16 +1,20 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useIssues, useIssueCount, useDeleteIssue } from '../hooks';
+import { 
+  useIssues, 
+  useIssueCount, 
+  useDeleteIssue, 
+  useUpdateIssueStatus, 
+  useIssueStats 
+} from '../hooks';
 import { useProjects } from '../../hooks/useProjects';
 import { useClients } from '../../hooks/useClients';
 import { 
   formatIssueDate, 
-  formatIssueAge, 
   getSeverityStyles, 
   getStatusStyles, 
   formatLocationPathCompact,
-  formatLocationPath,
   getSystemLabel,
   getIssueTypeLabel,
   canClose,
@@ -20,499 +24,58 @@ import type { IssueWithRelations, IssueFilters, IssueStatus, IssueSeverity, Issu
 import {
   Search,
   Plus,
-  Filter,
   Download,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
   Eye,
-  Pencil,
   Trash2,
   XCircle,
   CheckCircle,
   Loader2,
-  AlertTriangle,
-  Building2,
-  Users,
-  Clock,
-  Package,
   ArrowUpDown,
   X,
+  Settings,
 } from 'lucide-react';
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-  
-  :root {
-    --ilt-bg-page: #f8f9fa;
-    --ilt-bg-card: #ffffff;
-    --ilt-bg-hover: #f1f3f4;
-    --ilt-bg-muted: #fafafa;
-    --ilt-border: #e5e7eb;
-    --ilt-border-light: #f0f0f0;
-    --ilt-text-primary: #111827;
-    --ilt-text-secondary: #6b7280;
-    --ilt-text-muted: #9ca3af;
-    --ilt-accent: #dc2626;
-    --ilt-accent-hover: #b91c1c;
-  }
-  
-  .ilt-page {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: var(--ilt-bg-page);
-    min-height: 100vh;
-    padding: 1.5rem;
-  }
-  
-  .ilt-container { max-width: 1800px; margin: 0 auto; }
-  
-  .ilt-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  
-  .ilt-header-left h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ilt-text-primary);
-    margin: 0;
-  }
-  
-  .ilt-header-left p {
-    font-size: 0.875rem;
-    color: var(--ilt-text-secondary);
-    margin: 0.25rem 0 0;
-  }
-  
-  .ilt-header-actions {
-    display: flex;
-    gap: 0.75rem;
-  }
-  
-  .ilt-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s ease;
-  }
-  
-  .ilt-btn-primary {
-    background: var(--ilt-accent);
-    color: white;
-  }
-  
-  .ilt-btn-primary:hover { background: var(--ilt-accent-hover); }
-  
-  .ilt-btn-secondary {
-    background: var(--ilt-bg-card);
-    color: var(--ilt-text-primary);
-    border: 1px solid var(--ilt-border);
-  }
-  
-  .ilt-btn-secondary:hover { background: var(--ilt-bg-hover); }
-  
-  /* Filters Card */
-  .ilt-filters-card {
-    background: var(--ilt-bg-card);
-    border: 1px solid var(--ilt-border);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .ilt-filters-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: flex-end;
-  }
-  
-  .ilt-filter-block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    min-width: 150px;
-  }
-  
-  .ilt-filter-title {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ilt-text-muted);
-  }
-  
-  .ilt-input, .ilt-select {
-    padding: 0.5rem 0.75rem;
-    background: var(--ilt-bg-muted);
-    border: 1px solid var(--ilt-border);
-    border-radius: 0.375rem;
-    font-size: 0.8125rem;
-    font-family: inherit;
-    color: var(--ilt-text-primary);
-    width: 100%;
-  }
-  
-  .ilt-input:focus, .ilt-select:focus {
-    outline: none;
-    border-color: var(--ilt-accent);
-    background: white;
-  }
-  
-  .ilt-search {
-    position: relative;
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  .ilt-search-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--ilt-text-muted);
-    pointer-events: none;
-  }
-  
-  .ilt-search .ilt-input {
-    padding-left: 2.25rem;
-  }
-  
-  .ilt-clear-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.375rem 0.625rem;
-    background: transparent;
-    border: none;
-    font-size: 0.75rem;
-    color: var(--ilt-text-muted);
-    cursor: pointer;
-  }
-  
-  .ilt-clear-btn:hover { color: var(--ilt-accent); }
-  
-  /* Results Bar */
-  .ilt-results-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 0;
-    font-size: 0.8125rem;
-    color: var(--ilt-text-secondary);
-  }
-  
-  .ilt-results-count {
-    font-weight: 600;
-  }
-  
-  /* Table */
-  .ilt-table-wrapper {
-    background: var(--ilt-bg-card);
-    border: 1px solid var(--ilt-border);
-    border-radius: 0.5rem;
-    overflow: hidden;
-  }
-  
-  .ilt-table-scroll {
-    overflow-x: auto;
-  }
-  
-  .ilt-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8125rem;
-    min-width: 1200px;
-  }
-  
-  .ilt-table thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  
-  .ilt-table th {
-    background: var(--ilt-bg-muted);
-    padding: 0.625rem 0.75rem;
-    text-align: left;
-    font-weight: 600;
-    color: var(--ilt-text-secondary);
-    border-bottom: 1px solid var(--ilt-border);
-    white-space: nowrap;
-    cursor: pointer;
-    user-select: none;
-  }
-  
-  .ilt-table th:hover {
-    background: var(--ilt-bg-hover);
-  }
-  
-  .ilt-table th.sorted {
-    color: var(--ilt-accent);
-  }
-  
-  .ilt-table td {
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--ilt-border-light);
-    vertical-align: middle;
-  }
-  
-  .ilt-table tbody tr:hover td {
-    background: var(--ilt-bg-hover);
-  }
-  
-  .ilt-table tbody tr {
-    cursor: pointer;
-  }
-  
-  /* Column Widths */
-  .ilt-col-id { width: 120px; }
-  .ilt-col-title { min-width: 200px; }
-  .ilt-col-project { width: 140px; }
-  .ilt-col-system { width: 100px; }
-  .ilt-col-location { width: 120px; }
-  .ilt-col-severity { width: 90px; }
-  .ilt-col-status { width: 120px; }
-  .ilt-col-assign { width: 120px; }
-  .ilt-col-sub { width: 120px; }
-  .ilt-col-due { width: 100px; }
-  .ilt-col-age { width: 80px; }
-  .ilt-col-actions { width: 60px; }
-  
-  /* Cells */
-  .ilt-issue-id {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-    color: var(--ilt-accent);
-    font-size: 0.75rem;
-  }
-  
-  .ilt-issue-title {
-    font-weight: 500;
-    color: var(--ilt-text-primary);
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  
-  .ilt-issue-project {
-    font-size: 0.75rem;
-    color: var(--ilt-text-secondary);
-  }
-  
-  .ilt-location-text {
-    font-size: 0.75rem;
-    color: var(--ilt-text-muted);
-  }
-  
-  .ilt-user-name {
-    font-size: 0.75rem;
-    color: var(--ilt-text-secondary);
-  }
-  
-  .ilt-age-text {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-  }
-  
-  .ilt-age-overdue {
-    color: #dc2626;
-    font-weight: 600;
-  }
-  
-  /* Badge */
-  .ilt-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-  
-  /* Actions */
-  .ilt-actions-cell {
-    position: relative;
-  }
-  
-  .ilt-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    background: transparent;
-    border: 1px solid var(--ilt-border);
-    border-radius: 0.25rem;
-    color: var(--ilt-text-muted);
-    cursor: pointer;
-  }
-  
-  .ilt-action-btn:hover {
-    background: var(--ilt-bg-hover);
-    color: var(--ilt-text-primary);
-  }
-  
-  .ilt-dropdown {
-    position: absolute;
-    right: 0;
-    top: 100%;
-    z-index: 50;
-    min-width: 160px;
-    background: var(--ilt-bg-card);
-    border: 1px solid var(--ilt-border);
-    border-radius: 0.375rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    padding: 0.25rem;
-    display: none;
-  }
-  
-  .ilt-dropdown.open { display: block; }
-  
-  .ilt-dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    background: transparent;
-    border: none;
-    border-radius: 0.25rem;
-    font-size: 0.8125rem;
-    color: var(--ilt-text-primary);
-    cursor: pointer;
-    text-align: left;
-  }
-  
-  .ilt-dropdown-item:hover {
-    background: var(--ilt-bg-hover);
-  }
-  
-  .ilt-dropdown-item.danger {
-    color: #dc2626;
-  }
-  
-  /* Pagination */
-  .ilt-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-    border-top: 1px solid var(--ilt-border);
-  }
-  
-  .ilt-pagination-info {
-    font-size: 0.8125rem;
-    color: var(--ilt-text-secondary);
-  }
-  
-  .ilt-pagination-buttons {
-    display: flex;
-    gap: 0.375rem;
-  }
-  
-  .ilt-page-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    background: var(--ilt-bg-card);
-    border: 1px solid var(--ilt-border);
-    border-radius: 0.25rem;
-    font-size: 0.8125rem;
-    color: var(--ilt-text-primary);
-    cursor: pointer;
-  }
-  
-  .ilt-page-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  .ilt-page-btn:hover:not(:disabled) {
-    background: var(--ilt-bg-hover);
-  }
-  
-  .ilt-page-btn.active {
-    background: var(--ilt-accent);
-    color: white;
-    border-color: var(--ilt-accent);
-  }
-  
-  /* Empty */
-  .ilt-empty {
-    padding: 4rem;
-    text-align: center;
-  }
-  
-  .ilt-empty-icon {
-    width: 3rem;
-    height: 3rem;
-    margin: 0 auto 1rem;
-    color: var(--ilt-text-muted);
-    opacity: 0.4;
-  }
-  
-  .ilt-empty h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--ilt-text-primary);
-    margin: 0 0 0.5rem;
-  }
-  
-  .ilt-empty p {
-    font-size: 0.875rem;
-    color: var(--ilt-text-secondary);
-    margin: 0;
-  }
-  
-  /* Loading */
-  .ilt-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
-    color: var(--ilt-text-muted);
-  }
-`;
-
-const PAGE_SIZE = 25;
-
 const SYSTEMS = ['', 'hvac', 'electrical', 'plumbing', 'firefighting', 'BMS', 'other'];
-const TYPES = ['', 'installation', 'quality', 'design', 'safety', 'breakdown', 'punchlist', 'ncr'];
 const SEVERITIES = ['', 'critical', 'major', 'minor'];
 const STATUSES = ['', 'open', 'assigned', 'in_progress', 'waiting_inspection', 'verified', 'closed', 'reopened'];
 
 export function IssueListPage() {
   const navigate = useNavigate();
-  const { organisation, user } = useAuth();
+  const { organisation } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // States
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [clientFilter, setClientFilter] = useState(searchParams.get('client') || '');
   const [projectFilter, setProjectFilter] = useState(searchParams.get('project') || '');
   const [systemFilter, setSystemFilter] = useState(searchParams.get('system') || '');
   const [severityFilter, setSeverityFilter] = useState(searchParams.get('severity') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
-  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || '');
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
+  // Selection & Columns State
+  const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([]);
+  const [isColumnCustomizerOpen, setIsColumnCustomizerOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState({
+    project: true,
+    system: true,
+    location: true,
+    severity: true,
+    status: true,
+    assignee: true,
+    subcontractor: true,
+    dueDate: true,
+    age: true
+  });
+
+  const PAGE_SIZE = 25;
+
   const filters: IssueFilters = useMemo(() => ({
     organisationId: organisation?.id,
     clientId: clientFilter || undefined,
@@ -520,20 +83,23 @@ export function IssueListPage() {
     system: (systemFilter || null) as IssueSystem | null,
     severity: (severityFilter || null) as IssueSeverity | null,
     status: (statusFilter || null) as IssueStatus | null,
-    issueType: (typeFilter || null) as IssueType | null,
     search: search || undefined,
     page: currentPage,
     limit: PAGE_SIZE,
-  }), [organisation?.id, clientFilter, projectFilter, systemFilter, severityFilter, statusFilter, typeFilter, search, currentPage]);
+  }), [organisation?.id, clientFilter, projectFilter, systemFilter, severityFilter, statusFilter, search, currentPage]);
   
+  // Data Queries
   const { data: issues, isLoading } = useIssues(filters);
   const { data: totalCount } = useIssueCount({ ...filters, limit: undefined });
   const { data: projectsData } = useProjects();
   const { data: clientsData } = useClients();
+  const { data: stats } = useIssueStats(organisation?.id || '', projectFilter || undefined, clientFilter || undefined);
+  
+  // Mutations
   const deleteIssue = useDeleteIssue();
+  const updateStatus = useUpdateIssueStatus();
   
   const filteredProjects = (projectsData || []).filter(p => !clientFilter || p.client_id === clientFilter);
-  
   const totalPages = Math.ceil((totalCount || 0) / PAGE_SIZE);
   
   const handleSort = (column: string) => {
@@ -545,16 +111,12 @@ export function IssueListPage() {
     }
   };
   
-  const handleRowClick = (issue: IssueWithRelations) => {
-    navigate(`/issue/${issue.id}`);
-  };
-  
-  const handleAction = (e: React.MouseEvent, issueId: string) => {
+  const handleActionClick = (e: React.MouseEvent, issueId: string) => {
     e.stopPropagation();
     setOpenMenuId(openMenuId === issueId ? null : issueId);
   };
   
-  const hasFilters = search || clientFilter || projectFilter || systemFilter || severityFilter || statusFilter || typeFilter;
+  const hasFilters = search || clientFilter || projectFilter || systemFilter || severityFilter || statusFilter;
   
   const clearFilters = () => {
     setSearch('');
@@ -563,325 +125,573 @@ export function IssueListPage() {
     setSystemFilter('');
     setSeverityFilter('');
     setStatusFilter('');
-    setTypeFilter('');
     setCurrentPage(1);
     setSearchParams({});
   };
+
+  // Bulk Actions
+  const handleCloseSelected = async () => {
+    if (window.confirm(`Are you sure you want to close the ${selectedIssueIds.length} selected issues?`)) {
+      for (const id of selectedIssueIds) {
+        await updateStatus.mutateAsync({ id, update: { status: 'closed' } });
+      }
+      setSelectedIssueIds([]);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (window.confirm(`Are you sure you want to delete the ${selectedIssueIds.length} selected issues?`)) {
+      for (const id of selectedIssueIds) {
+        await deleteIssue.mutateAsync(id);
+      }
+      setSelectedIssueIds([]);
+    }
+  };
+
+  // Sliding window pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
   
   return (
-    <div className="ilt-page">
-      <style>{styles}</style>
-      
-      <div className="ilt-container">
-        {/* Header */}
-        <div className="ilt-header">
-          <div className="ilt-header-left">
-            <h1>All Issues</h1>
-            <p>Track, manage and resolve project issues</p>
+    <div className="flex flex-col h-full bg-white min-h-screen text-zinc-950 font-sans">
+      {/* Sticky Bulk Action Header */}
+      {selectedIssueIds.length > 0 && (
+        <div className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl animate-in slide-in-from-top duration-200">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold">{selectedIssueIds.length} Issues Selected</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Bulk Actions</span>
           </div>
-          
-          <div className="ilt-header-actions">
-            <button className="ilt-btn ilt-btn-secondary">
-              <Download size={16} />
-              Export
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCloseSelected}
+              className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-zinc-100 transition-all active:scale-[0.98]"
+            >
+              Close Selected
             </button>
-            <button className="ilt-btn ilt-btn-primary" onClick={() => navigate('/issue/new')}>
-              <Plus size={16} />
-              New Issue
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-red-700 transition-all active:scale-[0.98]"
+            >
+              Delete Selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIssueIds([])}
+              className="text-zinc-400 hover:text-white text-xs font-bold uppercase tracking-wider px-2 py-2"
+            >
+              Cancel
             </button>
           </div>
         </div>
-        
-        {/* Filters */}
-        <div className="ilt-filters-card">
-          <div className="ilt-filters-row">
-            <div className="ilt-search">
-              <Search size={16} className="ilt-search-icon" />
-              <input
-                type="text"
-                className="ilt-input"
-                placeholder="Search issues..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-              />
-            </div>
-            
-            <div className="ilt-filter-block">
-              <div className="ilt-filter-title">Client</div>
-              <select 
-                className="ilt-select"
-                value={clientFilter}
-                onChange={(e) => { 
-                  setClientFilter(e.target.value); 
-                  setProjectFilter(''); // Reset project when client changes
-                  setCurrentPage(1); 
-                }}
-              >
-                <option value="">All Clients</option>
-                {clientsData?.map(c => (
-                  <option key={c.id} value={c.id}>{c.client_name}</option>
-                ))}
-              </select>
-            </div>
+      )}
 
-            <div className="ilt-filter-block">
-              <div className="ilt-filter-title">Project</div>
-              <select 
-                className="ilt-select"
-                value={projectFilter}
-                onChange={(e) => { setProjectFilter(e.target.value); setCurrentPage(1); }}
-              >
-                <option value="">All Projects</option>
-                {filteredProjects.map(p => (
-                  <option key={p.id} value={p.id}>{p.project_name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="ilt-filter-block">
-              <div className="ilt-filter-title">System</div>
-              <select 
-                className="ilt-select"
-                value={systemFilter}
-                onChange={(e) => { setSystemFilter(e.target.value); setCurrentPage(1); }}
-              >
-                {SYSTEMS.map(s => (
-                  <option key={s} value={s}>{s ? getSystemLabel(s) : 'All Systems'}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="ilt-filter-block">
-              <div className="ilt-filter-title">Status</div>
-              <select 
-                className="ilt-select"
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              >
-                {STATUSES.map(s => (
-                  <option key={s} value={s}>{s ? s.replace('_', ' ').toUpperCase() : 'All Statuses'}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="ilt-filter-block">
-              <div className="ilt-filter-title">Severity</div>
-              <select 
-                className="ilt-select"
-                value={severityFilter}
-                onChange={(e) => { setSeverityFilter(e.target.value); setCurrentPage(1); }}
-              >
-                {SEVERITIES.map(s => (
-                  <option key={s} value={s}>{s ? s.toUpperCase() : 'All'}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="ilt-filter-block">
-              <div className="ilt-filter-title">Type</div>
-              <select 
-                className="ilt-select"
-                value={typeFilter}
-                onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
-              >
-                {TYPES.map(t => (
-                  <option key={t} value={t}>{t ? getIssueTypeLabel(t) : 'All Types'}</option>
-                ))}
-              </select>
-            </div>
-            
-            {hasFilters && (
-              <button className="ilt-clear-btn" onClick={clearFilters}>
-                <X size={14} />
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Results Bar */}
-        <div className="ilt-results-bar">
-          <div>
-            Showing <span className="ilt-results-count">{issues?.length || 0}</span> of <span className="ilt-results-count">{totalCount || 0}</span> issues
-          </div>
-        </div>
-        
-        {/* Table */}
-        <div className="ilt-table-wrapper">
-          <div className="ilt-table-scroll">
-            {isLoading ? (
-              <div className="ilt-loading">
-                <Loader2 size={24} className="animate-spin" />
-              </div>
-            ) : issues && issues.length > 0 ? (
-              <table className="ilt-table">
-                <thead>
-                  <tr>
-                    <th className="ilt-col-id" onClick={() => handleSort('issue_no')}>
-                      Issue ID <ArrowUpDown size={12} />
-                    </th>
-                    <th className="ilt-col-title" onClick={() => handleSort('title')}>
-                      Title <ArrowUpDown size={12} />
-                    </th>
-                    <th className="ilt-col-project">Project</th>
-                    <th className="ilt-col-system">System</th>
-                    <th className="ilt-col-location">Location</th>
-                    <th className="ilt-col-severity">Severity</th>
-                    <th className="ilt-col-status">Status</th>
-                    <th className="ilt-col-assign">Assigned To</th>
-                    <th className="ilt-col-sub">Subcontractor</th>
-                    <th className="ilt-col-due">Due Date</th>
-                    <th className="ilt-col-age">Age</th>
-                    <th className="ilt-col-actions"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {issues.map(issue => {
-                    const severityStyles = getSeverityStyles(issue.severity);
-                    const statusStyles = getStatusStyles(issue.status);
-                    const createdAt = new Date(issue.created_at);
-                    const ageDays = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-                    const isOverdue = issue.due_date && new Date(issue.due_date) < new Date() && issue.status !== 'closed';
-                    
-                    return (
-                      <tr key={issue.id} onClick={() => handleRowClick(issue)}>
-                        <td>
-                          <span className="ilt-issue-id">{issue.issue_no}</span>
-                        </td>
-                        <td>
-                          <div className="ilt-issue-title">{issue.title}</div>
-                        </td>
-                        <td>
-                          <div className="ilt-issue-project">{issue.project?.project_name || '—'}</div>
-                        </td>
-                        <td>{getSystemLabel(issue.system)}</td>
-                        <td>
-                          <div className="ilt-location-text">{formatLocationPathCompact(issue)}</div>
-                        </td>
-                        <td>
-                          <span 
-                            className="ilt-badge"
-                            style={{ 
-                              background: severityStyles.bg, 
-                              color: severityStyles.text,
-                              border: `1px solid ${severityStyles.border}`
-                            }}
-                          >
-                            {issue.severity}
-                          </span>
-                        </td>
-                        <td>
-                          <span 
-                            className="ilt-badge"
-                            style={{ 
-                              background: statusStyles.bg, 
-                              color: statusStyles.text,
-                              border: `1px solid ${statusStyles.border}`
-                            }}
-                          >
-                            {issue.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="ilt-user-name">{issue.assigned_to_name || '—'}</div>
-                        </td>
-                        <td>
-                          <div className="ilt-user-name">{issue.subcontractor?.name || '—'}</div>
-                        </td>
-                        <td>{issue.due_date ? formatIssueDate(issue.due_date) : '—'}</td>
-                        <td>
-                          <span className={`ilt-age-text ${isOverdue ? 'ilt-age-overdue' : ''}`}>
-                            {ageDays}d
-                          </span>
-                        </td>
-                        <td className="ilt-actions-cell">
-                          <button 
-                            className="ilt-action-btn"
-                            onClick={(e) => handleAction(e, issue.id)}
-                          >
-                            <MoreHorizontal size={14} />
-                          </button>
-                          <div className={`ilt-dropdown ${openMenuId === issue.id ? 'open' : ''}`}>
-                            <button 
-                              className="ilt-dropdown-item"
-                              onClick={() => { navigate(`/issue/${issue.id}`); setOpenMenuId(null); }}
-                            >
-                              <Eye size={14} />
-                              View
-                            </button>
-                            {canClose(issue) && (
-                              <button className="ilt-dropdown-item">
-                                <CheckCircle size={14} />
-                                Close
-                              </button>
-                            )}
-                            {canReopen(issue) && (
-                              <button className="ilt-dropdown-item">
-                                <XCircle size={14} />
-                                Reopen
-                              </button>
-                            )}
-                            <button 
-                              className="ilt-dropdown-item danger"
-                              onClick={() => deleteIssue.mutate(issue.id)}
-                            >
-                              <Trash2 size={14} />
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <div className="ilt-empty">
-                <Package className="ilt-empty-icon" />
-                <h3>No Issues Found</h3>
-                <p>{hasFilters ? 'Try adjusting your filters' : 'Create your first issue to get started'}</p>
-              </div>
-            )}
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-white">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-zinc-900">All Issues</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {totalCount || 0}
+          </span>
           
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="ilt-pagination">
-              <div className="ilt-pagination-info">
-                Page {currentPage} of {totalPages}
+          {stats && (
+            <>
+              <div className="h-4 w-px bg-zinc-200" />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider mx-1 text-amber-500">Open</span>
+                <span className="text-xs font-medium mx-1 text-amber-600">{stats.open || 0}</span>
+                
+                <div className="h-3 w-px bg-zinc-200 mx-1" />
+                
+                <span className="text-[10px] font-bold uppercase tracking-wider mx-1 text-blue-500">In Progress</span>
+                <span className="text-xs font-medium mx-1 text-blue-600">{stats.inProgress || 0}</span>
+                
+                <div className="h-3 w-px bg-zinc-200 mx-1" />
+                
+                <span className="text-[10px] font-bold uppercase tracking-wider mx-1 text-red-500">Critical</span>
+                <span className="text-xs font-medium mx-1 text-red-600">{stats.critical || 0}</span>
+                
+                <div className="h-3 w-px bg-zinc-200 mx-1" />
+                
+                <span className="text-[10px] font-bold uppercase tracking-wider mx-1 text-green-500">Closed</span>
+                <span className="text-xs font-medium mx-1 text-green-600">{stats.closed || 0}</span>
               </div>
-              <div className="ilt-pagination-buttons">
-                <button 
-                  className="ilt-page-btn"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => p - 1)}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = i + 1;
-                  return (
-                    <button 
-                      key={page}
-                      className={`ilt-page-btn ${currentPage === page ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </button>
-                  );
-                })}
-                <button 
-                  className="ilt-page-btn"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => p + 1)}
-                >
-                  <ChevronRight size={16} />
-                </button>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Column Customizer Toggle */}
+          <div className="relative">
+            <button 
+              type="button" 
+              onClick={() => setIsColumnCustomizerOpen(!isColumnCustomizerOpen)} 
+              className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]" 
+              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+            >
+              <Settings size={14} className="mr-1.5" />
+              Columns
+            </button>
+
+            {isColumnCustomizerOpen && (
+              <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</div>
+                <div className="flex flex-col gap-1">
+                  {Object.keys(visibleColumns).map((colKey) => (
+                    <label key={colKey} className="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={visibleColumns[colKey as keyof typeof visibleColumns]}
+                        onChange={(e) => setVisibleColumns(prev => ({ ...prev, [colKey]: e.target.checked }))}
+                      />
+                      <span className="text-sm font-medium text-zinc-700 capitalize">
+                        {colKey.replace(/([A-Z])/g, ' $1')}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+
+          <button 
+            type="button"
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]" 
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            <Download size={16} className="mr-1.5" />
+            Export
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => navigate('/issue/new')} 
+            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]" 
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            <Plus size={16} className="mr-1.5" />
+            New Issue
+          </button>
+        </div>
+      </div>
+
+      {/* Sub-tab Row with Filters */}
+      <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50" style={{ paddingTop: '15px', paddingBottom: '15px' }}>
+        <div className="flex items-center gap-2">
+          {[
+            { label: 'All Issues', value: '' },
+            { label: 'Open', value: 'open' },
+            { label: 'In Progress', value: 'in_progress' },
+            { label: 'Inspection Required', value: 'waiting_inspection' },
+            { label: 'Closed', value: 'closed' }
+          ].map((tab) => {
+            const isActive = statusFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => { setStatusFilter(tab.value); setCurrentPage(1); }}
+                className={`h-[26px] px-4 text-sm font-medium transition-colors rounded ${
+                  isActive ? 'bg-blue-600/10 text-blue-600 font-semibold' : 'text-zinc-600 hover:bg-zinc-100'
+                }`}
+                style={{ width: '150px' }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              className="pl-9 pr-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Search issues..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            />
+          </div>
+
+          <select
+            className="h-[30px] px-2 text-xs border border-zinc-200 rounded-lg bg-white text-zinc-700 focus:outline-none"
+            value={clientFilter}
+            onChange={(e) => { setClientFilter(e.target.value); setProjectFilter(''); setCurrentPage(1); }}
+          >
+            <option value="">All Clients</option>
+            {clientsData?.map(c => (
+              <option key={c.id} value={c.id}>{c.client_name}</option>
+            ))}
+          </select>
+
+          <select
+            className="h-[30px] px-2 text-xs border border-zinc-200 rounded-lg bg-white text-zinc-700 focus:outline-none"
+            value={projectFilter}
+            onChange={(e) => { setProjectFilter(e.target.value); setCurrentPage(1); }}
+          >
+            <option value="">All Projects</option>
+            {filteredProjects.map(p => (
+              <option key={p.id} value={p.id}>{p.project_name}</option>
+            ))}
+          </select>
+
+          <select
+            className="h-[30px] px-2 text-xs border border-zinc-200 rounded-lg bg-white text-zinc-700 focus:outline-none"
+            value={systemFilter}
+            onChange={(e) => { setSystemFilter(e.target.value); setCurrentPage(1); }}
+          >
+            <option value="">All Systems</option>
+            {SYSTEMS.filter(Boolean).map(s => (
+              <option key={s} value={s}>{getSystemLabel(s)}</option>
+            ))}
+          </select>
+
+          <select
+            className="h-[30px] px-2 text-xs border border-zinc-200 rounded-lg bg-white text-zinc-700 focus:outline-none"
+            value={severityFilter}
+            onChange={(e) => { setSeverityFilter(e.target.value); setCurrentPage(1); }}
+          >
+            <option value="">All Severities</option>
+            {SEVERITIES.filter(Boolean).map(s => (
+              <option key={s} value={s}>{s.toUpperCase()}</option>
+            ))}
+          </select>
+
+          {hasFilters && (
+            <button 
+              type="button" 
+              onClick={clearFilters}
+              className="h-[30px] px-2 flex items-center gap-1 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <X size={12} />
+              Clear
+            </button>
           )}
         </div>
       </div>
+
+      {/* Main Table Area */}
+      <div className="flex-1 overflow-auto bg-white">
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[400px] text-zinc-400">
+            <Loader2 size={24} className="animate-spin mr-2" />
+            Loading issues...
+          </div>
+        ) : issues && issues.length > 0 ? (
+          <table className="w-full border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <th className="w-[50px] px-4 text-center sticky top-0 z-10 h-[36px] bg-white border-b border-zinc-200">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={issues.length > 0 && selectedIssueIds.length === issues.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIssueIds(issues.map(i => i.id));
+                      } else {
+                        setSelectedIssueIds([]);
+                      }
+                    }}
+                  />
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left" onClick={() => handleSort('issue_no')}>
+                  <div className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                    Issue ID
+                    <ArrowUpDown size={12} className={`w-3 h-3 ${sortBy === 'issue_no' ? 'text-indigo-600' : 'text-zinc-300 group-hover:text-zinc-400'}`} />
+                  </div>
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left" onClick={() => handleSort('title')}>
+                  <div className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
+                    Title
+                    <ArrowUpDown size={12} className={`w-3 h-3 ${sortBy === 'title' ? 'text-indigo-600' : 'text-zinc-300 group-hover:text-zinc-400'}`} />
+                  </div>
+                </th>
+                {visibleColumns.project && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Project</th>
+                )}
+                {visibleColumns.system && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">System</th>
+                )}
+                {visibleColumns.location && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Location</th>
+                )}
+                {visibleColumns.severity && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Severity</th>
+                )}
+                {visibleColumns.status && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Status</th>
+                )}
+                {visibleColumns.assignee && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Assigned To</th>
+                )}
+                {visibleColumns.subcontractor && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Subcontractor</th>
+                )}
+                {visibleColumns.dueDate && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Due Date</th>
+                )}
+                {visibleColumns.age && (
+                  <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">Age</th>
+                )}
+                <th className="w-[70px] px-6 pl-1 text-center sticky top-0 z-10 h-[36px] bg-white border-b border-zinc-200"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {issues.map((issue, index) => {
+                const isSelected = selectedIssueIds.includes(issue.id);
+                const isLastThree = index >= issues.length - 3;
+                const severityStyles = getSeverityStyles(issue.severity);
+                const statusStyles = getStatusStyles(issue.status);
+                const createdAt = new Date(issue.created_at);
+                const ageDays = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+                const isOverdue = issue.due_date && new Date(issue.due_date) < new Date() && issue.status !== 'closed';
+
+                return (
+                  <tr 
+                    key={issue.id} 
+                    onClick={() => navigate(`/issue/${issue.id}`)}
+                    className={`border-t border-zinc-200/70 hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm cursor-pointer transition-all ${
+                      isSelected ? 'bg-indigo-50/50 border-l-2 border-l-blue-600' : index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
+                    }`}
+                  >
+                    <td className="px-4 py-[26px] text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIssueIds(prev => [...prev, issue.id]);
+                          } else {
+                            setSelectedIssueIds(prev => prev.filter(id => id !== issue.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-6 py-[26px] align-middle font-mono font-semibold text-xs text-red-600">
+                      {issue.issue_no}
+                    </td>
+                    <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 max-w-[350px] truncate" title={issue.title}>
+                      {issue.title}
+                    </td>
+                    {visibleColumns.project && (
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 max-w-[180px] truncate" title={issue.project?.project_name || ''}>
+                        {issue.project?.project_name || '—'}
+                      </td>
+                    )}
+                    {visibleColumns.system && (
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800">
+                        {getSystemLabel(issue.system)}
+                      </td>
+                    )}
+                    {visibleColumns.location && (
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 max-w-[180px] truncate" title={formatLocationPathCompact(issue)}>
+                        {formatLocationPathCompact(issue)}
+                      </td>
+                    )}
+                    {visibleColumns.severity && (
+                      <td className="px-6 py-[26px] align-middle">
+                        <span 
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                          style={{ 
+                            background: severityStyles.bg, 
+                            color: severityStyles.text,
+                            borderColor: severityStyles.border
+                          }}
+                        >
+                          {issue.severity}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.status && (
+                      <td className="px-6 py-[26px] align-middle">
+                        <span 
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                          style={{ 
+                            background: statusStyles.bg, 
+                            color: statusStyles.text,
+                            borderColor: statusStyles.border
+                          }}
+                        >
+                          {issue.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.assignee && (
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800">
+                        {issue.assigned_to_name || '—'}
+                      </td>
+                    )}
+                    {visibleColumns.subcontractor && (
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 max-w-[180px] truncate" title={issue.subcontractor?.name || ''}>
+                        {issue.subcontractor?.name || '—'}
+                      </td>
+                    )}
+                    {visibleColumns.dueDate && (
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800">
+                        {issue.due_date ? formatIssueDate(issue.due_date) : '—'}
+                      </td>
+                    )}
+                    {visibleColumns.age && (
+                      <td className="px-6 py-[26px] align-middle tabular-nums text-sm text-zinc-800">
+                        <span className={isOverdue ? 'text-red-600 font-semibold' : ''}>
+                          {ageDays}d
+                        </span>
+                      </td>
+                    )}
+                    <td className="px-6 py-[26px] align-middle text-center relative" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        type="button"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-zinc-200 text-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 transition-colors"
+                        onClick={(e) => handleActionClick(e, issue.id)}
+                      >
+                        <MoreHorizontal size={14} />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      <div 
+                        className={`absolute right-6 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
+                          isLastThree ? 'bottom-full mb-1' : 'top-full mt-1'
+                        } ${openMenuId === issue.id ? 'block' : 'hidden'}`}
+                      >
+                        <button 
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] transition-all"
+                          style={{ padding: '6px' }}
+                          onClick={() => { navigate(`/issue/${issue.id}`); setOpenMenuId(null); }}
+                        >
+                          <Eye size={14} />
+                          View Details
+                        </button>
+
+                        {canClose(issue) && (
+                          <button 
+                            type="button"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98] transition-all"
+                            style={{ padding: '6px' }}
+                            onClick={() => {
+                              updateStatus.mutate({ id: issue.id, update: { status: 'closed' } });
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <CheckCircle size={14} />
+                            Close Issue
+                          </button>
+                        )}
+
+                        {canReopen(issue) && (
+                          <button 
+                            type="button"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] transition-all"
+                            style={{ padding: '6px' }}
+                            onClick={() => {
+                              updateStatus.mutate({ id: issue.id, update: { status: 'reopened' } });
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <XCircle size={14} />
+                            Reopen Issue
+                          </button>
+                        )}
+
+                        <div className="my-1 border-t border-zinc-100" />
+
+                        <button 
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-red-50 hover:text-red-600 active:scale-[0.98] transition-all"
+                          style={{ padding: '6px' }}
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this issue?')) {
+                              deleteIssue.mutate(issue.id);
+                            }
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div className="px-5 py-16 text-center text-sm text-zinc-500">
+            No issues found
+          </div>
+        )}
+      </div>
+
+      {/* Pagination Footer */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+          <span className="text-sm font-medium text-zinc-600">
+            Showing {((currentPage - 1) * PAGE_SIZE) + 1} to {Math.min(currentPage * PAGE_SIZE, totalCount || 0)} of {totalCount || 0} issues
+          </span>
+          <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              className={`h-[32px] min-w-[80px] flex items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                currentPage === 1 
+                  ? 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed' 
+                  : 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+              }`}
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1.5">
+              {getPageNumbers().map((page) => {
+                const isActive = currentPage === page;
+                return (
+                  <button 
+                    key={page}
+                    type="button"
+                    className={`h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-all ${
+                      isActive 
+                        ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm' 
+                        : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
+                    }`}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+            <button 
+              type="button"
+              className={`h-[32px] min-w-[80px] flex items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                currentPage === totalPages 
+                  ? 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed' 
+                  : 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+              }`}
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

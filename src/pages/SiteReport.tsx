@@ -175,7 +175,22 @@ export function SiteReport() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
+  // Accordion open/closed state — all open by default
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    identification: true,
+    manpower: true,
+    workMilestones: true,
+    progressEquipmentSafety: true,
+    logistics: true,
+    issuesPlanClient: true,
+    photos: true,
+    footer: true,
+  });
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   const issueIdParam = searchParams.get('issue_id');
   const actionParam = searchParams.get('action');
 
@@ -995,13 +1010,16 @@ export function SiteReport() {
           </div>
 
           {/* Form Content - Styled per SiteVisits design reference */}
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} data-site-report>
             <fieldset disabled={view === 'view'} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* 1. Identification Section */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Report Identification</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                <button type="button" onClick={() => toggleSection('identification')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.identification ? '14px' : 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Report Identification</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.identification && 'rotate-90')} />
+                </button>
+                {openSections.identification && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client *</label>
                     <Select 
@@ -1057,12 +1075,16 @@ export function SiteReport() {
                     />
                     {errors.date && <p className="text-[10px] text-red-500 font-medium">{errors.date.message}</p>}
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* 2. Manpower Section */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Manpower Details</div>
+                <button type="button" onClick={() => toggleSection('manpower')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.manpower ? '14px' : 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Manpower Details</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.manpower && 'rotate-90')} />
+                </button>
+                {openSections.manpower && <>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SKILLED FORCE</label>
@@ -1150,10 +1172,16 @@ export function SiteReport() {
                     </Table>
                   </div>
                 </div>
+                </>}
               </div>
 
               {/* 3. Work Carried Out & Milestones */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <button type="button" onClick={() => toggleSection('workMilestones')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.workMilestones ? '12px' : 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Carried Out & Milestones</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.workMilestones && 'rotate-90')} />
+                </button>
+                {openSections.workMilestones && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Done Today *</label>
@@ -1219,10 +1247,16 @@ export function SiteReport() {
                     ))}
                   </div>
                 </div>
+              </div>}
               </div>
 
               {/* 4. Progress, Equipment, Safety & Quality */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <button type="button" onClick={() => toggleSection('progressEquipmentSafety')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.progressEquipmentSafety ? '12px' : 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Progress, Equipment & Safety</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.progressEquipmentSafety && 'rotate-90')} />
+                </button>
+                {openSections.progressEquipmentSafety && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 {/* Progress Monitoring */}
                 <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Progress Monitoring</div>
@@ -1290,12 +1324,16 @@ export function SiteReport() {
                     </div>
                   </div>
                 </div>
+              </div>}
               </div>
 
               {/* 5. Logistics & Internal Reporting */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#404040', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Logistics & Internal Reporting</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
+                <button type="button" onClick={() => toggleSection('logistics')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.logistics ? '10px' : 0 }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Logistics & Internal Reporting</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.logistics && 'rotate-90')} />
+                </button>
+                {openSections.logistics && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>REPORTED TO PM</label>
                     <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
@@ -1339,11 +1377,16 @@ export function SiteReport() {
                       <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Tools Secured</label>
                     </div>
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* 6. Issues, Plan, Client Requirements */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
+                <button type="button" onClick={() => toggleSection('issuesPlanClient')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.issuesPlanClient ? '12px' : 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Issues, Planning & Client Requirements</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.issuesPlanClient && 'rotate-90')} />
+                </button>
+                {openSections.issuesPlanClient && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 {/* Issues */}
                 <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', background: '#fff5f5', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1444,15 +1487,19 @@ export function SiteReport() {
                     </div>
                   </div>
                 </div>
+              </div>}
               </div>
 
               {/* Section 7: Photos */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visual Documentation (Photos)</label>
-                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</span>
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                <button type="button" onClick={() => toggleSection('photos')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.photos ? '10px' : 0 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>Visual Documentation (Photos)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</span>
+                    <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.photos && 'rotate-90')} />
+                  </div>
+                </button>
+                {openSections.photos && <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
                   {photos.map((photo, index) => (
                     <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 shadow-sm bg-zinc-50 group">
                       <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
@@ -1472,12 +1519,16 @@ export function SiteReport() {
                       <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
                     </label>
                   )}
-                </div>
+                </div>}
               </div>
 
               {/* Section 8: Engineer Signature & Date */}
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <button type="button" onClick={() => toggleSection('footer')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.footer ? '14px' : 0 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Engineer Signature & Date</div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.footer && 'rotate-90')} />
+                </button>
+                {openSections.footer && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Engineer/Supervisor Name *</label>
                     <Input className="h-10 bg-white font-semibold" {...form.register('footer.engineer')} placeholder="Enter your name" />
@@ -1488,7 +1539,7 @@ export function SiteReport() {
                     <Input type="date" className="h-10 bg-white" {...form.register('footer.signatureDate')} />
                     {errors.footer?.signatureDate && <p className="text-[10px] text-red-500 font-medium">{errors.footer.signatureDate.message}</p>}
                   </div>
-                </div>
+                </div>}
               </div>
             </fieldset>
 

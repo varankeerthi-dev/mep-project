@@ -19,7 +19,9 @@ import {
   ChevronDown,
   MoreHorizontal,
   Columns,
-  Copy
+  Copy,
+  Paperclip,
+  Upload
 } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -45,7 +47,7 @@ import { Label } from '../../../components/ui/label';
 import { cn } from '../../../lib/utils';
 
 import { useAuth } from '../../../contexts/AuthContext';
-import { usePurchaseOrders, useVendors, useCreatePurchaseOrder, useUpdatePurchaseOrder, useUpdatePOStatus, useDeletePO } from '../hooks/usePurchaseQueries';
+import { usePurchaseOrders, usePurchaseOrder, useVendors, useCreatePurchaseOrder, useUpdatePurchaseOrder, useUpdatePOStatus, useDeletePO } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
 import { z } from 'zod';
 import { 
@@ -143,534 +145,11 @@ export const PurchaseOrders: React.FC = () => {
     total: 0,
     totalInr: 0,
   });
-
-  const { data: pos = [], isLoading } = usePurchaseOrders(organisation?.id);
-  const { data: vendors = [] } = useVendors(organisation?.id);
-  const createPO = useCreatePurchaseOrder();
-  const updatePO = useUpdatePurchaseOrder();
-  const updateStatus = useUpdatePOStatus();
-  const navigate = useNavigate();
-
-  // Filtered data based on search
-  const filteredPOs = useMemo(() => {
-    if (!searchTerm) return pos;
-    const term = searchTerm.toLowerCase();
-    return pos.filter((po: any) => 
-      po.po_number?.toLowerCase().includes(term) ||
-      po.vendor?.company_name?.toLowerCase().includes(term) ||
-      po.status?.toLowerCase().includes(term)
-    );
-  }, [pos, searchTerm]);
-
-  // Load materials and variants on mount
-  useEffect(() => {
-    if (organisation?.id) {
-      loadMaterials();
-      loadVariants();
-    }
-  }, [organisation?.id]);
-
-  // Handle action=create from URL
-  useEffect(() => {
-    if (actionParam === 'create' && !openDialog) {
-      handleAdd();
-      
-      // Clear action param so it doesn't re-trigger
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('action');
-      setSearchParams(newParams, { replace: true });
-    }
-  }, [actionParam, openDialog]);
-
-  // Fetch linked Issue info for pre-filling
-  const { data: linkedIssue } = useQuery({
-    queryKey: ['issue-for-po', issueIdParam],
-    enabled: !!issueIdParam && openDialog,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('issues')
-        .select('id, title, description, project_id, location_block, equipment_tag')
-        .eq('id', issueIdParam)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  // Pre-fill from issue
-  useEffect(() => {
-    if (linkedIssue && openDialog && items.length === 0) {
-      // Create an initial item based on the issue
-      const issueDesc = `Resolution for Issue: ${linkedIssue.title}${linkedIssue.description ? ` - ${linkedIssue.description}` : ''}`;
-      const newItem: POItem = {
-        sr: 1,
-        item_name: linkedIssue.equipment_tag || 'Material/Service',
-        make: '',
-        variant: '',
-        description: issueDesc,
-        hsn_code: '',
-        quantity: 1,
-        unit: 'Nos',
-        rate: 0,
-        discount_percent: 0,
-        discount_amount: 0,
-        taxable_value: 0,
-        cgst_percent: 9,
-        cgst_amount: 0,
-        sgst_percent: 9,
-        sgst_amount: 0,
-        igst_percent: 18,
-        igst_amount: 0,
-        total_amount: 0,
-      };
-      setItems([newItem]);
-    }
-  }, [linkedIssue, openDialog]);
-
-  const loadMaterials = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('materials')
-        .select('id, item_code, display_name, name, hsn_code, sale_price, purchase_price, unit, gst_rate, make, item_type, uses_variant')
-        .eq('is_active', true)
-        .order('name');
-      
-      if (error) throw error;
-      setMaterials(data || []);
-      console.log('Loaded materials:', data?.length || 0, 'items');
-    } catch (error) {
-      console.error('Error loading materials:', error);
-    }
-  };
-
-  const loadVariants = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('company_variants')
-        .select('id, variant_name')
-        .eq('is_active', true)
-        .order('variant_name');
-      
-      if (error) throw error;
-      setVariants(data || []);
-    } catch (error) {
-      console.error('Error loading variants:', error);
-    }
-  };
-
-  const poSeriesRef = useRef<any>(null);
-
-  const getFyPrefix = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    if (month < 3) return `${year - 1}-${String(year).slice(-2)}`;
-    return `${year}-${String(year + 1).slice(-2)}`;
-  };
-
-  const getPOSeriesNumber = (seriesRow: any): number => {
-    const cfg = seriesRow?.configs?.po;
-    if (cfg && cfg.enabled) {
-      return parseInt(cfg.start_number || 1, 10);
-    }
-    return parseInt(seriesRow?.current_number || 1, 10);
-  };
-
-  const buildPONumber = (seriesRow: any): string => {
-    if (!seriesRow) return '';
-    const cfg = seriesRow?.configs?.po || {};
-    const rawPrefix = cfg.prefix || 'PO-';
-    const suffix = cfg.suffix || '';
-    const number = getPOSeriesNumber(seriesRow);
-    const padding = parseInt(cfg.padding || 4, 10);
-    const padded = String(number).padStart(padding, '0');
-    const fy = getFyPrefix();
-    const prefix = String(rawPrefix).replace('{FY}', fy);
-    return `${prefix}${padded}${suffix}`;
-  };
-
-  const generatePONumber = async (): Promise<string> => {
-    if (!organisation?.id) return 'PO-FALLBACK';
-
-    try {
-      const orgId = organisation.id;
-
-      const { data: primary } = await supabase
-        .from('document_series')
-        .select('id, configs, current_number')
-        .eq('is_default', true)
-        .eq('organisation_id', orgId)
-        .limit(1)
-        .maybeSingle();
-
-      if (primary) {
-        poSeriesRef.current = primary;
-        return buildPONumber(primary);
-      }
-
-      const { data: byOrg } = await supabase
-        .from('document_series')
-        .select('id, configs, current_number')
-        .eq('organisation_id', orgId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (byOrg && byOrg.length > 0) {
-        poSeriesRef.current = byOrg[0];
-        return buildPONumber(byOrg[0]);
-      }
-
-      const { data: byDefault } = await supabase
-        .from('document_series')
-        .select('id, configs, current_number')
-        .eq('is_default', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (byDefault && byDefault.length > 0) {
-        poSeriesRef.current = byDefault[0];
-        return buildPONumber(byDefault[0]);
-      }
-
-      const { data: global } = await supabase
-        .from('document_series')
-        .select('id, configs, current_number')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (global && global.length > 0) {
-        poSeriesRef.current = global[0];
-        return buildPONumber(global[0]);
-      }
-
-      return 'PO-0001';
-    } catch (error) {
-      console.error('Error generating PO number:', error);
-      return `PO-${Date.now().toString().slice(-6)}`;
-    }
-  };
-
-  const handleAdd = async () => {
-    setSelectedPO(null);
-    setVendorId('');
-    setItems([]);
-    setCurrency('INR');
-    setExchangeRate(1);
-
-    const newPoNumber = await generatePONumber();
-    setPoNumber(newPoNumber);
-
-    navigate('/purchase/orders?mode=create');
-  };
-
-  const handleViewPDF = (po: any) => {
-    const pdfBlob = generatePOPDF({
-      company_name: organisation?.name || 'Company',
-      company_address: 'Company Address',
-      company_gstin: 'GSTIN',
-      company_phone: 'Phone',
-      po_number: po.po_number,
-      po_date: po.po_date,
-      vendor_name: po.vendor?.company_name || 'Vendor',
-      vendor_address: 'Vendor Address',
-      vendor_gstin: po.vendor?.gstin || '',
-      vendor_contact: po.vendor?.phone || '',
-      delivery_location: po.delivery_location || '',
-      currency: po.currency || 'INR',
-      exchange_rate: po.exchange_rate || 1,
-      terms: po.terms || 'Net 30',
-      items: po.items?.map((item: any, idx: number) => ({
-        sr: idx + 1,
-        description: item.item_name,
-        hsn_code: item.hsn_code,
-        quantity: item.quantity,
-        unit: item.unit,
-        rate: item.rate,
-        cgst_percent: item.cgst_percent,
-        cgst_amount: item.cgst_amount,
-        sgst_percent: item.sgst_percent,
-        sgst_amount: item.sgst_amount,
-        total_amount: item.total_amount,
-      })) || [],
-      subtotal: po.subtotal,
-      discount_amount: po.discount_amount,
-      taxable_amount: po.taxable_amount,
-      cgst_amount: po.cgst_amount,
-      sgst_amount: po.sgst_amount,
-      igst_amount: po.igst_amount,
-      total_amount: po.total_amount,
-      total_amount_inr: po.total_amount_inr,
-      notes: po.terms_conditions,
-    });
-    openPDFPreview(pdfBlob);
-  };
-
-  const deletePO = useDeletePO();
-  const [deleteConfirmPO, setDeleteConfirmPO] = useState<any>(null);
-
-  const handleEditPO = (po: any) => {
-    setSelectedPO(po);
-    setPoNumber(po.po_number);
-    setVendorId(po.vendor_id);
-    setPoDate(po.po_date);
-    setDeliveryDate(po.delivery_date || '');
-    setCurrency(po.currency);
-    setExchangeRate(po.exchange_rate || 1);
-    setTerms(po.terms_conditions || 'Net 30');
-    const poItems: POItem[] = (po.purchase_order_items || []).map((item: any, idx: number) => ({
-      id: item.id,
-      item_id: item.item_id,
-      sr: idx + 1,
-      item_name: item.item_name,
-      make: item.make || '',
-      variant: item.variant || '',
-      description: item.description || '',
-      hsn_code: item.hsn_code || '',
-      quantity: item.quantity,
-      unit: item.unit,
-      rate: item.rate,
-      discount_percent: item.discount_percent || 0,
-      discount_amount: item.discount_amount || 0,
-      taxable_value: item.taxable_value || 0,
-      cgst_percent: item.cgst_percent || 0,
-      cgst_amount: item.cgst_amount || 0,
-      sgst_percent: item.sgst_percent || 0,
-      sgst_amount: item.sgst_amount || 0,
-      igst_percent: item.igst_percent || 0,
-      igst_amount: item.igst_amount || 0,
-      total_amount: item.total_amount || 0,
-    }));
-    setItems(poItems);
-    navigate('/purchase/orders?mode=edit');
-  };
-
-  const handleDuplicatePO = async (po: any) => {
-    const newPoNumber = await generatePONumber();
-    setSelectedPO(null);
-    setPoNumber(newPoNumber);
-    setVendorId(po.vendor_id);
-    setPoDate(new Date().toISOString().split('T')[0]);
-    setDeliveryDate('');
-    setCurrency(po.currency);
-    setExchangeRate(po.exchange_rate || 1);
-    setTerms(po.terms_conditions || 'Net 30');
-    const poItems: POItem[] = (po.purchase_order_items || []).map((item: any, idx: number) => ({
-      item_id: item.item_id,
-      sr: idx + 1,
-      item_name: item.item_name,
-      make: item.make || '',
-      variant: item.variant || '',
-      description: item.description || '',
-      hsn_code: item.hsn_code || '',
-      quantity: item.quantity,
-      unit: item.unit,
-      rate: item.rate,
-      discount_percent: item.discount_percent || 0,
-      discount_amount: item.discount_amount || 0,
-      taxable_value: item.taxable_value || 0,
-      cgst_percent: item.cgst_percent || 0,
-      cgst_amount: item.cgst_amount || 0,
-      sgst_percent: item.sgst_percent || 0,
-      sgst_amount: item.sgst_amount || 0,
-      igst_percent: item.igst_percent || 0,
-      igst_amount: item.igst_amount || 0,
-      total_amount: item.total_amount || 0,
-    }));
-    setItems(poItems);
-    navigate('/purchase/orders?mode=create');
-  };
-
-  const handleDeletePO = async () => {
-    if (!deleteConfirmPO || !organisation?.id) return;
-    try {
-      await deletePO.mutateAsync({ id: deleteConfirmPO.id, organisationId: organisation.id });
-      setDeleteConfirmPO(null);
-    } catch {
-      alert('Failed to delete PO');
-    }
-  };
-
-  const calculateTotals = (currentItems: POItem[]) => {
-    let subtotal = 0;
-    let discount = 0;
-    let taxable = 0;
-    let cgst = 0;
-    let sgst = 0;
-    let igst = 0;
-
-    currentItems.forEach((item) => {
-      const lineValue = item.quantity * item.rate;
-      const discAmount = (lineValue * item.discount_percent) / 100;
-      const taxableValue = lineValue - discAmount;
-      
-      subtotal += lineValue;
-      discount += discAmount;
-      taxable += taxableValue;
-      cgst += item.cgst_amount;
-      sgst += item.sgst_amount;
-      igst += item.igst_amount;
-    });
-
-    const total = taxable + cgst + sgst + igst;
-    const totalInr = total * exchangeRate;
-
-    setTotals({
-      subtotal: parseFloat(subtotal.toFixed(2)),
-      discount: parseFloat(discount.toFixed(2)),
-      taxable: parseFloat(taxable.toFixed(2)),
-      cgst: parseFloat(cgst.toFixed(2)),
-      sgst: parseFloat(sgst.toFixed(2)),
-      igst: parseFloat(igst.toFixed(2)),
-      total: parseFloat(total.toFixed(2)),
-      totalInr: parseFloat(totalInr.toFixed(2)),
-    });
-  };
-
-  const addItem = () => {
-    const newItem: POItem = {
-      sr: items.length + 1,
-      item_name: '',
-      make: '',
-      variant: '',
-      description: '',
-      hsn_code: '',
-      quantity: 1,
-      unit: 'Nos',
-      rate: 0,
-      discount_percent: 0,
-      discount_amount: 0,
-      taxable_value: 0,
-      cgst_percent: 9,
-      cgst_amount: 0,
-      sgst_percent: 9,
-      sgst_amount: 0,
-      igst_percent: 18,
-      igst_amount: 0,
-      total_amount: 0,
-    };
-    setItems([...items, newItem]);
-  };
-
-  const updateItem = (index: number, field: keyof POItem, value: any) => {
-    const updatedItems = [...items];
-    const item = updatedItems[index];
-    
-    (item as any)[field] = value;
-    
-    // Recalculate
-    const lineValue = item.quantity * item.rate;
-    item.discount_amount = (lineValue * item.discount_percent) / 100;
-    item.taxable_value = lineValue - item.discount_amount;
-    
-    item.cgst_amount = (item.taxable_value * item.cgst_percent) / 100;
-    item.sgst_amount = (item.taxable_value * item.sgst_percent) / 100;
-    item.igst_amount = (item.taxable_value * item.igst_percent) / 100;
-    
-    item.total_amount = item.taxable_value + item.cgst_amount + item.sgst_amount + item.igst_amount;
-    
-    setItems(updatedItems);
-    calculateTotals(updatedItems);
-  };
-
-  const removeItem = (index: number) => {
-    const updatedItems = items.filter((_, i) => i !== index);
-    updatedItems.forEach((item, i) => { item.sr = i + 1; });
-    setItems(updatedItems);
-    calculateTotals(updatedItems);
-  };
-
-  const handleSave = async (status: string) => {
-    try {
-      const poData = {
-        organisation_id: organisation?.id,
-        issue_id: issueIdParam || null,
-        po_number: poNumber,
-        po_date: poDate,
-        vendor_id: vendorId,
-        currency,
-        exchange_rate: exchangeRate,
-        delivery_date: deliveryDate || null,
-        terms_conditions: terms,
-        subtotal: totals.subtotal,
-        discount_amount: totals.discount,
-        taxable_amount: totals.taxable,
-        cgst_amount: totals.cgst,
-        sgst_amount: totals.sgst,
-        igst_amount: totals.igst,
-        total_amount: totals.total,
-        total_amount_inr: totals.totalInr,
-        status,
-      };
-
-      const itemsData = items.map((item) => ({
-        organisation_id: organisation?.id,
-        item_id: item.item_id,
-        item_name: item.item_name,
-        make: item.make,
-        variant: item.variant,
-        description: item.description,
-        hsn_code: item.hsn_code,
-        quantity: item.quantity,
-        unit: item.unit,
-        rate: item.rate,
-        discount_percent: item.discount_percent,
-        discount_amount: item.discount_amount,
-        taxable_value: item.taxable_value,
-        cgst_percent: item.cgst_percent,
-        cgst_amount: item.cgst_amount,
-        sgst_percent: item.sgst_percent,
-        sgst_amount: item.sgst_amount,
-        igst_percent: item.igst_percent,
-        igst_amount: item.igst_amount,
-        total_amount: item.total_amount,
-        total_amount_inr: item.total_amount * exchangeRate,
-      }));
-
-      if (selectedPO?.id) {
-        await updatePO.mutateAsync({ id: selectedPO.id, poData, items: itemsData });
-      } else {
-        const result = await createPO.mutateAsync({ poData, items: itemsData });
-
-        if (issueIdParam && result?.id) {
-          await supabase.from('issue_activity_logs').insert({
-            issue_id: issueIdParam,
-            action: 'purchase_order_created',
-            new_value: { po_id: result.id, po_number: poNumber },
-            done_by: (organisation as any)?.created_by || null,
-            done_by_name: organisation?.name || 'System'
-          });
-        }
-
-        // Increment document_series after successful creation (fire-and-forget)
-        if (poSeriesRef.current) {
-          const nextNo = getPOSeriesNumber(poSeriesRef.current) + 1;
-          const cfg = poSeriesRef.current.configs || {};
-          const poCfg = cfg.po || {};
-          const updatedCfg = { ...cfg, po: { ...poCfg, start_number: nextNo } };
-          supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', poSeriesRef.current.id).then();
-        }
-      }
-
-      setOpenDialog(false);
-      setSelectedPO(null);
-    } catch (error) {
-      console.error('Error saving PO:', error);
-    }
-  };
-
-  const isFormPage = searchParams.get('mode') === 'create' || searchParams.get('mode') === 'edit';
-
-  const cancelForm = () => {
-    setSelectedPO(null);
-    poSeriesRef.current = null;
-    navigate('/purchase/orders');
-  };
-
-  const handleBack = () => {
-    cancelForm();
-  };
-
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [notes, setNotes] = useState('');
+  const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [referenceNo, setReferenceNo] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -777,6 +256,367 @@ export const PurchaseOrders: React.FC = () => {
     });
   };
 
+  const isFormPage = searchParams.get('mode') === 'create' || searchParams.get('mode') === 'edit';
+  const navigate = useNavigate();
+
+  const { data: vendors = [], isLoading: vendorsLoading } = useVendors(organisation?.id);
+  const { data: poList = [], isLoading } = usePurchaseOrders(organisation?.id);
+  const createPO = useCreatePurchaseOrder();
+  const updatePO = useUpdatePurchaseOrder();
+  const deletePO = useDeletePO();
+
+  const editingPOId = searchParams.get('id');
+  const { data: editingPO, isLoading: editingPOLoading } = usePurchaseOrder(editingPOId);
+
+  const filteredPOs = useMemo(() => {
+    if (!searchTerm) return poList;
+    const term = searchTerm.toLowerCase();
+    return poList.filter((po: any) =>
+      (po.po_number || '').toLowerCase().includes(term) ||
+      (po.vendor?.company_name || '').toLowerCase().includes(term) ||
+      (po.status || po.approval_status || '').toLowerCase().includes(term)
+    );
+  }, [poList, searchTerm]);
+
+  // Materials for item select
+  useEffect(() => {
+    if (!organisation?.id) return;
+    supabase.from('materials').select('id, name, display_name, hsn_code, unit, purchase_price, sale_price, make, gst_rate, type').eq('organisation_id', organisation.id).order('name').then(({ data }) => {
+      if (data) setMaterials(data);
+    });
+    supabase.from('material_variants').select('id, variant_name, material_id').eq('organisation_id', organisation.id).then(({ data }) => {
+      if (data) setVariants(data);
+    });
+  }, [organisation?.id]);
+
+  // Load PO data for editing
+  useEffect(() => {
+    if (editingPO) {
+      setPoNumber(editingPO.po_number || '');
+      setCurrency(editingPO.currency || 'INR');
+      setExchangeRate(editingPO.exchange_rate || 1);
+      setVendorId(editingPO.vendor_id || '');
+      setPoDate(editingPO.po_date ? editingPO.po_date.split('T')[0] : new Date().toISOString().split('T')[0]);
+      setDeliveryDate(editingPO.delivery_date ? editingPO.delivery_date.split('T')[0] : '');
+      setTerms(editingPO.terms || 'Net 30');
+      setNotes(editingPO.internal_notes || '');
+      setDeliveryLocation(editingPO.delivery_location || '');
+      setReferenceNo(editingPO.reference_no || '');
+      setAttachmentUrl(editingPO.attachment_url || '');
+      if (editingPO.items) {
+        setItems(editingPO.items.map((item: any, idx: number) => ({
+          ...item,
+          sr: idx + 1,
+        })));
+      }
+    }
+  }, [editingPO]);
+
+  // Recalculate totals whenever items change
+  useEffect(() => {
+    let subtotal = 0, discountTotal = 0, taxableTotal = 0;
+    let cgstTotal = 0, sgstTotal = 0, igstTotal = 0, grandTotal = 0;
+
+    items.forEach(item => {
+      const lineValue = item.quantity * item.rate;
+      const discountAmt = (lineValue * item.discount_percent) / 100;
+      const taxable = lineValue - discountAmt;
+      const cgst = (taxable * item.cgst_percent) / 100;
+      const sgst = (taxable * item.sgst_percent) / 100;
+      const igst = (taxable * item.igst_percent) / 100;
+      const total = taxable + cgst + sgst + igst;
+
+      item.discount_amount = discountAmt;
+      item.taxable_value = taxable;
+      item.cgst_amount = cgst;
+      item.sgst_amount = sgst;
+      item.igst_amount = igst;
+      item.total_amount = total;
+
+      subtotal += lineValue;
+      discountTotal += discountAmt;
+      taxableTotal += taxable;
+      cgstTotal += cgst;
+      sgstTotal += sgst;
+      igstTotal += igst;
+      grandTotal += total;
+    });
+
+    const exchange = currency === 'INR' ? 1 : exchangeRate;
+    setTotals({
+      subtotal: parseFloat(subtotal.toFixed(2)),
+      discount: parseFloat(discountTotal.toFixed(2)),
+      taxable: parseFloat(taxableTotal.toFixed(2)),
+      cgst: parseFloat(cgstTotal.toFixed(2)),
+      sgst: parseFloat(sgstTotal.toFixed(2)),
+      igst: parseFloat(igstTotal.toFixed(2)),
+      total: parseFloat(grandTotal.toFixed(2)),
+      totalInr: parseFloat((grandTotal * exchange).toFixed(2)),
+    });
+  }, [items, exchangeRate, currency]);
+
+  // PO Number series generation
+  const poSeriesRef = useRef(false);
+  const getFyPrefix = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    if (month >= 3) return `${year}-${(year + 1).toString().slice(2)}`;
+    return `${year - 1}-${year.toString().slice(2)}`;
+  };
+
+  const getPOSeriesNumber = async () => {
+    if (!organisation?.id) return 'PO-0001';
+    try {
+      const { data: existing } = await supabase
+        .from('document_series')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .eq('type', 'purchase_order');
+      let series = existing && existing.length > 0
+        ? existing.find((s: any) => s.is_default) || existing[0]
+        : null;
+      if (!series) {
+        const fyPrefix = getFyPrefix();
+        const initialCfg = { prefix: 'PO-', suffix: '', fy_prefix: fyPrefix, padding: 4, current: 1 };
+        const { data: newSeries } = await supabase
+          .from('document_series')
+          .insert({ organisation_id: organisation.id, type: 'purchase_order', is_default: true, current_number: 1, configs: initialCfg })
+          .select()
+          .single();
+        if (newSeries) {
+          series = newSeries;
+        }
+      }
+      return series;
+    } catch (e) {
+      console.warn('Failed to load PO series', e);
+      return null;
+    }
+  };
+
+  const buildPONumber = (series: any): string => {
+    const cfg = series?.configs || {};
+    const prefix = cfg.prefix || 'PO-';
+    const suffix = cfg.suffix || '';
+    const fyPrefix = cfg.fy_prefix ? cfg.fy_prefix + '-' : '';
+    const padding = cfg.padding || 4;
+    const current = cfg.current || series?.current_number || 1;
+    const num = String(current).padStart(padding, '0');
+    return `${fyPrefix}${prefix}${num}${suffix}`;
+  };
+
+  const generatePONumber = async () => {
+    const series = await getPOSeriesNumber();
+    if (series) {
+      const cfg = series.configs || {};
+      poSeriesRef.current = true;
+      setPoNumber(buildPONumber(series));
+    }
+  };
+
+  // Pre-generate PO number when form opens
+  useEffect(() => {
+    if (isFormPage && !editingPOId && !poSeriesRef.current) {
+      generatePONumber();
+    }
+  }, [isFormPage, editingPOId]);
+
+  const addItem = () => {
+    const newSr = items.length + 1;
+    setItems(prev => [...prev, {
+      sr: newSr,
+      item_name: '',
+      make: '',
+      variant: '',
+      description: '',
+      hsn_code: '',
+      quantity: 1,
+      unit: 'Nos',
+      rate: 0,
+      discount_percent: 0,
+      discount_amount: 0,
+      taxable_value: 0,
+      cgst_percent: 0,
+      cgst_amount: 0,
+      sgst_percent: 0,
+      sgst_amount: 0,
+      igst_percent: 0,
+      igst_amount: 0,
+      total_amount: 0,
+    }]);
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  const removeItem = (index: number) => {
+    setItems(prev => {
+      const filtered = prev.filter((_, i) => i !== index);
+      return filtered.map((item, i) => ({ ...item, sr: i + 1 }));
+    });
+  };
+
+  const handleAdd = () => {
+    setSearchParams({ mode: 'create' });
+    setSelectedPO(null);
+    resetForm();
+  };
+
+  const handleEditPO = (po: any) => {
+    setSearchParams({ mode: 'edit', id: po.id });
+    setSelectedPO(po);
+  };
+
+  const handleDuplicatePO = (po: any) => {
+    setSearchParams({ mode: 'create' });
+    setPoNumber('');
+    setCurrency(po.currency || 'INR');
+    setExchangeRate(po.exchange_rate || 1);
+    setVendorId(po.vendor_id || '');
+    setPoDate(new Date().toISOString().split('T')[0]);
+    setDeliveryDate(po.delivery_date ? po.delivery_date.split('T')[0] : '');
+    setTerms(po.terms || 'Net 30');
+    setNotes(po.internal_notes || '');
+    setDeliveryLocation(po.delivery_location || '');
+    setReferenceNo(po.reference_no || '');
+    if (po.items) {
+      setItems(po.items.map((item: any, idx: number) => ({
+        ...item,
+        sr: idx + 1,
+        id: undefined,
+        po_id: undefined,
+      })));
+    }
+    poSeriesRef.current = false;
+  };
+
+  const resetForm = () => {
+    setPoNumber('');
+    setCurrency('INR');
+    setExchangeRate(1);
+    setVendorId('');
+    setPoDate(new Date().toISOString().split('T')[0]);
+    setDeliveryDate('');
+    setTerms('Net 30');
+    setItems([]);
+    setNotes('');
+    setDeliveryLocation('');
+    setReferenceNo('');
+    setAttachmentFile(null);
+    setAttachmentUrl('');
+    setFormErrors({});
+    poSeriesRef.current = false;
+  };
+
+  const [deleteConfirmPO, setDeleteConfirmPO] = useState<any>(null);
+
+  const handleDeletePO = async () => {
+    if (!deleteConfirmPO || !organisation?.id) return;
+    try {
+      await deletePO.mutateAsync({ id: deleteConfirmPO.id, organisationId: organisation.id });
+      setDeleteConfirmPO(null);
+    } catch (e) {
+      console.error('Delete failed', e);
+    }
+  };
+
+  const handleViewPDF = async (po: any) => {
+    try {
+      const { data: fullPO } = await supabase
+        .from('purchase_orders')
+        .select('*, items:purchase_order_items(*), vendor:purchase_vendors(*)')
+        .eq('id', po.id)
+        .single();
+      if (fullPO) {
+        const blob = generatePOPDF(fullPO as any);
+        openPDFPreview(blob);
+      }
+    } catch (e) {
+      console.error('Failed to generate PDF', e);
+    }
+  };
+
+  const handleSave = async (status: string) => {
+    if (!organisation?.id || !validateForm()) return;
+
+    let attachment_url = attachmentUrl;
+    if (attachmentFile) {
+      const fileExt = attachmentFile.name.split('.').pop();
+      const fileName = `po-attachments/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(fileName, attachmentFile);
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(fileName);
+        attachment_url = urlData?.publicUrl || '';
+      }
+    }
+
+    const poData = {
+      organisation_id: organisation.id,
+      po_number: poNumber,
+      vendor_id: vendorId,
+      po_date: poDate,
+      delivery_date: deliveryDate || null,
+      currency,
+      exchange_rate: currency === 'INR' ? 1 : exchangeRate,
+      terms,
+      status,
+      approval_status: status,
+      internal_notes: notes || null,
+      delivery_location: deliveryLocation || null,
+      reference_no: referenceNo || null,
+      attachment_url: attachment_url || null,
+      total_amount: totals.total,
+      subtotal: totals.subtotal,
+      discount_amount: totals.discount,
+      taxable_amount: totals.taxable,
+      cgst_amount: totals.cgst,
+      sgst_amount: totals.sgst,
+      igst_amount: totals.igst,
+      total_inr: totals.totalInr,
+    };
+
+    const itemsData = items.map(item => ({
+      sr: item.sr,
+      item_name: item.item_name,
+      item_id: item.item_id || null,
+      make: item.make || null,
+      variant: item.variant || null,
+      description: item.description || null,
+      hsn_code: item.hsn_code || null,
+      quantity: item.quantity,
+      unit: item.unit || 'Nos',
+      rate: item.rate,
+      discount_percent: item.discount_percent || 0,
+      discount_amount: item.discount_amount || 0,
+      taxable_value: item.taxable_value || 0,
+      cgst_percent: item.cgst_percent || 0,
+      cgst_amount: item.cgst_amount || 0,
+      sgst_percent: item.sgst_percent || 0,
+      sgst_amount: item.sgst_amount || 0,
+      igst_percent: item.igst_percent || 0,
+      igst_amount: item.igst_amount || 0,
+      total_amount: item.total_amount || 0,
+    }));
+
+    if (editingPOId) {
+      await updatePO.mutateAsync({ id: editingPOId, poData, items: itemsData });
+    } else {
+      await createPO.mutateAsync({ poData, items: itemsData });
+    }
+  };
+
+  const cancelForm = () => {
+    setSearchParams({});
+    setSelectedPO(null);
+    resetForm();
+  };
+
+  const handleBack = cancelForm;
+
   const columns = [
     ...(visibleColumns.has('po_number') ? [{
       accessorKey: 'po_number' as const,
@@ -840,7 +680,7 @@ export const PurchaseOrders: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6 space-y-10">
+        <div className="flex-1 overflow-auto p-6 max-w-[1400px] mx-auto w-full space-y-10">
           {/* Section 1: Details */}
           <div>
             <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Details</h3>
@@ -868,6 +708,10 @@ export const PurchaseOrders: React.FC = () => {
                   <Label className="text-sm font-semibold">PO Date</Label>
                   <Input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} className={cn("border-zinc-200", formErrors.po_date && "border-rose-400")} />
                   {formErrors.po_date && <span className="text-[11px] text-rose-500">{formErrors.po_date}</span>}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-sm font-semibold">Reference / RFQ</Label>
+                  <Input value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="e.g. RFQ-001, PR-2024-001" className="border-zinc-200" />
                 </div>
               </div>
               <div className="space-y-4">
@@ -897,6 +741,16 @@ export const PurchaseOrders: React.FC = () => {
                 <div className="grid gap-1.5">
                   <Label className="text-sm font-semibold">Payment Terms</Label>
                   <Input value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="e.g. Net 30" className="border-zinc-200" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-sm font-semibold">Delivery Address</Label>
+                  <textarea
+                    value={deliveryLocation}
+                    onChange={(e) => setDeliveryLocation(e.target.value)}
+                    placeholder="Shipping address, delivery instructions, or site location..."
+                    rows={3}
+                    className="w-full px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
                 </div>
               </div>
             </div>
@@ -1077,6 +931,80 @@ export const PurchaseOrders: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Section 4: Attachments */}
+          <div>
+            <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">
+              <Paperclip className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+              Attachments
+            </h3>
+            <div className="border border-dashed border-zinc-200 rounded-lg p-6">
+              {attachmentFile ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-zinc-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-700">{attachmentFile.name}</p>
+                      <p className="text-xs text-zinc-400">{(attachmentFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setAttachmentFile(null); setAttachmentUrl(''); }}
+                    className="text-xs font-medium text-rose-500 hover:text-rose-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : attachmentUrl ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-zinc-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-700">Existing attachment</p>
+                      <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline">View file</a>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAttachmentUrl('')}
+                    className="text-xs font-medium text-rose-500 hover:text-rose-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-2 cursor-pointer">
+                  <div className="w-10 h-10 rounded-full bg-zinc-50 border border-zinc-200 flex items-center justify-center">
+                    <Upload className="w-5 h-5 text-zinc-400" />
+                  </div>
+                  <span className="text-sm text-zinc-500">Click to upload a file</span>
+                  <span className="text-[11px] text-zinc-400">PDF, images, spreadsheet — max 10MB</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setAttachmentFile(file);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Section 5: Notes */}
+          <div>
+            <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Notes</h3>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Internal notes, remarks, or special instructions..."
+              className="w-full h-24 px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
         </div>
 

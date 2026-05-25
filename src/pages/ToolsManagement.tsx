@@ -11,56 +11,42 @@ import SiteTransferModal from '../components/tools/SiteTransferModal';
 import ToolsDashboard from './ToolsDashboard';
 import ToolsCatalog from './ToolsCatalog';
 
-// Professional Modal Design System Tokens
+// Design system tokens matching DESIGN.md
 const DESIGN_TOKENS = {
   colors: {
     surface: {
-      card: '#FFFFFF',
-      page: '#F8F9FA',
+      card: '#FFFFFF',      // Pure Surface
+      page: '#F9FAFB',      // Canvas White
     },
-    border: '#E5E7EB',
-    accent: '#DC2626',
+    border: 'rgba(226,232,240,0.5)', // Whisper Border
+    accent: '#2563EB',      // Executive Blue
     text: {
-      primary: '#111827',
-      secondary: '#6B7280',
-      muted: '#9CA3AF',
+      primary: '#18181B',   // Charcoal Ink
+      secondary: '#71717A', // Muted Steel
+      muted: '#A1A1AA',
     }
   },
   typography: {
-    title: '1.125rem', // 18px
-    label: '0.75rem',   // 12px
-    input: '0.875rem',  // 14px
-    button: '0.875rem', // 14px
-    monospace: '0.8125rem', // 13px
+    title: '1.25rem',
+    label: '0.75rem',
+    input: '0.875rem',
+    button: '0.875rem',
+    monospace: '0.8125rem',
   },
   spacing: {
-    container: {
-      standard: '640px',
-      dataRich: '800px',
-      dashboard: '1100px',
-    },
     padding: {
-      main: '1.25rem', // 20px
-    },
-    gap: {
-      form: '1rem',      // 16px
-      label: '0.375rem', // 6px
+      main: '1.5rem',
     }
   },
   borderRadius: {
-    subtle: '0.375rem', // 6px
-    none: '0px',
-  },
+    standard: '0.5rem',
+  }
 };
 
 const TOOLS_SUBTABS = [
   { id: 'dashboard', label: 'Dashboard', icon: Package },
   { id: 'catalog', label: 'Catalog', icon: FileText },
   { id: 'history', label: 'History', icon: Search },
-  { id: 'issue', label: 'Issue Tools', icon: Plus },
-  { id: 'receive', label: 'Receive Tools', icon: Package },
-  { id: 'transfer', label: 'Transfer Tools', icon: Package },
-  { id: 'site-transfer', label: 'Site Transfer', icon: Package },
 ];
 
 export default function ToolsManagement() {
@@ -99,25 +85,22 @@ export default function ToolsManagement() {
       
       // Determine the type of transaction based on the data structure
       if (data.source_place && data.taken_by) {
-        // This is an Issue Tools transaction
         await handleIssueTools(data);
       } else if (data.from_client && data.to_client) {
-        // This is a Transfer Tools transaction
         await handleTransferToolsSubmit(data);
       } else if (data.returned_quantity !== undefined) {
-        // This is a Receive Tools transaction
         await handleReceiveTools(data);
       } else if (data.from_project && data.to_project) {
-        // This is a Site Transfer transaction
         await handleSiteTransferSubmit(data);
       }
       
-      // Close the modal after successful submission
       setIsIssueModalOpen(false);
       setIsReceiveModalOpen(false);
       setIsTransferModalOpen(false);
       setIsSiteTransferModalOpen(false);
       
+      // Trigger a storage-changed event to refresh child components
+      window.dispatchEvent(new Event('storage-changed'));
     } catch (error) {
       console.error('Error submitting modal:', error);
       toast.error(`Failed to save: ${(error as Error).message}`);
@@ -158,7 +141,6 @@ export default function ToolsManagement() {
         }
       }
 
-      console.log('Issue transaction created:', transaction);
       toast.success(`Tools issued successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error issuing tools:', error);
@@ -188,7 +170,6 @@ export default function ToolsManagement() {
         });
       }
 
-      console.log('Transfer transaction created:', transaction);
       toast.success(`Tools transferred successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error transferring tools:', error);
@@ -232,7 +213,6 @@ export default function ToolsManagement() {
         }
       }
 
-      console.log('Receive transaction created:', transaction);
       toast.success(`Tools received successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error receiving tools:', error);
@@ -264,7 +244,6 @@ export default function ToolsManagement() {
         });
       }
 
-      console.log('Site transfer transaction created:', transaction);
       toast.success(`Site transfer completed successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error in site transfer:', error);
@@ -280,156 +259,77 @@ export default function ToolsManagement() {
       case 'catalog':
         return <ToolsCatalog />;
       case 'history':
-        // return <ToolsHistory />;
         return (
-          <div style={{ 
-            padding: DESIGN_TOKENS.spacing.padding.main, 
-            textAlign: 'center',
-            color: DESIGN_TOKENS.colors.text.muted 
-          }}>
-            <Package size={48} style={{ marginBottom: '16px' }} />
-            <p style={{ fontSize: '16px', marginBottom: '8px' }}>Tools History - Coming Soon</p>
+          <div className="flex flex-col items-center justify-center p-12 text-center text-zinc-500 min-h-[400px]">
+            <Package size={48} className="mb-4 text-zinc-400 opacity-60" />
+            <h3 className="text-lg font-medium text-zinc-800 mb-1">Tools History</h3>
+            <p className="text-sm text-zinc-500 max-w-sm">History logs and transaction records will appear here.</p>
           </div>
         );
       default:
         return (
-          <div style={{ 
-            padding: DESIGN_TOKENS.spacing.padding.main, 
-            textAlign: 'center',
-            color: DESIGN_TOKENS.colors.text.muted 
-          }}>
-            <Package size={48} style={{ marginBottom: '16px' }} />
-            <p style={{ fontSize: '16px', marginBottom: '8px' }}>Select a sub-tab to get started</p>
+          <div className="flex flex-col items-center justify-center p-12 text-center text-zinc-500 min-h-[400px]">
+            <Package size={48} className="mb-4 text-zinc-400 opacity-60" />
+            <h3 className="text-lg font-medium text-zinc-800 mb-1">Select a sub-tab</h3>
+            <p className="text-sm text-zinc-500">Pick a category to manage tools.</p>
           </div>
         );
     }
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="flex flex-col h-full bg-[#F9FAFB] min-h-screen text-[#18181B] font-sans">
       {/* Header */}
-      <div style={{ 
-        background: DESIGN_TOKENS.colors.surface.card, 
-        borderBottom: `1px solid ${DESIGN_TOKENS.colors.border}`, 
-        padding: DESIGN_TOKENS.spacing.padding.main 
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="px-6 py-5 flex justify-between items-center flex-wrap gap-4">
           <div>
-            <h1 style={{ 
-              fontSize: '24px', 
-              fontWeight: 700, 
-              color: DESIGN_TOKENS.colors.text.primary, 
-              margin: 0 
-            }}>
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
               Tools Management
             </h1>
-            <p style={{ 
-              fontSize: DESIGN_TOKENS.typography.input, 
-              color: DESIGN_TOKENS.colors.text.secondary, 
-              margin: '4px 0 0' 
-            }}>
-              Manage your tools inventory, track movements, and streamline operations
+            <p className="text-sm text-zinc-500 mt-0.5">
+              Track your tools inventory, schedule site movements, and coordinate allocations
             </p>
           </div>
-        </div>
+
+          {/* Quick Actions Row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleOpenIssueModal}
+              className="inline-flex items-center justify-center text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:translate-y-[1px] transition-all"
+              style={{ height: '44px', paddingLeft: '20px', paddingRight: '20px' }}
+            >
+              <Plus size={16} className="mr-1.5" />
+              Issue Tools
+            </button>
+            <button
+              onClick={handleOpenReceiveModal}
+              className="inline-flex items-center justify-center text-sm font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 active:translate-y-[1px] transition-all"
+              style={{ height: '44px', paddingLeft: '20px', paddingRight: '20px' }}
+            >
+              <Package size={16} className="mr-1.5" />
+              Receive Tools
+            </button>
+            <button
+              onClick={handleTransferTools}
+              className="inline-flex items-center justify-center text-sm font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 active:translate-y-[1px] transition-all"
+              style={{ height: '44px', paddingLeft: '20px', paddingRight: '20px' }}
+            >
+              <Package size={16} className="mr-1.5" />
+              Transfer Tools
+            </button>
+            <button
+              onClick={handleSiteTransfer}
+              className="inline-flex items-center justify-center text-sm font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 active:translate-y-[1px] transition-all"
+              style={{ height: '44px', paddingLeft: '20px', paddingRight: '20px' }}
+            >
+              <Package size={16} className="mr-1.5" />
+              Site Transfer
+            </button>
+          </div>
       </div>
 
-      {/* Quick Action Buttons */}
-      <div style={{ 
-        background: DESIGN_TOKENS.colors.surface.page, 
-        padding: DESIGN_TOKENS.spacing.padding.main,
-        borderBottom: `1px solid ${DESIGN_TOKENS.colors.border}` 
-      }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleOpenIssueModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              backgroundColor: DESIGN_TOKENS.colors.accent,
-              border: 'none',
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-              fontSize: DESIGN_TOKENS.typography.button,
-              fontWeight: 600,
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
-            }}
-          >
-            <Plus size={16} />
-            Issue Tools
-          </button>
-          <button
-            onClick={handleOpenReceiveModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              backgroundColor: DESIGN_TOKENS.colors.surface.card,
-              border: `1px solid ${DESIGN_TOKENS.colors.border}`,
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-              fontSize: DESIGN_TOKENS.typography.button,
-              fontWeight: 600,
-              color: DESIGN_TOKENS.colors.text.primary,
-              cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
-            }}
-          >
-            <Package size={16} />
-            Receive Tools
-          </button>
-          <button
-            onClick={handleTransferTools}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              backgroundColor: DESIGN_TOKENS.colors.surface.card,
-              border: `1px solid ${DESIGN_TOKENS.colors.border}`,
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-              fontSize: DESIGN_TOKENS.typography.button,
-              fontWeight: 600,
-              color: DESIGN_TOKENS.colors.text.primary,
-              cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
-            }}
-          >
-            <Package size={16} />
-            Transfer Tools
-          </button>
-          <button
-            onClick={handleSiteTransfer}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              backgroundColor: DESIGN_TOKENS.colors.surface.card,
-              border: `1px solid ${DESIGN_TOKENS.colors.border}`,
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-              fontSize: DESIGN_TOKENS.typography.button,
-              fontWeight: 600,
-              color: DESIGN_TOKENS.colors.text.primary,
-              cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
-            }}
-          >
-            <Package size={16} />
-            Site Transfer
-          </button>
-        </div>
-      </div>
-
-      {/* Sub-tabs */}
-      <div style={{ 
-        background: DESIGN_TOKENS.colors.surface.card, 
-        borderBottom: `1px solid ${DESIGN_TOKENS.colors.border}` 
-      }}>
-        <div style={{ display: 'flex', gap: '4px' }}>
+      {/* Sub-tabs Horizontal Navigation */}
+      <div className="border-b border-zinc-200 bg-white px-6" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
+        <div className="flex items-center gap-1">
           {TOOLS_SUBTABS.map((subtab) => {
             const isActive = activeSubTab === subtab.id;
             const Icon = subtab.icon;
@@ -437,22 +337,14 @@ export default function ToolsManagement() {
               <button
                 key={subtab.id}
                 onClick={() => handleSubTabChange(subtab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '16px 20px',
-                  border: 'none',
-                  borderBottom: `2px solid ${isActive ? DESIGN_TOKENS.colors.accent : 'transparent'}`,
-                  background: 'transparent',
-                  color: isActive ? DESIGN_TOKENS.colors.accent : DESIGN_TOKENS.colors.text.secondary,
-                  fontSize: DESIGN_TOKENS.typography.button,
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  fontFamily: 'Inter, sans-serif',
-                }}
+                style={{ height: '34px', lineHeight: '24px' }}
+                className={`flex items-center gap-2 px-4 text-[15px] font-medium rounded-md transition-all duration-150 active:scale-[0.97] ${
+                  isActive
+                    ? 'bg-blue-600/10 text-blue-600 font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                }`}
               >
-                <Icon size={18} />
+                <Icon size={15} className={isActive ? 'text-blue-500' : 'text-zinc-400'} />
                 {subtab.label}
               </button>
             );
@@ -460,13 +352,11 @@ export default function ToolsManagement() {
         </div>
       </div>
 
-      {/* Sub-tab Content */}
-      <div style={{ 
-        flex: 1, 
-        overflow: 'auto', 
-        background: DESIGN_TOKENS.colors.surface.page 
-      }}>
-        {renderSubTabContent()}
+      {/* Sub-tab Content Container */}
+      <div className="flex-1 overflow-auto bg-[#F9FAFB]">
+        <div className="mx-auto max-w-[1400px]">
+          {renderSubTabContent()}
+        </div>
       </div>
 
       {/* Modals */}

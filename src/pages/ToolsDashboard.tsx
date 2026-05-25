@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Package, TrendingUp, AlertCircle, RotateCw, ArrowRight, Pencil, Trash2, Download, Eye } from 'lucide-react';
 import { toolsApi, toolTransactionsApi, siteTransfersApi } from '../tools/api';
 import { useAuth } from '../App';
@@ -365,12 +365,18 @@ export default function ToolsDashboard() {
     }
   };
 
+  // Keep a ref to always call the latest loadDashboardData (avoids stale closure in event listener)
+  const loadDataRef = useRef(loadDashboardData);
+  useEffect(() => {
+    loadDataRef.current = loadDashboardData;
+  });
+
   useEffect(() => {
     if (!organisation?.id) return;
     loadDashboardData();
     
     // Set up periodic refresh every 30 seconds
-    const interval = setInterval(loadDashboardData, 30000);
+    const interval = setInterval(() => loadDataRef.current(), 30000);
     
     return () => clearInterval(interval);
   }, [organisation, filterType]);
@@ -378,11 +384,10 @@ export default function ToolsDashboard() {
   // Listen for storage changes and refresh dashboard
   useEffect(() => {
     const handleStorageChange = () => {
-      console.log('Storage changed, refreshing dashboard...');
-      loadDashboardData();
+      // Always calls the latest loadDashboardData via ref — no stale closure
+      loadDataRef.current();
     };
 
-    // Add custom event listener for storage changes
     window.addEventListener('storage-changed', handleStorageChange);
     
     return () => {
@@ -392,8 +397,10 @@ export default function ToolsDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="p-6 space-y-3 animate-pulse">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-12 bg-zinc-100 rounded-md" />
+        ))}
       </div>
     );
   }
@@ -415,66 +422,7 @@ export default function ToolsDashboard() {
         </button>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <MetricCard
-          title="Total Tools"
-          value={metrics.total_tools}
-          icon={Package}
-          color="blue"
-        />
-        <MetricCard
-          title="Tools at Clients/Sites"
-          value={metrics.tools_at_clients}
-          icon={TrendingUp}
-          color="green"
-        />
-        <MetricCard
-          title="Tools in Warehouse"
-          value={metrics.tools_at_warehouse}
-          icon={Package}
-          color="orange"
-        />
-        <MetricCard
-          title="Tools in Transit"
-          value={metrics.tools_in_transit}
-          icon={RotateCw}
-          color="orange"
-        />
-        <MetricCard
-          title="Overdue Returns"
-          value={metrics.overdue_returns}
-          icon={AlertCircle}
-          color="red"
-        />
-      </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg border p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
-            <Package className="h-8 w-8 mb-2 text-blue-600" />
-            <span className="text-sm font-medium">Issue Tools</span>
-            <span className="text-xs text-zinc-500">Warehouse → Site</span>
-          </button>
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
-            <Package className="h-8 w-8 mb-2 text-green-600" />
-            <span className="text-sm font-medium">Receive Tools</span>
-            <span className="text-xs text-zinc-500">Site → Warehouse</span>
-          </button>
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
-            <ArrowRight className="h-8 w-8 mb-2 text-orange-600" />
-            <span className="text-sm font-medium">Transfer Tools</span>
-            <span className="text-xs text-zinc-500">Client → Client</span>
-          </button>
-          <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-zinc-50 transition-colors">
-            <RotateCw className="h-8 w-8 mb-2 text-purple-600" />
-            <span className="text-sm font-medium">Site Transfer</span>
-            <span className="text-xs text-zinc-500">Site → Site</span>
-          </button>
-        </div>
-      </div>
 
       {/* Recent Activity */}
       <div className="bg-white rounded-lg border">
