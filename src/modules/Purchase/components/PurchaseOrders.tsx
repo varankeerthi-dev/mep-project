@@ -1262,7 +1262,7 @@ export const PurchaseOrders: React.FC = () => {
           )}
 
           {/* Section 5: Attachments */}
-          <div>
+          <div className="max-w-[400px]">
             <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">
               <Paperclip className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
               Attachments
