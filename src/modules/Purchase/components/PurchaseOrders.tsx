@@ -374,14 +374,11 @@ export const PurchaseOrders: React.FC = () => {
 
   // Materials for item select
   const fetchMaterials = useCallback((orgId: string) => {
-    supabase.from('materials').select('id, name, display_name, hsn_code, unit, purchase_price, sale_price, make, gst_rate, type').eq('organisation_id', orgId).order('name').then(({ data, error }) => {
+    supabase.from('materials').select('id, name, display_name, hsn_code, unit, purchase_price, sale_price, make, gst_rate').eq('organisation_id', orgId).order('name').then(({ data, error }) => {
       if (error) console.error('Failed to fetch materials:', error);
       if (data) setMaterials(data);
     });
-    supabase.from('material_variants').select('id, variant_name, material_id').eq('organisation_id', orgId).then(({ data, error }) => {
-      if (error) console.error('Failed to fetch variants:', error);
-      if (data) setVariants(data);
-    });
+    // variants fetch skipped: no material_variants/material_intents table available
   }, []);
 
   useEffect(() => {
@@ -473,16 +470,16 @@ export const PurchaseOrders: React.FC = () => {
         .from('document_series')
         .select('*')
         .eq('organisation_id', organisation.id)
-        .eq('type', 'purchase_order');
-      let series = existing && existing.length > 0
-        ? existing.find((s: any) => s.is_default) || existing[0]
-        : null;
+        .or('series_name.ilike.%PO%,series_name.ilike.%Purchase Order%,is_default.eq.true')
+        .order('is_default', { ascending: false })
+        .limit(1);
+      let series = existing && existing.length > 0 ? existing[0] : null;
       if (!series) {
         const fyPrefix = getFyPrefix();
         const initialCfg = { prefix: 'PO-', suffix: '', fy_prefix: fyPrefix, padding: 4, current: 1 };
         const { data: newSeries } = await supabase
           .from('document_series')
-          .insert({ organisation_id: organisation.id, type: 'purchase_order', is_default: true, current_number: 1, configs: initialCfg })
+          .insert({ organisation_id: organisation.id, series_name: 'Purchase Order', is_default: true, current_number: 1, configs: initialCfg })
           .select()
           .single();
         if (newSeries) {
@@ -584,7 +581,7 @@ export const PurchaseOrders: React.FC = () => {
       const gst = material.gst_rate || 0;
       newItems.push({
         sr: 0,
-        section: material.type || '',
+        section: material.item_type || '',
         item_id: material.id,
         item_name: material.display_name || material.name || '',
         make: make || '',
