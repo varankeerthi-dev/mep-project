@@ -957,9 +957,8 @@ export const PurchaseOrders: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 2: Items + Summary */}
-          <div className="flex gap-6 items-start">
-            <div className="flex-1 min-w-0">
+          {/* Section 2: Items */}
+          <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">Order Items</h3>
               <div className="flex items-center gap-2">
@@ -1155,10 +1154,9 @@ export const PurchaseOrders: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 3: Summary — right side card */}
-          <div className="w-80 shrink-0">
-            <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-5 sticky top-4">
-              <h3 className="text-xs font-bold text-zinc-700 uppercase tracking-tight mb-4">Order Summary</h3>
+          {/* Section 3: Summary */}
+          <div className="max-w-[400px]">
+            <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Order Summary</h3>
               <div className="space-y-2.5">
                 <div className="flex justify-between text-[13px] text-zinc-600">
                   <span>Subtotal</span>
@@ -1208,12 +1206,10 @@ export const PurchaseOrders: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
           </div>
 
           {/* Section 4: Terms & Conditions */}
-          <div>
+          <div className="max-w-[400px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">
                 <FileText className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
