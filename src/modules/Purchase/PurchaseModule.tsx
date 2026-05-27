@@ -47,7 +47,7 @@ export const PurchaseModule: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="w-full max-w-[1200px] mx-auto">
         <ActiveComponent />
       </div>
     </div>

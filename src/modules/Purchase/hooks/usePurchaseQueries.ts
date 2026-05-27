@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
-import { createPurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
+import { createPurchaseRequisition, deletePurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, updatePurchaseRequisition, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
 import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 
 const createPaymentVoucherNo = () => {
@@ -30,8 +30,30 @@ export const useCreatePurchaseRequisition = () => {
 
   return useMutation({
     mutationFn: withSessionCheck(async (input: CreateRequisitionInput) => createPurchaseRequisition(input)),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions', data.organisation_id] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+    },
+  });
+};
+
+export const useUpdatePurchaseRequisition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ id, input }: { id: string; input: CreateRequisitionInput }) => updatePurchaseRequisition(id, input)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+    },
+  });
+};
+
+export const useDeletePurchaseRequisition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async (id: string) => deletePurchaseRequisition(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
     },
   });
 };
