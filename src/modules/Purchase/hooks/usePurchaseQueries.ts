@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
-import { approvePurchaseRequisition, createPurchaseRequisition, listPurchaseRequisitions, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
+import { createPurchaseRequisition, listPurchaseAuditLogs, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
 import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 
 const createPaymentVoucherNo = () => {
@@ -40,13 +40,36 @@ export const useApprovePurchaseRequisition = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ requisitionId }: { requisitionId: string }) => {
-      await approvePurchaseRequisition(requisitionId);
+    mutationFn: withSessionCheck(async ({ requisitionId, actorId }: { requisitionId: string; actorId?: string | null }) => {
+      await submitPurchaseRequisitionForApproval(requisitionId, actorId);
       return requisitionId;
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
     },
+  });
+};
+
+export const useProcessPurchaseRequisitionApproval = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async (input: { requisitionId: string; action: 'APPROVE' | 'REJECT'; actorId?: string | null; comment?: string | null }) =>
+      processPurchaseRequisitionApproval(input.requisitionId, input.action, input.actorId, input.comment || null)
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+    },
+  });
+};
+
+export const usePurchaseAuditLogs = (organisationId: string | undefined, entityId: string | null) => {
+  return useQuery({
+    queryKey: ['purchase-audit-log', organisationId, entityId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId || !entityId) return [];
+      return listPurchaseAuditLogs(organisationId, entityId);
+    }),
+    enabled: !!organisationId && !!entityId,
   });
 };
 

@@ -89,6 +89,43 @@ export async function approvePurchaseRequisition(requisitionId: string) {
   if (error) throw error;
 }
 
+export async function submitPurchaseRequisitionForApproval(requisitionId: string, actorId?: string | null) {
+  const { data, error } = await supabase.rpc('submit_purchase_requisition_for_approval', {
+    p_requisition_id: requisitionId,
+    p_actor_id: actorId || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function processPurchaseRequisitionApproval(
+  requisitionId: string,
+  action: 'APPROVE' | 'REJECT',
+  actorId?: string | null,
+  comment?: string | null
+) {
+  const { data, error } = await supabase.rpc('process_purchase_requisition_approval', {
+    p_requisition_id: requisitionId,
+    p_action: action,
+    p_actor_id: actorId || null,
+    p_comment: comment || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function listPurchaseAuditLogs(organisationId: string, entityId: string) {
+  const { data, error } = await supabase
+    .from('purchase_audit_log')
+    .select('*')
+    .eq('organisation_id', organisationId)
+    .eq('entity_type', 'REQUISITION')
+    .eq('entity_id', entityId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function listPurchaseRequisitions(organisationId: string, projectId?: string | null) {
   let query = supabase
     .from('purchase_requisitions')

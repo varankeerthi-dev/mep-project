@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Plus, ClipboardList, FolderOpen } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useApprovePurchaseRequisition, useCreatePurchaseRequisition, usePurchaseRequisitions } from '../hooks/usePurchaseQueries';
+import { useApprovePurchaseRequisition, useCreatePurchaseRequisition, useProcessPurchaseRequisitionApproval, usePurchaseAuditLogs, usePurchaseRequisitions } from '../hooks/usePurchaseQueries';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
@@ -28,6 +28,9 @@ export const Requisitions: React.FC = () => {
   const { data: requisitions = [], isLoading } = usePurchaseRequisitions(organisation?.id, projectIdFromContext || null);
   const createReq = useCreatePurchaseRequisition();
   const approveReq = useApprovePurchaseRequisition();
+  const processReq = useProcessPurchaseRequisitionApproval();
+  const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
+  const { data: auditLogs = [] } = usePurchaseAuditLogs(organisation?.id, selectedReqId);
 
   const filtered = useMemo(() => {
     const term = (notes || '').toLowerCase();
@@ -209,10 +212,19 @@ export const Requisitions: React.FC = () => {
                 {(r.status === 'Pending' || r.status === 'Draft') && (
                   <Button
                     className="h-7 text-[11px] mt-1"
-                    onClick={() => approveReq.mutate({ requisitionId: r.id })}
+                    onClick={() => approveReq.mutate({ requisitionId: r.id, actorId: user?.id || null })}
                     disabled={approveReq.isPending}
                   >
-                    Approve & Source
+                    Submit/Auto Approve
+                  </Button>
+                )}
+                {r.approval_status === 'Pending Approval' && (
+                  <Button
+                    className="h-7 text-[11px] mt-1"
+                    onClick={() => processReq.mutate({ requisitionId: r.id, action: 'APPROVE', actorId: user?.id || null })}
+                    disabled={processReq.isPending}
+                  >
+                    Approve Level
                   </Button>
                 )}
                 {r.status === 'Approved' && (
@@ -222,6 +234,7 @@ export const Requisitions: React.FC = () => {
                     {(r.lines || []).filter((l: any) => l.source_type === 'PROCURE').length} procure
                   </div>
                 )}
+                <Button variant="outline" className="h-7 text-[11px] mt-1" onClick={() => setSelectedReqId(r.id)}>Audit</Button>
               </div>
             </div>
           ))}
@@ -230,6 +243,22 @@ export const Requisitions: React.FC = () => {
           )}
         </div>
       </div>
+      {selectedReqId && (
+        <div className="border border-zinc-200 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-medium text-zinc-700">Requisition Audit</div>
+            <Button variant="outline" className="h-7 text-[11px]" onClick={() => setSelectedReqId(null)}>Close</Button>
+          </div>
+          <div className="space-y-1">
+            {auditLogs.map((a: any) => (
+              <div key={a.id} className="text-xs text-zinc-600">
+                {new Date(a.created_at).toLocaleString('en-IN')} • {a.action}
+              </div>
+            ))}
+            {auditLogs.length === 0 && <div className="text-xs text-zinc-500">No audit entries</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
