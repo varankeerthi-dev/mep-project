@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { createPurchaseRequisition } from '../purchase-requisitions/api';
 import { Input, Select, TextArea } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/Card';
@@ -184,6 +185,34 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
 
       const { error } = await supabase.from('material_intents').insert(insertData);
       if (error) throw error;
+
+      // Phase 1 additive sync: mirror project indents into unified purchase requisitions.
+      // This does not block existing flow if unified schema is not yet deployed.
+      try {
+        await createPurchaseRequisition({
+          organisation_id: organisationId,
+          purpose_type: 'PROJECT',
+          project_id: projectId,
+          required_date: payload.common.required_date,
+          priority: payload.common.priority,
+          notes: payload.common.notes || '',
+          requested_by_name: 'Engineer',
+          source_context: 'PROJECT',
+          requisition_number: sharedIndentNo,
+          lines: insertData.map(row => ({
+            item_id: row.item_id,
+            variant_id: row.variant_id,
+            item_name: row.item_name,
+            variant_name: row.variant_name,
+            uom: row.uom,
+            requested_qty: Number(row.requested_qty || 0),
+            required_date: row.required_date,
+            notes: row.notes,
+          })),
+        });
+      } catch (syncError) {
+        console.warn('Unified requisition sync failed; continuing legacy intent flow:', syncError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materialIntents', projectId] });

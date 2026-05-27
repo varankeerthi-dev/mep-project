@@ -1,0 +1,113 @@
+import { supabase } from '../supabase';
+
+export type PurposeType = 'PROJECT' | 'SITE_WORK' | 'COMPANY_EXPENSE' | 'MAINTENANCE' | 'CAPEX' | 'OTHER';
+export type RequisitionPriority = 'Low' | 'Normal' | 'High' | 'Emergency';
+
+export interface RequisitionLineInput {
+  item_id?: string | null;
+  variant_id?: string | null;
+  item_name: string;
+  variant_name?: string | null;
+  uom?: string | null;
+  requested_qty: number;
+  required_date?: string | null;
+  notes?: string | null;
+}
+
+export interface CreateRequisitionInput {
+  organisation_id: string;
+  purpose_type: PurposeType;
+  project_id?: string | null;
+  site_id?: string | null;
+  cost_center_id?: string | null;
+  work_order_id?: string | null;
+  required_date?: string | null;
+  priority?: RequisitionPriority;
+  notes?: string | null;
+  requested_by?: string | null;
+  requested_by_name?: string | null;
+  source_context?: 'PROJECT' | 'CENTRAL' | 'SITE_WORK' | 'MAINTENANCE' | 'OTHER';
+  requisition_number?: string;
+  lines: RequisitionLineInput[];
+}
+
+export async function createPurchaseRequisition(input: CreateRequisitionInput) {
+  const requisitionNumber = input.requisition_number || await generateRequisitionNumber(input.organisation_id);
+
+  const { data: header, error: headerError } = await supabase
+    .from('purchase_requisitions')
+    .insert({
+      organisation_id: input.organisation_id,
+      requisition_number: requisitionNumber,
+      purpose_type: input.purpose_type,
+      project_id: input.project_id || null,
+      site_id: input.site_id || null,
+      cost_center_id: input.cost_center_id || null,
+      work_order_id: input.work_order_id || null,
+      required_date: input.required_date || null,
+      priority: input.priority || 'Normal',
+      notes: input.notes || null,
+      requested_by: input.requested_by || null,
+      requested_by_name: input.requested_by_name || null,
+      source_context: input.source_context || 'CENTRAL',
+      status: 'Pending',
+    })
+    .select()
+    .single();
+
+  if (headerError) throw headerError;
+
+  const rows = input.lines.map((line, idx) => {
+    const requested = Number(line.requested_qty || 0);
+    return {
+      organisation_id: input.organisation_id,
+      requisition_id: header.id,
+      line_no: idx + 1,
+      item_id: line.item_id || null,
+      variant_id: line.variant_id || null,
+      item_name: line.item_name,
+      variant_name: line.variant_name || null,
+      uom: line.uom || null,
+      requested_qty: requested,
+      open_qty: requested,
+      required_date: line.required_date || input.required_date || null,
+      notes: line.notes || null,
+    };
+  });
+
+  const { error: linesError } = await supabase.from('purchase_requisition_lines').insert(rows);
+  if (linesError) throw linesError;
+
+  return header;
+}
+
+export async function listPurchaseRequisitions(organisationId: string, projectId?: string | null) {
+  let query = supabase
+    .from('purchase_requisitions')
+    .select('*, lines:purchase_requisition_lines(*)')
+    .eq('organisation_id', organisationId)
+    .order('created_at', { ascending: false });
+
+  if (projectId) query = query.eq('project_id', projectId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+async function generateRequisitionNumber(organisationId: string): Promise<string> {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+
+  const { data, error } = await supabase
+    .from('purchase_requisitions')
+    .select('requisition_number')
+    .eq('organisation_id', organisationId)
+    .ilike('requisition_number', `PR-${yy}${mm}-%`);
+
+  if (error) throw error;
+  const next = (data?.length || 0) + 1;
+  return `PR-${yy}${mm}-${String(next).padStart(4, '0')}`;
+}
+

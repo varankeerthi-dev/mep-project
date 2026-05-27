@@ -185,6 +185,7 @@ const menuData: MenuSection[] = [
         label: 'Purchase', 
         submenu: [
           { id: 'purchase-vendors', label: 'Vendors', path: '/purchase/vendors' },
+          { id: 'purchase-requisitions', label: 'Requisitions', path: '/purchase/requisitions' },
           { id: 'purchase-orders', label: 'Purchase Orders', path: '/purchase/orders' },
           { id: 'purchase-bills', label: 'Bills', path: '/purchase/bills' },
           { id: 'purchase-debit-notes', label: 'Debit Notes', path: '/purchase/debit-notes' },
@@ -281,6 +282,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   store: 'CubeIcon',
   purchase: 'ShoppingCartIcon',
   'purchase-vendors': 'BuildingOffice2Icon',
+  'purchase-requisitions': 'ClipboardDocumentListIcon',
   'purchase-orders': 'DocumentTextIcon',
   'purchase-bills': 'ReceiptRefundIcon',
   'purchase-debit-notes': 'PencilSquareIcon',

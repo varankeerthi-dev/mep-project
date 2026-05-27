@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
+import { createPurchaseRequisition, listPurchaseRequisitions, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -8,6 +9,30 @@ const createPaymentVoucherNo = () => {
   const timePart = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(now.getMilliseconds()).padStart(3, '0')}`;
   const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `PAY-${datePart}-${timePart}-${randomPart}`;
+};
+
+// ============== REQUISITION QUERIES ==============
+
+export const usePurchaseRequisitions = (organisationId: string | undefined, projectId?: string | null) => {
+  return useQuery({
+    queryKey: ['purchase-requisitions', organisationId, projectId || null],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      return listPurchaseRequisitions(organisationId, projectId || null);
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useCreatePurchaseRequisition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async (input: CreateRequisitionInput) => createPurchaseRequisition(input)),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions', data.organisation_id] });
+    },
+  });
 };
 
 // ============== VENDOR QUERIES ==============

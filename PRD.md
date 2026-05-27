@@ -41,6 +41,9 @@ Out of scope (for now):
   - `MAINTENANCE`
   - `CAPEX`
   - `OTHER`
+- Clarification:
+  - `PROJECT` = tied to a formal project (`project_id` required).
+  - `SITE_WORK` = operational/site activity not mapped to a formal project (`site_id`/`work_order_id` used, `project_id` optional/null).
 
 ### FR-2 Contextual Creation
 - Project module: project auto-filled (hidden selector).
@@ -80,6 +83,9 @@ New core entities:
 - `goods_receipts`
 - `goods_receipt_lines`
 - `purchase_audit_log`
+
+Extension note for existing module:
+- Existing `purchase_orders` and `purchase_order_lines` will be extended (not recreated) with link fields such as `requisition_line_id` and `inquiry_line_id`.
 
 Required link fields (line-level):
 - `requisition_line_id`
@@ -139,13 +145,13 @@ Exit criteria:
 Deliverables:
 - Inquiry and response tables + APIs.
 - Multi-vendor inquiry, partial availability capture.
-- Convert partial available qty to PO.
+- Initiate PO creation from available qty (soft conversion path).
 Exit criteria:
-- Buyer can split a requisition line across vendors by availability.
+- Buyer can split a requisition line across vendors by availability and prepare PO-ready allocations.
 
 ### Phase 4: PO/GR Link Completion
 Deliverables:
-- Strong line-level linking from requisition/inquiry to PO and GR.
+- Hardened line-level linking from requisition/inquiry to PO and GR.
 - Partial GR updates open qty correctly.
 Exit criteria:
 - End-to-end quantity trace for at least 3 split scenarios.
@@ -172,6 +178,8 @@ Exit criteria:
 ## 11) Risks & Mitigations
 - Risk: Partial-write inconsistency across parent-child writes.
   - Mitigation: transaction-safe RPC or compensating rollback strategy.
+- Risk: Concurrent approvals/edits can over-allocate stock or duplicate downstream actions.
+  - Mitigation: optimistic concurrency (`version`/`updated_at` checks), row-level locking in critical mutations, and idempotency keys for convert actions.
 - Risk: User confusion with new screens.
   - Mitigation: keep old entry points, introduce queue views gradually.
 - Risk: Performance on open-qty dashboards.
