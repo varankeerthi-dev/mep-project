@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
-import { createPurchaseRequisition, listPurchaseRequisitions, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
+import { approvePurchaseRequisition, createPurchaseRequisition, listPurchaseRequisitions, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -31,6 +31,20 @@ export const useCreatePurchaseRequisition = () => {
     mutationFn: withSessionCheck(async (input: CreateRequisitionInput) => createPurchaseRequisition(input)),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-requisitions', data.organisation_id] });
+    },
+  });
+};
+
+export const useApprovePurchaseRequisition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ requisitionId }: { requisitionId: string }) => {
+      await approvePurchaseRequisition(requisitionId);
+      return requisitionId;
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
     },
   });
 };

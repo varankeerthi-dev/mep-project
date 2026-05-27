@@ -116,6 +116,15 @@ Required link fields (line-level):
 ## 9) Phase Plan (Strict Gate-Based)
 Rule: Start next phase only after current phase sign-off.
 
+Current status tracker:
+- Phase 0: Completed on 2026-05-27
+- Phase 1: Completed on 2026-05-27
+- Phase 2: Completed on 2026-05-27
+- Phase 3: Pending
+- Phase 4: Pending
+- Phase 5: Pending
+- Phase 6: Pending
+
 ### Phase 0: PRD + Baseline (This phase)
 Deliverables:
 - This PRD committed to repository.

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Plus, ClipboardList, FolderOpen } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useCreatePurchaseRequisition, usePurchaseRequisitions } from '../hooks/usePurchaseQueries';
+import { useApprovePurchaseRequisition, useCreatePurchaseRequisition, usePurchaseRequisitions } from '../hooks/usePurchaseQueries';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
@@ -21,26 +21,49 @@ export const Requisitions: React.FC = () => {
   const [requiredDate, setRequiredDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [projectId, setProjectId] = useState(projectIdFromContext || '');
-  const [itemName, setItemName] = useState('');
-  const [qty, setQty] = useState('');
-  const [uom, setUom] = useState('Nos');
+  const [lineItems, setLineItems] = useState<Array<{ id: string; item_name: string; requested_qty: string; uom: string; estimated_rate: string }>>([
+    { id: '1', item_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' },
+  ]);
 
   const { data: requisitions = [], isLoading } = usePurchaseRequisitions(organisation?.id, projectIdFromContext || null);
   const createReq = useCreatePurchaseRequisition();
+  const approveReq = useApprovePurchaseRequisition();
 
   const filtered = useMemo(() => {
-    const term = (itemName || '').toLowerCase();
+    const term = (notes || '').toLowerCase();
     if (!term) return requisitions;
     return requisitions.filter((r: any) =>
       r.requisition_number?.toLowerCase().includes(term) ||
       r.lines?.some((l: any) => (l.item_name || '').toLowerCase().includes(term))
     );
-  }, [requisitions, itemName]);
+  }, [requisitions, notes]);
+
+  const addLine = () => {
+    setLineItems(prev => [...prev, { id: String(Date.now()), item_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' }]);
+  };
+
+  const removeLine = (id: string) => {
+    setLineItems(prev => (prev.length === 1 ? prev : prev.filter(l => l.id !== id)));
+  };
+
+  const updateLine = (id: string, field: string, value: string) => {
+    setLineItems(prev => prev.map(l => (l.id === id ? { ...l, [field]: value } : l)));
+  };
 
   const submit = async () => {
     if (!organisation?.id) return;
-    if (!itemName.trim() || Number(qty) <= 0) {
-      alert('Item and qty are required');
+    const validLines = lineItems
+      .filter(l => l.item_name.trim() && Number(l.requested_qty) > 0)
+      .map(l => ({
+        item_name: l.item_name.trim(),
+        requested_qty: Number(l.requested_qty),
+        uom: l.uom || 'Nos',
+        estimated_rate: l.estimated_rate ? Number(l.estimated_rate) : null,
+        required_date: requiredDate,
+      }));
+
+    if (validLines.length === 0) {
+      alert('At least one valid line is required');
       return;
     }
     if (purposeType === 'PROJECT' && !projectId) {
@@ -59,18 +82,12 @@ export const Requisitions: React.FC = () => {
       requested_by_name: user?.email || 'User',
       source_context: projectIdFromContext ? 'PROJECT' : 'CENTRAL',
       lines: [
-        {
-          item_name: itemName.trim(),
-          requested_qty: Number(qty),
-          uom,
-          required_date: requiredDate,
-        },
+        ...validLines,
       ],
     });
 
     setOpenForm(false);
-    setItemName('');
-    setQty('');
+    setLineItems([{ id: '1', item_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' }]);
     setNotes('');
   };
 
@@ -113,17 +130,34 @@ export const Requisitions: React.FC = () => {
             <label className="text-xs text-zinc-500">Required Date</label>
             <Input type="date" value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} className="h-8" />
           </div>
-          <div>
-            <label className="text-xs text-zinc-500">Item</label>
-            <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Material/Item name" className="h-8" />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500">Qty</label>
-            <Input type="number" value={qty} onChange={(e) => setQty(e.target.value)} className="h-8" />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500">UOM</label>
-            <Input value={uom} onChange={(e) => setUom(e.target.value)} className="h-8" />
+          <div className="md:col-span-3 border border-zinc-200 rounded-md p-2 space-y-2">
+            <div className="text-xs font-medium text-zinc-700">Line Items</div>
+            {lineItems.map((line, idx) => (
+              <div key={line.id} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-5">
+                  <label className="text-[11px] text-zinc-500">Item</label>
+                  <Input value={line.item_name} onChange={(e) => updateLine(line.id, 'item_name', e.target.value)} className="h-8" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] text-zinc-500">Qty</label>
+                  <Input type="number" value={line.requested_qty} onChange={(e) => updateLine(line.id, 'requested_qty', e.target.value)} className="h-8" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] text-zinc-500">UOM</label>
+                  <Input value={line.uom} onChange={(e) => updateLine(line.id, 'uom', e.target.value)} className="h-8" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] text-zinc-500">Est. Rate</label>
+                  <Input type="number" value={line.estimated_rate} onChange={(e) => updateLine(line.id, 'estimated_rate', e.target.value)} className="h-8" />
+                </div>
+                <div className="col-span-1">
+                  <Button variant="outline" className="h-8 w-full text-xs" onClick={() => removeLine(line.id)} disabled={idx === 0 && lineItems.length === 1}>-</Button>
+                </div>
+              </div>
+            ))}
+            <div>
+              <Button type="button" variant="outline" className="h-8 text-xs" onClick={addLine}>+ Add Line</Button>
+            </div>
           </div>
           <div className="md:col-span-2">
             <label className="text-xs text-zinc-500">Notes</label>
@@ -164,10 +198,30 @@ export const Requisitions: React.FC = () => {
                   <FolderOpen className="w-3 h-3" />
                   {r.purpose_type} | {r.status} | {r.priority}
                 </div>
+                <div className="text-zinc-500">
+                  {(r.lines || []).slice(0, 2).map((l: any) => `${l.item_name} (${l.requested_qty})`).join(', ')}
+                  {(r.lines || []).length > 2 ? ` +${(r.lines || []).length - 2} more` : ''}
+                </div>
               </div>
               <div className="text-right text-zinc-500">
                 <div>{r.lines?.length || 0} lines</div>
                 <div>{new Date(r.created_at).toLocaleDateString('en-IN')}</div>
+                {(r.status === 'Pending' || r.status === 'Draft') && (
+                  <Button
+                    className="h-7 text-[11px] mt-1"
+                    onClick={() => approveReq.mutate({ requisitionId: r.id })}
+                    disabled={approveReq.isPending}
+                  >
+                    Approve & Source
+                  </Button>
+                )}
+                {r.status === 'Approved' && (
+                  <div className="mt-1 text-[11px] text-zinc-600">
+                    {(r.lines || []).filter((l: any) => l.source_type === 'FULFILL_FROM_STORE').length} store /
+                    {' '}
+                    {(r.lines || []).filter((l: any) => l.source_type === 'PROCURE').length} procure
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -181,4 +235,3 @@ export const Requisitions: React.FC = () => {
 };
 
 export default Requisitions;
-

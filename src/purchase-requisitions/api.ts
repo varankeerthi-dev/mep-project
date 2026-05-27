@@ -10,6 +10,7 @@ export interface RequisitionLineInput {
   variant_name?: string | null;
   uom?: string | null;
   requested_qty: number;
+  estimated_rate?: number | null;
   required_date?: string | null;
   notes?: string | null;
 }
@@ -69,6 +70,8 @@ export async function createPurchaseRequisition(input: CreateRequisitionInput) {
       variant_name: line.variant_name || null,
       uom: line.uom || null,
       requested_qty: requested,
+      estimated_rate: line.estimated_rate ?? null,
+      estimated_amount: line.estimated_rate != null ? Number(line.estimated_rate) * requested : null,
       open_qty: requested,
       required_date: line.required_date || input.required_date || null,
       notes: line.notes || null,
@@ -79,6 +82,11 @@ export async function createPurchaseRequisition(input: CreateRequisitionInput) {
   if (linesError) throw linesError;
 
   return header;
+}
+
+export async function approvePurchaseRequisition(requisitionId: string) {
+  const { error } = await supabase.rpc('approve_purchase_requisition', { p_requisition_id: requisitionId });
+  if (error) throw error;
 }
 
 export async function listPurchaseRequisitions(organisationId: string, projectId?: string | null) {
@@ -110,4 +118,3 @@ async function generateRequisitionNumber(organisationId: string): Promise<string
   const next = (data?.length || 0) + 1;
   return `PR-${yy}${mm}-${String(next).padStart(4, '0')}`;
 }
-
