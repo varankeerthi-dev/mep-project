@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
-import { createPurchaseRequisition, listPurchaseAuditLogs, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
+import { createPurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
 import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 
 const createPaymentVoucherNo = () => {
@@ -136,6 +136,41 @@ export const usePostGoodsReceipt = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+    },
+  });
+};
+
+export const usePurchaseInvoiceVerifications = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['purchase-iv', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      return listPurchaseInvoiceVerifications(organisationId);
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const usePurchaseIVSettings = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['purchase-iv-settings', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return null;
+      return listPurchaseIVSettings(organisationId);
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useVerifyPurchaseBill3Way = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ organisationId, billId }: { organisationId: string; billId: string }) =>
+      verifyPurchaseBill3Way(organisationId, billId)
+    ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-iv', variables.organisationId] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-bills', variables.organisationId] });
     },
   });
 };

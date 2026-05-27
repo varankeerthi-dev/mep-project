@@ -140,6 +140,35 @@ export async function listPurchaseRequisitions(organisationId: string, projectId
   return data || [];
 }
 
+export async function listPurchaseIVSettings(organisationId: string) {
+  const { data, error } = await supabase
+    .from('purchase_iv_settings')
+    .select('*')
+    .eq('organisation_id', organisationId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function listPurchaseInvoiceVerifications(organisationId: string) {
+  const { data, error } = await supabase
+    .from('purchase_invoice_verifications')
+    .select('*, bill:purchase_bills(id, bill_number, bill_date, total_amount, po_id), po:purchase_orders(id, po_number, po_date)')
+    .eq('organisation_id', organisationId)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function verifyPurchaseBill3Way(organisationId: string, billId: string) {
+  const { data, error } = await supabase.rpc('verify_purchase_bill_3way', {
+    p_organisation_id: organisationId,
+    p_bill_id: billId,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
 async function generateRequisitionNumber(organisationId: string): Promise<string> {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);

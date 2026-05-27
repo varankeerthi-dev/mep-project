@@ -6,6 +6,7 @@ import { Requisitions } from './components/Requisitions';
 import AvailabilityInquiry from './components/AvailabilityInquiry';
 import { PurchaseOrders } from './components/PurchaseOrders';
 import { Bills } from './components/Bills';
+import InvoiceVerification from './components/InvoiceVerification';
 import { DebitNoteView } from './components/DebitNoteView';
 import { Payments } from './components/Payments';
 import { PaymentQueue } from './components/PaymentQueue';
@@ -16,6 +17,7 @@ const TAB_MAP: Record<string, { label: string; component: React.FC }> = {
   inquiries: { label: 'Availability Inquiry', component: AvailabilityInquiry },
   orders: { label: 'Purchase Orders', component: PurchaseOrders },
   bills: { label: 'Bills', component: Bills },
+  'invoice-verification': { label: 'Invoice Verification', component: InvoiceVerification },
   'debit-notes': { label: 'Debit Notes', component: DebitNoteView },
   payments: { label: 'Payments', component: Payments },
   'payment-queue': { label: 'Payment Queue', component: PaymentQueue },
@@ -32,6 +34,7 @@ export const PurchaseModule: React.FC = () => {
     if (path.includes('/purchase/inquiries')) return 'inquiries';
     if (path.includes('/purchase/orders')) return 'orders';
     if (path.includes('/purchase/bills')) return 'bills';
+    if (path.includes('/purchase/invoice-verification')) return 'invoice-verification';
     if (path.includes('/purchase/debit-notes')) return 'debit-notes';
     if (path.includes('/purchase/payments')) return 'payments';
     if (path.includes('/purchase/payment-queue')) return 'payment-queue';
