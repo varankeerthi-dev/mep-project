@@ -81,12 +81,12 @@ create policy "purchase_requisitions_org_access" on public.purchase_requisitions
 for all
 using (
   organisation_id in (
-    select organisation_id from public.organisation_members where user_id = auth.uid()
+    select organisation_id from public.org_members where user_id = auth.uid()
   )
 )
 with check (
   organisation_id in (
-    select organisation_id from public.organisation_members where user_id = auth.uid()
+    select organisation_id from public.org_members where user_id = auth.uid()
   )
 );
 
@@ -95,12 +95,11 @@ create policy "purchase_requisition_lines_org_access" on public.purchase_requisi
 for all
 using (
   organisation_id in (
-    select organisation_id from public.organisation_members where user_id = auth.uid()
+    select organisation_id from public.org_members where user_id = auth.uid()
   )
 )
 with check (
   organisation_id in (
-    select organisation_id from public.organisation_members where user_id = auth.uid()
+    select organisation_id from public.org_members where user_id = auth.uid()
   )
 );
-
