@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { Vendors } from './components/Vendors';
 import { Requisitions } from './components/Requisitions';
+import AvailabilityInquiry from './components/AvailabilityInquiry';
 import { PurchaseOrders } from './components/PurchaseOrders';
 import { Bills } from './components/Bills';
 import { DebitNoteView } from './components/DebitNoteView';
@@ -12,6 +13,7 @@ import { PaymentQueue } from './components/PaymentQueue';
 const TAB_MAP: Record<string, { label: string; component: React.FC }> = {
   vendors: { label: 'Vendors', component: Vendors },
   requisitions: { label: 'Requisitions', component: Requisitions },
+  inquiries: { label: 'Availability Inquiry', component: AvailabilityInquiry },
   orders: { label: 'Purchase Orders', component: PurchaseOrders },
   bills: { label: 'Bills', component: Bills },
   'debit-notes': { label: 'Debit Notes', component: DebitNoteView },
@@ -27,6 +29,7 @@ export const PurchaseModule: React.FC = () => {
     const path = location.pathname;
     if (path.includes('/purchase/vendors')) return 'vendors';
     if (path.includes('/purchase/requisitions')) return 'requisitions';
+    if (path.includes('/purchase/inquiries')) return 'inquiries';
     if (path.includes('/purchase/orders')) return 'orders';
     if (path.includes('/purchase/bills')) return 'bills';
     if (path.includes('/purchase/debit-notes')) return 'debit-notes';

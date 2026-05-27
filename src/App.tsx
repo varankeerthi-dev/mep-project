@@ -288,6 +288,7 @@ export default function App() {
       case '/purchase':
       case '/purchase/vendors':
       case '/purchase/requisitions':
+      case '/purchase/inquiries':
       case '/purchase/orders':
       case '/purchase/bills':
       case '/purchase/debit-notes':

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
 import { approvePurchaseRequisition, createPurchaseRequisition, listPurchaseRequisitions, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
+import { createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -45,6 +46,50 @@ export const useApprovePurchaseRequisition = () => {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+    },
+  });
+};
+
+// ============== AVAILABILITY INQUIRY QUERIES ==============
+export const useProcureRequisitionLines = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['procure-requisition-lines', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      return listProcureRequisitionLines(organisationId);
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useAvailabilityInquiries = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['availability-inquiries', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      return listAvailabilityInquiries(organisationId);
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useCreateAvailabilityInquiry = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async (input: any) => createAvailabilityInquiry(input)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability-inquiries'] });
+      queryClient.invalidateQueries({ queryKey: ['procure-requisition-lines'] });
+    },
+  });
+};
+
+export const useUpsertAvailabilityResponse = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async (input: any) => upsertAvailabilityResponse(input)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability-inquiries'] });
     },
   });
 };
