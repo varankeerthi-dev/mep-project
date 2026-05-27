@@ -113,6 +113,115 @@ export async function upsertAvailabilityResponse(input: {
   return data.id;
 }
 
+export async function convertAvailabilityResponseToPO(input: {
+  organisation_id: string;
+  response_id: string;
+  vendor_id: string;
+  created_by?: string | null;
+}) {
+  const { data: response, error: responseError } = await supabase
+    .from('availability_responses')
+    .select('*, inquiry_line:availability_inquiry_lines(*, inquiry:availability_inquiries(*))')
+    .eq('id', input.response_id)
+    .single();
+  if (responseError) throw responseError;
+
+  const line = response.inquiry_line;
+  const inquiry = line?.inquiry;
+  if (!line || !inquiry) throw new Error('Invalid inquiry response relation');
+
+  const { data: po, error: poError } = await supabase
+    .from('purchase_orders')
+    .insert({
+      organisation_id: input.organisation_id,
+      vendor_id: input.vendor_id,
+      po_number: `PO-AI-${new Date().getTime()}`,
+      po_date: new Date().toISOString().slice(0, 10),
+      delivery_date: null,
+      currency: 'INR',
+      exchange_rate: 1,
+      status: 'Draft',
+      notes: `From availability inquiry ${inquiry.inquiry_number}`,
+      subtotal: 0,
+      discount_total: 0,
+      taxable_total: 0,
+      cgst_total: 0,
+      sgst_total: 0,
+      igst_total: 0,
+      grand_total: 0,
+      grand_total_inr: 0,
+      created_by: input.created_by || null,
+    })
+    .select()
+    .single();
+  if (poError) throw poError;
+
+  const qty = Number(response.po_ready_qty || response.available_qty || 0);
+  const { data: poItem, error: itemError } = await supabase
+    .from('purchase_order_items')
+    .insert({
+      organisation_id: input.organisation_id,
+      po_id: po.id,
+      sr: 1,
+      item_name: line.item_name,
+      description: line.item_name,
+      quantity: qty,
+      unit: 'Nos',
+      rate: 0,
+      discount_percent: 0,
+      discount_amount: 0,
+      taxable_value: 0,
+      cgst_percent: 0,
+      cgst_amount: 0,
+      sgst_percent: 0,
+      sgst_amount: 0,
+      igst_percent: 0,
+      igst_amount: 0,
+      total_amount: 0,
+      total_amount_inr: 0,
+      requisition_line_id: line.requisition_line_id || null,
+      inquiry_line_id: line.id,
+    })
+    .select()
+    .single();
+  if (itemError) throw itemError;
+
+  if (line.requisition_line_id) {
+    const { data: reqLine } = await supabase
+      .from('purchase_requisition_lines')
+      .select('po_qty')
+      .eq('id', line.requisition_line_id)
+      .maybeSingle();
+
+    await supabase
+      .from('purchase_requisition_lines')
+      .update({
+        po_qty: Number(reqLine?.po_qty || 0) + qty,
+      })
+      .eq('id', line.requisition_line_id);
+  }
+
+  return { po, poItem };
+}
+
+export async function postGoodsReceipt(input: {
+  organisation_id: string;
+  po_id: string;
+  po_item_id: string;
+  received_qty: number;
+  created_by?: string | null;
+}) {
+  const { data, error } = await supabase.rpc('post_goods_receipt', {
+    p_organisation_id: input.organisation_id,
+    p_po_id: input.po_id,
+    p_po_item_id: input.po_item_id,
+    p_received_qty: input.received_qty,
+    p_created_by: input.created_by || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 async function generateInquiryNumber(organisationId: string) {
   const yy = String(new Date().getFullYear()).slice(-2);
   const { data, error } = await supabase
@@ -123,4 +232,3 @@ async function generateInquiryNumber(organisationId: string) {
   if (error) throw error;
   return `AI-${yy}-${String((data?.length || 0) + 1).padStart(4, '0')}`;
 }
-

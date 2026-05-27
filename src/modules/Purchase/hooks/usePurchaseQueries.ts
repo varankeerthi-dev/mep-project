@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
 import { approvePurchaseRequisition, createPurchaseRequisition, listPurchaseRequisitions, type CreateRequisitionInput } from '../../../purchase-requisitions/api';
-import { createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
+import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -90,6 +90,29 @@ export const useUpsertAvailabilityResponse = () => {
     mutationFn: withSessionCheck(async (input: any) => upsertAvailabilityResponse(input)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability-inquiries'] });
+    },
+  });
+};
+
+export const useConvertAvailabilityResponseToPO = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async (input: any) => convertAvailabilityResponseToPO(input)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability-inquiries'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+    },
+  });
+};
+
+export const usePostGoodsReceipt = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async (input: any) => postGoodsReceipt(input)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
   });
 };
