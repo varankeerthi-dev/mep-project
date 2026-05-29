@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
 import { createPurchaseRequisition, deletePurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, updatePurchaseRequisition, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
-import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
+import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, listRequisitionLinesForSourcing, fulfillFromStoreLine, sendToPurchaseLine, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -158,6 +158,48 @@ export const usePostGoodsReceipt = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+    },
+  });
+};
+
+export const useRequisitionLinesForSourcing = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['requisition-lines-sourcing', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      return listRequisitionLinesForSourcing(organisationId);
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useFulfillFromStoreLine = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async ({
+      lineId, itemId, qty, organisationId
+    }: { lineId: string; itemId: string | null; qty: number; organisationId: string }) =>
+      fulfillFromStoreLine(lineId, itemId, qty, organisationId)
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisition-lines-sourcing'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+    },
+  });
+};
+
+export const useSendToPurchaseLine = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async ({
+      lineId, qty, organisationId, requisitionId
+    }: { lineId: string; qty: number; organisationId: string; requisitionId: string }) =>
+      sendToPurchaseLine(lineId, qty, organisationId, requisitionId)
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['requisition-lines-sourcing'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-requisitions'] });
+      queryClient.invalidateQueries({ queryKey: ['availability-inquiries'] });
     },
   });
 };

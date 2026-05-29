@@ -10,8 +10,10 @@ import InvoiceVerification from './components/InvoiceVerification';
 import { DebitNoteView } from './components/DebitNoteView';
 import { Payments } from './components/Payments';
 import { PaymentQueue } from './components/PaymentQueue';
+import Dashboard from './components/Dashboard';
 
 const TAB_MAP: Record<string, { label: string; component: React.FC }> = {
+  dashboard: { label: 'Dashboard', component: Dashboard },
   vendors: { label: 'Vendors', component: Vendors },
   requisitions: { label: 'Requisitions', component: Requisitions },
   inquiries: { label: 'Availability Inquiry', component: AvailabilityInquiry },
@@ -29,6 +31,8 @@ export const PurchaseModule: React.FC = () => {
 
   const getActiveTab = () => {
     const path = location.pathname;
+    if (path === '/purchase' || path === '/purchase/') return 'dashboard';
+    if (path.includes('/purchase/dashboard')) return 'dashboard';
     if (path.includes('/purchase/vendors')) return 'vendors';
     if (path.includes('/purchase/requisitions')) return 'requisitions';
     if (path.includes('/purchase/inquiries')) return 'inquiries';
@@ -38,7 +42,7 @@ export const PurchaseModule: React.FC = () => {
     if (path.includes('/purchase/debit-notes')) return 'debit-notes';
     if (path.includes('/purchase/payments')) return 'payments';
     if (path.includes('/purchase/payment-queue')) return 'payment-queue';
-    return 'vendors';
+    return 'dashboard';
   };
 
   const activeTab = getActiveTab();
