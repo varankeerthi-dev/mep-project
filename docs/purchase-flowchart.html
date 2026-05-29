@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchase Module E2E Flow</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; background: #f6f8fb; color: #111; }
+    h1 { font-size: 18px; margin: 0 0 10px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 10px; }
+    .box { background: #fff; border: 1px solid #d8dee8; border-radius: 8px; padding: 10px; font-size: 12px; }
+    .t { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .arrow { text-align: center; font-size: 18px; color: #4b5563; }
+    .line { margin: 8px 0; border-top: 1px dashed #cbd5e1; }
+    ul { margin: 6px 0 0 16px; padding: 0; }
+    li { margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <h1>Purchase Module: End-to-End Flow (Implemented)</h1>
+
+  <div class="grid">
+    <div class="box">
+      <div class="t">1) Indent / PR Create</div>
+      From Project / Central / Site Work.<br />
+      Multi-line items, qty, est. rate, assignment type.
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="t">2) Approval + Audit</div>
+      Release workflow (submit/approve/reject).<br />
+      Full audit trail per transition.
+    </div>
+    <div class="arrow">→</div>
+  </div>
+
+  <div class="grid" style="margin-top:10px;">
+    <div class="box">
+      <div class="t">3) Material Check</div>
+      Source determination per line:
+      <ul>
+        <li><b>FULFILL_FROM_STORE</b></li>
+        <li><b>PROCURE</b></li>
+      </ul>
+      Open qty tracked.
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="t">4) Availability Inquiry</div>
+      For PROCURE lines: multi-vendor availability/date check.<br />
+      Partial availability + split allocation.
+    </div>
+    <div class="arrow">→</div>
+  </div>
+
+  <div class="grid" style="margin-top:10px;">
+    <div class="box">
+      <div class="t">5) Purchase Order (PO)</div>
+      Convert inquiry response to PO.<br />
+      Links kept: PR line ↔ inquiry line ↔ PO line.
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="t">6) Goods Receipt (GR)</div>
+      Post GR (partial/full).<br />
+      Updates received qty + PR/PO open qty.
+    </div>
+    <div class="arrow">→</div>
+  </div>
+
+  <div class="grid" style="margin-top:10px;">
+    <div class="box">
+      <div class="t">7) Bill Entry</div>
+      Purchase Bill with item lines, tax, totals, vendor link.
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="t">8) Invoice Verification (3-Way)</div>
+      Bill vs PO vs GR check with tolerances:
+      <ul>
+        <li>Qty %</li>
+        <li>Value %</li>
+        <li>Date days</li>
+      </ul>
+      Status: PASSED / WARN / FAILED.
+    </div>
+    <div class="arrow">→</div>
+  </div>
+
+  <div class="grid" style="margin-top:10px;">
+    <div class="box">
+      <div class="t">9) Payment Queue + Payment</div>
+      Pay full/partial, update bill status and vendor ledger.
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="t">10) Close / Monitor</div>
+      Dashboards show pending PR, open qty, inquiry splits, IV mismatches, unpaid bills.
+    </div>
+    <div class="arrow"></div>
+  </div>
+
+  <div class="line"></div>
+  <div style="font-size:12px;">
+    Core chain: <b>PR → Inquiry → PO → GR → Bill → IV → Payment</b><br />
+    Store path: <b>PR → Store Issue/Receive</b> (no PO needed for available stock).
+  </div>
+</body>
+</html>
+

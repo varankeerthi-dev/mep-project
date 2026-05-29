@@ -12,13 +12,17 @@ export async function listProcureRequisitionLines(organisationId: string) {
   return data || [];
 }
 
-export async function createAvailabilityInquiry(input: {
-  organisation_id: string;
-  requisition_id: string;
+export interface AvailabilityInquiryLineInput {
   requisition_line_id: string;
   item_id?: string | null;
   item_name: string;
   required_qty: number;
+}
+
+export async function createAvailabilityInquiry(input: {
+  organisation_id: string;
+  requisition_id: string;
+  lines: AvailabilityInquiryLineInput[];
   notes?: string;
   created_by?: string | null;
 }) {
@@ -36,20 +40,21 @@ export async function createAvailabilityInquiry(input: {
     .single();
   if (headerError) throw headerError;
 
-  const { data: line, error: lineError } = await supabase
+  const lineInserts = input.lines.map(l => ({
+    organisation_id: input.organisation_id,
+    inquiry_id: inquiry.id,
+    requisition_line_id: l.requisition_line_id,
+    item_id: l.item_id || null,
+    item_name: l.item_name,
+    required_qty: l.required_qty,
+  }));
+
+  const { data: lines, error: lineError } = await supabase
     .from('availability_inquiry_lines')
-    .insert({
-      organisation_id: input.organisation_id,
-      inquiry_id: inquiry.id,
-      requisition_line_id: input.requisition_line_id,
-      item_id: input.item_id || null,
-      item_name: input.item_name,
-      required_qty: input.required_qty,
-    })
-    .select()
-    .single();
+    .insert(lineInserts)
+    .select();
   if (lineError) throw lineError;
-  return { inquiry, line };
+  return { inquiry, lines };
 }
 
 export async function listAvailabilityInquiries(organisationId: string) {
