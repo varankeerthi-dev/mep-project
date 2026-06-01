@@ -230,7 +230,7 @@ export default function App() {
       case '/projects': return <Projects />;
       case '/tools': return <ToolsManagement />;
       case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
-      case '/projects/edit': return <Projects />;
+      case '/projects/edit': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
       case '/projects/daily-updates': return <Projects />;
       case '/projects/site-materials': return <Projects />;
       case '/todo': return <TodoList />;
