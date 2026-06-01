@@ -7,8 +7,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder,
   TrendingUp, Clock, DollarSign, MoreHorizontal, X,
+  ChevronDown, ChevronUp, Link2, AlertTriangle, FilePlus2,
 } from 'lucide-react';
 import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
+import CreateProjectInvoiceModal from '../components/CreateProjectInvoiceModal';
+import {
+  useProjectTransactions,
+  buildProjectTransactionSummary,
+  type ProjectInvoice,
+} from '../hooks/useProjectTransactions';
 import { useAuth } from '../App';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -91,6 +98,12 @@ export default function ProjectList() {
     return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
   });
   const [tempVisibleColumns, setTempVisibleColumns] = useState<string[]>(visibleColumns);
+  const [activeTransactionTab, setActiveTransactionTab] = useState<'po-utilization' | 'pos' | 'invoices' | 'payments'>('po-utilization');
+  const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
+  const [invoiceModal, setInvoiceModal] = useState<
+    | { open: false }
+    | { open: true; mode: 'create' | 'edit'; invoice?: ProjectInvoice | null; defaultPoId?: string | null }
+  >({ open: false });
   const itemsPerPage = 20;
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -173,6 +186,15 @@ export default function ProjectList() {
   const projectExpenses = projectDetails?.expenses ?? [];
   const projectPayments = projectDetails?.payments ?? [];
 
+  // Linked transaction view: POs joined with their invoices (per-PO utilization).
+  const { data: linkedData, isLoading: linkedLoading } = useProjectTransactions(
+    viewMode === 'detail' ? selectedProject?.id : null,
+  );
+  const linkedSummary = useMemo(() => {
+    if (!linkedData) return null;
+    return buildProjectTransactionSummary(linkedData.pos, linkedData.invoices);
+  }, [linkedData]);
+
   const financialSummary = useMemo(() => {
     if (!projectDetails) return null;
     const totalPOValue = projectPOs.reduce((s, p) => s + (parseFloat(p.po_total_value) || 0), 0);
@@ -250,7 +272,7 @@ export default function ProjectList() {
   };
 
   const fmt = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
-  const fmtD = (d?: string) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
+  const fmtD = (d?: string | null) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // LOADING STATE
@@ -274,7 +296,8 @@ export default function ProjectList() {
       { id: 'expenses', label: 'Expenses' },
     ];
 
-    const transactionSubTabs = [
+    const transactionSubTabs: Array<{ id: 'po-utilization' | 'pos' | 'invoices' | 'payments'; label: string; count: number }> = [
+      { id: 'po-utilization', label: 'PO Utilization', count: projectPOs.length },
       { id: 'pos', label: 'POs', count: projectPOs.length },
       { id: 'invoices', label: 'Invoices', count: projectInvoices.length },
       { id: 'payments', label: 'Payments', count: projectPayments.length },
@@ -381,7 +404,30 @@ export default function ProjectList() {
             <div>
               {/* Transactions Summary */}
               <div className="pl-card" style={{ padding: '1.25rem', marginBottom: '1rem' }}>
-                <h3 className="pl-summary-title" style={{ marginBottom: '1rem' }}>Transaction Summary</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 className="pl-summary-title" style={{ margin: 0 }}>Transaction Summary</h3>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="pl-btn pl-btn-primary"
+                      onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}
+                    >
+                      <Plus size={16} />
+                      Create PO
+                    </button>
+                    <button
+                      className="pl-btn"
+                      onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: null })}
+                      style={{
+                        background: '#fff',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <FilePlus2 size={16} />
+                      Create Invoice
+                    </button>
+                  </div>
+                </div>
                 <div className="pl-financial-grid">
                   <div className="pl-financial-card">
                     <div className="pl-financial-label">Total POs</div>
@@ -389,151 +435,476 @@ export default function ProjectList() {
                   </div>
                   <div className="pl-financial-card">
                     <div className="pl-financial-label">PO Value</div>
-                    <div className="pl-financial-value">{fmt(financialSummary?.total_po_value)}</div>
+                    <div className="pl-financial-value">{fmt(linkedSummary?.totalPOValue ?? financialSummary?.total_po_value)}</div>
                   </div>
                   <div className="pl-financial-card">
-                    <div className="pl-financial-label">Invoiced</div>
-                    <div className="pl-financial-value">{fmt(financialSummary?.total_invoice_value)}</div>
+                    <div className="pl-financial-label">Invoice Utilised</div>
+                    <div
+                      className="pl-financial-value"
+                      title="Sum of invoices linked to POs (auto-tracked via trigger)"
+                      style={{ color: 'var(--accent, #2563eb)' }}
+                    >
+                      {fmt(linkedSummary?.totalUtilized)}
+                    </div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Unlinked Invoices</div>
+                    <div
+                      className="pl-financial-value"
+                      title="Invoices without a PO link"
+                      style={{ color: linkedSummary && linkedSummary.invoicedWithoutPO > 0 ? '#d97706' : undefined }}
+                    >
+                      {fmt(linkedSummary?.invoicedWithoutPO)}
+                    </div>
                   </div>
                   <div className="pl-financial-card">
                     <div className="pl-financial-label">PO Balance</div>
-                    <div className="pl-financial-value">{fmt(financialSummary?.po_balance)}</div>
+                    <div className="pl-financial-value">{fmt(linkedSummary?.poBalance ?? financialSummary?.po_balance)}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Transaction Sub-Tabs */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', padding: '0.5rem 0' }}>
-                {transactionSubTabs.map(subTab => (
-                  <button
-                    key={subTab.id}
-                    onClick={() => {}}
+              {/* Transaction Sub-Tabs (NOW FUNCTIONAL) */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', padding: '0.5rem 0', flexWrap: 'wrap' }}>
+                {transactionSubTabs.map(subTab => {
+                  const isActive = activeTransactionTab === subTab.id;
+                  return (
+                    <button
+                      key={subTab.id}
+                      onClick={() => setActiveTransactionTab(subTab.id)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        border: '1px solid var(--border)',
+                        background: isActive ? 'var(--accent, #2563eb)' : 'white',
+                        color: isActive ? 'white' : 'var(--text-primary)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {subTab.label} ({subTab.count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ── PO Utilization (linked view) ── */}
+              {activeTransactionTab === 'po-utilization' && (
+                <div className="pl-card">
+                  <div
                     style={{
-                      padding: '0.5rem 1rem',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      border: '1px solid var(--border)',
-                      background: subTab.id === 'pos' ? 'var(--accent)' : 'white',
-                      color: subTab.id === 'pos' ? 'white' : 'var(--text-primary)',
+                      padding: '1rem',
+                      borderBottom: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
                     }}
                   >
-                    {subTab.label} ({subTab.count})
-                  </button>
-                ))}
-              </div>
-
-              {/* POs */}
-              <div className="pl-card">
-                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Purchase Orders</h3>
-                  <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
-                    <Plus size={16} />
-                    Create PO
-                  </button>
-                </div>
-                {projectPOs.length === 0 ? (
-                  <div className="pl-empty">
-                    <Folder className="pl-empty-icon" />
-                    <p className="pl-empty-text">No purchase orders found</p>
+                    <div>
+                      <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>PO → Invoice Utilization</h3>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Each PO tracks its own invoiced value. Click a row to see the linked invoices.
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <table className="pl-table">
-                    <thead>
-                      <tr>
-                        <th>PO Number</th>
-                        <th>Date</th>
-                        <th>Total Value</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectPOs.map(po => (
-                        <tr key={po.id}>
-                          <td style={{ fontWeight: 500 }}>{po.po_number}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{fmtD(po.po_date)}</td>
-                          <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(po.po_total_value)}</td>
-                          <td>
-                            <span className="pl-status">
-                              <span className="pl-status-dot" style={{ background: PO_STATUS_CONFIG[po.status as keyof typeof PO_STATUS_CONFIG]?.dot || '#94a3b8' }} />
-                              {po.status || 'Pending'}
-                            </span>
-                          </td>
+                  {linkedLoading ? (
+                    <div className="pl-empty">Loading…</div>
+                  ) : !linkedSummary || linkedSummary.perPO.length === 0 ? (
+                    <div className="pl-empty">
+                      <Folder className="pl-empty-icon" />
+                      <p className="pl-empty-text">No purchase orders found. Create a PO to start tracking utilization.</p>
+                    </div>
+                  ) : (
+                    <table className="pl-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 32 }}></th>
+                          <th>PO Number</th>
+                          <th>Date</th>
+                          <th style={{ textAlign: 'right' }}>PO Value</th>
+                          <th style={{ textAlign: 'right' }}>Invoice Utilised</th>
+                          <th style={{ textAlign: 'right' }}>Balance</th>
+                          <th style={{ minWidth: 140 }}>Utilization</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              {/* Invoices */}
-              <div className="pl-card" style={{ marginTop: '1rem' }}>
-                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Invoices</h3>
+                      </thead>
+                      <tbody>
+                        {linkedSummary.perPO.map(({ po, invoiced, available, utilizationPct, overInvoiced, invoices: linkedInvoices }) => {
+                          const isExpanded = expandedPoId === po.id;
+                          const poTotal = Number(po.po_total_value) || 0;
+                          const statusCfg = PO_STATUS_CONFIG[po.status as keyof typeof PO_STATUS_CONFIG];
+                          const statusColor = statusCfg?.dot || '#94a3b8';
+                          return (
+                            <>
+                              <tr
+                                key={po.id}
+                                onClick={() => setExpandedPoId(isExpanded ? null : po.id)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <td style={{ color: 'var(--text-muted)' }}>
+                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </td>
+                                <td style={{ fontWeight: 500 }}>{po.po_number}</td>
+                                <td style={{ color: 'var(--text-secondary)' }}>{fmtD(po.po_date)}</td>
+                                <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, textAlign: 'right' }}>
+                                  {fmt(poTotal)}
+                                </td>
+                                <td
+                                  style={{
+                                    fontFamily: 'JetBrains Mono, monospace',
+                                    fontWeight: 500,
+                                    textAlign: 'right',
+                                    color: overInvoiced ? '#dc2626' : 'var(--accent, #2563eb)',
+                                  }}
+                                  title={overInvoiced ? 'Invoiced exceeds PO total' : 'Sum of linked invoices'}
+                                >
+                                  {fmt(invoiced)}
+                                </td>
+                                <td
+                                  style={{
+                                    fontFamily: 'JetBrains Mono, monospace',
+                                    fontWeight: 500,
+                                    textAlign: 'right',
+                                    color: available < 0 ? '#dc2626' : 'var(--text-primary)',
+                                  }}
+                                >
+                                  {fmt(available)}
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div
+                                      style={{
+                                        flex: 1,
+                                        height: 6,
+                                        background: '#f1f5f9',
+                                        borderRadius: 3,
+                                        overflow: 'hidden',
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          width: `${utilizationPct}%`,
+                                          height: '100%',
+                                          background: overInvoiced
+                                            ? '#dc2626'
+                                            : utilizationPct >= 90
+                                              ? '#d97706'
+                                              : 'var(--accent, #2563eb)',
+                                          transition: 'width 0.3s ease',
+                                        }}
+                                      />
+                                    </div>
+                                    <span
+                                      style={{
+                                        fontFamily: 'JetBrains Mono, monospace',
+                                        fontSize: '0.75rem',
+                                        color: 'var(--text-muted)',
+                                        minWidth: 32,
+                                        textAlign: 'right',
+                                      }}
+                                    >
+                                      {utilizationPct}%
+                                    </span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className="pl-status">
+                                    <span className="pl-status-dot" style={{ background: statusColor }} />
+                                    {po.status || 'Pending'}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    className="pl-btn"
+                                    onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: po.id })}
+                                    style={{
+                                      background: 'var(--accent, #2563eb)',
+                                      color: '#fff',
+                                      border: 'none',
+                                      padding: '0.375rem 0.625rem',
+                                      borderRadius: '0.375rem',
+                                      fontSize: '0.75rem',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                    }}
+                                  >
+                                    <Plus size={12} /> Invoice
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr key={`${po.id}-expanded`} style={{ background: 'var(--bg-subtle, #f8fafc)' }}>
+                                  <td colSpan={9} style={{ padding: '0.75rem 1.5rem' }}>
+                                    {linkedInvoices.length === 0 ? (
+                                      <div
+                                        style={{
+                                          padding: '0.75rem',
+                                          color: 'var(--text-muted)',
+                                          fontSize: '0.8125rem',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.5rem',
+                                        }}
+                                      >
+                                        <Link2 size={12} /> No invoices linked to this PO yet.
+                                        <button
+                                          onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: po.id })}
+                                          style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: 'var(--accent, #2563eb)',
+                                            fontSize: '0.8125rem',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            textDecoration: 'underline',
+                                          }}
+                                        >
+                                          Create the first invoice
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <table style={{ width: '100%', fontSize: '0.8125rem' }}>
+                                        <thead>
+                                          <tr style={{ color: 'var(--text-muted)' }}>
+                                            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Invoice #</th>
+                                            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Date</th>
+                                            <th style={{ textAlign: 'right', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Amount</th>
+                                            <th style={{ textAlign: 'left', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Status</th>
+                                            <th style={{ textAlign: 'right', padding: '0.25rem 0.5rem', fontWeight: 500 }}>Action</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {linkedInvoices.map(inv => (
+                                            <tr key={inv.id}>
+                                              <td style={{ padding: '0.375rem 0.5rem', fontWeight: 500 }}>{inv.invoice_number}</td>
+                                              <td style={{ padding: '0.375rem 0.5rem', color: 'var(--text-secondary)' }}>{fmtD(inv.invoice_date)}</td>
+                                              <td
+                                                style={{
+                                                  padding: '0.375rem 0.5rem',
+                                                  textAlign: 'right',
+                                                  fontFamily: 'JetBrains Mono, monospace',
+                                                }}
+                                              >
+                                                {fmt(inv.total_amount)}
+                                              </td>
+                                              <td style={{ padding: '0.375rem 0.5rem' }}>
+                                                <span className="pl-status">{inv.status || 'Pending'}</span>
+                                              </td>
+                                              <td style={{ padding: '0.375rem 0.5rem', textAlign: 'right' }}>
+                                                <button
+                                                  onClick={() => setInvoiceModal({ open: true, mode: 'edit', invoice: inv })}
+                                                  style={{
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--border)',
+                                                    color: 'var(--text-secondary)',
+                                                    padding: '0.25rem 0.5rem',
+                                                    borderRadius: '0.25rem',
+                                                    fontSize: '0.6875rem',
+                                                    cursor: 'pointer',
+                                                  }}
+                                                >
+                                                  Edit
+                                                </button>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
-                {projectInvoices.length === 0 ? (
-                  <div className="pl-empty">
-                    <Folder className="pl-empty-icon" />
-                    <p className="pl-empty-text">No invoices found</p>
-                  </div>
-                ) : (
-                  <table className="pl-table">
-                    <thead>
-                      <tr>
-                        <th>Invoice</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectInvoices.map(inv => (
-                        <tr key={inv.id}>
-                          <td style={{ fontWeight: 500 }}>{inv.invoice_number}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{fmtD(inv.invoice_date)}</td>
-                          <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(inv.total_amount)}</td>
-                          <td><span className="pl-status">{inv.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+              )}
 
-              {/* Payments */}
-              <div className="pl-card" style={{ marginTop: '1rem' }}>
-                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Payments</h3>
-                </div>
-                {projectPayments.length === 0 ? (
-                  <div className="pl-empty">
-                    <Folder className="pl-empty-icon" />
-                    <p className="pl-empty-text">No payments found</p>
+              {/* ── POs (raw list) ── */}
+              {activeTransactionTab === 'pos' && (
+                <div className="pl-card">
+                  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Purchase Orders</h3>
+                    <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
+                      <Plus size={16} />
+                      Create PO
+                    </button>
                   </div>
-                ) : (
-                  <table className="pl-table">
-                    <thead>
-                      <tr>
-                        <th>Payment</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Mode</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectPayments.map(pay => (
-                        <tr key={pay.id}>
-                          <td style={{ fontWeight: 500 }}>{pay.payment_number}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{fmtD(pay.payment_date)}</td>
-                          <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: 'var(--success)' }}>{fmt(pay.payment_amount)}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{pay.payment_mode}</td>
+                  {projectPOs.length === 0 ? (
+                    <div className="pl-empty">
+                      <Folder className="pl-empty-icon" />
+                      <p className="pl-empty-text">No purchase orders found</p>
+                    </div>
+                  ) : (
+                    <table className="pl-table">
+                      <thead>
+                        <tr>
+                          <th>PO Number</th>
+                          <th>Date</th>
+                          <th>Total Value</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                      </thead>
+                      <tbody>
+                        {projectPOs.map(po => (
+                          <tr key={po.id}>
+                            <td style={{ fontWeight: 500 }}>{po.po_number}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{fmtD(po.po_date)}</td>
+                            <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(po.po_total_value)}</td>
+                            <td>
+                              <span className="pl-status">
+                                <span className="pl-status-dot" style={{ background: PO_STATUS_CONFIG[po.status as keyof typeof PO_STATUS_CONFIG]?.dot || '#94a3b8' }} />
+                                {po.status || 'Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* ── Invoices (raw list, with linked PO) ── */}
+              {activeTransactionTab === 'invoices' && (
+                <div className="pl-card">
+                  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Invoices</h3>
+                    <button
+                      className="pl-btn pl-btn-primary"
+                      onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: null })}
+                    >
+                      <Plus size={16} />
+                      Create Invoice
+                    </button>
+                  </div>
+                  {projectInvoices.length === 0 ? (
+                    <div className="pl-empty">
+                      <Folder className="pl-empty-icon" />
+                      <p className="pl-empty-text">No invoices found</p>
+                    </div>
+                  ) : (
+                    <table className="pl-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice</th>
+                          <th>Date</th>
+                          <th>Linked PO</th>
+                          <th>Amount</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projectInvoices.map(inv => {
+                          const linkedPo = linkedData?.pos.find(p => p.id === inv.po_id);
+                          return (
+                            <tr key={inv.id}>
+                              <td style={{ fontWeight: 500 }}>{inv.invoice_number}</td>
+                              <td style={{ color: 'var(--text-secondary)' }}>{fmtD(inv.invoice_date)}</td>
+                              <td>
+                                {linkedPo ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      padding: '0.125rem 0.5rem',
+                                      background: '#eff6ff',
+                                      color: '#1d4ed8',
+                                      borderRadius: '0.25rem',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    <Link2 size={10} /> {linkedPo.po_number}
+                                  </span>
+                                ) : (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      color: '#d97706',
+                                      fontSize: '0.75rem',
+                                    }}
+                                    title="This invoice is not linked to a PO. Link it to track PO utilization."
+                                  >
+                                    <AlertTriangle size={10} /> Unlinked
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(inv.total_amount)}</td>
+                              <td><span className="pl-status">{inv.status}</span></td>
+                              <td style={{ textAlign: 'right' }}>
+                                <button
+                                  onClick={() => setInvoiceModal({ open: true, mode: 'edit', invoice: inv })}
+                                  style={{
+                                    background: 'transparent',
+                                    border: '1px solid var(--border)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '0.25rem',
+                                    fontSize: '0.6875rem',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* ── Payments (raw list) ── */}
+              {activeTransactionTab === 'payments' && (
+                <div className="pl-card">
+                  <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Payments</h3>
+                  </div>
+                  {projectPayments.length === 0 ? (
+                    <div className="pl-empty">
+                      <Folder className="pl-empty-icon" />
+                      <p className="pl-empty-text">No payments found</p>
+                    </div>
+                  ) : (
+                    <table className="pl-table">
+                      <thead>
+                        <tr>
+                          <th>Payment</th>
+                          <th>Date</th>
+                          <th>Amount</th>
+                          <th>Mode</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projectPayments.map(pay => (
+                          <tr key={pay.id}>
+                            <td style={{ fontWeight: 500 }}>{pay.payment_number}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{fmtD(pay.payment_date)}</td>
+                            <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: 'var(--success)' }}>{fmt(pay.payment_amount)}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{pay.payment_mode}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -581,6 +952,18 @@ export default function ProjectList() {
                 userId={user.id}
               />
             )
+          )}
+
+          {invoiceModal.open && selectedProject && (
+            <CreateProjectInvoiceModal
+              isOpen
+              onClose={() => setInvoiceModal({ open: false })}
+              mode={invoiceModal.mode}
+              projectId={selectedProject.id}
+              pos={(linkedData?.pos ?? projectPOs) as any}
+              invoice={invoiceModal.invoice ?? null}
+              defaultPoId={invoiceModal.defaultPoId ?? null}
+            />
           )}
         </div>
       </div>
