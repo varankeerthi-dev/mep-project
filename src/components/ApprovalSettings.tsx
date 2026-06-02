@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Settings, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Settings, Plus, Trash2, Search, ChevronDown, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,13 +13,16 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrgApprovalWorkflows } from '@/hooks/useApprovals';
+import { useQuery } from '@tanstack/react-query';
+import { getOrganisationMembers } from '@/supabase';
 import { toast } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT';
 
 type WorkflowLevel = {
   id: string;
-  role: string;
+  approverId: string;
   minAmount: string;
   maxAmount: string;
 };
@@ -49,6 +52,131 @@ const ROLE_OPTIONS = [
   'CEO',
 ];
 
+const useOrgMembers = (orgId?: string) =>
+  useQuery({
+    queryKey: ['org-members', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await getOrganisationMembers(orgId);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!orgId,
+    staleTime: 1000 * 60 * 2,
+  });
+
+type OrgMember = {
+  user_id: string;
+  role: string;
+  user?: { full_name?: string | null; email?: string | null } | null;
+};
+
+type EmployeeSelectProps = {
+  members: OrgMember[];
+  value: string;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onChange: (userId: string) => void;
+};
+
+const EmployeeSelect = ({ members, value, search, onSearchChange, onChange }: EmployeeSelectProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const activeSearch = (search || '').trim().toLowerCase();
+  const selected = members.find((member) => member.user_id === value);
+
+  const matchesSearch = (member: OrgMember) => {
+    const predicate = (candidate: OrgMember) => {
+      const fullName = (candidate.user?.full_name || '').toLowerCase();
+      const email = (candidate.user?.email || '').toLowerCase();
+      const userId = candidate.user_id.toLowerCase();
+      const role = (candidate.role || '').toLowerCase();
+      const query = activeSearch;
+      return fullName.includes(query) || email.includes(query) || userId.includes(query) || role.includes(query);
+    };
+
+    if (!activeSearch) {
+      return true;
+    }
+
+    return predicate(member);
+  };
+
+  const filteredMembers = members.filter(matchesSearch);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className="relative cursor-text"
+        onClick={() => setIsOpen(true)}
+      >
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+        <Input
+          value={search}
+          onChange={(e) => {
+            onSearchChange(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder="Search employee"
+          className="h-9 pl-8 pr-8 text-xs"
+        />
+        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+      </div>
+
+      {isOpen && filteredMembers.length > 0 && (
+        <div className="absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm">
+          {filteredMembers.map((member) => {
+            const isSelected = value === member.user_id;
+            return (
+              <button
+                key={member.user_id}
+                type="button"
+                className={cn(
+                  'flex w-full flex-col px-3 py-1.5 text-left',
+                  isSelected ? 'bg-emerald-50' : 'hover:bg-zinc-100'
+                )}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange(member.user_id);
+                  onSearchChange('');
+                  setIsOpen(false);
+                }}
+              >
+                <span className="text-xs font-medium text-zinc-900">
+                  {member.user?.full_name || 'Unnamed user'}
+                </span>
+                <span className="text-[10px] text-zinc-500">
+                  {member.user?.email || member.user_id} · {member.role}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {value && selected && !search && !isOpen && (
+        <div className="mt-1.5 text-[10px] font-medium text-zinc-700">
+          Selected: {selected?.user?.full_name || 'Unknown'}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ApprovalSettings: React.FC = () => {
   const { organisation, user } = useAuth();
   const orgId = organisation?.id as string | undefined;
@@ -59,7 +187,46 @@ export const ApprovalSettings: React.FC = () => {
     SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
   }));
 
+  const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
+  const { data: orgMembers = [] } = useOrgMembers(orgId);
+
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!workflows || workflows.length === 0) return;
+
+    const isFresh =
+      modules.PURCHASE_PAYMENT.enabled ||
+      modules.SUBCONTRACTOR_PAYMENT.enabled ||
+      modules.PURCHASE_PAYMENT.levels.length > 0 ||
+      modules.SUBCONTRACTOR_PAYMENT.levels.length > 0;
+
+    if (isFresh) return;
+
+    const next: Record<ModuleKey, ModuleConfig> = {
+      PURCHASE_PAYMENT: { enabled: false, levels: [] },
+      SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
+    };
+
+    workflows.forEach((w: any) => {
+      const moduleKey = w.approval_type as ModuleKey;
+      if (!next[moduleKey]) return;
+      next[moduleKey] = {
+        enabled: true,
+        levels: [
+          ...next[moduleKey].levels,
+          {
+            id: String(w.id),
+            approverId: String(w.approver_id ?? ''),
+            minAmount: w.min_amount != null ? String(w.min_amount) : '',
+            maxAmount: w.max_amount != null ? String(w.max_amount) : '',
+          },
+        ],
+      };
+    });
+
+    setModules(next);
+  }, [workflows, modules]);
 
   const addLevel = (module: ModuleKey) => {
     setModules((prev) => ({
@@ -68,7 +235,7 @@ export const ApprovalSettings: React.FC = () => {
         ...prev[module],
         levels: [
           ...prev[module].levels,
-          { id: `${module}-${Date.now()}`, role: '', minAmount: '', maxAmount: '' },
+          { id: `${module}-${Date.now()}`, approverId: '', minAmount: '', maxAmount: '' },
         ],
       },
     }));
@@ -116,15 +283,16 @@ export const ApprovalSettings: React.FC = () => {
       (Object.keys(modules) as ModuleKey[]).forEach((module) => {
         const config = modules[module];
         config.levels.forEach((level, index) => {
-          if (!level.role) return;
+          if (!level.approverId) return;
+          const member = orgMembers.find((m: any) => String(m.user_id) === String(level.approverId));
           rows.push({
             organisation_id: orgId,
             approval_type: module,
             level: index + 1,
             min_amount: level.minAmount ? Number(level.minAmount) : 0,
             max_amount: level.maxAmount ? Number(level.maxAmount) : null,
-            approver_role: level.role,
-            approver_id: null,
+            approver_role: member?.role ? String(member.role) : null,
+            approver_id: level.approverId,
             is_active: config.enabled,
           });
         });
@@ -195,10 +363,17 @@ export const ApprovalSettings: React.FC = () => {
 
               {config.enabled && (
                 <div className="px-5 py-4 space-y-3">
+                  <div className="grid grid-cols-12 gap-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="col-span-3">Level</div>
+                    <div className="col-span-4">Approver</div>
+                    <div className="col-span-2">Min (₹)</div>
+                    <div className="col-span-2">Max (₹)</div>
+                    <div className="col-span-1"></div>
+                  </div>
                   {config.levels.length === 0 && (
-                    <p className="text-xs text-zinc-500">
-                      No approval levels defined. Add at least one level.
-                    </p>
+                  <p className="text-[10px] text-zinc-500 pl-1">
+                    Add at least one level.
+                  </p>
                   )}
                   {config.levels.map((level, index) => (
                     <div
@@ -213,23 +388,20 @@ export const ApprovalSettings: React.FC = () => {
                         />
                       </div>
                       <div className="col-span-4">
-                        <Select
-                          value={level.role}
-                          onValueChange={(value) =>
-                            updateLevel(module, level.id, { role: value })
+                        <EmployeeSelect
+                          members={orgMembers}
+                          value={level.approverId}
+                          search={memberSearch[level.id] || ''}
+                          onSearchChange={(text) =>
+                            setMemberSearch((prev) => ({
+                              ...prev,
+                              [level.id]: text,
+                            }))
                           }
-                        >
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLE_OPTIONS.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          onChange={(userId) =>
+                            updateLevel(module, level.id, { approverId: userId })
+                          }
+                        />
                       </div>
                       <div className="col-span-2">
                         <Input
@@ -243,6 +415,7 @@ export const ApprovalSettings: React.FC = () => {
                             })
                           }
                         />
+                        <p className="text-[10px] text-zinc-500 mt-1">Amount from which this level starts.</p>
                       </div>
                       <div className="col-span-2">
                         <Input
@@ -256,6 +429,7 @@ export const ApprovalSettings: React.FC = () => {
                             })
                           }
                         />
+                        <p className="text-[10px] text-zinc-500 mt-1">Amount at which next level takes over. Leave blank for no upper limit.</p>
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button

@@ -1,10 +1,21 @@
-import { supabase } from '../lib/supabase';
+import { supabase, getOrganisationMembers } from '../lib/supabase';
 import { 
   Approval, 
   ApprovalAction, 
   ApprovalWorkflow, 
   ApprovalActionRequest 
 } from '../types/approvals';
+
+const getUserOrgId = async (userId: string): Promise<string | null> => {
+  const [{ data: orgMember }, { data: userOrg }] = await Promise.all([
+    getOrganisationMembers(userId).catch(() => ({ data: null, error: null })),
+    supabase.from('user_organisations').select('organisation_id').eq('user_id', userId).maybeSingle(),
+  ]);
+
+  const fromMembers = (orgMember as any[])?.find((row: any) => row.user_id === userId)?.organisation_id;
+  if (fromMembers) return fromMembers;
+  return userOrg?.organisation_id ?? null;
+};
 
 export class ApprovalWorkflowEngine {
   /**
@@ -496,13 +507,8 @@ export class ApprovalWorkflowEngine {
   static async getPendingApprovalsForUser(userId: string): Promise<Approval[]> {
     try {
       // Get user's organisation
-      const { data: userOrg } = await supabase
-        .from('user_organisations')
-        .select('organisation_id')
-        .eq('user_id', userId)
-        .single();
-
-      if (!userOrg) return [];
+      const organisationId = await getUserOrgId(userId);
+      if (!organisationId) return [];
 
       // Get user's roles and workflows
       const { data: workflows } = await supabase
@@ -510,7 +516,7 @@ export class ApprovalWorkflowEngine {
         .select('*')
         .eq('approver_id', userId)
         .eq('is_active', true)
-        .eq('organisation_id', userOrg.organisation_id);
+        .eq('organisation_id', organisationId);
 
       if (!workflows || workflows.length === 0) return [];
 
@@ -521,7 +527,7 @@ export class ApprovalWorkflowEngine {
       const { data: approvals } = await supabase
         .from('approvals')
         .select('*')
-        .eq('organisation_id', userOrg.organisation_id)
+        .eq('organisation_id', organisationId)
         .eq('status', 'PENDING')
         .in('approval_type', approvalTypes)
         .in('current_level', levels)

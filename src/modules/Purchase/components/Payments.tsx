@@ -1,43 +1,44 @@
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Banknote, 
-  FileText, 
-  ArrowRight,
+import {
   ArrowLeft,
-  CheckCircle2,
+  ArrowRight,
   CalendarDays,
+  CheckCircle2,
   CreditCard,
+  FileText,
+  Plus,
   PlusCircle,
+  Search,
   X
 } from 'lucide-react';
+import { Smile } from 'lucide-react';
+import { Input } from '../../../components/ui/input';
 import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '../../../components/ui/dialog';
-import { Input } from '../../../components/ui/input';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '../../../components/ui/select';
 import { Label } from '../../../components/ui/label';
 import { Checkbox } from '../../../components/ui/checkbox';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../../components/ui/table';
 import { cn } from '../../../lib/utils';
 
 import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrgApprovalSettings } from '@/hooks/useApprovals';
-import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval } from '../hooks/usePurchaseQueries';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
@@ -59,6 +60,14 @@ export const Payments: React.FC = () => {
   const [vendorProformaInvoice, setVendorProformaInvoice] = useState('');
   const [vendorProformaDate, setVendorProformaDate] = useState('');
   const [vendorProformaAmount, setVendorProformaAmount] = useState('');
+  const [requestVendorId, setRequestVendorId] = useState('');
+  const [requestAmount, setRequestAmount] = useState('');
+  const [requestPriority, setRequestPriority] = useState('Normal');
+  const [requestDueDate, setRequestDueDate] = useState('');
+  const [requestPaymentMode, setRequestPaymentMode] = useState('Bank Transfer');
+  const [requestBankAccount, setRequestBankAccount] = useState('');
+  const [requestReason, setRequestReason] = useState('');
+  const [activeView, setActiveView] = useState<'payments' | 'requests'>('payments');
 
   const { data: payments = [], isLoading } = usePayments(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
@@ -66,6 +75,7 @@ export const Payments: React.FC = () => {
   const { settings: approvalSettings } = useOrgApprovalSettings(organisation?.id);
   const createPayment = useCreatePayment();
   const createPaymentWithApproval = useCreatePaymentWithApproval();
+  const createPaymentRequest = useCreatePaymentRequest();
   const selectedBills = vendorBills.filter((bill: any) => selectedBillIds.includes(String(bill.id)));
   const isLastStep = isAdvance ? activeStep === 1 : activeStep === 2;
   const paymentApprovalEnabled = approvalSettings?.PURCHASE_PAYMENT ?? false;
@@ -90,6 +100,16 @@ export const Payments: React.FC = () => {
 
   const handleCreateRequest = () => {
     setOpenRequestDialog(true);
+  };
+
+  const resetRequestForm = () => {
+    setRequestVendorId('');
+    setRequestAmount('');
+    setRequestPriority('Normal');
+    setRequestDueDate('');
+    setRequestPaymentMode('Bank Transfer');
+    setRequestBankAccount('');
+    setRequestReason('');
   };
 
   const buildBillAllocations = () => {
@@ -188,6 +208,89 @@ export const Payments: React.FC = () => {
     }
   };
 
+  const requestColumns = [
+    {
+      id: 'request_date',
+      header: 'Date',
+      cell: ({ row }: any) => new Date(row.original.request_date).toLocaleDateString('en-IN'),
+    },
+    {
+      id: 'vendor',
+      header: 'Vendor',
+      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
+    },
+    {
+      id: 'amount_requested',
+      header: 'Amount',
+      cell: ({ row }: any) => (
+        <div className="font-medium text-right text-emerald-600">
+          ₹{Number(row.original.amount_requested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </div>
+      ),
+    },
+    {
+      id: 'payment_mode',
+      header: 'Mode',
+      cell: ({ row }: any) => row.original.payment_mode || '-',
+    },
+    {
+      id: 'priority',
+      header: 'Priority',
+      cell: ({ row }: any) => {
+        const colors: any = {
+          Urgent: 'bg-rose-100 text-rose-700 border-rose-200',
+          High: 'bg-orange-100 text-orange-700 border-orange-200',
+          Normal: 'bg-zinc-100 text-zinc-700 border-zinc-200',
+          Low: 'bg-blue-50 text-blue-700 border-blue-200',
+        };
+        return (
+          <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${colors[row.original.priority] || colors.Normal}`}>
+            {row.original.priority}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }: any) => {
+        const colors: any = {
+          Pending: 'bg-amber-50 text-amber-700 border-amber-200',
+          Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          Rejected: 'bg-red-50 text-red-700 border-red-200',
+          Cancelled: 'bg-zinc-50 text-zinc-700 border-zinc-200',
+        };
+        return (
+          <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${colors[row.original.status] || colors.Pending}`}>
+            {row.original.status}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'due_date',
+      header: 'Due By',
+      cell: ({ row }: any) => {
+        if (!row.original.due_date) return '-';
+        const due = new Date(row.original.due_date);
+        const daysLeft = Math.ceil((due.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        return (
+          <div>
+            <span className="text-xs text-zinc-700">{due.toLocaleDateString('en-IN')}</span>
+            <span className="ml-2 text-[10px] font-semibold text-zinc-500">{daysLeft > 0 ? `${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`}</span>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'reason',
+      header: 'Reason',
+      cell: ({ row }: any) => (
+        <span className="text-xs text-zinc-600 truncate block max-w-[240px]">{row.original.reason || '-'}</span>
+      ),
+    },
+  ];
+
   const columns = [
     {
       id: 'voucher_no',
@@ -244,13 +347,31 @@ export const Payments: React.FC = () => {
       ),
     },
     {
+      id: 'workflow_step',
+      header: 'Status',
+      cell: ({ row }: any) => {
+        const status = row.original.workflow_step || row.original.approval_status || 'Not Required';
+        const colorMap: Record<string, string> = {
+          pending_approval: 'bg-amber-100 text-amber-700 border-amber-200',
+          approved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+          released: 'bg-blue-100 text-blue-700 border-blue-200',
+          rejected: 'bg-red-100 text-red-700 border-red-200',
+        };
+        return (
+          <span className={`inline-flex text-[10px] font-semibold px-2 py-1 rounded-full border ${colorMap[status] || 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
+            {String(status).replace(/_/g, ' ')}
+          </span>
+        );
+      },
+    },
+    {
       id: 'actions',
       header: 'Actions',
       cell: () => (
         <div className="flex items-center gap-1">
-          <ShadcnButton 
-            variant="ghost" 
-            size="icon" 
+          <ShadcnButton
+            variant="ghost"
+            size="icon"
             className="h-8 w-8 text-rose-600 hover:bg-rose-50"
           >
             <FileText className="h-4 w-4" />
@@ -265,37 +386,77 @@ export const Payments: React.FC = () => {
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-medium text-zinc-900">Payments Made</h1>
+          <h1 className="text-base font-medium text-zinc-900">
+            {activeView === 'payments' ? 'Payments Made' : 'Payment Requests'}
+          </h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {payments.length}
+            {activeView === 'payments' ? payments.length : requests.length}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleCreateRequest}
-            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]"
-            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Payment Request
-          </button>
-          <button
-            onClick={handleAddPayment}
-            className="inline-flex items-center justify-center text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm active:scale-[0.98]"
-            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Record Payment
-          </button>
+          {activeView === 'payments' ? (
+            <>
+              <button
+                onClick={handleCreateRequest}
+                className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 active:scale-[0.98]"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Payment Request
+              </button>
+              <button
+                onClick={handleAddPayment}
+                className="inline-flex items-center justify-center text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm active:scale-[0.98]"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Record Payment
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleCreateRequest}
+              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
+              style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              New Request
+            </button>
+          )}
         </div>
       </div>
 
+      <div className="flex items-center gap-2 px-6 border-b border-zinc-100 bg-zinc-50/40">
+        {(['payments', 'requests'] as const).map((view) => (
+          <button
+            key={view}
+            onClick={() => setActiveView(view)}
+            className={cn(
+              'px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors',
+              activeView === view
+                ? 'border-zinc-900 text-zinc-900'
+                : 'border-transparent text-zinc-500 hover:text-zinc-800'
+            )}
+          >
+            {view === 'payments' ? 'Payments Made' : 'Payment Requests'}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 overflow-auto">
-        <AppTable
-          data={payments}
-          columns={columns}
-          loading={isLoading}
-        />
+        {activeView === 'payments' ? (
+          <AppTable
+            data={payments}
+            columns={columns}
+            loading={isLoading}
+          />
+        ) : (
+          <AppTable
+            data={requests}
+            columns={requestColumns}
+            loading={requests.isLoading}
+          />
+        )}
       </div>
 
       {/* Record Payment Dialog */}
@@ -500,76 +661,173 @@ export const Payments: React.FC = () => {
 
       {/* Payment Request Dialog */}
       <Dialog open={openRequestDialog} onOpenChange={(open) => !open && setOpenRequestDialog(false)}>
-        <DialogContent className="max-w-xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 py-4 border-b bg-primary/5">
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <PlusCircle className="h-5 w-5 text-primary" />
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <DialogHeader className="px-10 py-8 border-b bg-primary/5">
+            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+              <PlusCircle className="h-6 w-6 text-primary" />
               Create Payment Request
             </DialogTitle>
+            <p className="text-sm text-zinc-500 mt-1">Fill in the payment details below. Required fields are marked.</p>
           </DialogHeader>
 
-          <div className="p-8 space-y-6">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-zinc-500">Vendor</Label>
-              <Select>
-                <SelectTrigger className="h-10 border-zinc-200">
-                  <SelectValue placeholder="Which vendor are we paying?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vendors.map((v: any) => (
-                    <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-zinc-500">Amount Requested</Label>
-                <Input type="number" placeholder="0.00" className="h-10" />
+          <form
+            className="px-10 py-8 space-y-6"
+            onSubmit={async (e) => {
+              e.preventDefault();
+
+              if (!organisation?.id) {
+                toast.error('Organisation is required to submit a payment request.');
+                return;
+              }
+
+              if (!requestVendorId) {
+                toast.error('Please select a vendor for this request.');
+                return;
+              }
+
+              if (!requestAmount || Number(requestAmount) <= 0) {
+                toast.error('Please enter a valid amount requested.');
+                return;
+              }
+
+              if (!requestDueDate) {
+                toast.error('Please select an expected payment date.');
+                return;
+              }
+
+              try {
+                await createPaymentRequest.mutateAsync({
+                  organisation_id: organisation.id,
+                  vendor_id: requestVendorId,
+                  amount_requested: Number(requestAmount),
+                  priority: requestPriority,
+                  due_date: requestDueDate,
+                  payment_mode: requestPaymentMode,
+                  bank_account_id: requestBankAccount || null,
+                  reason: requestReason,
+                  status: 'Pending',
+                  requested_by: user?.id,
+                });
+
+                toast.success('Payment request submitted for approval.');
+                setOpenRequestDialog(false);
+                resetRequestForm();
+              } catch (err: any) {
+                toast.error(err?.message ?? 'Failed to submit payment request.');
+              }
+            }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase text-zinc-500">Vendor</Label>
+                <Select value={requestVendorId} onValueChange={(value) => setRequestVendorId(value)}>
+                  <SelectTrigger className="h-12 border-zinc-200">
+                    <SelectValue placeholder="Select a vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>{vendor.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Priority</Label>
-                <Select defaultValue="Normal">
-                  <SelectTrigger className="h-10 border-zinc-200">
+                <Select value={requestPriority} onValueChange={(value) => setRequestPriority(value)}>
+                  <SelectTrigger className="h-12 border-zinc-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Normal">Normal</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Urgent">Urgent</SelectItem>
+                    {['Low', 'Normal', 'High', 'Urgent'].map((priority) => (
+                      <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-zinc-500">Expected Payment Date</Label>
-              <Input type="date" className="h-10" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase text-zinc-500">Amount Requested</Label>
+                <Input
+                  type="number"
+                  value={requestAmount}
+                  onChange={(e) => setRequestAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="h-12"
+                  min="0"
+                  step="0.01"
+                  required
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase text-zinc-500">Payment Mode</Label>
+                <Select value={requestPaymentMode} onValueChange={(value) => setRequestPaymentMode(value)}>
+                  <SelectTrigger className="h-12 border-zinc-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_MODES.map((mode) => (
+                      <SelectItem key={mode} value={mode}>{mode}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase text-zinc-500">Expected Payment Date</Label>
+                <Input
+                  type="date"
+                  value={requestDueDate}
+                  onChange={(e) => setRequestDueDate(e.target.value)}
+                  className="h-12"
+                  required
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase text-zinc-500">Bank Account / Cheque No</Label>
+                <Input
+                  value={requestBankAccount}
+                  onChange={(e) => setRequestBankAccount(e.target.value)}
+                  placeholder="e.g. HDFC 12345 / Cheque"
+                  className="h-12"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
               <Label className="text-xs font-bold uppercase text-zinc-500">Reason / Notes</Label>
-              <textarea 
-                className="flex min-h-[100px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                placeholder="Brief description of what this payment is for..."
+              <textarea
+                value={requestReason}
+                onChange={(e) => setRequestReason(e.target.value)}
+                placeholder="Explain what this payment is for..."
+                className="flex min-h-[160px] w-full rounded-md border border-zinc-200 bg-white px-4 py-3 text-base ring-offset-white placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
               />
+              <p className="text-xs text-zinc-500">
+                Provide as much detail as possible so reviewers can understand this request quickly.
+              </p>
             </div>
-          </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50">
-            <ShadcnButton variant="outline" onClick={() => setOpenRequestDialog(false)} className="px-8 font-semibold border-zinc-200">
-              Cancel
-            </ShadcnButton>
-            <ShadcnButton onClick={() => setOpenRequestDialog(false)} className="px-10 font-bold shadow-lg shadow-primary/10">
-              Submit Request
-            </ShadcnButton>
-          </DialogFooter>
+            <div className="flex items-center justify-end gap-4 pt-2">
+              <ShadcnButton
+                type="button"
+                variant="outline"
+                onClick={() => setOpenRequestDialog(false)}
+                className="px-10 h-12 text-sm font-semibold"
+              >
+                Cancel
+              </ShadcnButton>
+              <ShadcnButton type="submit" disabled={createPaymentRequest.isPending} className="px-12 h-12 text-sm font-semibold">
+                {createPaymentRequest.isPending ? 'Submitting...' : 'Submit Request'}
+              </ShadcnButton>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
-    </div>
 
+      </div>
   );
 };
 

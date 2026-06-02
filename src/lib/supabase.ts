@@ -32,7 +32,25 @@ export type Project = {
 }
 
 export type Client = {
-  id: string
   name?: string | null
   client_name?: string | null
 }
+
+export const currentOrgId = async (userId: string): Promise<string | null> => {
+  try {
+    const [{ data: rows }, { data: legacy }] = await Promise.all([
+      (await import('@/supabase')).getOrganisationMembers(userId),
+      supabase
+        .from('user_organisations')
+        .select('organisation_id')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
+
+    const found = (rows || []).find((r: any) => r?.user_id === userId);
+    if (found?.organisation_id) return found.organisation_id;
+    return legacy?.organisation_id ?? null;
+  } catch {
+    return null;
+  }
+};

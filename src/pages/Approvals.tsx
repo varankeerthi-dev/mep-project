@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrgApprovalSettings, useOrgApprovalWorkflows } from '@/hooks/useApprovals';
 import { usePaymentsForApproval, useApprovePayment } from '../modules/Purchase/hooks/usePurchaseQueries';
@@ -175,13 +176,56 @@ const Approvals: React.FC = () => {
     [activeList, searchTerm]
   );
 
-  const handleOpenDetails = (row: ApprovalRow) => {
+  const handleOpenDetails = async (row: ApprovalRow) => {
     setSelectedApproval(normalizeOne(row));
     setShowDetails(true);
     setActionMode('none');
     setRejectionReason('');
-    loadDetailsFor(row);
+    if (!detailsMap[row.id]) {
+      await loadDetailsFor(row);
+    }
+    if (row.referenceType === 'purchase_payments' || row.referenceType === 'subcontractor_payments') {
+      setPaymentDetail(row.referenceId);
+    }
   };
+
+  const [paymentDetail, setPaymentDetail] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!showDetails || !selectedApproval) return;
+    const refId = selectedApproval.referenceId as string | undefined;
+    const refType = selectedApproval.referenceType;
+    if (!refId || (refType !== 'purchase_payments' && refType !== 'subcontractor_payments')) return;
+
+    let cancelled = false;
+    (async () => {
+      const base = refType === 'purchase_payments'
+        ? supabase.from('purchase_payments').select('*, vendor:purchase_vendors(company_name)').eq('id', refId).maybeSingle()
+        : supabase.from('subcontractor_payments').select('*, subcontractor:subcontractors(company_name)').eq('id', refId).maybeSingle();
+
+      const links = supabase
+        .from('purchase_payment_bills')
+        .select('bill_id, adjusted_amount, tds_amount, bill:purchase_bills(bill_number, total_amount, balance_amount)')
+        .eq('payment_id', refId);
+
+      const [dataRes, linksRes] = await Promise.all([base, links]);
+      if (cancelled) return;
+
+      let bills: any[] = [];
+      if (!linksRes.error && linksRes.data) {
+        bills = linksRes.data;
+      }
+
+      const candidate = dataRes.data;
+      if (candidate && !cancelled) {
+        setPaymentDetail({ ...candidate, _bills: bills });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showDetails, selectedApproval]);
 
   const handleProcessAction = async (action: ApprovalAction) => {
     if (!selectedApproval) return;
@@ -304,6 +348,28 @@ const Approvals: React.FC = () => {
                   <SectionRow label="Prior payments already made" value={`₹${detailsMap[selectedApproval.id].paidSoFar.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
                   <SectionRow label="Remaining balance" value={`₹${detailsMap[selectedApproval.id].balance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
                   <SectionRow label="Payment mode" value="—" />
+                </div>
+              )}
+
+              {paymentDetail && (
+                <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 text-sm">
+                  <SectionRow label="Vendor / Party" value={paymentDetail.vendor?.company_name || paymentDetail.subcontractor?.company_name || '-'} />
+                  <SectionRow label="Mode" value={paymentDetail.payment_mode || '-'} />
+                  <SectionRow label="Reference" value={paymentDetail.reference_no || '-'} />
+                  <SectionRow label="Narration" value={paymentDetail.narration || '-'} />
+                  {paymentDetail._bills?.length > 0 && (
+                    <div className="px-4 py-2.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-1">Linked bills</div>
+                      <div className="space-y-1">
+                        {paymentDetail._bills.map((bill: any) => (
+                          <div key={bill.bill_id} className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-zinc-800">{bill.bill?.bill_number || bill.bill_id}</span>
+                            <span className="text-zinc-700">₹{Number(bill.adjusted_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -1,9 +1,9 @@
-import { supabase } from '../lib/supabase';
-import { 
-  Approval, 
-  ApprovalRequest, 
-  ApprovalActionRequest, 
-  ApprovalFilters, 
+import { supabase, currentOrgId } from '../lib/supabase';
+import {
+  Approval,
+  ApprovalRequest,
+  ApprovalActionRequest,
+  ApprovalFilters,
   ApprovalStats,
   ApiResponse,
   ApprovalActionLog,
@@ -11,27 +11,18 @@ import {
 } from '../types/approvals';
 
 export class ApprovalAPI {
-  // Create a new approval request
   static async createApprovalRequest(data: ApprovalRequest): Promise<ApiResponse<Approval>> {
     try {
-      // Get current user and organisation
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
       }
 
-      // Get user's organisation
-      const { data: userOrg } = await supabase
-        .from('user_organisations')
-        .select('organisation_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userOrg) {
+      const organisationId = await currentOrgId(user.id);
+      if (!organisationId) {
         return { success: false, error: { code: 'NO_ORG', message: 'User not associated with any organisation' } };
       }
 
-      // Get workflow configuration for this approval type and amount
       const { data: workflow } = await supabase
         .from('approval_workflows')
         .select('*')
@@ -39,14 +30,13 @@ export class ApprovalAPI {
         .lte('min_amount', data.amount || 0)
         .or(`max_amount.is.null,max_amount.gte.${data.amount || 0}`)
         .eq('is_active', true)
-        .eq('organisation_id', userOrg.organisation_id)
+        .eq('organisation_id', organisationId)
         .order('level', { ascending: false })
         .limit(1)
         .single();
 
       const maxLevels = workflow ? workflow.level : 1;
 
-      // Create the approval
       const { data: approval, error } = await supabase
         .from('approvals')
         .insert({
@@ -59,7 +49,7 @@ export class ApprovalAPI {
           priority: data.priority || 'NORMAL',
           requested_by: user.id,
           max_levels: maxLevels,
-          organisation_id: userOrg.organisation_id
+          organisation_id: organisationId
         })
         .select()
         .single();
@@ -68,27 +58,25 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      // Send notifications to approvers
       await this.sendApprovalNotifications(approval.id);
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: approval,
         meta: { timestamp: new Date().toISOString() }
       };
 
     } catch (error) {
-      return { 
-        success: false, 
-        error: { 
-          code: 'INTERNAL_ERROR', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        } 
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }
 
-  // Get approvals for current user
   static async getApprovalsForUser(filters?: ApprovalFilters): Promise<ApiResponse<Approval[]>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -96,24 +84,17 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
       }
 
-      // Get user's organisation
-      const { data: userOrg } = await supabase
-        .from('user_organisations')
-        .select('organisation_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userOrg) {
+      const organisationId = await currentOrgId(user.id);
+      if (!organisationId) {
         return { success: false, error: { code: 'NO_ORG', message: 'User not associated with any organisation' } };
       }
 
       let query = supabase
         .from('approvals')
         .select('*')
-        .eq('organisation_id', userOrg.organisation_id)
+        .eq('organisation_id', organisationId)
         .order('created_at', { ascending: false });
 
-      // Apply filters
       if (filters) {
         if (filters.status && filters.status.length > 0) {
           query = query.in('status', filters.status);
@@ -144,24 +125,23 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: approvals || [],
         meta: { timestamp: new Date().toISOString() }
       };
 
     } catch (error) {
-      return { 
-        success: false, 
-        error: { 
-          code: 'INTERNAL_ERROR', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        } 
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }
 
-  // Process approval action (approve/reject/hold/forward)
   static async processApproval(approvalId: string, action: ApprovalActionRequest): Promise<ApiResponse<void>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -169,7 +149,6 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
       }
 
-      // Get approval details
       const { data: approval, error: approvalError } = await supabase
         .from('approvals')
         .select('*')
@@ -180,12 +159,10 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'NOT_FOUND', message: 'Approval not found' } };
       }
 
-      // Check if approval is still pending
       if (approval.status !== 'PENDING') {
         return { success: false, error: { code: 'INVALID_STATE', message: 'Approval is not in pending state' } };
       }
 
-      // Log the action
       const { error: actionError } = await supabase
         .from('approval_actions')
         .insert({
@@ -193,7 +170,7 @@ export class ApprovalAPI {
           action: action.action,
           approver_id: user.id,
           comments: action.comments,
-          ip_address: '127.0.0.1', // TODO: Get actual IP
+          ip_address: '127.0.0.1',
           user_agent: navigator.userAgent,
           organisation_id: approval.organisation_id
         });
@@ -202,7 +179,6 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: actionError.message } };
       }
 
-      // Update approval status
       let newStatus = approval.status;
       let newLevel = approval.current_level;
 
@@ -211,7 +187,6 @@ export class ApprovalAPI {
           newStatus = 'APPROVED';
         } else {
           newLevel = approval.current_level + 1;
-          // Send notification to next level approver
           await this.sendApprovalNotifications(approvalId, newLevel);
         }
       } else if (action.action === 'REJECTED') {
@@ -235,35 +210,28 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: updateError.message } };
       }
 
-      // If approved, trigger post-approval actions
       if (newStatus === 'APPROVED') {
         await this.triggerPostApprovalActions(approval);
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         meta: { timestamp: new Date().toISOString() }
       };
 
     } catch (error) {
-      return { 
-        success: false, 
-        error: { 
-          code: 'INTERNAL_ERROR', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        } 
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }
 
-  // Get approval history
   static async getApprovalHistory(approvalId: string): Promise<ApiResponse<ApprovalActionLog[]>> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
-      }
-
       const { data: actions, error } = await supabase
         .from('approval_actions')
         .select(`
@@ -277,24 +245,23 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: actions || [],
         meta: { timestamp: new Date().toISOString() }
       };
 
     } catch (error) {
-      return { 
-        success: false, 
-        error: { 
-          code: 'INTERNAL_ERROR', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        } 
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }
 
-  // Get approval statistics
   static async getApprovalStats(): Promise<ApiResponse<ApprovalStats>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -302,48 +269,40 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
       }
 
-      // Get user's organisation
-      const { data: userOrg } = await supabase
-        .from('user_organisations')
-        .select('organisation_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userOrg) {
+      const organisationId = await currentOrgId(user.id);
+      if (!organisationId) {
         return { success: false, error: { code: 'NO_ORG', message: 'User not associated with any organisation' } };
       }
 
       const { data: stats, error } = await supabase
         .from('approval_stats')
         .select('*')
-        .eq('organisation_id', userOrg.organisation_id)
+        .eq('organisation_id', organisationId)
         .single();
 
       if (error) {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: stats as ApprovalStats,
         meta: { timestamp: new Date().toISOString() }
       };
 
     } catch (error) {
-      return { 
-        success: false, 
-        error: { 
-          code: 'INTERNAL_ERROR', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        } 
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }
 
-  // Send approval notifications
   private static async sendApprovalNotifications(approvalId: string, level?: number) {
     try {
-      // Get approval details
       const { data: approval } = await supabase
         .from('approvals')
         .select('*')
@@ -352,7 +311,6 @@ export class ApprovalAPI {
 
       if (!approval) return;
 
-      // Get approvers for this level
       const { data: workflows } = await supabase
         .from('approval_workflows')
         .select('*')
@@ -363,7 +321,6 @@ export class ApprovalAPI {
 
       if (!workflows || workflows.length === 0) return;
 
-      // Create notifications for each approver
       for (const workflow of workflows) {
         if (workflow.approver_id) {
           await supabase
@@ -382,10 +339,8 @@ export class ApprovalAPI {
     }
   }
 
-  // Trigger post-approval actions
   private static async triggerPostApprovalActions(approval: Approval) {
     try {
-      // Update the reference document status
       switch (approval.reference_type) {
         case 'purchase_orders':
           await supabase
@@ -405,15 +360,12 @@ export class ApprovalAPI {
             .update({ status: 'APPROVED' })
             .eq('id', approval.reference_id);
           break;
-        // Add more cases as needed
       }
-
     } catch (error) {
       console.error('Error triggering post-approval actions:', error);
     }
   }
 
-  // Get approval workflows for configuration
   static async getApprovalWorkflows(): Promise<ApiResponse<ApprovalWorkflow[]>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -421,21 +373,15 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
       }
 
-      // Get user's organisation
-      const { data: userOrg } = await supabase
-        .from('user_organisations')
-        .select('organisation_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userOrg) {
+      const organisationId = await currentOrgId(user.id);
+      if (!organisationId) {
         return { success: false, error: { code: 'NO_ORG', message: 'User not associated with any organisation' } };
       }
 
       const { data: workflows, error } = await supabase
         .from('approval_workflows')
         .select('*')
-        .eq('organisation_id', userOrg.organisation_id)
+        .eq('organisation_id', organisationId)
         .order('approval_type', { ascending: true })
         .order('level', { ascending: true });
 
@@ -443,19 +389,19 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: workflows || [],
         meta: { timestamp: new Date().toISOString() }
       };
 
     } catch (error) {
-      return { 
-        success: false, 
-        error: { 
-          code: 'INTERNAL_ERROR', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        } 
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }

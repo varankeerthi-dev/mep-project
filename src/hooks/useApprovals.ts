@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ApprovalAPI } from '@/approvals/api';
 import type { ApprovalWorkflow, ApiResponse } from '@/types/approvals';
+import { useReleaseSubcontractorPayment as useReleaseSubcontractorPaymentImpl } from '@/modules/Purchase/hooks/usePurchaseQueries';
+
+export const useReleaseSubcontractorPayment = useReleaseSubcontractorPaymentImpl;
 
 export function useOrgApprovalWorkflows(orgId: string | undefined) {
   const [data, setData] = useState<ApprovalWorkflow[]>([]);

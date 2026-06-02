@@ -2919,8 +2919,15 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
 
 export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) { return <SubcontractorAttendance onNavigate={onNavigate} /> }
 
+import { useOrgApprovalSettings, useSubcontractorPaymentsForAccountant, useReleaseSubcontractorPayment } from '@/hooks/useApprovals';
+import { ApprovalIntegration } from '../approvals/integration';
+
 export function SubcontractorPayments({ onNavigate }: WithNavigate) {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
+  const orgId = organisation?.id as string | undefined;
+  const { settings: approvalSettings, updateSetting } = useOrgApprovalSettings(orgId);
+  const subcontractorPaymentApprovalEnabled = approvalSettings?.SUBCONTRACTOR_PAYMENT ?? false;
+
   const [activeTab, setActiveTab] = useState<'payments' | 'ledger'>('payments');
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -2960,6 +2967,9 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
     description: '',
     status: 'Pending'
   });
+
+  const accountantQuery = useSubcontractorPaymentsForAccountant(orgId);
+  const releasePayment = useReleaseSubcontractorPayment();
 
   useEffect(() => {
     if (organisation?.id) {
