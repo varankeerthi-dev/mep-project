@@ -1004,12 +1004,12 @@ export const calculatePOTotals = (items: any[]) => {
   let sgstTotal = 0;
   let igstTotal = 0;
   let grandTotal = 0;
-  
+
   items.forEach((item) => {
     const lineValue = item.quantity * item.rate;
     const discount = item.discount_amount || 0;
     const taxable = lineValue - discount;
-    
+
     subtotal += lineValue;
     discountTotal += discount;
     taxableTotal += taxable;
@@ -1018,7 +1018,7 @@ export const calculatePOTotals = (items: any[]) => {
     igstTotal += item.igst_amount || 0;
     grandTotal += item.total_amount || 0;
   });
-  
+
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
     discountTotal: parseFloat(discountTotal.toFixed(2)),
@@ -1028,4 +1028,262 @@ export const calculatePOTotals = (items: any[]) => {
     igstTotal: parseFloat(igstTotal.toFixed(2)),
     grandTotal: parseFloat(grandTotal.toFixed(2)),
   };
+};
+
+// ============== PAYMENT APPROVAL QUERIES ==============
+
+export const usePaymentsForApproval = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['purchase-payments', 'approval', 'pending', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('purchase_payments')
+        .select('*, vendor:purchase_vendors(company_name)')
+        .eq('organisation_id', organisationId)
+        .eq('workflow_step', 'pending_approval')
+        .order('payment_date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useApprovedPaymentsForAccountant = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['purchase-payments', 'accountant', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('purchase_payments')
+        .select('*, vendor:purchase_vendors(company_name)')
+        .eq('organisation_id', organisationId)
+        .eq('workflow_step', 'approved')
+        .order('approved_at', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useCreatePaymentWithApproval = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ paymentData, billAllocations, createdBy }: any) => {
+      const normalizedPaymentData = {
+        ...paymentData,
+        voucher_no: paymentData.voucher_no || createPaymentVoucherNo(),
+        net_amount: paymentData.net_amount ?? paymentData.amount,
+        advance_remaining: paymentData.is_advance ? (paymentData.advance_remaining ?? paymentData.amount) : 0,
+        created_by: createdBy ?? null,
+        workflow_step: 'pending_approval',
+        approval_status: 'Pending',
+      };
+
+      const { data: payment, error: paymentError } = await supabase
+        .from('purchase_payments')
+        .insert(normalizedPaymentData)
+        .select()
+        .single();
+
+      if (paymentError) throw paymentError;
+
+      if (billAllocations && billAllocations.length > 0) {
+        const allocations = billAllocations.map((alloc: any) => ({
+          ...alloc,
+          payment_id: payment.id,
+          organisation_id: payment.organisation_id,
+        }));
+
+        const { error: allocError } = await supabase
+          .from('purchase_payment_bills')
+          .insert(allocations);
+
+        if (allocError) throw allocError;
+      }
+
+      const { ApprovalIntegration } = await import('@/approvals/integration');
+      await ApprovalIntegration.createPurchasePaymentApproval({
+        paymentId: payment.id,
+        payeeName: paymentData.vendor_name || 'Vendor',
+        paymentType: 'PURCHASE_PAYMENT',
+        totalAmount: paymentData.amount,
+      });
+
+      return payment;
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
+    },
+  });
+};
+
+export const useApprovePayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ paymentId, approvalId, actorId }: { paymentId: string; approvalId: string; actorId?: string | null }) => {
+      const { error } = await supabase
+        .from('purchase_payments')
+        .update({
+          workflow_step: 'approved',
+          approval_status: 'Approved',
+          approval_id: approvalId,
+          approved_by: actorId,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+    }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    },
+  });
+};
+
+export const useReleasePayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ paymentId, releasedBy, releasedAmount }: { paymentId: string; releasedBy?: string | null; releasedAmount?: number | null }) => {
+      const releasedAt = new Date().toISOString();
+
+      const { data: payment, error: paymentError } = await supabase
+        .from('purchase_payments')
+        .select('vendor_id, organisation_id, amount, is_advance, advance_remaining')
+        .eq('id', paymentId)
+        .single();
+
+      if (paymentError) throw paymentError;
+
+      const { error } = await supabase
+        .from('purchase_payments')
+        .update({
+          workflow_step: 'released',
+          approval_status: 'Released',
+          released_by: releasedBy,
+          released_at: releasedAt,
+          released_amount: releasedAmount ?? payment.amount,
+          ...(payment.is_advance ? { advance_remaining: 0 } : {}),
+        })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+
+      const billIds: string[] = [];
+      const { data: links } = await supabase
+        .from('purchase_payment_bills')
+        .select('bill_id')
+        .eq('payment_id', paymentId);
+
+      if (links && links.length > 0) {
+        links.forEach((link: any) => {
+          const billId = link.bill_id as string;
+          if (billId && !billIds.includes(billId)) billIds.push(billId);
+        });
+      }
+
+      await Promise.allSettled([
+        ...billIds.map((billId) => updateBillPaymentStatus(billId)),
+        ...(payment?.vendor_id && payment?.organisation_id ? [updateVendorBalance(payment.vendor_id, payment.organisation_id)] : []),
+      ]);
+
+      return payment;
+    }),
+    onSuccess: (data) => {
+      if (!data) return;
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    },
+  });
+};
+
+// ============== SUBCONTRACTOR PAYMENT RELEASED HOOK ==============
+
+export const useCreateSubcontractorPayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async (paymentData: any) => {
+      const { data: payment, error } = await supabase
+        .from('subcontractor_payments')
+        .insert({
+          ...paymentData,
+          workflow_step: 'pending_approval',
+          approval_status: 'Pending',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return payment;
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', data.organisation_id] });
+    },
+  });
+};
+
+export const useSubcontractorPaymentsForAccountant = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['subcontractor-payments', 'accountant', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('subcontractor_payments')
+        .select('*, subcontractor:subcontractors(company_name)')
+        .eq('organisation_id', organisationId)
+        .eq('workflow_step', 'approved')
+        .order('approved_at', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useReleaseSubcontractorPayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ paymentId, releasedBy }: { paymentId: string; releasedBy?: string | null }) => {
+      const { data: payment, error: paymentError } = await supabase
+        .from('subcontractor_payments')
+        .select('organisation_id')
+        .eq('id', paymentId)
+        .single();
+
+      if (paymentError) throw paymentError;
+
+      const { error } = await supabase
+        .from('subcontractor_payments')
+        .update({
+          workflow_step: 'released',
+          approval_status: 'Released',
+          released_by: releasedBy,
+          released_at: new Date().toISOString(),
+        })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+      return payment;
+    }),
+    onSuccess: (data) => {
+      if (!data) return;
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    },
+  });
 };

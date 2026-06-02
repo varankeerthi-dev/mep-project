@@ -231,8 +231,8 @@ export class ApprovalIntegration {
    * Create approval request for payment
    */
   static async createPaymentApproval(
-    paymentId: string, 
-    payeeName: string, 
+    paymentId: string,
+    payeeName: string,
     paymentType: string,
     totalAmount: number,
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
@@ -250,36 +250,120 @@ export class ApprovalIntegration {
         title: `Payment Request - ${payeeName}`,
         description: `Payment request for ${payeeName} (${paymentType}) with amount of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
-      
+
       if (response.success && response.data) {
-        // Update payment request status to pending approval
         await supabase
           .from('payment_requests')
-          .update({ 
+          .update({
             status: 'PENDING_APPROVAL',
-            approval_id: response.data.id
+            approval_id: response.data.id,
           })
           .eq('id', paymentId);
 
-        return { 
-          success: true, 
-          approvalId: response.data.id 
-        };
-      } else {
-        return { 
-          success: false, 
-          error: response.error?.message || 'Failed to create approval request' 
-        };
+        return { success: true, approvalId: response.data.id };
       }
+
+      return { success: false, error: response.error?.message || 'Failed to create approval request' };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  static async createPurchasePaymentApproval({
+    paymentId,
+    payeeName,
+    totalAmount,
+    priority,
+  }: {
+    paymentId: string;
+    payeeName: string;
+    totalAmount: number;
+    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  }): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const approvalNeeded = await this.checkApprovalNeeded('PURCHASE_PAYMENT', totalAmount);
+      if (!approvalNeeded) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'PURCHASE_PAYMENT',
+        reference_id: paymentId,
+        reference_type: 'purchase_payments',
+        title: `Purchase Payment - ${payeeName}`,
+        description: `Vendor payment for ${payeeName} with amount of ₹${totalAmount.toLocaleString()}`,
+        amount: totalAmount,
+        priority: priority || 'NORMAL',
       };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('purchase_payments')
+          .update({
+            approval_status: 'Pending',
+            approval_id: response.data.id,
+          })
+          .eq('id', paymentId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create purchase payment approval' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  static async createSubcontractorPaymentApproval({
+    paymentId,
+    payeeName,
+    totalAmount,
+    priority,
+  }: {
+    paymentId: string;
+    payeeName: string;
+    totalAmount: number;
+    priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  }): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const approvalNeeded = await this.checkApprovalNeeded('SUBCONTRACTOR_PAYMENT', totalAmount);
+      if (!approvalNeeded) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'SUBCONTRACTOR_PAYMENT',
+        reference_id: paymentId,
+        reference_type: 'subcontractor_payments',
+        title: `Subcontractor Payment - ${payeeName}`,
+        description: `Subcontractor/vendor payment for ${payeeName} with amount of ₹${totalAmount.toLocaleString()}`,
+        amount: totalAmount,
+        priority: priority || 'NORMAL',
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('subcontractor_payments')
+          .update({
+            approval_status: 'Pending',
+            approval_id: response.data.id,
+          })
+          .eq('id', paymentId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create subcontractor payment approval' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 

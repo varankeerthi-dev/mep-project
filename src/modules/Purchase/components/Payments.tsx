@@ -36,7 +36,8 @@ import { cn } from '../../../lib/utils';
 
 import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
-import { usePayments, useVendors, useVendorOpenBills, useCreatePayment } from '../hooks/usePurchaseQueries';
+import { useOrgApprovalSettings } from '@/hooks/useApprovals';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
@@ -62,9 +63,12 @@ export const Payments: React.FC = () => {
   const { data: payments = [], isLoading } = usePayments(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
   const { data: vendorBills = [] } = useVendorOpenBills(organisation?.id, vendorId || undefined, openDialog && !isAdvance);
+  const { settings: approvalSettings } = useOrgApprovalSettings(organisation?.id);
   const createPayment = useCreatePayment();
+  const createPaymentWithApproval = useCreatePaymentWithApproval();
   const selectedBills = vendorBills.filter((bill: any) => selectedBillIds.includes(String(bill.id)));
   const isLastStep = isAdvance ? activeStep === 1 : activeStep === 2;
+  const paymentApprovalEnabled = approvalSettings?.PURCHASE_PAYMENT ?? false;
 
   const handleAddPayment = () => {
     setOpenDialog(true);
@@ -171,8 +175,13 @@ export const Payments: React.FC = () => {
     }
 
     try {
-      await createPayment.mutateAsync({ paymentData, billAllocations });
-      toast.success('Payment saved successfully.');
+      if (paymentApprovalEnabled) {
+        await createPaymentWithApproval.mutateAsync({ paymentData, billAllocations, createdBy: user?.id ?? null });
+        toast.success('Payment submitted for approval.');
+      } else {
+        await createPayment.mutateAsync({ paymentData, billAllocations });
+        toast.success('Payment saved successfully.');
+      }
       setOpenDialog(false);
     } catch (error: any) {
       toast.error(error?.message ?? 'Failed to save payment.');

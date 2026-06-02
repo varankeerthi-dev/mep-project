@@ -5,6 +5,8 @@ export type ApprovalType =
   | 'INVOICE'
   | 'PROFORMA_INVOICE'
   | 'PAYMENT_REQUEST'
+  | 'PURCHASE_PAYMENT'
+  | 'SUBCONTRACTOR_PAYMENT'
   | 'MATERIAL_DISPATCH'
   | 'SITE_VISIT'
   | 'EXPENSE_CLAIM'
@@ -200,6 +202,20 @@ export const APPROVAL_TYPES: ApprovalTypeConfig[] = [
     color: '#EF4444',
     icon: 'CurrencyDollarIcon',
     description: 'Approval for payment requests'
+  },
+  {
+    type: 'PURCHASE_PAYMENT',
+    label: 'Purchase Payment',
+    color: '#10B981',
+    icon: 'CurrencyDollarIcon',
+    description: 'Approval for vendor payments from purchase bills'
+  },
+  {
+    type: 'SUBCONTRACTOR_PAYMENT',
+    label: 'Subcontractor Payment',
+    color: '#059669',
+    icon: 'CurrencyDollarIcon',
+    description: 'Approval for subcontractor/vendor payments'
   },
   {
     type: 'MATERIAL_DISPATCH',
