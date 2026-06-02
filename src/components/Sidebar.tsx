@@ -75,7 +75,8 @@ const menuData: MenuSection[] = [
         id: 'site-report',
         label: 'Site Report',
         submenu: [
-          { id: 'site-report-dashboard', label: 'Reports', path: '/site-reports' }
+          { id: 'site-report-dashboard', label: 'Reports', path: '/site-reports' },
+          { id: 'site-report-handover', label: 'Handover Planner', path: '/handover' }
         ]
       },
       {

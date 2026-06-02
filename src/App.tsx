@@ -93,6 +93,7 @@ const QuickStockCheckList = lazyAny(() => import('./pages/QuickStockCheckList'))
 const QuickStockCheck = lazyAny(() => import('./pages/QuickStockCheck'));
 const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
 const ProcurementDetail = lazyAny(() => import('./pages/ProcurementDetail'));
+const HandoverList = lazyAny(() => import('./pages/HandoverList'));
 const Projects = lazyAny(() => import('./pages/Projects'));
 
 // Lazy load internally moved pages
@@ -244,6 +245,7 @@ export default function App() {
       case '/meetings/edit': return <CreateMeeting />;
       case '/site-visits': return <SiteVisits />;
       case '/site-reports': return <SiteReport />;
+      case '/handover': return <HandoverList />;
       case '/client-communication': return <ClientCommunication />;
       case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
