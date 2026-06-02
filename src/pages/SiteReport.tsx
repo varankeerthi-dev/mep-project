@@ -209,18 +209,6 @@ const dateRangePredicate = (range: DateRange, reportDate: string): boolean => {
   return true;
 };
 
-// Tolerant JSON parse: data may be JSON-stringified, an array, or null
-const safeParseArray = <T,>(raw: unknown): T[] => {
-  if (raw == null) return [];
-  if (Array.isArray(raw)) return raw as T[];
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) return [];
-    try { const parsed = JSON.parse(trimmed); return Array.isArray(parsed) ? parsed as T[] : []; } catch { return []; }
-  }
-  return [];
-};
-
 type DateRange = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month';
 
 export function SiteReport() {
@@ -418,13 +406,26 @@ export function SiteReport() {
         .single();
       if (reportError) throw reportError;
 
-      const [subs, works, milestones] = await Promise.all([
+      const [subs, works, milestones, clientReqs, wpnd, si, issues] = await Promise.all([
         supabase.from('sub_contractors').select('name, count, start_time, end_time').eq('report_id', selectedReportId),
         supabase.from('work_carried_out').select('description').eq('report_id', selectedReportId),
         supabase.from('milestones_completed').select('description').eq('report_id', selectedReportId),
+        supabase.from('site_report_client_requirements').select('description, sort_order').eq('report_id', selectedReportId).order('sort_order'),
+        supabase.from('site_report_work_plan_next_day').select('description, sort_order').eq('report_id', selectedReportId).order('sort_order'),
+        supabase.from('site_report_special_instructions').select('description, sort_order').eq('report_id', selectedReportId).order('sort_order'),
+        supabase.from('site_report_issues_faced').select('issue, solution, sort_order').eq('report_id', selectedReportId).order('sort_order'),
       ]);
 
-      return { ...report, _subs: subs.data || [], _works: works.data || [], _milestones: milestones.data || [] };
+      return {
+        ...report,
+        _subs: subs.data || [],
+        _works: works.data || [],
+        _milestones: milestones.data || [],
+        _clientReqs: clientReqs.data || [],
+        _wpnd: wpnd.data || [],
+        _si: si.data || [],
+        _issues: issues.data || []
+      };
     },
   });
 
@@ -432,10 +433,10 @@ export function SiteReport() {
   useEffect(() => {
     if ((view !== 'view' && view !== 'edit') || !selectedReport) return;
     const r: any = selectedReport;
-    const clientReq = safeParseArray<{ value: string }>(r.client_req_details);
-    const nextDay = safeParseArray<{ value: string }>(r.work_plan_next_day);
-    const instr = safeParseArray<{ value: string }>(r.special_instructions);
-    const issues = safeParseArray<{ issue: string; solution: string }>(r.issues_faced);
+    const clientReq = (r._clientReqs || []).map((cr: any) => ({ value: cr.description || '' }));
+    const nextDay = (r._wpnd || []).map((w: any) => ({ value: w.description || '' }));
+    const instr = (r._si || []).map((s: any) => ({ value: s.description || '' }));
+    const issues = (r._issues || []).map((i: any) => ({ issue: i.issue || '', solution: i.solution || '' }));
     form.reset({
       client: r.client_id || '',
       projectName: r.project_id || '',
@@ -552,14 +553,10 @@ export function SiteReport() {
           doc_type: values.documents.type,
           doc_no: values.documents.docNo,
           received_signature: values.documents.receivedSignature,
-          client_req_details: JSON.stringify(values.clientRequirements.details),
           quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
           mail_received: values.clientRequirements.mailReceived,
           pm_status: values.reporting.pmStatus,
           material_arrangement: values.reporting.materialArrangement,
-          work_plan_next_day: JSON.stringify(values.workPlanNextDay),
-          special_instructions: JSON.stringify(values.specialInstructions),
-          issues_faced: JSON.stringify(values.issues),
           is_filed: values.documentation.filed,
           tools_locked: values.documentation.toolsLocked,
           site_pictures_status: values.documentation.sitePictures,
@@ -615,6 +612,47 @@ export function SiteReport() {
           relatedInserts.push(supabase.from('milestones_completed').insert(items));
         }
       }
+
+      const clientReqs = (values.clientRequirements.details || [])
+        .filter(i => i.value)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: report.id,
+          description: i.value,
+          sort_order: idx
+        }));
+      if (clientReqs.length > 0) relatedInserts.push(supabase.from('site_report_client_requirements').insert(clientReqs));
+
+      const wpnd = (values.workPlanNextDay || [])
+        .filter(i => i.value)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: report.id,
+          description: i.value,
+          sort_order: idx
+        }));
+      if (wpnd.length > 0) relatedInserts.push(supabase.from('site_report_work_plan_next_day').insert(wpnd));
+
+      const si = (values.specialInstructions || [])
+        .filter(i => i.value)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: report.id,
+          description: i.value,
+          sort_order: idx
+        }));
+      if (si.length > 0) relatedInserts.push(supabase.from('site_report_special_instructions').insert(si));
+
+      const issues = (values.issues || [])
+        .filter(i => i.issue)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: report.id,
+          issue: i.issue,
+          solution: i.solution || '',
+          sort_order: idx
+        }));
+      if (issues.length > 0) relatedInserts.push(supabase.from('site_report_issues_faced').insert(issues));
 
       // 3. Execute all related inserts in parallel
       if (relatedInserts.length > 0) {
@@ -741,14 +779,10 @@ export function SiteReport() {
           doc_type: values.documents.type,
           doc_no: values.documents.docNo,
           received_signature: values.documents.receivedSignature,
-          client_req_details: JSON.stringify(values.clientRequirements.details),
           quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
           mail_received: values.clientRequirements.mailReceived,
           pm_status: values.reporting.pmStatus,
           material_arrangement: values.reporting.materialArrangement,
-          work_plan_next_day: JSON.stringify(values.workPlanNextDay),
-          special_instructions: JSON.stringify(values.specialInstructions),
-          issues_faced: JSON.stringify(values.issues),
           is_filed: values.documentation.filed,
           tools_locked: values.documentation.toolsLocked,
           site_pictures_status: values.documentation.sitePictures,
@@ -766,6 +800,10 @@ export function SiteReport() {
         supabase.from('sub_contractors').delete().eq('report_id', reportId),
         supabase.from('work_carried_out').delete().eq('report_id', reportId),
         supabase.from('milestones_completed').delete().eq('report_id', reportId),
+        supabase.from('site_report_client_requirements').delete().eq('report_id', reportId),
+        supabase.from('site_report_work_plan_next_day').delete().eq('report_id', reportId),
+        supabase.from('site_report_special_instructions').delete().eq('report_id', reportId),
+        supabase.from('site_report_issues_faced').delete().eq('report_id', reportId),
       ]);
 
       const relatedInserts: any[] = [];
@@ -787,6 +825,47 @@ export function SiteReport() {
         organisation_id: organisation?.id, report_id: reportId, description: i.value
       }));
       if (miles.length > 0) relatedInserts.push(supabase.from('milestones_completed').insert(miles));
+
+      const clientReqs = (values.clientRequirements.details || [])
+        .filter(i => i.value)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: reportId,
+          description: i.value,
+          sort_order: idx
+        }));
+      if (clientReqs.length > 0) relatedInserts.push(supabase.from('site_report_client_requirements').insert(clientReqs));
+
+      const wpnd = (values.workPlanNextDay || [])
+        .filter(i => i.value)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: reportId,
+          description: i.value,
+          sort_order: idx
+        }));
+      if (wpnd.length > 0) relatedInserts.push(supabase.from('site_report_work_plan_next_day').insert(wpnd));
+
+      const si = (values.specialInstructions || [])
+        .filter(i => i.value)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: reportId,
+          description: i.value,
+          sort_order: idx
+        }));
+      if (si.length > 0) relatedInserts.push(supabase.from('site_report_special_instructions').insert(si));
+
+      const issues = (values.issues || [])
+        .filter(i => i.issue)
+        .map((i, idx) => ({
+          organisation_id: organisation?.id,
+          report_id: reportId,
+          issue: i.issue,
+          solution: i.solution || '',
+          sort_order: idx
+        }));
+      if (issues.length > 0) relatedInserts.push(supabase.from('site_report_issues_faced').insert(issues));
 
       if (relatedInserts.length > 0) await Promise.allSettled(relatedInserts);
 
