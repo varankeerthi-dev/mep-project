@@ -71,6 +71,10 @@ import {
   revokePendingPhoto,
   type PendingPhoto,
 } from '@/hooks/useSiteReportPhotos';
+import {
+  SiteReportApprovalApi,
+  type ApprovableMember,
+} from '@/approvals/siteReportApproval';
 
 // Removed Material-UI imports
 
@@ -147,7 +151,7 @@ const siteReportSchema = z.object({
   }),
   
   reporting: z.object({
-    pmStatus: z.enum(['Reported', 'Pending', 'Draft']),
+    pmStatus: z.enum(['Reported', 'Pending', 'Draft', 'Pending Approval', 'Approved', 'Rejected', 'On Hold']),
     materialArrangement: z.enum(['Arranged', 'Pending', 'Not Required', 'Informed to stores'])
   }),
   
@@ -244,12 +248,18 @@ export function SiteReport() {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  // Approval flow state (Phase D)
+  const [submitForApproval, setSubmitForApproval] = useState(false);
+  const [selectedApproverId, setSelectedApproverId] = useState<string>('');
+
   const issueIdParam = searchParams.get('issue_id');
   const actionParam = searchParams.get('action');
 
   useEffect(() => {
     if (actionParam === 'create' && view !== 'create') {
       setView('create');
+      setSubmitForApproval(false);
+      setSelectedApproverId('');
       // Clear the action param so we don't force 'create' if user clicks Back
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('action');
@@ -357,6 +367,17 @@ export function SiteReport() {
       }
       return data || [];
     }
+  });
+
+  // Fetch approvable org members (Phase D — for the Submit for Approval picker)
+  const { data: approvableMembers = [] } = useQuery<ApprovableMember[]>({
+    queryKey: ['approvable-members', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return SiteReportApprovalApi.listApprovableMembers(organisation.id);
+    },
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 5,
   });
 
   // Fetch linked Issue if we came from an Issue
@@ -521,6 +542,7 @@ export function SiteReport() {
   const saveMutation = useMutation({
     mutationFn: async (values: SiteReportFormValues) => {
       // 1. Save main report
+      const finalPmStatus = submitForApproval ? 'Pending Approval' : values.reporting.pmStatus;
       const { data: report, error: reportError } = await supabase
         .from('site_reports')
         .insert([{
@@ -555,7 +577,7 @@ export function SiteReport() {
           received_signature: values.documents.receivedSignature,
           quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
           mail_received: values.clientRequirements.mailReceived,
-          pm_status: values.reporting.pmStatus,
+          pm_status: finalPmStatus,
           material_arrangement: values.reporting.materialArrangement,
           is_filed: values.documentation.filed,
           tools_locked: values.documentation.toolsLocked,
@@ -717,8 +739,41 @@ export function SiteReport() {
       pendingPhotos.forEach(revokePendingPhoto);
       setPendingPhotos([]);
 
+      let saved = true;
+      let lastErr: any = null;
+      try {
+        if (submitForApproval && selectedApproverId && user?.id && organisation?.id) {
+          const clientName = clients?.find((c: any) => c.id === (form.getValues('client') || ''))?.client_name;
+          const projectName = projects?.find((p: any) => p.id === (form.getValues('projectName') || ''))?.project_name;
+          const result = await SiteReportApprovalApi.createApprovalRequest({
+            reportId: report.id,
+            approverId: selectedApproverId,
+            organisationId: organisation.id,
+            engineerId: user.id,
+            engineerName: form.getValues('footer.engineer'),
+            reportDate: form.getValues('date'),
+            clientName,
+            projectName,
+          });
+          if (!result.success) {
+            saved = false;
+            lastErr = result.error;
+          }
+        } else if (submitForApproval && !selectedApproverId) {
+          saved = false;
+          lastErr = 'No approver selected';
+        }
+      } catch (e: any) {
+        saved = false;
+        lastErr = e?.message || 'Unknown error';
+      }
+
       if (photoFailures > 0) {
         toast.error(`Saved, but ${photoFailures} photo(s) failed to upload`);
+      } else if (submitForApproval && saved) {
+        toast.success('Site report submitted for approval');
+      } else if (submitForApproval && !saved) {
+        toast.error(`Saved, but approval request failed: ${lastErr || 'unknown'}`);
       } else if (photoCount > 0) {
         toast.success(`Site report saved with ${photoCount} photo(s)`);
       } else {
@@ -726,6 +781,8 @@ export function SiteReport() {
       }
       queryClient.invalidateQueries({ queryKey: ['site-reports'] });
       form.reset();
+      setSubmitForApproval(false);
+      setSelectedApproverId('');
 
       if (issueIdParam) {
         navigate(`/issue/${issueIdParam}`);
@@ -747,6 +804,16 @@ export function SiteReport() {
     mutationFn: async (values: SiteReportFormValues) => {
       if (!selectedReportId) throw new Error('No report selected for update');
       const reportId = selectedReportId;
+
+      // Defensive: reject updates on locked reports
+      const { data: existingReport } = await supabase
+        .from('site_reports')
+        .select('pm_status')
+        .eq('id', reportId)
+        .single();
+      if (existingReport && (existingReport.pm_status === 'Pending Approval' || existingReport.pm_status === 'Approved' || existingReport.pm_status === 'Reported')) {
+        throw new Error(`Cannot edit a report with status "${existingReport.pm_status}". It is locked after approval.`);
+      }
 
       // 1. Update main row
       const { data: report, error: reportError } = await supabase
@@ -1098,6 +1165,17 @@ export function SiteReport() {
         earlier: { label: 'EARLIER', cls: 'bg-zinc-50 text-zinc-500 border-zinc-200' },
       };
       const badge = bucketBadge[bucket];
+      const isLocked = report.pm_status === 'Pending Approval' || report.pm_status === 'Approved' || report.pm_status === 'Reported';
+      const statusStyle: Record<string, { color: string; bg: string; border: string }> = {
+        'Approved':   { color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' },
+        'Reported':   { color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' },
+        'Rejected':   { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+        'On Hold':    { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+        'Pending Approval': { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+        'Pending':    { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+        'Draft':      { color: '#4b5563', bg: '#f3f4f6', border: '#e5e7eb' },
+      };
+      const ss = statusStyle[report.pm_status] || statusStyle['Pending'];
       return (
         <tr
           key={report.id}
@@ -1145,12 +1223,14 @@ export function SiteReport() {
             <span
               className="text-sm font-medium inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border"
               style={{
-                color: report.pm_status === 'Reported' ? '#047857' : report.pm_status === 'Draft' ? '#4b5563' : '#b45309',
-                backgroundColor: report.pm_status === 'Reported' ? '#ecfdf5' : report.pm_status === 'Draft' ? '#f3f4f6' : '#fffbeb',
-                borderColor: report.pm_status === 'Reported' ? '#a7f3d0' : report.pm_status === 'Draft' ? '#e5e7eb' : '#fde68a'
+                color: ss.color,
+                backgroundColor: ss.bg,
+                borderColor: ss.border,
               }}
+              title={isLocked ? 'Report is locked after approval' : undefined}
             >
               {report.pm_status}
+              {isLocked && <span className="ml-1.5 text-[9px]">🔒</span>}
             </span>
           </td>
           <td className="px-6 py-[20px] text-center align-middle w-[70px]">
@@ -1177,14 +1257,20 @@ export function SiteReport() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   style={{ padding: '6px' }}
-                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 text-[12px] active:scale-[0.98]",
+                    isLocked
+                      ? "text-zinc-300 cursor-not-allowed"
+                      : "text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
+                  )}
                   onClick={() => {
+                    if (isLocked) return;
                     setSelectedReportId(report.id);
                     setView('edit');
                   }}
                 >
                   <Pencil className="w-3.5 h-3.5" />
-                  Edit Report
+                  {isLocked ? 'Edit (locked)' : 'Edit Report'}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   style={{ padding: '6px' }}
@@ -1895,13 +1981,17 @@ export function SiteReport() {
                 </button>
                 {openSections.logistics && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>REPORTED TO PM</label>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>APPROVAL STATUS</label>
                     <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
                       <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Reported">Reported</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
                         <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Pending Approval">Pending Approval</SelectItem>
+                        <SelectItem value="Approved">Approved</SelectItem>
+                        <SelectItem value="Rejected">Rejected</SelectItem>
+                        <SelectItem value="On Hold">On Hold</SelectItem>
+                        <SelectItem value="Reported">Reported</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2087,6 +2177,70 @@ export function SiteReport() {
                   </div>
                 </div>}
               </div>
+
+              {/* Section 9: Approval (Phase D) — visible only in create mode */}
+              {view === 'create' && (
+                <div style={{ border: '1px solid #dbeafe', borderRadius: '8px', padding: '16px', background: '#eff6ff' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: submitForApproval ? '14px' : 0 }}>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approval</div>
+                      <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
+                        {submitForApproval
+                          ? 'Pick an approver — they will review and approve / reject this report'
+                          : 'Save as a draft now, or submit for approval'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Submit for approval</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubmitForApproval((v) => !v);
+                          if (submitForApproval) setSelectedApproverId('');
+                        }}
+                        className={cn(
+                          "relative inline-flex h-5 w-9 rounded-full transition-colors",
+                          submitForApproval ? "bg-blue-600" : "bg-zinc-300"
+                        )}
+                        aria-pressed={submitForApproval}
+                      >
+                        <span className={cn(
+                          "inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5",
+                          submitForApproval ? "translate-x-4 ml-0.5" : "translate-x-0.5"
+                        )} />
+                      </button>
+                    </div>
+                  </div>
+                  {submitForApproval && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approver (MD / PM / Manager) *</label>
+                      <Select
+                        value={selectedApproverId}
+                        onValueChange={setSelectedApproverId}
+                      >
+                        <SelectTrigger className="h-10 bg-white">
+                          <SelectValue placeholder={approvableMembers.length === 0 ? "No approvers available in this org" : "Select approver"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {approvableMembers.map((m) => (
+                            <SelectItem key={m.user_id} value={m.user_id}>
+                              {m.full_name || m.email} <span className="text-zinc-400 text-[10px]">· {m.role}</span>
+                            </SelectItem>
+                          ))}
+                          {approvableMembers.length === 0 && (
+                            <SelectItem value="_empty" disabled>No MD / PM / Manager found in this organisation</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {selectedApproverId && (
+                        <p className="text-[10px] text-blue-700 font-medium">
+                          This report will be locked after submission. The approver will be notified.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </fieldset>
 
             {/* Footer Buttons */}

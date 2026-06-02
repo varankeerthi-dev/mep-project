@@ -1,4 +1,4 @@
-export type ApprovalType = 
+export type ApprovalType =
   | 'PURCHASE_ORDER'
   | 'WORK_ORDER'
   | 'QUOTATION'
@@ -7,7 +7,8 @@ export type ApprovalType =
   | 'PAYMENT_REQUEST'
   | 'MATERIAL_DISPATCH'
   | 'SITE_VISIT'
-  | 'EXPENSE_CLAIM';
+  | 'EXPENSE_CLAIM'
+  | 'SITE_REPORT_REQUEST';
 
 export type ApprovalStatus = 
   | 'PENDING'
@@ -50,6 +51,7 @@ export interface Approval {
   status: ApprovalStatus;
   priority: ApprovalPriority;
   organisation_id: string;
+  assigned_approver_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -219,6 +221,13 @@ export const APPROVAL_TYPES: ApprovalTypeConfig[] = [
     color: '#F97316',
     icon: 'ReceiptRefundIcon',
     description: 'Approval for expense claims'
+  },
+  {
+    type: 'SITE_REPORT_REQUEST',
+    label: 'Site Report Request',
+    color: '#0EA5E9',
+    icon: 'ClipboardDocumentCheckIcon',
+    description: 'Engineer-submitted site report for PM/MD/Manager approval'
   }
 ];
 
