@@ -75,6 +75,21 @@ import {
   SiteReportApprovalApi,
   type ApprovableMember,
 } from '@/approvals/siteReportApproval';
+import {
+  useReportStoppages,
+  useCreateStoppagesForReport,
+  useDeleteStoppagesForReport,
+} from '@/hooks/useStoppages';
+import {
+  STOPPAGE_CATEGORY_OPTIONS,
+  BLOCKING_PARTY_OPTIONS,
+  labelForStoppageCategory,
+  labelForBlockingParty,
+  toneClassForCategory,
+  type StoppageCategory,
+  type BlockingParty,
+  type WorkStoppage,
+} from '@/types/siteReportStoppage';
 
 // Removed Material-UI imports
 
@@ -241,6 +256,7 @@ export function SiteReport() {
     progressEquipmentSafety: true,
     logistics: true,
     issuesPlanClient: true,
+    workStoppages: true,
     photos: true,
     footer: true,
   });
@@ -251,6 +267,54 @@ export function SiteReport() {
   // Approval flow state (Phase D)
   const [submitForApproval, setSubmitForApproval] = useState(false);
   const [selectedApproverId, setSelectedApproverId] = useState<string>('');
+
+  // Work stoppages (Phase H) — local form state for create/edit; read-only display in view.
+  type StoppageDraft = {
+    category: StoppageCategory;
+    blocking_party: BlockingParty;
+    affected_work: string;
+    reason_detail: string;
+    expected_resolution_date: string;
+  };
+  const [stoppages, setStoppages] = useState<StoppageDraft[]>([]);
+  const [stoppagesLoaded, setStoppagesLoaded] = useState(false);
+  const addStoppageRow = () => setStoppages((prev) => [
+    ...prev,
+    { category: 'payment', blocking_party: 'unknown', affected_work: '', reason_detail: '', expected_resolution_date: '' },
+  ]);
+  const updateStoppageRow = (idx: number, patch: Partial<StoppageDraft>) =>
+    setStoppages((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const removeStoppageRow = (idx: number) =>
+    setStoppages((prev) => prev.filter((_, i) => i !== idx));
+  const resetStoppages = () => { setStoppages([]); setStoppagesLoaded(false); };
+
+  // Stoppage mutations (Phase H)
+  const createStoppages = useCreateStoppagesForReport(organisation?.id ?? undefined, selectedReportId ?? undefined);
+  const deleteStoppages = useDeleteStoppagesForReport(organisation?.id ?? undefined, selectedReportId ?? undefined);
+
+  // Fetch existing stoppages for the report currently being viewed/edited
+  const { data: existingStoppages = [] } = useReportStoppages(
+    view === 'view' || view === 'edit' ? (selectedReportId ?? undefined) : undefined,
+  );
+
+  // Load existing stoppages into local form state when entering view/edit
+  useEffect(() => {
+    if ((view === 'view' || view === 'edit') && selectedReportId && !stoppagesLoaded) {
+      setStoppages(
+        existingStoppages.map((s) => ({
+          category: s.category,
+          blocking_party: s.blocking_party,
+          affected_work: s.affected_work,
+          reason_detail: s.reason_detail,
+          expected_resolution_date: s.expected_resolution_date ?? '',
+        })),
+      );
+      setStoppagesLoaded(true);
+    }
+    if (view === 'list' && stoppagesLoaded) {
+      resetStoppages();
+    }
+  }, [view, selectedReportId, existingStoppages, stoppagesLoaded]);
 
   const issueIdParam = searchParams.get('issue_id');
   const actionParam = searchParams.get('action');
@@ -681,6 +745,22 @@ export function SiteReport() {
         await Promise.allSettled(relatedInserts);
       }
 
+      // 4. Insert work stoppages (Phase H) — only non-empty rows
+      const stoppageRows = (stoppages || [])
+        .filter((s) => s.affected_work.trim() || s.reason_detail.trim() || s.expected_resolution_date)
+        .map((s) => ({
+          organisation_id: organisation?.id,
+          report_id: report.id,
+          category: s.category,
+          blocking_party: s.blocking_party,
+          affected_work: s.affected_work,
+          reason_detail: s.reason_detail,
+          expected_resolution_date: s.expected_resolution_date || null,
+        }));
+      if (stoppageRows.length > 0) {
+        await createStoppages.mutateAsync(stoppageRows as any);
+      }
+
       return report;
     },
     
@@ -935,6 +1015,23 @@ export function SiteReport() {
       if (issues.length > 0) relatedInserts.push(supabase.from('site_report_issues_faced').insert(issues));
 
       if (relatedInserts.length > 0) await Promise.allSettled(relatedInserts);
+
+      // Replace work stoppages (Phase H) — delete all existing rows for this report, then insert current drafts
+      await deleteStoppages.mutateAsync();
+      const stoppageRows = (stoppages || [])
+        .filter((s) => s.affected_work.trim() || s.reason_detail.trim() || s.expected_resolution_date)
+        .map((s) => ({
+          organisation_id: organisation?.id,
+          report_id: reportId,
+          category: s.category,
+          blocking_party: s.blocking_party,
+          affected_work: s.affected_work,
+          reason_detail: s.reason_detail,
+          expected_resolution_date: s.expected_resolution_date || null,
+        }));
+      if (stoppageRows.length > 0) {
+        await createStoppages.mutateAsync(stoppageRows as any);
+      }
 
       return report;
     },
@@ -2138,6 +2235,143 @@ export function SiteReport() {
                   </div>
                 </div>
               </div>}
+              </div>
+
+              {/* Section 6.5: Work Stoppages (Phase H) — log blocks/restarts on this report */}
+              <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', background: '#fff5f5' }}>
+                <button type="button" onClick={() => toggleSection('workStoppages')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.workStoppages ? '12px' : 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Stoppages</div>
+                    {stoppages.length > 0 && (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#b91c1c', background: '#fecaca', padding: '2px 6px', borderRadius: '10px' }}>
+                        {stoppages.length} log{stoppages.length === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.workStoppages && 'rotate-90')} />
+                </button>
+                {openSections.workStoppages && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ fontSize: '10px', color: '#7f1d1d', lineHeight: '1.4' }}>
+                      Log work that was stopped today and when (or whether) it is expected to restart. Resolution happens from the Projects Overview.
+                    </div>
+                    {stoppages.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#9f1239', background: '#fff', border: '1px dashed #fecaca', borderRadius: '6px' }}>
+                        No work stoppages logged for this report.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {stoppages.map((s, index) => {
+                          const tone = toneClassForCategory(s.category);
+                          const isResolved = (existingStoppages[index]?.is_resolved) || false;
+                          return (
+                            <div key={`stoppage-${index}`} className="p-3 bg-white rounded border border-red-100 relative group">
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className={cn('w-2 h-2 rounded-full', tone.dot)} />
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#7f1d1d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Stoppage #{index + 1}
+                                  </span>
+                                  {isResolved && view === 'view' && (
+                                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 6px', borderRadius: '8px' }}>
+                                      Resolved
+                                    </span>
+                                  )}
+                                </div>
+                                {view !== 'view' && (
+                                  <ShadcnButton
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-red-300 hover:text-red-600"
+                                    onClick={() => removeStoppageRow(index)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </ShadcnButton>
+                                )}
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                                <div>
+                                  <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Category</label>
+                                  <Select
+                                    value={s.category}
+                                    onValueChange={(v) => updateStoppageRow(index, { category: v as StoppageCategory })}
+                                    disabled={view === 'view'}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs bg-white mt-1">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {STOPPAGE_CATEGORY_OPTIONS.map((o) => (
+                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Blocked by</label>
+                                  <Select
+                                    value={s.blocking_party}
+                                    onValueChange={(v) => updateStoppageRow(index, { blocking_party: v as BlockingParty })}
+                                    disabled={view === 'view'}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs bg-white mt-1">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {BLOCKING_PARTY_OPTIONS.map((o) => (
+                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div style={{ marginBottom: '8px' }}>
+                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Affected work</label>
+                                <Input
+                                  className="h-8 text-xs bg-white mt-1"
+                                  value={s.affected_work}
+                                  onChange={(e) => updateStoppageRow(index, { affected_work: e.target.value })}
+                                  placeholder="e.g. AHU-1 piping on 3rd floor east wing"
+                                  readOnly={view === 'view'}
+                                />
+                              </div>
+                              <div style={{ marginBottom: '8px' }}>
+                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Reason / context</label>
+                                <Textarea
+                                  className="text-xs bg-white mt-1 min-h-[44px]"
+                                  value={s.reason_detail}
+                                  onChange={(e) => updateStoppageRow(index, { reason_detail: e.target.value })}
+                                  placeholder="What happened, who needs to act"
+                                  readOnly={view === 'view'}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Expected restart date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(leave blank if unknown)</span></label>
+                                <Input
+                                  type="date"
+                                  className="h-8 text-xs bg-white mt-1"
+                                  value={s.expected_resolution_date}
+                                  onChange={(e) => updateStoppageRow(index, { expected_resolution_date: e.target.value })}
+                                  readOnly={view === 'view'}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {view !== 'view' && (
+                      <button
+                        type="button"
+                        onClick={addStoppageRow}
+                        style={{ fontSize: '11px', color: '#b91c1c', background: 'none', border: '1px dashed #fca5a5', borderRadius: '6px', padding: '8px', cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Log Stoppage
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Section 7: Photos */}

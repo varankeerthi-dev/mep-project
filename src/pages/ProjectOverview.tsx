@@ -13,11 +13,31 @@ import {
   ArrowRightIcon,
   UserGroupIcon,
   WrenchScrewdriverIcon,
+  PauseCircleIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/App';
 import { supabase } from '@/lib/supabase';
 import { useHandovers } from '@/hooks/useHandovers';
 import { HANDOVER_STATUS_CONFIG } from '@/types/handover';
+import { useOpenStoppagesByOrg, useResolveStoppage, useReopenStoppage, useDeleteStoppage } from '@/hooks/useStoppages';
+import {
+  labelForStoppageCategory,
+  labelForBlockingParty,
+  toneClassForCategory,
+  type WorkStoppageWithReport,
+} from '@/types/siteReportStoppage';
 import { cn } from '@/lib/utils';
 
 type DateWindow = 'today' | 'this_week' | 'this_month';
@@ -127,10 +147,36 @@ export default function ProjectOverview() {
     },
   });
 
+  // Phase H: open work stoppages across the org
+  const openStoppagesQuery = useOpenStoppagesByOrg(orgId);
+  const resolveStoppage = useResolveStoppage(orgId);
+  const reopenStoppage = useReopenStoppage(orgId);
+  const deleteStoppage = useDeleteStoppage(orgId);
+
+  // Resolve dialog state (Phase H)
+  const [resolving, setResolving] = useState<WorkStoppageWithReport | null>(null);
+  const [resolveDate, setResolveDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [resolveNotes, setResolveNotes] = useState<string>('');
+  const openResolveDialog = (s: WorkStoppageWithReport) => {
+    setResolving(s);
+    setResolveDate(new Date().toISOString().slice(0, 10));
+    setResolveNotes('');
+  };
+  const closeResolveDialog = () => { setResolving(null); setResolveNotes(''); };
+  const submitResolve = () => {
+    if (!resolving) return;
+    if (!resolveDate) { return; }
+    resolveStoppage.mutate(
+      { id: resolving.id, actual_resolution_date: resolveDate, resolution_notes: resolveNotes },
+      { onSuccess: () => { closeResolveDialog(); } },
+    );
+  };
+
   const projects = projectsQuery.data ?? [];
   const handovers = handoversQuery.data ?? [];
   const reports = reportsQuery.data ?? [];
   const approvals = approvalsQuery.data ?? [];
+  const openStoppages = openStoppagesQuery.data ?? [];
 
   // ------------------------------------------------------------
   // Aggregations
@@ -175,12 +221,32 @@ export default function ProjectOverview() {
 
   const pendingApprovalsCount = approvals.length;
 
+  // Stoppage aggregations (Phase H)
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueStoppages = useMemo(
+    () => openStoppages.filter((s) => s.expected_resolution_date && s.expected_resolution_date < today),
+    [openStoppages, today],
+  );
+  const unknownDateStoppages = useMemo(
+    () => openStoppages.filter((s) => !s.expected_resolution_date),
+    [openStoppages],
+  );
+  const stoppagesByProject = useMemo(() => {
+    const m = new Map<string, number>();
+    openStoppages.forEach((s) => {
+      const report = Array.isArray(s.report) ? s.report[0] : s.report;
+      if (!report) return;
+      m.set(report.project_id, (m.get(report.project_id) ?? 0) + 1);
+    });
+    return m;
+  }, [openStoppages]);
+
   // ------------------------------------------------------------
   // Attention feed (capped at 8 items)
   // ------------------------------------------------------------
   type AttentionItem = {
     id: string;
-    kind: 'overdue_handover' | 'pending_approval' | 'rejected_report';
+    kind: 'overdue_handover' | 'pending_approval' | 'rejected_report' | 'overdue_stoppage';
     title: string;
     subtitle: string;
     ageLabel: string;
@@ -233,8 +299,24 @@ export default function ProjectOverview() {
       });
     });
 
+    overdueStoppages.slice(0, 8).forEach((s) => {
+      const report = Array.isArray(s.report) ? s.report[0] : s.report;
+      const proj = report ? projectById.get(report.project_id) : undefined;
+      const projectName = proj?.project_name || proj?.name || '—';
+      const days = daysBetween(s.expected_resolution_date as string, new Date().toISOString().slice(0, 10));
+      items.push({
+        id: `s-${s.id}`,
+        kind: 'overdue_stoppage',
+        title: `${projectName} — ${labelForStoppageCategory(s.category)}`,
+        subtitle: s.affected_work || s.reason_detail || '—',
+        ageLabel: `${Math.abs(days)}d overdue`,
+        ageTone: 'overdue',
+        href: '/projects-overview',
+      });
+    });
+
     return items.slice(0, 8);
-  }, [overdueHandovers, approvals, rejectedReports, projectById]);
+  }, [overdueHandovers, approvals, rejectedReports, overdueStoppages, projectById]);
 
   // ------------------------------------------------------------
   // Loading state
@@ -243,7 +325,8 @@ export default function ProjectOverview() {
     projectsQuery.isLoading ||
     handoversQuery.isLoading ||
     reportsQuery.isLoading ||
-    approvalsQuery.isLoading;
+    approvalsQuery.isLoading ||
+    openStoppagesQuery.isLoading;
 
   // ------------------------------------------------------------
   // Render
@@ -282,7 +365,7 @@ export default function ProjectOverview() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KpiCard
           label="Active Projects"
           value={activeProjects}
@@ -306,6 +389,18 @@ export default function ProjectOverview() {
           icon={<ClipboardDocumentCheckIcon className="w-4 h-4" />}
           tone="amber"
           onClick={() => navigate('/handover')}
+        />
+        <KpiCard
+          label="Open Stoppages"
+          value={openStoppages.length}
+          sub={overdueStoppages.length > 0 ? `${overdueStoppages.length} overdue` : unknownDateStoppages.length > 0 ? `${unknownDateStoppages.length} no date` : null}
+          subTone="overdue"
+          icon={<PauseCircleIcon className="w-4 h-4" />}
+          tone="red"
+          onClick={() => {
+            const el = document.getElementById('work-stoppages-section');
+            el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
         />
         <KpiCard
           label="Pending Approvals"
@@ -350,11 +445,13 @@ export default function ProjectOverview() {
                     item.kind === 'overdue_handover' && 'bg-red-100 text-red-600',
                     item.kind === 'pending_approval' && 'bg-purple-100 text-purple-600',
                     item.kind === 'rejected_report' && 'bg-amber-100 text-amber-600',
+                    item.kind === 'overdue_stoppage' && 'bg-red-100 text-red-600',
                   )}
                 >
                   {item.kind === 'overdue_handover' && <ClockIcon className="w-4 h-4" />}
                   {item.kind === 'pending_approval' && <BellAlertIcon className="w-4 h-4" />}
                   {item.kind === 'rejected_report' && <ExclamationTriangleIcon className="w-4 h-4" />}
+                  {item.kind === 'overdue_stoppage' && <PauseCircleIcon className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-zinc-900 truncate">{item.title}</div>
@@ -376,6 +473,192 @@ export default function ProjectOverview() {
           </div>
         )}
       </div>
+
+      {/* Open Work Stoppages (Phase H) — resolve from here */}
+      <div id="work-stoppages-section" className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+        <div className="px-5 py-3 border-b border-zinc-200 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+            <PauseCircleIcon className="w-4 h-4 text-red-500" />
+            Open Work Stoppages
+          </h2>
+          <span className="text-xs text-zinc-500">
+            {openStoppages.length} open • {overdueStoppages.length} overdue
+            {unknownDateStoppages.length > 0 ? ` • ${unknownDateStoppages.length} no date` : ''}
+          </span>
+        </div>
+
+        {openStoppagesQuery.isLoading ? (
+          <div className="p-8 text-center text-sm text-zinc-500">Loading stoppages…</div>
+        ) : openStoppages.length === 0 ? (
+          <div className="p-10 text-center">
+            <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
+            <h3 className="text-sm font-medium text-zinc-700">No open stoppages</h3>
+            <p className="text-xs text-zinc-500 mt-1">All work is unblocked right now.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-zinc-100">
+            {openStoppages.slice(0, 8).map((s) => {
+              const report = Array.isArray(s.report) ? s.report[0] : s.report;
+              const proj = report ? projectById.get(report.project_id) : undefined;
+              const projectName = proj?.project_name || proj?.name || '—';
+              const tone = toneClassForCategory(s.category);
+              const isOverdue = s.expected_resolution_date && s.expected_resolution_date < today;
+              return (
+                <div
+                  key={s.id}
+                  className="px-5 py-3 flex items-start gap-4 hover:bg-zinc-50/60 transition-colors group"
+                >
+                  <div className={cn('w-8 h-8 rounded-full flex items-center justify-center shrink-0', tone.bg)}>
+                    <PauseCircleIcon className={cn('w-4 h-4', tone.text)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-zinc-900 truncate">{projectName}</span>
+                      <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', tone.bg, tone.text)}>
+                        {labelForStoppageCategory(s.category)}
+                      </span>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
+                        {labelForBlockingParty(s.blocking_party)}
+                      </span>
+                      {isOverdue && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                          overdue
+                        </span>
+                      )}
+                      {!s.expected_resolution_date && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                          no date
+                        </span>
+                      )}
+                    </div>
+                    {(s.affected_work || s.reason_detail) && (
+                      <div className="text-xs text-zinc-600 mt-1 line-clamp-2">
+                        <span className="font-medium">{s.affected_work}</span>
+                        {s.affected_work && s.reason_detail ? ' — ' : ''}
+                        {s.reason_detail}
+                      </div>
+                    )}
+                    <div className="text-[10px] text-zinc-400 mt-1">
+                      Logged on report {report ? formatDate(report.report_date) : '—'}
+                      {s.expected_resolution_date && (
+                        <> • expected restart {formatDate(s.expected_resolution_date)}</>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => openResolveDialog(s)}
+                      className="h-7 text-[11px]"
+                    >
+                      <CheckCircleIcon className="w-3.5 h-3.5 mr-1" />
+                      Mark Resolved
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (globalThis.confirm('Delete this stoppage? This cannot be undone.')) {
+                          deleteStoppage.mutate(s.id);
+                        }
+                      }}
+                      className="h-7 w-7 p-0 text-zinc-400 hover:text-red-600"
+                      title="Delete stoppage"
+                    >
+                      <XCircleIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            {openStoppages.length > 8 && (
+              <div className="px-5 py-2 text-center text-[11px] text-zinc-500 bg-zinc-50">
+                + {openStoppages.length - 8} more open stoppage{openStoppages.length - 8 === 1 ? '' : 's'}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Resolve dialog (Phase H) */}
+      <Dialog open={!!resolving} onOpenChange={(o) => { if (!o) closeResolveDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
+              Mark Stoppage Resolved
+            </DialogTitle>
+            <DialogDescription>
+              Record when work actually resumed. Once resolved, this stoppage is closed.
+            </DialogDescription>
+          </DialogHeader>
+          {resolving && (
+            <div className="space-y-3 py-2">
+              <div className="bg-zinc-50 border border-zinc-200 rounded-md p-3 text-xs">
+                <div className="font-semibold text-zinc-800 mb-1">
+                  {(() => {
+                    const report = Array.isArray(resolving.report) ? resolving.report[0] : resolving.report;
+                    const proj = report ? projectById.get(report.project_id) : undefined;
+                    return proj?.project_name || proj?.name || '—';
+                  })()}
+                </div>
+                <div className="text-zinc-600 line-clamp-2">
+                  <span className="font-medium">{resolving.affected_work || '—'}</span>
+                  {resolving.affected_work && resolving.reason_detail ? ' — ' : ''}
+                  {resolving.reason_detail}
+                </div>
+                {resolving.expected_resolution_date && (
+                  <div className="text-zinc-500 mt-1">
+                    Expected restart: {formatDate(resolving.expected_resolution_date)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-zinc-700 uppercase tracking-wide">
+                  Actual restart date <span className="text-red-600">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="h-9 text-sm mt-1"
+                  value={resolveDate}
+                  onChange={(e) => setResolveDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-zinc-700 uppercase tracking-wide">
+                  Resolution notes
+                </label>
+                <Textarea
+                  className="text-sm mt-1 min-h-[72px]"
+                  value={resolveNotes}
+                  onChange={(e) => setResolveNotes(e.target.value)}
+                  placeholder="What unblocked it? E.g. client released payment on 12 Jun, materials arrived on 14 Jun"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeResolveDialog}
+              disabled={resolveStoppage.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={submitResolve}
+              disabled={!resolveDate || resolveStoppage.isPending}
+            >
+              {resolveStoppage.isPending ? 'Saving…' : 'Mark Resolved'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Project grid */}
       <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
@@ -409,6 +692,7 @@ export default function ProjectOverview() {
                 project={p}
                 reportCount={reportsByProject.get(p.id)?.length ?? 0}
                 openHandoverCount={openHandovers.filter((h) => h.project_id === p.id).length}
+                openStoppageCount={stoppagesByProject.get(p.id) ?? 0}
                 onClick={() => navigate(`/projects/edit?id=${p.id}`)}
               />
             ))}
@@ -438,7 +722,7 @@ function KpiCard({
   sub?: string | null;
   subTone?: 'overdue' | 'normal';
   icon: React.ReactNode;
-  tone: 'zinc' | 'blue' | 'amber' | 'purple' | 'emerald';
+  tone: 'zinc' | 'blue' | 'amber' | 'purple' | 'emerald' | 'red';
   onClick?: () => void;
 }) {
   const toneClasses: Record<typeof tone, string> = {
@@ -447,6 +731,7 @@ function KpiCard({
     amber:   'bg-amber-100 text-amber-600',
     emerald: 'bg-emerald-100 text-emerald-600',
     purple:  'bg-purple-100 text-purple-600',
+    red:     'bg-red-100 text-red-600',
   };
   return (
     <button
@@ -486,11 +771,13 @@ function ProjectCard({
   project,
   reportCount,
   openHandoverCount,
+  openStoppageCount,
   onClick,
 }: {
   project: ProjectRow;
   reportCount: number;
   openHandoverCount: number;
+  openStoppageCount: number;
   onClick: () => void;
 }) {
   const displayName = project.project_name || project.name;
@@ -549,7 +836,7 @@ function ProjectCard({
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <div className="bg-zinc-50 rounded px-2 py-1.5">
           <div className="text-zinc-500">Reports</div>
           <div className="font-semibold text-zinc-900">{reportCount}</div>
@@ -558,6 +845,12 @@ function ProjectCard({
           <div className="text-zinc-500">Handovers</div>
           <div className={cn('font-semibold', openHandoverCount > 0 ? 'text-amber-600' : 'text-zinc-900')}>
             {openHandoverCount}
+          </div>
+        </div>
+        <div className="bg-zinc-50 rounded px-2 py-1.5">
+          <div className="text-zinc-500">Stoppages</div>
+          <div className={cn('font-semibold', openStoppageCount > 0 ? 'text-red-600' : 'text-zinc-900')}>
+            {openStoppageCount}
           </div>
         </div>
       </div>
