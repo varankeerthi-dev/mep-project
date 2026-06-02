@@ -32,7 +32,8 @@ const menuData: MenuSection[] = [
   {
     section: '',
     items: [
-      { id: 'dashboard', label: 'Dashboard', path: '/' }
+      { id: 'dashboard', label: 'Dashboard', path: '/' },
+      { id: 'projects-overview', label: 'Projects Overview', path: '/projects-overview' }
     ]
   },
   {
@@ -260,6 +261,7 @@ const menuData: MenuSection[] = [
 
 const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   dashboard: 'HomeIcon',
+  'projects-overview': 'Squares2X2Icon',
   projects: 'FolderIcon',
   todo: 'ClipboardDocumentCheckIcon',
   tasks: 'ListBulletIcon',
