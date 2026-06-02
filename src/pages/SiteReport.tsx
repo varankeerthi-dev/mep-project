@@ -166,12 +166,71 @@ const siteReportSchema = z.object({
 
 type SiteReportFormValues = z.infer<typeof siteReportSchema>;
 
+// ---------- Date helpers (module-level) ----------
+const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const isSameDay = (a: Date, b: Date) => startOfDay(a).getTime() === startOfDay(b).getTime();
+const daysAgo = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() - n); return x; };
+const startOfWeek = (d: Date) => { const x = startOfDay(d); const dow = x.getDay(); const diff = (dow + 6) % 7; x.setDate(x.getDate() - diff); return x; };
+const startOfMonth = (d: Date) => { const x = startOfDay(d); x.setDate(1); return x; };
+
+const reportDateBucket = (reportDate: string): 'today' | 'yesterday' | 'this_week' | 'this_month' | 'earlier' => {
+  const d = new Date(reportDate);
+  const now = new Date();
+  if (isSameDay(d, now)) return 'today';
+  if (isSameDay(d, daysAgo(now, 1))) return 'yesterday';
+  if (d >= startOfWeek(now)) return 'this_week';
+  if (d >= startOfMonth(now)) return 'this_month';
+  return 'earlier';
+};
+
+const BUCKET_LABELS: Record<string, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  this_week: 'This Week',
+  this_month: 'Earlier this Month',
+  earlier: 'Earlier',
+};
+
+const dateRangePredicate = (range: DateRange, reportDate: string): boolean => {
+  if (range === 'all') return true;
+  const d = new Date(reportDate);
+  const now = new Date();
+  if (range === 'today') return isSameDay(d, now);
+  if (range === 'yesterday') return isSameDay(d, daysAgo(now, 1));
+  if (range === 'this_week') return d >= startOfWeek(now);
+  if (range === 'this_month') return d >= startOfMonth(now);
+  return true;
+};
+
+// Tolerant JSON parse: data may be JSON-stringified, an array, or null
+const safeParseArray = <T,>(raw: unknown): T[] => {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as T[];
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try { const parsed = JSON.parse(trimmed); return Array.isArray(parsed) ? parsed as T[] : []; } catch { return []; }
+  }
+  return [];
+};
+
+type DateRange = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month';
+
 export function SiteReport() {
   const { user, organisation } = useAuth();
-  const [view, setView] = useState<'list' | 'create'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'edit' | 'view'>('list');
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+
+  // List view filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projectFilter, setProjectFilter] = useState<string>('');
+  const [engineerFilter, setEngineerFilter] = useState<string>('');
+  const [dateRange, setDateRange] = useState<DateRange>('all');
+  const [groupByDate, setGroupByDate] = useState(true);
+
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -348,6 +407,80 @@ export function SiteReport() {
       }
     }
   }, [linkedIssue, view, form]);
+
+  // Fetch a single report (with child tables) for View/Edit
+  const { data: selectedReport, isLoading: selectedReportLoading } = useQuery({
+    queryKey: ['site-report', selectedReportId, organisation?.id],
+    enabled: !!selectedReportId && (view === 'view' || view === 'edit'),
+    queryFn: async () => {
+      const { data: report, error: reportError } = await supabase
+        .from('site_reports')
+        .select('*')
+        .eq('id', selectedReportId)
+        .eq('organisation_id', organisation?.id)
+        .single();
+      if (reportError) throw reportError;
+
+      const [subs, works, milestones] = await Promise.all([
+        supabase.from('sub_contractors').select('name, count, start_time, end_time').eq('report_id', selectedReportId),
+        supabase.from('work_carried_out').select('description').eq('report_id', selectedReportId),
+        supabase.from('milestones_completed').select('description').eq('report_id', selectedReportId),
+      ]);
+
+      return { ...report, _subs: subs.data || [], _works: works.data || [], _milestones: milestones.data || [] };
+    },
+  });
+
+  // Prefill the form when entering view/edit mode and data is loaded
+  useEffect(() => {
+    if ((view !== 'view' && view !== 'edit') || !selectedReport) return;
+    const r: any = selectedReport;
+    const clientReq = safeParseArray<{ value: string }>(r.client_req_details);
+    const nextDay = safeParseArray<{ value: string }>(r.work_plan_next_day);
+    const instr = safeParseArray<{ value: string }>(r.special_instructions);
+    const issues = safeParseArray<{ issue: string; solution: string }>(r.issues_faced);
+    form.reset({
+      client: r.client_id || '',
+      projectName: r.project_id || '',
+      date: r.report_date || new Date().toISOString().split('T')[0],
+      manpower: {
+        total: r.total_manpower || '',
+        skilled: r.skilled_manpower || '',
+        unskilled: r.unskilled_manpower || '',
+        startTime: r.start_time || '',
+        endTime: r.end_time || '',
+        subContractors: (r._subs || []).map((s: any) => ({
+          name: s.name || '', count: s.count || '', start: s.start_time || '', end: s.end_time || ''
+        })).length > 0
+          ? (r._subs || []).map((s: any) => ({ name: s.name || '', count: s.count || '', start: s.start_time || '', end: s.end_time || '' }))
+          : [{ name: '', count: '', start: '', end: '' }],
+      },
+      workCarriedOut: (r._works || []).map((w: any) => ({ value: w.description || '' })),
+      milestonesCompleted: (r._milestones || []).map((m: any) => ({ value: m.description || '' })),
+      progress: { planned: r.planned_progress || '', actual: r.actual_progress || '', percentComplete: r.percent_complete || '' },
+      equipment: { onSite: r.equipment_on_site || '', breakdown: r.breakdown_issues || '' },
+      safety: { toolboxMeeting: !!r.toolbox_meeting, ppe: !!r.ppe_followed },
+      quality: { inspection: (r.inspection_status as any) || 'Pending', satisfiedPercent: r.satisfied_percent || '', reworkRequiredReason: r.rework_required_reason || '' },
+      rework: {
+        isRework: !!r.is_rework, reason: r.rework_reason || '',
+        start: r.rework_start || '', end: r.rework_end || '',
+        materialUsed: r.rework_material_used || '', totalManpower: r.rework_total_manpower || ''
+      },
+      documents: { type: (r.doc_type as any) || 'DC', docNo: r.doc_no || '', receivedSignature: (r.received_signature as any) || 'Pending' },
+      clientRequirements: {
+        details: clientReq.length > 0 ? clientReq : [{ value: '' }],
+        quoteToBe_sent: !!r.quote_to_be_sent, mailReceived: !!r.mail_received,
+      },
+      reporting: { pmStatus: (r.pm_status as any) || 'Pending', materialArrangement: (r.material_arrangement as any) || 'Pending' },
+      workPlanNextDay: nextDay.length > 0 ? nextDay : [{ value: '' }],
+      specialInstructions: instr.length > 0 ? instr : [{ value: '' }],
+      issues: issues.length > 0 ? issues : [{ issue: '', solution: '' }],
+      documentation: { filed: !!r.is_filed, toolsLocked: !!r.tools_locked, sitePictures: (r.site_pictures_status as any) || 'Taken' },
+      footer: { engineer: r.engineer_name || '', signatureDate: r.signature_date || new Date().toISOString().split('T')[0] }
+    });
+    // Intentionally one-shot per selectedReportId change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedReportId, selectedReportLoading]);
 
   const { fields: subContractorFields, append: appendSubContractor, remove: removeSubContractor } = useFieldArray({
     control: form.control,
@@ -533,9 +666,187 @@ export function SiteReport() {
     }
   });
 
+  // Update an existing report (Edit mode)
+  const updateMutation = useMutation({
+    mutationFn: async (values: SiteReportFormValues) => {
+      if (!selectedReportId) throw new Error('No report selected for update');
+      const reportId = selectedReportId;
+
+      // 1. Update main row
+      const { data: report, error: reportError } = await supabase
+        .from('site_reports')
+        .update({
+          client_id: toNullableUuid(values.client),
+          project_id: toNullableUuid(values.projectName),
+          report_date: values.date,
+          total_manpower: values.manpower.total,
+          skilled_manpower: values.manpower.skilled,
+          unskilled_manpower: values.manpower.unskilled,
+          start_time: values.manpower.startTime || null,
+          end_time: values.manpower.endTime || null,
+          planned_progress: values.progress.planned,
+          actual_progress: values.progress.actual,
+          percent_complete: values.progress.percentComplete,
+          equipment_on_site: values.equipment.onSite,
+          breakdown_issues: values.equipment.breakdown,
+          toolbox_meeting: values.safety.toolboxMeeting,
+          ppe_followed: values.safety.ppe,
+          inspection_status: values.quality.inspection,
+          satisfied_percent: values.quality.satisfiedPercent,
+          rework_required_reason: values.quality.reworkRequiredReason,
+          is_rework: values.rework.isRework,
+          rework_reason: values.rework.reason,
+          rework_start: values.rework.start || null,
+          rework_end: values.rework.end || null,
+          rework_material_used: values.rework.materialUsed,
+          rework_total_manpower: values.rework.totalManpower,
+          doc_type: values.documents.type,
+          doc_no: values.documents.docNo,
+          received_signature: values.documents.receivedSignature,
+          client_req_details: JSON.stringify(values.clientRequirements.details),
+          quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
+          mail_received: values.clientRequirements.mailReceived,
+          pm_status: values.reporting.pmStatus,
+          material_arrangement: values.reporting.materialArrangement,
+          work_plan_next_day: JSON.stringify(values.workPlanNextDay),
+          special_instructions: JSON.stringify(values.specialInstructions),
+          issues_faced: JSON.stringify(values.issues),
+          is_filed: values.documentation.filed,
+          tools_locked: values.documentation.toolsLocked,
+          site_pictures_status: values.documentation.sitePictures,
+          engineer_name: values.footer.engineer,
+          signature_date: values.footer.signatureDate
+        })
+        .eq('id', reportId)
+        .select()
+        .single();
+
+      if (reportError) throw reportError;
+
+      // 2. Replace child rows: delete existing, then insert new (mirrors saveMutation)
+      await Promise.allSettled([
+        supabase.from('sub_contractors').delete().eq('report_id', reportId),
+        supabase.from('work_carried_out').delete().eq('report_id', reportId),
+        supabase.from('milestones_completed').delete().eq('report_id', reportId),
+      ]);
+
+      const relatedInserts: any[] = [];
+
+      const subs = (values.manpower.subContractors || []).filter(s => s.name).map(s => ({
+        organisation_id: organisation?.id,
+        report_id: reportId,
+        name: s.name, count: s.count,
+        start_time: s.start || null, end_time: s.end || null
+      }));
+      if (subs.length > 0) relatedInserts.push(supabase.from('sub_contractors').insert(subs));
+
+      const works = (values.workCarriedOut || []).filter(i => i.value).map(i => ({
+        organisation_id: organisation?.id, report_id: reportId, description: i.value
+      }));
+      if (works.length > 0) relatedInserts.push(supabase.from('work_carried_out').insert(works));
+
+      const miles = (values.milestonesCompleted || []).filter(i => i.value).map(i => ({
+        organisation_id: organisation?.id, report_id: reportId, description: i.value
+      }));
+      if (miles.length > 0) relatedInserts.push(supabase.from('milestones_completed').insert(miles));
+
+      if (relatedInserts.length > 0) await Promise.allSettled(relatedInserts);
+
+      return report;
+    },
+    onSuccess: () => {
+      toast.success('Site report updated');
+      queryClient.invalidateQueries({ queryKey: ['site-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['site-report', selectedReportId] });
+      setView('list');
+      setSelectedReportId(null);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update report: ${error.message}`);
+    }
+  });
+
+  // -------- List view derived data: filtering, grouping, summary ----------
+
+  const filteredReports = useMemo(() => {
+    if (!reports) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return reports.filter((r: any) => {
+      if (projectFilter && r.project_id !== projectFilter) return false;
+      if (engineerFilter && (r.engineer_name || '') !== engineerFilter) return false;
+      if (!dateRangePredicate(dateRange, r.report_date)) return false;
+      if (q) {
+        const hay = [
+          r.report_date, r.engineer_name, r.pm_status,
+          r.clients?.client_name, r.projects?.project_name
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [reports, searchQuery, projectFilter, engineerFilter, dateRange]);
+
+  const groupedReports = useMemo(() => {
+    if (!groupByDate) return null;
+    const groups: Record<string, any[]> = {
+      today: [], yesterday: [], this_week: [], this_month: [], earlier: []
+    };
+    for (const r of filteredReports) groups[reportDateBucket(r.report_date)].push(r);
+    return groups;
+  }, [filteredReports, groupByDate]);
+
+  const uniqueEngineers = useMemo(() => {
+    if (!reports) return [] as string[];
+    return Array.from(new Set(reports.map((r: any) => r.engineer_name).filter(Boolean))).sort();
+  }, [reports]);
+
+  const uniqueProjects = useMemo(() => {
+    if (!reports) return [] as { id: string; name: string }[];
+    const map = new Map<string, string>();
+    for (const r of (reports as any[])) {
+      if (r.project_id) {
+        const projName = Array.isArray(r.projects) ? r.projects?.[0]?.project_name : r.projects?.project_name;
+        map.set(r.project_id, projName || r.project_id);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [reports]);
+
+  const summaryStats = useMemo(() => {
+    if (!reports) return { total: 0, thisWeek: 0, today: 0, engineersActive: 0 };
+    const now = new Date();
+    const weekStart = startOfWeek(now);
+    const todayCount = reports.filter((r: any) => isSameDay(new Date(r.report_date), now)).length;
+    const weekCount = reports.filter((r: any) => new Date(r.report_date) >= weekStart).length;
+    const engineers = new Set(reports.map((r: any) => r.engineer_name).filter(Boolean));
+    return { total: reports.length, thisWeek: weekCount, today: todayCount, engineersActive: engineers.size };
+  }, [reports]);
+
+  const clearFilters = () => {
+    setSearchQuery(''); setProjectFilter(''); setEngineerFilter(''); setDateRange('all');
+  };
+  const hasActiveFilters = !!(searchQuery || projectFilter || engineerFilter || dateRange !== 'all');
+
   const onSubmit = useCallback((data: SiteReportFormValues) => {
-    saveMutation.mutate(data);
-  }, [saveMutation]);
+    if (view === 'edit') {
+      updateMutation.mutate(data);
+    } else {
+      saveMutation.mutate(data);
+    }
+  }, [saveMutation, updateMutation, view]);
+
+  const isMutating = saveMutation.isPending || updateMutation.isPending;
+  const saveAsDraft = useCallback(() => {
+    form.setValue('reporting.pmStatus', 'Draft');
+    const values = form.getValues();
+    if (!values.date) values.date = new Date().toISOString().split('T')[0];
+    const payload = {
+      ...values,
+      reporting: { ...values.reporting, pmStatus: 'Draft' as const }
+    } as SiteReportFormValues;
+    if (view === 'edit') updateMutation.mutate(payload);
+    else saveMutation.mutate(payload);
+  }, [form, view, saveMutation, updateMutation]);
 
   const onInvalid = useCallback((errors: any) => {
     console.error("Form validation errors:", errors);
@@ -667,13 +978,165 @@ export function SiteReport() {
   };
 
   if (view === 'list') {
+    const renderRow = (report: any, idx: number) => {
+      const isSelected = selectedReports.includes(report.id);
+      const isEven = idx % 2 === 0;
+      const bucket = reportDateBucket(report.report_date);
+      const bucketBadge: Record<string, { label: string; cls: string }> = {
+        today: { label: 'TODAY', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        yesterday: { label: 'YESTERDAY', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+        this_week: { label: 'THIS WEEK', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+        this_month: { label: 'THIS MONTH', cls: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
+        earlier: { label: 'EARLIER', cls: 'bg-zinc-50 text-zinc-500 border-zinc-200' },
+      };
+      const badge = bucketBadge[bucket];
+      return (
+        <tr
+          key={report.id}
+          className={cn(
+            "border-t border-zinc-200/70 transition-all duration-150 group",
+            isEven ? "bg-white" : "bg-zinc-50/30",
+            isSelected ? "bg-indigo-50/50 border-l-2 border-l-blue-600" : "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm"
+          )}
+        >
+          <td className="px-4 py-[20px] text-center align-middle">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => {
+                if (checked) setSelectedReports(prev => [...prev, report.id]);
+                else setSelectedReports(prev => prev.filter(id => id !== report.id));
+              }}
+              className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+            />
+          </td>
+          <td className="px-6 py-[20px] align-middle">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-zinc-900">
+                {new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+              {groupByDate && (
+                <span className={cn(
+                  "self-start inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border",
+                  badge.cls
+                )}>
+                  {badge.label}
+                </span>
+              )}
+            </div>
+          </td>
+          <td className="px-6 py-[20px] align-middle max-w-[180px] truncate" title={report.clients?.client_name || '-'}>
+            <span className="text-sm text-zinc-800">{report.clients?.client_name || '-'}</span>
+          </td>
+          <td className="px-6 py-[20px] align-middle max-w-[350px] truncate" title={report.projects?.project_name || '-'}>
+            <span className="text-sm text-zinc-800">{report.projects?.project_name || '-'}</span>
+          </td>
+          <td className="px-6 py-[20px] align-middle">
+            <span className="text-sm text-zinc-800">{report.engineer_name || '-'}</span>
+          </td>
+          <td className="px-6 py-[20px] align-middle">
+            <span
+              className="text-sm font-medium inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border"
+              style={{
+                color: report.pm_status === 'Reported' ? '#047857' : report.pm_status === 'Draft' ? '#4b5563' : '#b45309',
+                backgroundColor: report.pm_status === 'Reported' ? '#ecfdf5' : report.pm_status === 'Draft' ? '#f3f4f6' : '#fffbeb',
+                borderColor: report.pm_status === 'Reported' ? '#a7f3d0' : report.pm_status === 'Draft' ? '#e5e7eb' : '#fde68a'
+              }}
+            >
+              {report.pm_status}
+            </span>
+          </td>
+          <td className="px-6 py-[20px] text-center align-middle w-[70px]">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all active:scale-[0.98]"
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 bg-white border border-zinc-200/60 p-1 shadow-lg shadow-black/5 rounded-lg z-[100]">
+                <DropdownMenuItem
+                  style={{ padding: '6px' }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
+                  onClick={() => {
+                    setSelectedReportId(report.id);
+                    setView('view');
+                  }}
+                >
+                  <Clipboard className="w-3.5 h-3.5" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  style={{ padding: '6px' }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
+                  onClick={() => {
+                    setSelectedReportId(report.id);
+                    setView('edit');
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit Report
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  style={{ padding: '6px' }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98] cursor-pointer"
+                  onClick={() => downloadReportPDF(report.id)}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </td>
+        </tr>
+      );
+    };
+
+    const renderTableHead = () => (
+      <thead>
+        <tr>
+          <th className="sticky top-0 z-10 h-[36px] w-[50px] px-4 text-center align-middle bg-white border-b border-zinc-200">
+            <Checkbox
+              checked={filteredReports.length > 0 && selectedReports.length === filteredReports.length}
+              onCheckedChange={(checked) => {
+                if (checked) setSelectedReports(filteredReports.map((r: any) => r.id));
+                else setSelectedReports([]);
+              }}
+              className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+            />
+          </th>
+          <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[11px] font-bold uppercase tracking-widest text-zinc-500 bg-white border-b border-zinc-200 text-left">Date</th>
+          <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[11px] font-bold uppercase tracking-widest text-zinc-500 bg-white border-b border-zinc-200 text-left">Client</th>
+          <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[11px] font-bold uppercase tracking-widest text-zinc-500 bg-white border-b border-zinc-200 text-left">Project</th>
+          <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[11px] font-bold uppercase tracking-widest text-zinc-500 bg-white border-b border-zinc-200 text-left">Engineer</th>
+          <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[11px] font-bold uppercase tracking-widest text-zinc-500 bg-white border-b border-zinc-200 text-left">Status</th>
+          <th className="sticky top-0 z-10 h-[36px] w-[70px] px-6 pl-1 text-center align-middle text-[11px] font-bold uppercase tracking-widest text-zinc-500 bg-white border-b border-zinc-200">Actions</th>
+        </tr>
+      </thead>
+    );
+
+    const renderEmpty = (message: string, sub: string) => (
+      <tr>
+        <td colSpan={7} className="px-6 py-16 text-center text-sm text-zinc-500 bg-white">
+          <div className="mx-auto max-w-sm space-y-2">
+            <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 flex items-center justify-center">
+              <FileText className="w-6 h-6 text-zinc-400" />
+            </div>
+            <div className="text-sm font-semibold text-zinc-900">{message}</div>
+            <div className="text-xs text-zinc-500">{sub}</div>
+          </div>
+        </td>
+      </tr>
+    );
+
     return (
       <div className="flex flex-col h-full bg-white">
         {/* Bulk Action Header */}
         {selectedReports.length > 0 && (
           <div className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">
             <div className="flex items-center gap-3">
-              <Checkbox 
+              <Checkbox
                 checked={true}
                 onCheckedChange={() => setSelectedReports([])}
                 className="h-4 w-4 border-2 border-white rounded data-[state=checked]:bg-white data-[state=checked]:border-white"
@@ -684,18 +1147,16 @@ export function SiteReport() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 type="button"
                 className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-zinc-100 transition-colors active:scale-[0.98]"
                 onClick={async () => {
-                  for (const id of selectedReports) {
-                    await downloadReportPDF(id);
-                  }
+                  for (const id of selectedReports) await downloadReportPDF(id);
                 }}
               >
                 Print
               </button>
-              <button 
+              <button
                 type="button"
                 className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-red-700 transition-colors active:scale-[0.98]"
                 onClick={() => setSelectedReports([])}
@@ -706,86 +1167,154 @@ export function SiteReport() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-medium text-zinc-900">Site Reports</h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {reportsLoading ? "..." : `${reports?.length || 0}`}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <input 
-              type="text"
-              placeholder="Search reports..." 
-              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            
-            <button 
+        {/* Page Header */}
+        <div className="px-6 pt-5 pb-4 bg-white border-b border-zinc-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-xl font-semibold text-zinc-900">Site Reports</h1>
+              <p className="text-xs text-zinc-500 mt-0.5">Daily logs from the field — manpower, progress, photos</p>
+            </div>
+            <button
               type="button"
               onClick={() => {
                 form.reset();
+                setSelectedReportId(null);
                 setView('create');
               }}
-              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
+              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98] px-4 py-2"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Report
             </button>
           </div>
+
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="border border-zinc-200 rounded-lg p-3 bg-zinc-50/50">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Total Reports</div>
+              <div className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.total}</div>
+            </div>
+            <div className="border border-zinc-200 rounded-lg p-3 bg-zinc-50/50">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">This Week</div>
+              <div className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.thisWeek}</div>
+            </div>
+            <div className="border border-emerald-200 rounded-lg p-3 bg-emerald-50/50">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Filed Today</div>
+              <div className="text-2xl font-semibold text-emerald-700 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.today}</div>
+            </div>
+            <div className="border border-zinc-200 rounded-lg p-3 bg-zinc-50/50">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Engineers Active</div>
+              <div className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.engineersActive}</div>
+            </div>
+          </div>
+
+          {/* Filter bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by client, project, engineer…"
+                className="w-full h-9 pl-8 pr-8 text-sm border border-zinc-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger className="h-9 w-[180px] text-sm bg-white">
+                <SelectValue placeholder="All projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All projects</SelectItem>
+                {uniqueProjects.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={engineerFilter} onValueChange={setEngineerFilter}>
+              <SelectTrigger className="h-9 w-[160px] text-sm bg-white">
+                <SelectValue placeholder="All engineers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All engineers</SelectItem>
+                {uniqueEngineers.map(e => (
+                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="h-9 w-[140px] text-sm bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="this_week">This week</SelectItem>
+                <SelectItem value="this_month">This month</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-9 px-3 text-xs font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-lg active:scale-[0.98] transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 ml-auto pl-2">
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Group by date</span>
+              <button
+                type="button"
+                onClick={() => setGroupByDate(g => !g)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 rounded-full transition-colors",
+                  groupByDate ? "bg-blue-600" : "bg-zinc-300"
+                )}
+                aria-pressed={groupByDate}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5",
+                  groupByDate ? "translate-x-4 ml-0.5" : "translate-x-0.5"
+                )} />
+              </button>
+            </div>
+          </div>
+
+          {/* Active filter chips */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-1.5 mt-2 text-[11px]">
+              <span className="text-zinc-500 font-semibold uppercase tracking-widest">Active filters:</span>
+              {searchQuery && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">“{searchQuery}”</span>}
+              {projectFilter && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">Project: {uniqueProjects.find(p => p.id === projectFilter)?.name}</span>}
+              {engineerFilter && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">Engineer: {engineerFilter}</span>}
+              {dateRange !== 'all' && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">Range: {BUCKET_LABELS[dateRange] || dateRange}</span>}
+              <span className="text-zinc-500">· {filteredReports.length} of {reports?.length || 0} reports</span>
+            </div>
+          )}
         </div>
 
         {/* Table container */}
         <div className="flex-1 overflow-auto">
-          <table className="w-full border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="sticky top-0 z-10 h-[36px] w-[50px] px-4 text-center align-middle bg-white border-b border-zinc-200">
-                  <Checkbox 
-                    checked={selectedReports.length === reports?.length && reports?.length > 0}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedReports(reports?.map((r: any) => r.id) || []);
-                      } else {
-                        setSelectedReports([]);
-                      }
-                    }}
-                    className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                  />
-                </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
-                    Date
-                    <ChevronRight className="w-3 h-3 rotate-90 text-zinc-300 group-hover:text-zinc-400" />
-                  </button>
-                </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
-                    Client
-                  </button>
-                </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
-                    Project
-                  </button>
-                </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                  <button className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
-                    Engineer
-                  </button>
-                </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                  Status
-                </th>
-                <th className="sticky top-0 z-10 h-[36px] w-[70px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportsLoading ? (
+          {reportsLoading ? (
+            <table className="w-full border-separate border-spacing-0">
+              {renderTableHead()}
+              <tbody>
                 <tr>
                   <td colSpan={7} className="px-6 py-[26px] align-middle text-center bg-white">
                     <div className="flex items-center justify-center gap-2 text-zinc-500">
@@ -794,140 +1323,76 @@ export function SiteReport() {
                     </div>
                   </td>
                 </tr>
-              ) : reports?.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center text-sm text-zinc-500 bg-white">
-                    <div className="mx-auto max-w-sm space-y-2">
-                      <div className="w-12 h-12 mx-auto rounded-full bg-zinc-100 flex items-center justify-center">
-                         <FileText className="w-6 h-6 text-zinc-400" />
-                      </div>
-                      <div className="text-sm font-semibold text-zinc-900">No reports found</div>
-                      <div className="text-xs text-zinc-500">Create your first site report to get started.</div>
+              </tbody>
+            </table>
+          ) : reports?.length === 0 ? (
+            <table className="w-full border-separate border-spacing-0">
+              {renderTableHead()}
+              <tbody>{renderEmpty('No reports filed yet', 'Create your first site report to get started.')}</tbody>
+            </table>
+          ) : filteredReports.length === 0 ? (
+            <table className="w-full border-separate border-spacing-0">
+              {renderTableHead()}
+              <tbody>{renderEmpty('No reports match your filters', 'Try clearing filters or widening the date range.')}</tbody>
+            </table>
+          ) : groupByDate && groupedReports ? (
+            <div>
+              {(['today', 'yesterday', 'this_week', 'this_month', 'earlier'] as const).map((bucket, bIdx) => {
+                const items = groupedReports[bucket];
+                if (items.length === 0) return null;
+                return (
+                  <div key={bucket}>
+                    <div className={cn(
+                      "sticky z-10 bg-zinc-50 px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 border-b border-zinc-200 flex items-center justify-between",
+                      bIdx === 0 ? "top-0" : "top-0"
+                    )}>
+                      <span>{BUCKET_LABELS[bucket]}</span>
+                      <span className="text-zinc-400 normal-case tracking-normal font-medium">{items.length} {items.length === 1 ? 'report' : 'reports'}</span>
                     </div>
-                  </td>
-                </tr>
-              ) : (
-                reports?.map((report: any, idx: number) => {
-                  const isSelected = selectedReports.includes(report.id);
-                  const isEven = idx % 2 === 0;
-                  return (
-                    <tr 
-                      key={report.id}
-                      className={cn(
-                        "border-t border-zinc-200/70 transition-all duration-150 group",
-                        isEven ? "bg-white" : "bg-zinc-50/30",
-                        isSelected ? "bg-indigo-50/50 border-l-2 border-l-blue-600" : "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm"
-                      )}
-                    >
-                      <td className="px-4 py-[26px] text-center align-middle">
-                        <Checkbox 
-                          checked={isSelected}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedReports(prev => [...prev, report.id]);
-                            } else {
-                              setSelectedReports(prev => prev.filter(id => id !== report.id));
-                            }
-                          }}
-                          className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                        />
-                      </td>
-                      <td className="px-6 py-[26px] align-middle">
-                        <span className="text-sm font-medium text-zinc-900">
-                          {new Date(report.report_date).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-[26px] align-middle max-w-[180px] truncate" title={report.clients?.client_name || '-'}>
-                        <span className="text-sm text-zinc-800">
-                          {report.clients?.client_name || '-'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-[26px] align-middle max-w-[350px] truncate" title={report.projects?.project_name || '-'}>
-                        <span className="text-sm text-zinc-800">
-                          {report.projects?.project_name || '-'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-[26px] align-middle">
-                        <span className="text-sm text-zinc-800">
-                          {report.engineer_name || '-'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-[26px] align-middle">
-                        <span 
-                          className="text-sm font-medium inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border"
-                          style={{
-                            color: report.pm_status === 'Reported' ? '#047857' : report.pm_status === 'Draft' ? '#4b5563' : '#b45309',
-                            backgroundColor: report.pm_status === 'Reported' ? '#ecfdf5' : report.pm_status === 'Draft' ? '#f3f4f6' : '#fffbeb',
-                            borderColor: report.pm_status === 'Reported' ? '#a7f3d0' : report.pm_status === 'Draft' ? '#e5e7eb' : '#fde68a'
-                          }}
-                        >
-                          {report.pm_status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-[26px] text-center align-middle w-[70px]">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-all active:scale-[0.98]"
-                            >
-                              <MoreHorizontal size={14} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44 bg-white border border-zinc-200/60 p-1 shadow-lg shadow-black/5 rounded-lg z-[100]">
-                            <DropdownMenuItem 
-                              style={{ padding: '6px' }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
-                              onClick={() => {
-                                console.log('View report:', report.id);
-                              }}
-                            >
-                              <Clipboard className="w-3.5 h-3.5" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              style={{ padding: '6px' }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
-                              onClick={() => {
-                                console.log('Edit report:', report.id);
-                              }}
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                              Edit Report
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              style={{ padding: '6px' }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98] cursor-pointer"
-                              onClick={() => {
-                                downloadReportPDF(report.id);
-                              }}
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              Download PDF
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                    <table className="w-full border-separate border-spacing-0">
+                      {renderTableHead()}
+                      <tbody>
+                        {items.map((r, i) => renderRow(r, i))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <table className="w-full border-separate border-spacing-0">
+              {renderTableHead()}
+              <tbody>
+                {filteredReports.map((r, i) => renderRow(r, i))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     );
   }
 
   if (view === 'create' || view === 'edit' || view === 'view') {
+    // Show a loading state when fetching an existing report for view/edit
+    if ((view === 'view' || view === 'edit') && selectedReportLoading && !selectedReport) {
+      return (
+        <div className="min-h-screen bg-zinc-50/30 flex items-center justify-center">
+          <div className="flex items-center gap-3 text-zinc-500">
+            <div className="w-5 h-5 border-2 border-zinc-300 border-t-blue-600 rounded-full animate-spin" />
+            <span className="text-sm">Loading report…</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-zinc-50/30 py-8 px-6">
         <div className="max-w-5xl mx-auto">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-4">
-            <button 
-              type="button" 
-              onClick={() => setView('list')} 
+            <button
+              type="button"
+              onClick={() => { setView('list'); setSelectedReportId(null); }}
               className="hover:text-zinc-800 transition-colors"
             >
               Site Reports
@@ -977,32 +1442,19 @@ export function SiteReport() {
                 <>
                   <button
                     type="button"
-                    onClick={() => {
-                      form.setValue('reporting.pmStatus', 'Draft');
-                      const values = form.getValues();
-                      if (!values.date) {
-                        values.date = new Date().toISOString().split('T')[0];
-                      }
-                      saveMutation.mutate({
-                        ...values,
-                        reporting: {
-                          ...values.reporting,
-                          pmStatus: 'Draft'
-                        }
-                      } as SiteReportFormValues);
-                    }}
-                    disabled={saveMutation.isPending}
+                    onClick={saveAsDraft}
+                    disabled={isMutating}
                     className="px-4 py-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm bg-white"
                   >
-                    {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
+                    {isMutating ? 'Saving...' : 'Save as Draft'}
                   </button>
                   <button
                     type="button"
                     onClick={form.handleSubmit(onSubmit, onInvalid)}
-                    disabled={saveMutation.isPending}
+                    disabled={isMutating}
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
                   >
-                    {saveMutation.isPending ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Report'}
+                    {isMutating ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Report'}
                   </button>
                 </>
               )}
@@ -1572,21 +2024,8 @@ export function SiteReport() {
                 <>
                   <button
                     type="button"
-                    onClick={() => {
-                      form.setValue('reporting.pmStatus', 'Draft');
-                      const values = form.getValues();
-                      if (!values.date) {
-                        values.date = new Date().toISOString().split('T')[0];
-                      }
-                      saveMutation.mutate({
-                        ...values,
-                        reporting: {
-                          ...values.reporting,
-                          pmStatus: 'Draft'
-                        }
-                      } as SiteReportFormValues);
-                    }}
-                    disabled={saveMutation.isPending}
+                    onClick={saveAsDraft}
+                    disabled={isMutating}
                     style={{
                       flex: 1,
                       padding: '10px 16px',
@@ -1596,15 +2035,15 @@ export function SiteReport() {
                       color: '#374151',
                       fontSize: '14px',
                       fontWeight: 600,
-                      cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-                      opacity: saveMutation.isPending ? 0.6 : 1,
+                      cursor: isMutating ? 'not-allowed' : 'pointer',
+                      opacity: isMutating ? 0.6 : 1,
                     }}
                   >
-                    {saveMutation.isPending ? 'Saving...' : 'Save as Draft'}
+                    {isMutating ? 'Saving...' : 'Save as Draft'}
                   </button>
                   <button
                     type="submit"
-                    disabled={saveMutation.isPending}
+                    disabled={isMutating}
                     style={{
                       flex: 1,
                       padding: '10px 16px',
@@ -1614,11 +2053,11 @@ export function SiteReport() {
                       color: '#fff',
                       fontSize: '14px',
                       fontWeight: 600,
-                      cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-                      opacity: saveMutation.isPending ? 0.6 : 1,
+                      cursor: isMutating ? 'not-allowed' : 'pointer',
+                      opacity: isMutating ? 0.6 : 1,
                     }}
                   >
-                    {saveMutation.isPending ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Site Report'}
+                    {isMutating ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Site Report'}
                   </button>
                 </>
               )}
