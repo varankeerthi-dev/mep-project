@@ -64,6 +64,13 @@ import {
 import { cn } from '../lib/utils';
 import { useAuth } from '../App';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { SiteReportPhotoUploader } from '@/components/SiteReportPhotoUploader';
+import {
+  useEnsurePhotoBucket,
+  useUploadSiteReportPhoto,
+  revokePendingPhoto,
+  type PendingPhoto,
+} from '@/hooks/useSiteReportPhotos';
 
 // Removed Material-UI imports
 
@@ -219,8 +226,7 @@ type DateRange = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month';
 export function SiteReport() {
   const { user, organisation } = useAuth();
   const [view, setView] = useState<'list' | 'create' | 'edit' | 'view'>('list');
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
@@ -262,15 +268,6 @@ export function SiteReport() {
       setSearchParams(newParams, { replace: true });
     }
   }, [actionParam, view, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    const newUrls = photos.map(photo => URL.createObjectURL(photo));
-    setPhotoUrls(newUrls);
-    
-    return () => {
-      newUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, [photos]);
 
   const form = useForm<SiteReportFormValues>({
     resolver: zodResolver(siteReportSchema),
@@ -517,6 +514,9 @@ export function SiteReport() {
     name: "clientRequirements.details"
   });
 
+  const ensureBucket = useEnsurePhotoBucket();
+  const uploadPhoto = useUploadSiteReportPhoto();
+
   const saveMutation = useMutation({
     mutationFn: async (values: SiteReportFormValues) => {
       // 1. Save main report
@@ -646,11 +646,49 @@ export function SiteReport() {
       return { previousReports };
     },
     
-    onSuccess: () => {
-      toast.success('Site report saved successfully!');
+    onSuccess: async (report) => {
+      const photoCount = pendingPhotos.length;
+      let photoFailures = 0;
+
+      if (photoCount > 0 && organisation?.id && user?.id) {
+        try {
+          const bucketName = await ensureBucket.mutateAsync();
+          for (let i = 0; i < pendingPhotos.length; i++) {
+            const p = pendingPhotos[i];
+            try {
+              await uploadPhoto.mutateAsync({
+                reportId: report.id,
+                organisationId: organisation.id,
+                bucketName,
+                file: { blob: p.blob, fileName: p.fileName, width: p.width, height: p.height, sizeBytes: p.sizeBytes },
+                userId: user.id,
+                caption: p.caption,
+                sortOrder: i,
+              });
+            } catch (e: any) {
+              console.error('Photo upload failed:', e);
+              photoFailures++;
+            }
+          }
+        } catch (e: any) {
+          console.error('Bucket setup failed:', e);
+          photoFailures = pendingPhotos.length;
+        }
+      }
+
+      pendingPhotos.forEach(revokePendingPhoto);
+      setPendingPhotos([]);
+
+      if (photoFailures > 0) {
+        toast.error(`Saved, but ${photoFailures} photo(s) failed to upload`);
+      } else if (photoCount > 0) {
+        toast.success(`Site report saved with ${photoCount} photo(s)`);
+      } else {
+        toast.success('Site report saved successfully!');
+      }
       queryClient.invalidateQueries({ queryKey: ['site-reports'] });
       form.reset();
-      
+
       if (issueIdParam) {
         navigate(`/issue/${issueIdParam}`);
       } else {
@@ -853,12 +891,6 @@ export function SiteReport() {
     toast.error("Please fill in all required fields correctly.");
   }, []);
 
-  const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setPhotos(prev => [...prev, ...Array.from(e.target.files!)]);
-    }
-  }, []);
-
   const handlePrintPDF = useCallback(() => {
     const { organisation } = useAuth();
     if (!organisation) {
@@ -879,10 +911,7 @@ export function SiteReport() {
         workCarriedOut: form.getValues('workCarriedOut') || [],
         milestonesCompleted: form.getValues('milestonesCompleted') || []
       },
-      photos: photos.map(p => ({
-        file_name: p.name,
-        file_path: URL.createObjectURL(p)
-      })),
+      photos: [],
       footer: {
         enginear: form.getValues('footer.engineer'),
         signatureDate: form.getValues('footer.signatureDate')
@@ -908,7 +937,7 @@ export function SiteReport() {
     URL.revokeObjectURL(url);
     
     toast.success("PDF generated successfully");
-  }, [form, clients, projects, photos]);
+  }, [form, clients, projects]);
 
   const downloadReportPDF = async (reportId: string) => {
     try {
@@ -1946,32 +1975,18 @@ export function SiteReport() {
               <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
                 <button type="button" onClick={() => toggleSection('photos')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.photos ? '10px' : 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>Visual Documentation (Photos)</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</span>
-                    <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.photos && 'rotate-90')} />
-                  </div>
+                  <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.photos && 'rotate-90')} />
                 </button>
-                {openSections.photos && <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 shadow-sm bg-zinc-50 group">
-                      <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
-                      {view !== 'view' && (
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </ShadcnButton>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {view !== 'view' && (
-                    <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-zinc-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-zinc-50/30">
-                      <Upload className="w-5 h-5 text-zinc-400 mb-1" />
-                      <span className="text-[9px] font-bold text-zinc-500 uppercase">Upload</span>
-                      <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
-                    </label>
-                  )}
-                </div>}
+                {openSections.photos && (
+                  <SiteReportPhotoUploader
+                    mode={view === 'view' ? 'view' : view === 'edit' ? 'edit' : 'create'}
+                    reportId={selectedReportId}
+                    organisationId={organisation?.id ?? null}
+                    userId={user?.id ?? null}
+                    pendingPhotos={pendingPhotos}
+                    onPendingChange={setPendingPhotos}
+                  />
+                )}
               </div>
 
               {/* Section 8: Engineer Signature & Date */}
