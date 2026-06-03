@@ -443,22 +443,27 @@ export const ApprovalSettings: React.FC = () => {
             } else {
               const employee = employeeMap.get(approverId);
               if (employee) {
-                const authUserId = emailToUserId.get(employee.email.toLowerCase());
-                if (authUserId) {
-                  const { error: omError } = await supabase.from('org_members').upsert({
-                    organisation_id: orgId,
-                    user_id: authUserId,
+                let authUserId = emailToUserId.get(employee.email.toLowerCase());
+                if (!authUserId) {
+                  const { data: newUser, error: createError } = await supabase.from('users').insert({
+                    emp_name: employee.full_name,
+                    email: employee.email,
                     role: member?.role ?? 'Employee',
-                    status: 'active',
-                  }, { onConflict: 'organisation_id,user_id' });
-                  if (omError) throw omError;
-                  resolvedIds.set(approverId, authUserId);
-                  approverId = authUserId;
-                } else {
-                  toast.error(`"${employee.full_name}" needs an auth account. Add them via Settings → Team Members first.`);
-                  setSaving(false);
-                  return;
+                    emp_id: 'EMP-' + Date.now().toString().slice(-6),
+                    organisation_id: orgId,
+                  }).select('id').single();
+                  if (createError) throw createError;
+                  authUserId = newUser.id;
                 }
+                const { error: omError } = await supabase.from('org_members').upsert({
+                  organisation_id: orgId,
+                  user_id: authUserId,
+                  role: member?.role ?? 'Employee',
+                  status: 'active',
+                }, { onConflict: 'organisation_id,user_id' });
+                if (omError) throw omError;
+                resolvedIds.set(approverId, authUserId);
+                approverId = authUserId;
               }
             }
           }
