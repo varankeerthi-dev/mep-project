@@ -215,17 +215,19 @@ export class ApprovalAPI {
         newStatus = 'FORWARDED';
       }
 
-      const { error: updateError } = await supabase
+      const { data: updated, error: updateError } = await supabase
         .from('approvals')
         .update({
           status: newStatus,
           current_level: newLevel,
           updated_at: new Date().toISOString()
         })
-        .eq('id', approvalId);
+        .eq('id', approvalId)
+        .select()
+        .maybeSingle();
 
-      if (updateError) {
-        return { success: false, error: { code: 'DB_ERROR', message: updateError.message } };
+      if (updateError || !updated) {
+        return { success: false, error: { code: 'DB_ERROR', message: updateError?.message || 'Approval update blocked by RLS — run migration 069' } };
       }
 
       if (newStatus === 'APPROVED') {
