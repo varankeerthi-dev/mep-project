@@ -443,23 +443,11 @@ export const ApprovalSettings: React.FC = () => {
             } else {
               const employee = employeeMap.get(approverId);
               if (employee) {
-                let authUserId = emailToUserId.get(employee.email.toLowerCase());
+                const authUserId = emailToUserId.get(employee.email.toLowerCase());
                 if (!authUserId) {
-                  const tempPassword = Math.random().toString(36).slice(2) + 'Ab1!';
-                  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                    email: employee.email,
-                    password: tempPassword,
-                  });
-                  if (signUpError) throw signUpError;
-                  if (!signUpData.user) throw new Error('Failed to create auth user');
-                  authUserId = signUpData.user.id;
-                  await supabase.from('users').upsert({
-                    id: authUserId,
-                    emp_name: employee.full_name,
-                    email: employee.email,
-                    role: member?.role ?? 'Employee',
-                    emp_id: 'EMP-' + Date.now().toString().slice(-6),
-                  }, { onConflict: 'id' });
+                  toast.error(`"${employee.full_name}" has no account yet. Add them via Settings → Team Members first.`);
+                  setSaving(false);
+                  return;
                 }
                 const { error: omError } = await supabase.from('org_members').upsert({
                   organisation_id: orgId,

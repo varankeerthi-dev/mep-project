@@ -30,21 +30,32 @@ export function AddTeamMemberModal({ isOpen, onClose, organisationId, onSuccess 
     const empId = 'EMP-' + Date.now().toString().slice(-6);
 
     try {
-      const { data: newUser, error } = await supabase.from('users').insert({
+      const tempPassword = Math.random().toString(36).slice(2) + 'Ab1!';
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: tempPassword,
+      });
+      if (signUpError) throw signUpError;
+      if (!signUpData?.user) throw new Error('Failed to create auth user');
+
+      const authUserId = signUpData.user.id;
+
+      const { error: userError } = await supabase.from('users').upsert({
+        id: authUserId,
         emp_name: formData.emp_name,
         email: formData.email,
         role: formData.role,
         emp_id: empId,
-      }).select('id').single();
+      }, { onConflict: 'id' });
+      if (userError) throw userError;
 
-      if (error) throw error;
-
-      await supabase.from('org_members').upsert({
+      const { error: omError } = await supabase.from('org_members').upsert({
         organisation_id: organisationId,
-        user_id: newUser.id,
+        user_id: authUserId,
         role: formData.role,
         status: 'active',
       }, { onConflict: 'organisation_id,user_id' });
+      if (omError) throw omError;
 
       setFormData({ emp_name: '', email: '', role: 'Assistant' });
       onSuccess();
