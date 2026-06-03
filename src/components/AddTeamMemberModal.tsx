@@ -30,13 +30,21 @@ export function AddTeamMemberModal({ isOpen, onClose, organisationId, onSuccess 
     const empId = 'EMP-' + Date.now().toString().slice(-6);
 
     try {
-      const { error } = await supabase.from('users').insert({
-        ...formData,
+      const { data: newUser, error } = await supabase.from('users').insert({
+        emp_name: formData.emp_name,
+        email: formData.email,
+        role: formData.role,
         emp_id: empId,
-        organisation_id: organisationId
-      });
+      }).select('id').single();
 
       if (error) throw error;
+
+      await supabase.from('org_members').upsert({
+        organisation_id: organisationId,
+        user_id: newUser.id,
+        role: formData.role,
+        status: 'active',
+      }, { onConflict: 'organisation_id,user_id' });
 
       setFormData({ emp_name: '', email: '', role: 'Assistant' });
       onSuccess();

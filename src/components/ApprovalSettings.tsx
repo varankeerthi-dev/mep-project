@@ -445,14 +445,21 @@ export const ApprovalSettings: React.FC = () => {
               if (employee) {
                 let authUserId = emailToUserId.get(employee.email.toLowerCase());
                 if (!authUserId) {
-                  const { data: newUser, error: createError } = await supabase.from('users').insert({
+                  const tempPassword = Math.random().toString(36).slice(2) + 'Ab1!';
+                  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                    email: employee.email,
+                    password: tempPassword,
+                  });
+                  if (signUpError) throw signUpError;
+                  if (!signUpData.user) throw new Error('Failed to create auth user');
+                  authUserId = signUpData.user.id;
+                  await supabase.from('users').upsert({
+                    id: authUserId,
                     emp_name: employee.full_name,
                     email: employee.email,
                     role: member?.role ?? 'Employee',
                     emp_id: 'EMP-' + Date.now().toString().slice(-6),
-                  }).select('id').single();
-                  if (createError) throw createError;
-                  authUserId = newUser.id;
+                  }, { onConflict: 'id' });
                 }
                 const { error: omError } = await supabase.from('org_members').upsert({
                   organisation_id: orgId,
