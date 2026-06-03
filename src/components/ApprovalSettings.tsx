@@ -450,7 +450,6 @@ export const ApprovalSettings: React.FC = () => {
                     email: employee.email,
                     role: member?.role ?? 'Employee',
                     emp_id: 'EMP-' + Date.now().toString().slice(-6),
-                    organisation_id: orgId,
                   }).select('id').single();
                   if (createError) throw createError;
                   authUserId = newUser.id;
