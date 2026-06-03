@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { CheckCircle2, RefreshCw, X, XCircle, MoreHorizontal } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle2, RefreshCw, X, XCircle, MoreHorizontal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/Badge';
-import { AppTable } from '@/components/ui/AppTable';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +18,7 @@ import { usePaymentsForApproval, useApprovePayment } from '../modules/Purchase/h
 import { ApprovalAPI } from '@/approvals/api';
 import { toast } from '@/lib/logger';
 import { APPROVAL_TYPES } from '@/types/approvals';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Approval, ApprovalAction, ApprovalWorkflow } from '@/types/approvals';
 
 type ApprovalRow = {
@@ -175,6 +175,8 @@ const Approvals: React.FC = () => {
   const [historyError, setHistoryError] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
   const { data: approvals = [], isLoading: approvalsLoading } = usePaymentsForApproval(orgId);
   const { data: unifiedApprovals = [], isLoading: unifiedLoading } = useApprovalsForUser(orgId);
@@ -182,8 +184,8 @@ const Approvals: React.FC = () => {
     () => [
       ...normalizeUnified(unifiedApprovals as any[]),
       ...normalize(approvals as any[]),
-    ],
-    [approvals, unifiedApprovals]
+    ].filter(r => !removedIds.has(r.id)),
+    [approvals, unifiedApprovals, removedIds]
   );
 
   const { data: workflows = [] } = useOrgApprovalWorkflows(orgId);
@@ -192,10 +194,28 @@ const Approvals: React.FC = () => {
 
   const paymentModeEnabled = settings?.PURCHASE_PAYMENT ?? false;
   const isLoading = approvalsLoading || unifiedLoading;
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (payApprovals.length > 0) setLastRefresh(new Date());
   }, [payApprovals.length]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        queryClient.invalidateQueries({ queryKey: ['approvals', 'list', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'approval', 'pending', orgId] });
+        setLastRefresh(new Date());
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [orgId, queryClient]);
 
   const fetchApprovalHistory = async (approval: Approval) => {
     try {
@@ -322,8 +342,8 @@ const Approvals: React.FC = () => {
       list = list.filter((r) =>
         projectFilter.includes(r.projectName || '')
       );
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const q = debouncedSearchTerm.toLowerCase();
       list = list.filter(
         (r) =>
           r.title.toLowerCase().includes(q) ||
@@ -332,7 +352,32 @@ const Approvals: React.FC = () => {
       );
     }
     return list;
-  }, [activeList, typeFilter, priorityFilter, projectFilter, searchTerm]);
+  }, [activeList, typeFilter, priorityFilter, projectFilter, debouncedSearchTerm]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (showDetails) {
+        if (e.key === 'Escape') { setShowDetails(false); setActionMode('none'); e.preventDefault(); }
+        return;
+      }
+      if (activeSection !== 'awaiting') return;
+      const first = filteredList[0];
+      if (!first) return;
+      switch (e.key.toLowerCase()) {
+        case 'a':
+          e.preventDefault();
+          handleQuickApprove(first);
+          break;
+        case 'v':
+          e.preventDefault();
+          handleOpenDetails(first);
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showDetails, activeSection, filteredList]);
 
   const anyFilterActive =
     typeFilter.length > 0 ||
@@ -420,6 +465,7 @@ const Approvals: React.FC = () => {
       }
 
       toast.success('Action completed');
+      if (selectedApproval) setRemovedIds(prev => new Set(prev).add(selectedApproval.id));
       setShowDetails(false);
     } catch (e: any) {
       toast.error(e?.message ?? 'Action failed');
@@ -438,6 +484,7 @@ const Approvals: React.FC = () => {
         return;
       }
       toast.success(`Approved: ${row.title}`);
+      setRemovedIds(prev => new Set(prev).add(row.id));
     } catch (e: any) {
       toast.error(e?.message ?? 'Approval failed');
     }
@@ -454,6 +501,7 @@ const Approvals: React.FC = () => {
         return;
       }
       toast.success(`Rejected: ${row.title}`);
+      setRemovedIds(prev => new Set(prev).add(row.id));
     } catch (e: any) {
       toast.error(e?.message ?? 'Rejection failed');
     }
@@ -493,6 +541,7 @@ const Approvals: React.FC = () => {
       } catch { /* skip one */ }
     }
     toast.success(`Approved ${ok} of ${pending.length} selected`);
+    setRemovedIds(prev => new Set([...prev, ...pending.map(r => r.id)]));
     setSelectedRows([]);
   };
 
@@ -515,6 +564,7 @@ const Approvals: React.FC = () => {
       } catch { /* skip one */ }
     }
     toast.success(`Rejected ${ok} of ${pending.length} selected`);
+    setRemovedIds(prev => new Set([...prev, ...pending.map(r => r.id)]));
     setSelectedRows([]);
   };
 
@@ -532,7 +582,12 @@ const Approvals: React.FC = () => {
       </div>
 
       {/* Stats strip */}
-      <div className="flex items-center gap-4 text-xs text-zinc-600 px-1">
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        className="flex items-center gap-4 text-xs text-zinc-600 px-1"
+      >
         <span className="font-semibold text-zinc-900">
           ₹{(stats.totalPending / 100).toFixed(1)}K pending value
         </span>
@@ -549,10 +604,15 @@ const Approvals: React.FC = () => {
         <span className={stats.overdueCount > 0 ? 'text-red-600 font-semibold' : ''}>
           {stats.overdueCount} overdue
         </span>
-      </div>
+      </motion.div>
 
       {/* Section pills */}
-      <div className="flex flex-wrap items-center gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, type: 'spring', stiffness: 300, damping: 28 }}
+        className="flex flex-wrap items-center gap-4"
+      >
         <Pill
           label="Awaiting my action"
           value={sectionCounts.awaiting}
@@ -581,10 +641,15 @@ const Approvals: React.FC = () => {
           onClick={() => setActiveSection('released')}
           accent="bg-purple-600"
         />
-      </div>
+      </motion.div>
 
       {/* Search + filter toggles */}
-      <div className="flex items-center gap-2">
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, type: 'spring', stiffness: 300, damping: 28 }}
+        className="flex items-center gap-2"
+      >
         <div className="flex-1 relative">
           <input
             type="text"
@@ -612,11 +677,36 @@ const Approvals: React.FC = () => {
             Clear
           </button>
         )}
-      </div>
+        <button
+          onClick={() => {
+            const header = ['Type','Party','Project','Requester','Amount','Status','Submitted'].join(',');
+            const rows = filteredList.map(r =>
+              [r.approvalType, r.title.replace(/,/g,''), r.projectName||'', (r.requesterName||'').replace(/,/g,''), r.amount, r.status, r.requestedAt||''].join(',')
+            ).join('\n');
+            const blob = new Blob([header + '\n' + rows], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'approvals.csv'; a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="text-xs px-3 py-2 border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100 rounded-none transition-colors flex items-center gap-1.5"
+          title="Export as CSV"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Export
+        </button>
+      </motion.div>
 
       {/* Filter chips (collapsible) */}
+      <AnimatePresence>
       {showFilters && (
-        <div className="bg-white border border-zinc-200 rounded-none p-4 space-y-3">
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          className="bg-white border border-zinc-200 rounded-none overflow-hidden"
+        >
+        <div className="p-4 space-y-3">
           <FilterChipGroup
             label="Type"
             options={Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))}
@@ -643,9 +733,11 @@ const Approvals: React.FC = () => {
             />
           )}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
-      <div className="bg-white border border-zinc-200 rounded-none relative">
+      <div className="bg-white border border-zinc-200 rounded-none overflow-x-auto relative">
         <ApprovalTable
           rows={filteredList}
           onView={handleOpenDetails}
@@ -908,11 +1000,11 @@ type PillProps = {
 const Pill = ({ label, value, active, onClick, accent }: PillProps) => (
   <button
     onClick={onClick}
-    className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-[10px] text-sm transition-all ${
+    className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-[10px] text-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
       active ? 'border-zinc-900 text-zinc-900' : 'border-zinc-200 text-zinc-700 hover:bg-zinc-100'
     }`}
   >
-    <span className={`h-2.5 w-2.5 rounded-full ${active ? accent : 'bg-zinc-300'}`} />
+    <span className={`h-2.5 w-2.5 rounded-full transition-transform ${active ? accent : 'bg-zinc-300'}`} />
     <span>{label}</span>
     <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}>
       {value}
@@ -1123,14 +1215,7 @@ function MagnifyingGlassIcon(props: React.SVGProps<SVGSVGElement>) {
 
 type TableRow = {
   original: ApprovalRow;
-};
-
-type TableColumns = {
-  id: string;
-  header: string;
-  cell?: any;
-  size?: number;
-  enableSorting?: boolean;
+  id?: string;
 };
 
 type ApprovalTableProps = {
@@ -1148,56 +1233,6 @@ type ApprovalTableProps = {
   activeSection: 'awaiting' | 'others' | 'approved' | 'released';
 };
 
-const MAX_STEPPER_VISIBLE = 4;
-
-const Stepper = ({
-  chain,
-  currentLevel,
-  maxLevels,
-}: {
-  chain: ApprovalWorkflow[];
-  currentLevel: number;
-  maxLevels: number;
-}) => {
-  const total = Math.max(maxLevels, chain.length, 1);
-  const visibleSteps = Array.from({ length: Math.min(total, MAX_STEPPER_VISIBLE) }, (_, i) => i + 1);
-  const overflow = total - visibleSteps.length;
-
-  return (
-    <div className="flex items-center gap-1" title={chain.map((c) => `L${c.level} ${c.approver_role}`).join(' → ')}>
-      {visibleSteps.map((level, idx) => {
-        const isDone = level < currentLevel;
-        const isCurrent = level === currentLevel;
-        const isFuture = level > currentLevel;
-        return (
-          <div key={level} className="flex items-center">
-            <div
-              className={
-                'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border ' +
-                (isDone
-                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : isCurrent
-                  ? 'bg-blue-600 border-blue-600 text-white'
-                  : 'bg-white border-zinc-300 text-zinc-400')
-              }
-            >
-              {isDone ? <CheckCircle2 className="w-3 h-3" /> : isCurrent ? <span className="w-1.5 h-1.5 rounded-full bg-white" /> : level}
-            </div>
-            {idx < visibleSteps.length - 1 && (
-              <div
-                className={
-                  'w-3 h-px ' + (isDone || isCurrent ? 'bg-emerald-400' : 'bg-zinc-300')
-                }
-              />
-            )}
-          </div>
-        );
-      })}
-      {overflow > 0 && <span className="text-[10px] text-zinc-500 ml-1">+{overflow}</span>}
-    </div>
-  );
-};
-
 const ApprovalTable = ({
   rows,
   onView,
@@ -1208,159 +1243,45 @@ const ApprovalTable = ({
   onOpenOriginal,
   enableRowSelection,
   onSelectionChange,
+  selectedRows,
   onFetchHistory,
   activeSection,
 }: ApprovalTableProps) => {
-  const columns: TableColumns[] = [
-    {
-      id: 'type',
-      header: 'Type',
-      size: 150,
-      enableSorting: false,
-      cell: ({ row }: { row: TableRow }) => {
-        const t = row.original.approvalType;
-        return (
-          <span
-            className={
-              'inline-flex items-center text-[10px] font-semibold px-2 py-1 rounded-full border ' +
-              (TYPE_COLORS[t] ?? 'bg-zinc-50 text-zinc-700 border-zinc-200')
-            }
-          >
-            {TYPE_LABEL[t] ?? t}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'request',
-      header: 'Party name',
-      cell: ({ row }: { row: TableRow }) => {
-        const age = formatAge(row.original.requestedAt);
-        return (
-          <div className="min-w-[220px]">
-            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">{row.original.title}</div>
-            <div className="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
-              <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
-                {age.text}
-              </span>
-              {age.overdue && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
-                  Overdue
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'project',
-      header: 'Project',
-      size: 160,
-      enableSorting: false,
-      cell: ({ row }: { row: TableRow }) =>
-        row.original.projectName ? (
-          <span className="inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700 max-w-[150px] truncate">
-            {row.original.projectName}
-          </span>
-        ) : (
-          <span className="text-zinc-300 text-xs">—</span>
-        ),
-    },
-    {
-      id: 'requester',
-      header: 'Requester',
-      size: 180,
-      enableSorting: false,
-      cell: ({ row }: { row: TableRow }) => {
-        const name = row.original.requesterName;
-        const role = row.original.requesterRole;
-        if (!name) return <span className="text-zinc-300 text-xs">—</span>;
-        const initials = name
-          .split(' ')
-          .map((p) => p.charAt(0))
-          .slice(0, 2)
-          .join('')
-          .toUpperCase();
-        return (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-[10px] font-semibold">
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <div className="text-[12px] font-medium text-zinc-900 truncate max-w-[120px]">{name}</div>
-              {role && <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{role}</div>}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'amount',
-      header: 'Amount',
-      size: 160,
-      cell: ({ row }: { row: TableRow }) => (
-        <div className="flex items-center justify-end gap-2">
-          <div className="text-sm font-semibold text-zinc-900 tabular-nums">
-            {row.original.amount ? `₹${row.original.amount.toLocaleString('en-IN')}` : '—'}
-          </div>
-          <span
-            className={
-              'w-2 h-2 rounded-full shrink-0 ' +
-              (PRIORITY_DOT[(row.original.priority as string) ?? 'NORMAL'] ?? 'bg-blue-500')
-            }
-            title={`Priority: ${row.original.priority ?? 'NORMAL'}`}
-          />
-        </div>
-      ),
-    },
-    {
-      id: 'workflow',
-      header: 'Workflow',
-      size: 200,
-      enableSorting: false,
-      cell: ({ row }: { row: TableRow }) => {
-        const chain = workflows
-          .filter((w) => w.approval_type === row.original.approvalType && w.is_active)
-          .sort((a, b) => a.level - b.level);
-        if (!chain.length) {
-          return <span className="text-[11px] text-zinc-400">No workflow</span>;
-        }
-        return (
-          <div className="flex flex-col gap-1">
-            <Stepper
-              chain={chain}
-              currentLevel={row.original.currentLevel}
-              maxLevels={row.original.maxLevels}
-            />
-            <div className="text-[10px] text-zinc-500">
-              {row.original.status === 'PENDING' ? (
-                <>L{row.original.currentLevel} · {chain[row.original.currentLevel - 1]?.approver_role ?? '—'}</>
-              ) : (
-                approvalStatusLabel(row.original.status)
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'action',
-      header: '',
-      size: 140,
-      enableSorting: false,
-      cell: ({ row }: { row: TableRow }) => (
-        <ActionCell
-          row={row}
-          onView={onView}
-          onQuickApprove={onQuickApprove}
-          onQuickReject={onQuickReject}
-          onOpenOriginal={onOpenOriginal}
-          onFetchHistory={onFetchHistory}
-        />
-      ),
-    },
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedRows = rows.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
+  const startIndex = (safePage - 1) * itemsPerPage;
+
+  const selectedSet = useMemo(() => new Set(selectedRows?.map((r) => r.id) ?? []), [selectedRows]);
+
+  const toggleSelect = (row: ApprovalRow) => {
+    if (!onSelectionChange) return;
+    const current = selectedRows ?? [];
+    const exists = current.find((r) => r.id === row.id);
+    if (exists) {
+      onSelectionChange(current.filter((r) => r.id !== row.id));
+    } else {
+      onSelectionChange([...current, row]);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (!onSelectionChange) return;
+    if (selectedSet.size === paginatedRows.length) {
+      const remaining = (selectedRows ?? []).filter((r) => !paginatedRows.find((p) => p.id === r.id));
+      onSelectionChange(remaining);
+    } else {
+      const existing = new Set((selectedRows ?? []).map((r) => r.id));
+      const newRows = paginatedRows.filter((r) => !existing.has(r.id));
+      onSelectionChange([...(selectedRows ?? []), ...newRows]);
+    }
+  };
+
+  const isAllSelected = paginatedRows.length > 0 && paginatedRows.every((r) => selectedSet.has(r.id));
 
   if (loading) {
     return (
@@ -1393,14 +1314,302 @@ const ApprovalTable = ({
   }
 
   return (
-    <AppTable
-      data={rows}
-      columns={columns as any}
-      loading={false}
-      enableRowSelection={enableRowSelection}
-              onRowSelectionChange={onSelectionChange || undefined}
-      enablePagination
-    />
+    <div>
+      <div>
+        <table className="w-full border-separate border-spacing-0">
+          <thead>
+            <tr>
+              {enableRowSelection && (
+                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
+              )}
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[150px]">
+                Type
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center">
+                Party name
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[160px]">
+                Project
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[180px]">
+                Requester
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[160px]">
+                Amount
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[220px]">
+                Approval flow
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[140px]">
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <AnimatePresence mode="popLayout">
+              {paginatedRows.map((row, index) => {
+                const isSelected = selectedSet.has(row.id);
+                const t = row.approvalType;
+                const age = formatAge(row.requestedAt);
+                const requesterName = row.requesterName;
+                const requesterRole = row.requesterRole;
+                const initials = requesterName
+                  ? requesterName.split(' ').map((p) => p.charAt(0)).slice(0, 2).join('').toUpperCase()
+                  : '--';
+                const chain = workflows
+                  .filter((w) => w.approval_type === row.approvalType && w.is_active)
+                  .sort((a, b) => a.level - b.level);
+
+                return (
+                  <motion.tr
+                    key={row.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30, opacity: { duration: 0.2 } }}
+                    className={`cursor-pointer transition-all duration-200 border-t border-zinc-200/70 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
+                      openMenuId === row.id ? 'z-50' : 'z-0'
+                    } ${index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} ${
+                      isSelected ? 'bg-indigo-50/50 border-l-blue-600' : ''
+                    }`}
+                    onClick={() => {
+                      if (enableRowSelection && !openMenuId) {
+                        toggleSelect(row);
+                      }
+                    }}
+                  >
+                    {enableRowSelection && (
+                      <td className="px-4 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(row)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+                    )}
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      <span
+                        className={
+                          'inline-flex items-center text-[10px] font-semibold ' +
+                          (TYPE_COLORS[t] ?? 'text-zinc-700')
+                        }
+                      >
+                        {TYPE_LABEL[t] ?? t}
+                      </span>
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      <div>
+                        <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px] mx-auto">{row.title.replace(/ ?- ?Payment Request|Payment Request ?- ?|^Payment Request$/i, '')}</div>
+                        <div className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5 mt-0.5">
+                          <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
+                            {age.text}
+                          </span>
+                          {age.overdue && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      {row.projectName ? (
+                        <span className="inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700 max-w-[150px] truncate mx-auto">
+                          {row.projectName}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      {requesterName ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                            {initials}
+                          </div>
+                          <div className="min-w-0 text-left">
+                            <div className="text-[12px] font-medium text-zinc-900 truncate max-w-[120px]">{requesterName}</div>
+                            {requesterRole && <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{requesterRole}</div>}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="text-sm font-semibold text-zinc-900 tabular-nums">
+                          {row.amount ? `₹${row.amount.toLocaleString('en-IN')}` : '—'}
+                        </div>
+                        <span
+                          className={
+                            'w-2 h-2 rounded-full shrink-0 ' +
+                            (PRIORITY_DOT[(row.priority as string) ?? 'NORMAL'] ?? 'bg-blue-500')
+                          }
+                          title={`Priority: ${row.priority ?? 'NORMAL'}`}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      {chain.length ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          {row.status === 'PENDING' ? (
+                            <>
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                  Pending
+                                </span>
+                                <span className="text-zinc-400">with</span>
+                                <span className="font-medium text-zinc-900">
+                                  {chain[row.currentLevel - 1]?.approver_role ?? '—'}
+                                </span>
+                              </div>
+                              {chain[row.currentLevel] && (
+                                <div className="text-[10px] text-zinc-500">
+                                  Next: {chain[row.currentLevel].approver_role}
+                                </div>
+                              )}
+                            </>
+                          ) : row.status === 'APPROVED' ? (
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Approved
+                              </span>
+                              {chain[row.currentLevel - 1] && (
+                                <span className="text-zinc-500">by {chain[row.currentLevel - 1].approver_role}</span>
+                              )}
+                            </div>
+                          ) : row.status === 'REJECTED' ? (
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 font-medium">
+                                <XCircle className="w-3 h-3" />
+                                Rejected
+                              </span>
+                              {chain[row.currentLevel - 1] && (
+                                <span className="text-zinc-500">by {chain[row.currentLevel - 1].approver_role}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
+                              {approvalStatusLabel(row.status)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400">No workflow</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      <ActionCell
+                        row={{ original: row, id: row.id }}
+                        onView={onView}
+                        onQuickApprove={onQuickApprove}
+                        onQuickReject={onQuickReject}
+                        onOpenOriginal={onOpenOriginal}
+                        onFetchHistory={onFetchHistory}
+                        openMenuId={openMenuId}
+                        onOpenMenuChange={setOpenMenuId}
+                      />
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+        <div className="text-sm font-medium text-zinc-600">
+          Showing {rows.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, rows.length)} of {rows.length}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(1)}
+            disabled={safePage <= 1}
+            className={`h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors ${
+              safePage > 1
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            First
+          </button>
+          <button
+            onClick={() => setCurrentPage(safePage - 1)}
+            disabled={safePage <= 1}
+            className={`h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors ${
+              safePage > 1
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Prev
+          </button>
+          <div className="flex items-center gap-1.5 mx-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (safePage <= 3) {
+                pageNum = i + 1;
+              } else if (safePage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = safePage - 2 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                    safePage === pageNum
+                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
+                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200 active:scale-[0.98]'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => setCurrentPage(safePage + 1)}
+            disabled={safePage >= totalPages}
+            className={`h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors ${
+              safePage < totalPages
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Next
+          </button>
+          <button
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={safePage >= totalPages}
+            className={`h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors ${
+              safePage < totalPages
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Last
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1411,6 +1620,8 @@ const ActionCell = ({
   onQuickReject,
   onOpenOriginal,
   onFetchHistory,
+  openMenuId,
+  onOpenMenuChange,
 }: {
   row: TableRow;
   onView: (row: ApprovalRow) => void;
@@ -1418,10 +1629,24 @@ const ActionCell = ({
   onQuickReject?: (row: ApprovalRow, reason: string) => void;
   onOpenOriginal?: (row: ApprovalRow) => void;
   onFetchHistory?: (approval: Approval) => void;
+  openMenuId?: string | null;
+  onOpenMenuChange?: (id: string | null) => void;
 }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpen = openMenuId === row.original.id;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  const setMenuOpen = (open: boolean) => {
+    if (open && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    } else {
+      setMenuPos(null);
+    }
+    onOpenMenuChange?.(open ? row.original.id : null);
+  };
 
   const isPending = row.original.status === 'PENDING';
 
@@ -1433,19 +1658,17 @@ const ActionCell = ({
   };
 
   return (
-    <div className="flex items-center justify-end gap-1">
-      {/* Quick approve (pending only, shown on hover) */}
+    <div className="flex items-center justify-center gap-1">
       {isPending && onQuickApprove && !rejectOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); onQuickApprove(row.original); }}
-          className="p-1 rounded-md text-zinc-300 hover:text-emerald-600 hover:bg-emerald-50 transition-colors group-hover/row:opacity-100 opacity-0"
+          className="p-1 rounded-md text-zinc-300 hover:text-emerald-600 hover:bg-emerald-50 transition-colors opacity-0 group-hover:opacity-100"
           title="Quick approve"
         >
           <CheckCircle2 className="w-4 h-4" />
         </button>
       )}
 
-      {/* Quick reject input */}
       {isPending && rejectOpen && (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <input
@@ -1468,18 +1691,16 @@ const ActionCell = ({
         </div>
       )}
 
-      {/* Quick reject button (pending only) */}
       {isPending && onQuickReject && !rejectOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); setRejectOpen(true); }}
-          className="p-1 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors group-hover/row:opacity-100 opacity-0"
+          className="p-1 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
           title="Quick reject"
         >
           <XCircle className="w-4 h-4" />
         </button>
       )}
 
-      {/* View button */}
       <button
         onClick={() => onView(row.original)}
         className="text-[11px] text-blue-600 hover:underline font-medium ml-1"
@@ -1487,18 +1708,21 @@ const ActionCell = ({
         View
       </button>
 
-      {/* ⋮ Menu */}
-      <div className="relative">
+      <div>
         <button
+          ref={menuBtnRef}
           onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
           className="p-1 rounded-md hover:bg-zinc-100 transition-colors"
         >
           <MoreHorizontal className="w-4 h-4 text-zinc-400" />
         </button>
-        {menuOpen && (
+        {menuOpen && menuPos && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 py-1">
+            <div
+              className="fixed z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5"
+              style={{ top: menuPos.top, right: menuPos.right }}
+            >
               <MenuBtn onClick={() => { setMenuOpen(false); onView(row.original); }}>
                 View details
               </MenuBtn>
@@ -1510,7 +1734,7 @@ const ActionCell = ({
               </MenuBtn>
               {isPending && (
                 <>
-                  <div className="border-t border-zinc-100 my-1" />
+                  <div className="my-1 border-t border-zinc-100" />
                   <MenuBtn
                     onClick={() => { setMenuOpen(false); onQuickApprove?.(row.original); }}
                     className="text-emerald-700"
@@ -1544,7 +1768,7 @@ const MenuBtn = ({
 }) => (
   <button
     onClick={(e) => { e.stopPropagation(); onClick(); }}
-    className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-50 flex items-center gap-2 text-zinc-700 ${className ?? ''}`}
+    className={`flex w-full items-center gap-2 rounded-md px-2 text-[12px] py-[6px] transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] text-zinc-600 ${className ?? ''}`}
   >
     {children}
   </button>

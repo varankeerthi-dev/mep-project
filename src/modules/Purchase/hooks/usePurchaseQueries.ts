@@ -1090,7 +1090,17 @@ export const usePaymentsForApproval = (organisationId: string | undefined) => {
         .order('payment_date', { ascending: true });
 
       if (error) throw error;
-      return data || [];
+
+      const userIds = [...new Set((data || []).map((p: any) => p.created_by).filter(Boolean))];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from('user_profiles').select('id, full_name').in('id', userIds)
+        : { data: [] };
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.full_name]));
+
+      return (data || []).map((p: any) => ({
+        ...p,
+        requester_name: profileMap[p.created_by] || null,
+      }));
     }),
     enabled: !!organisationId,
   });

@@ -49,6 +49,8 @@ export interface AppTableProps<T extends Record<string, any>> {
     onPrint?: () => void;
     onDelete?: () => void;
   };
+  rowPadding?: string;
+  cellAlign?: 'left' | 'center' | 'right';
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -85,6 +87,8 @@ export function AppTable<T extends Record<string, any>>({
   emptyMessage = 'No data available',
   className,
   bulkActions,
+  rowPadding = 'py-[26px]',
+  cellAlign = 'left',
 }: AppTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -384,7 +388,7 @@ export function AppTable<T extends Record<string, any>>({
             key={cell.id}
             className={cn(
               'align-middle whitespace-nowrap',
-              isSelectCol ? 'px-4 text-center' : isActionCol ? 'px-6 text-center' : 'px-6 py-[26px]'
+              isSelectCol ? 'px-4 text-center' : isActionCol ? 'px-6 text-center' : `px-6 ${rowPadding} text-${cellAlign}`
             )}
             style={{ maxWidth: cell.column.getSize() }}
           >
@@ -407,7 +411,7 @@ export function AppTable<T extends Record<string, any>>({
               {Array.from({ length: loadingRows }).map((_, i) => (
                 <tr key={i} className="border-t border-zinc-200/70 bg-white">
                   {columns.map((_, j) => (
-                    <td key={j} className="px-6 py-[26px] align-middle">
+                    <td key={j} className={`px-6 ${rowPadding} align-middle`}>
                       <div className="h-4 bg-zinc-100 rounded animate-pulse w-full max-w-[200px]" />
                     </td>
                   ))}

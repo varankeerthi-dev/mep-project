@@ -132,9 +132,20 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
+      const userIds = [...new Set((approvals || []).map((a: any) => a.requested_by).filter(Boolean))];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from('user_profiles').select('id, full_name').in('id', userIds)
+        : { data: [] };
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.full_name]));
+
+      const enriched = (approvals || []).map((a: any) => ({
+        ...a,
+        requester_name: profileMap[a.requested_by] || null,
+      }));
+
       return {
         success: true,
-        data: approvals || [],
+        data: enriched,
         meta: { timestamp: new Date().toISOString() }
       };
 
