@@ -19,7 +19,7 @@ import { ApprovalAPI } from '@/approvals/api';
 import { toast } from '@/lib/logger';
 import { APPROVAL_TYPES } from '@/types/approvals';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Approval, ApprovalAction, ApprovalWorkflow } from '@/types/approvals';
+import type { Approval, ApprovalAction, ApprovalActionLog, ApprovalWorkflow } from '@/types/approvals';
 
 type ApprovalRow = {
   id: string;
@@ -137,7 +137,7 @@ function formatAge(iso?: string | null): { text: string; overdue: boolean } {
 
 function formatRelativeTime(date: Date): string {
   const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 60) return 'just now';
+  if (diff < 60) return diff < 0 ? 'just now' : 'just now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
@@ -171,7 +171,7 @@ const Approvals: React.FC = () => {
   const [actionMode, setActionMode] = useState<'none' | 'reject'>('none');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const [history, setHistory] = useState<Approval[]>([]);
+  const [history, setHistory] = useState<ApprovalActionLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -451,18 +451,23 @@ const Approvals: React.FC = () => {
         comments: action === 'REJECTED' ? rejectionReason.trim() : undefined,
       } as any;
 
-      if (selectedApproval.referenceType === 'purchase_payments') {
-        await approvePayment.mutateAsync({
-          paymentId: selectedApproval.referenceId,
-          approvalId: selectedApproval.id,
-          actorId: organisation?.user?.id as string | undefined,
-        });
-      }
-
       const res = await ApprovalAPI.processApproval(selectedApproval.id, base as any);
       if (!res.success) {
         toast.error(res.error?.message ?? 'Action failed');
         return;
+      }
+
+      if (action === 'APPROVED' && (selectedApproval.referenceType === 'purchase_payments' || selectedApproval.referenceType === 'subcontractor_payments')) {
+        await supabase
+          .from(selectedApproval.referenceType === 'purchase_payments' ? 'purchase_payments' : 'subcontractor_payments')
+          .update({
+            workflow_step: 'approved',
+            approval_status: 'Approved',
+            approval_id: selectedApproval.id,
+            approved_by: (organisation as any)?.user?.id as string | undefined,
+            approved_at: new Date().toISOString(),
+          })
+          .eq('id', selectedApproval.referenceId);
       }
 
       toast.success('Action completed');
@@ -687,7 +692,7 @@ const Approvals: React.FC = () => {
           onClick={() => {
             const esc = (v: unknown) => {
               const s = String(v ?? '');
-              return /["\n,;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+              return /["\n\r,;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
             };
             const header = ['Type','Party','Project','Requester','Amount','Status','Submitted'].join(',');
             const rows = filteredList.map(r =>
@@ -927,13 +932,13 @@ const Approvals: React.FC = () => {
                   {history.map((entry, idx) => (
                     <div key={entry.id ?? idx} className="text-xs border border-zinc-100 rounded-md px-3 py-2.5">
                       <div className="font-semibold text-zinc-800">
-                        {approvalStatusLabel(entry.action as ApprovalRow['status'])}
+                        {approvalStatusLabel(entry.action as unknown as ApprovalRow['status'])}
                       </div>
                       <div className="text-zinc-500 mt-0.5">
-                        {new Date((entry as any).action_at ?? entry.requested_at ?? entry.created_at).toLocaleString('en-IN')}
+                        {new Date(entry.action_at ?? entry.created_at).toLocaleString('en-IN')}
                       </div>
-                      {(entry as any).comments && (
-                        <div className="text-zinc-600 mt-1 italic">&ldquo;{(entry as any).comments}&rdquo;</div>
+                      {entry.comments && (
+                        <div className="text-zinc-600 mt-1 italic">&ldquo;{entry.comments}&rdquo;</div>
                       )}
                     </div>
                   ))}
@@ -1130,6 +1135,7 @@ function normalize(items: any[]): ApprovalRow[] {
       projectName: item.projectName ?? item.project_name ?? null,
       referenceNumber:
         item.referenceNumber ?? item.reference_number ?? item.voucher_no ?? null,
+      releasedAt: item.releasedAt ?? item.released_at ?? null,
     };
   });
 }
@@ -1151,6 +1157,7 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     requesterRole: item.requester_role ?? null,
     projectName: item.project_name ?? null,
     referenceNumber: item.reference_number ?? null,
+    releasedAt: item.released_at ?? null,
   }));
 }
 
@@ -1205,16 +1212,6 @@ function approvalStatusLabel(status: ApprovalRow['status']) {
     default:
       return status;
   }
-}
-
-function tidy(list: ApprovalRow[], scope: string): ApprovalRow[] {
-  return list.filter((row) => {
-    if (scope === 'awaiting') return row.status === 'PENDING';
-    if (scope === 'others') return row.status === 'FORWARDED' || row.status === 'HOLD';
-    if (scope === 'approved') return row.status === 'APPROVED';
-    if (scope === 'released') return row.status === 'APPROVED' && !!row.releasedAt;
-    return false;
-  });
 }
 
 function MagnifyingGlassIcon(props: React.SVGProps<SVGSVGElement>) {

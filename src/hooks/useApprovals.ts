@@ -23,7 +23,7 @@ export function useApprovalsForUser(orgId: string | undefined) {
 }
 
 export function useOrgApprovalWorkflows(orgId: string | undefined) {
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, refetch } = useQuery({
     queryKey: ['approval-workflows', orgId],
     queryFn: async (): Promise<ApprovalWorkflow[]> => {
       const res = await ApprovalAPI.getApprovalWorkflows();
@@ -33,7 +33,7 @@ export function useOrgApprovalWorkflows(orgId: string | undefined) {
     enabled: !!orgId,
   });
 
-  return { data, loading: isLoading, refetch: () => {} };
+  return { data, loading: isLoading, refetch };
 }
 
 type ApprovalSettingsForOrg = Record<

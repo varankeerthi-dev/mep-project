@@ -61,6 +61,7 @@ export interface Approval {
   project_id?: string | null;
   project_name?: string | null;
   reference_number?: string | null;
+  released_at?: string | null;
 }
 
 export interface ApprovalWorkflow {
