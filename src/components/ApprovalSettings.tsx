@@ -477,7 +477,6 @@ export const ApprovalSettings: React.FC = () => {
                   p_organisation_id: orgId,
                   p_user_id: authUserId,
                   p_role: member?.role ?? 'Employee',
-                  p_status: 'active',
                 });
                 if (omError) throw omError;
                 resolvedIds.set(approverId, authUserId);

@@ -109,7 +109,6 @@ export default function AccessControlPage() {
           p_organisation_id: orgId,
           p_user_id: existingUsers.user_id,
           p_role: 'Employee',
-          p_status: 'active',
         });
       } else {
         const tempPw = Math.random().toString(36).slice(2) + 'Ab1!';
@@ -129,7 +128,6 @@ export default function AccessControlPage() {
             p_organisation_id: orgId,
             p_user_id: sd.user.id,
             p_role: 'Employee',
-            p_status: 'active',
           });
         }
       }

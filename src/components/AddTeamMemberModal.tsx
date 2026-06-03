@@ -53,7 +53,6 @@ export function AddTeamMemberModal({ isOpen, onClose, organisationId, onSuccess 
         p_organisation_id: organisationId,
         p_user_id: authUserId,
         p_role: formData.role,
-        p_status: 'active',
       });
       if (omError) throw omError;
 

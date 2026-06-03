@@ -1,0 +1,396 @@
+        {/* Line Items Section */}
+        <div style={{
+          marginTop: '32px',
+          padding: '24px',
+          background: '#fafafa',
+          border: '1px solid #e5e5e5',
+          borderRadius: '8px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <FileText size={20} style={{ color: '#525252' }} />
+              <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#171717', margin: 0 }}>
+                Line Items
+              </h2>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={addEmptyItemRow}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add Row
+              </button>
+              <button
+                type="button"
+                onClick={addSectionHeader}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add Header
+              </button>
+              <button
+                type="button"
+                onClick={addSubtotal}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add Sub-total
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCustomLabelEditor(true)}
+                style={{
+                  padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px',
+                  background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '4px'
+                }}
+              >
+                <Settings size={14}/> Columns
+              </button>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #e5e5e5' }}>
+                  <th style={{ padding: '10px 8px', textAlign: 'center', width: '40px' }}></th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>#</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Description</th>
+                  {templateSettings?.column_settings?.optional?.variant && (
+                    <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Variant</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.make && (
+                    <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Make</th>
+                  )}
+                  <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Qty</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', color: '#525252' }}>Unit</th>
+                  
+                  {templateSettings?.column_settings?.optional?.rate_per_unit && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Base Rate</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.discount_percent && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Disc %</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.rate_after_discount && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>
+                      {templateSettings.column_settings.labels?.rate_after_discount || 'Final Rate'}
+                    </th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.gst_percentage && (
+                    <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>GST %</th>
+                  )}
+                  <th style={{ padding: '10px 8px', textAlign: 'right', color: '#525252' }}>Total</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'center', width: '40px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, index) => {
+                  if (item.is_header) {
+                    return (
+                      <tr 
+                        key={item.id} 
+                        draggable 
+                        onDragStart={(e) => handleDragStart(e, item.id!)} 
+                        onDragOver={handleDragOver} 
+                        onDrop={(e) => handleDropOnRow(e, item.id!)}
+                        onDragEnd={handleDragEnd}
+                        style={{ background: '#f3f4f6', borderBottom: '1px solid #e5e5e5', opacity: draggingItemId === item.id ? 0.5 : 1 }}
+                      >
+                        <td style={{ padding: '12px 8px', textAlign: 'center', cursor: 'grab' }}><GripVertical size={16} color="#9ca3af"/></td>
+                        <td colSpan={100} style={{ padding: '12px 8px' }}>
+                          <input 
+                            value={item.description} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].description = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '100%', background: 'transparent', border: 'none', fontWeight: 'bold', fontSize: '14px', outline: 'none' }}
+                          />
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <button type="button" onClick={() => {
+                            const newItems = lineItems.filter((_, i) => i !== index);
+                            setLineItems(newItems);
+                          }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  if (item.is_subtotal) {
+                    return (
+                      <tr 
+                        key={item.id} 
+                        draggable 
+                        onDragStart={(e) => handleDragStart(e, item.id!)} 
+                        onDragOver={handleDragOver} 
+                        onDrop={(e) => handleDropOnRow(e, item.id!)}
+                        onDragEnd={handleDragEnd}
+                        style={{ background: '#fef9c3', borderBottom: '1px solid #e5e5e5', opacity: draggingItemId === item.id ? 0.5 : 1 }}
+                      >
+                        <td style={{ padding: '12px 8px', textAlign: 'center', cursor: 'grab' }}><GripVertical size={16} color="#ca8a04"/></td>
+                        <td colSpan={100} style={{ padding: '12px 8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#854d0e' }}>
+                            <input 
+                              value={item.subtotal_label || ''} 
+                              onChange={e => {
+                                const updated = [...lineItems];
+                                updated[index].subtotal_label = e.target.value;
+                                setLineItems(updated);
+                              }}
+                              style={{ background: 'transparent', border: 'none', fontWeight: 'bold', color: '#854d0e', outline: 'none', width: '300px' }}
+                            />
+                            <span>SUBTOTAL ROW</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <button type="button" onClick={() => {
+                            const newItems = lineItems.filter((_, i) => i !== index);
+                            setLineItems(newItems);
+                          }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // Normal Material Row
+                  const baseRate = parseFloat(item.base_rate_snapshot?.toString() || item.rate_per_unit?.toString() || '0');
+                  const discount = parseFloat(item.applied_discount_percent?.toString() || item.discount_percent?.toString() || '0');
+                  const finalRate = baseRate - (baseRate * discount / 100);
+                  const lineTotal = (item.quantity || 0) * finalRate;
+
+                  return (
+                    <tr 
+                      key={item.id} 
+                      draggable 
+                      onDragStart={(e) => handleDragStart(e, item.id!)} 
+                      onDragOver={handleDragOver} 
+                      onDrop={(e) => handleDropOnRow(e, item.id!)}
+                      onDragEnd={handleDragEnd}
+                      style={{ borderBottom: '1px solid #e5e5e5', background: '#fff', opacity: draggingItemId === item.id ? 0.5 : 1 }}
+                    >
+                      <td style={{ padding: '8px', textAlign: 'center', cursor: 'grab' }}><GripVertical size={16} color="#d1d5db"/></td>
+                      <td style={{ padding: '8px', color: '#6b7280' }}>{index + 1}</td>
+                      <td style={{ padding: '8px' }}>
+                        {item.is_manual ? (
+                          <input 
+                            value={item.description} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].description = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            placeholder="Description"
+                            style={{ width: '100%', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px' }}
+                          />
+                        ) : (
+                          <select
+                            value={item.material_id || ''}
+                            onChange={(e) => {
+                              // We simulate handleMaterialSelection here since it needs index & value
+                              // Or simply reuse the old one if it's there
+                              const updated = [...lineItems];
+                              updated[index].material_id = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '100%', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', background: '#fff' }}
+                          >
+                            <option value="">Select Material</option>
+                            {materials.map(m => (
+                              <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <div style={{ marginTop: '4px', textAlign: 'right' }}>
+                          <button type="button" onClick={() => {
+                            const updated = [...lineItems];
+                            updated[index].is_manual = !updated[index].is_manual;
+                            setLineItems(updated);
+                          }} style={{ background: 'none', border: 'none', fontSize: '10px', color: '#3b82f6', cursor: 'pointer' }}>Toggle Entry Mode</button>
+                        </div>
+                      </td>
+                      
+                      {templateSettings?.column_settings?.optional?.variant && (
+                        <td style={{ padding: '8px' }}>
+                          <select 
+                            value={item.variant_id || ''} 
+                            onChange={e => {
+                               const updated = [...lineItems];
+                               updated[index].variant_id = e.target.value;
+                               setLineItems(updated);
+                            }}
+                            style={{ width: '100px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', background: '#fff' }}
+                          >
+                            <option value="">N/A</option>
+                            {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
+                          </select>
+                        </td>
+                      )}
+                      
+                      {templateSettings?.column_settings?.optional?.make && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            value={item.make || ''} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].make = e.target.value;
+                              setLineItems(updated);
+                            }}
+                            placeholder="Make"
+                            style={{ width: '80px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px' }}
+                          />
+                        </td>
+                      )}
+                      
+                      <td style={{ padding: '8px' }}>
+                        <input 
+                          type="number" 
+                          value={item.quantity} 
+                          onChange={e => {
+                            const updated = [...lineItems];
+                            updated[index].quantity = parseFloat(e.target.value) || 0;
+                            setLineItems(updated);
+                          }}
+                          style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                        />
+                      </td>
+                      
+                      <td style={{ padding: '8px' }}>
+                        <input 
+                          value={item.unit} 
+                          onChange={e => {
+                            const updated = [...lineItems];
+                            updated[index].unit = e.target.value;
+                            setLineItems(updated);
+                          }}
+                          style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px' }}
+                        />
+                      </td>
+
+                      {templateSettings?.column_settings?.optional?.rate_per_unit && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={item.base_rate_snapshot || item.rate_per_unit || 0} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              const val = parseFloat(e.target.value) || 0;
+                              updated[index].base_rate_snapshot = val;
+                              updated[index].rate_per_unit = val;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '80px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                          />
+                        </td>
+                      )}
+
+                      {templateSettings?.column_settings?.optional?.discount_percent && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={item.applied_discount_percent || item.discount_percent || 0} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              const val = parseFloat(e.target.value) || 0;
+                              updated[index].applied_discount_percent = val;
+                              updated[index].discount_percent = val;
+                              updated[index].is_override = true;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                          />
+                        </td>
+                      )}
+
+                      {templateSettings?.column_settings?.optional?.rate_after_discount && (
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#374151' }}>
+                          ₹{finalRate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      )}
+                      
+                      {templateSettings?.column_settings?.optional?.gst_percentage && (
+                        <td style={{ padding: '8px' }}>
+                          <input 
+                            type="number" 
+                            value={item.gst_percentage || 0} 
+                            onChange={e => {
+                              const updated = [...lineItems];
+                              updated[index].gst_percentage = parseFloat(e.target.value) || 0;
+                              setLineItems(updated);
+                            }}
+                            style={{ width: '60px', padding: '4px 8px', border: '1px solid #e5e5e5', borderRadius: '4px', textAlign: 'right' }}
+                          />
+                        </td>
+                      )}
+
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: '#166534' }}>
+                        ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+
+                      <td style={{ padding: '8px', textAlign: 'center' }}>
+                        <button type="button" onClick={() => {
+                          const newItems = lineItems.filter((_, i) => i !== index);
+                          setLineItems(newItems);
+                        }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {lineItems.length > 0 && (
+            <div style={{
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '1px solid #e5e5e5',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              alignItems: 'flex-end'
+            }}>
+              <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#737373', marginBottom: '2px' }}>Basic Value</div>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#525252' }}>
+                    ₹{calculateBasicTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#737373', marginBottom: '2px' }}>GST Value</div>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#525252' }}>
+                    ₹{calculateGSTTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#737373', marginBottom: '2px' }}>Total Value</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: '#166534' }}>
+                    ₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Payment Terms Section */}
