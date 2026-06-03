@@ -403,6 +403,20 @@ export class ApprovalAPI {
         .order('approval_type', { ascending: true })
         .order('level', { ascending: true });
 
+      if (workflows) {
+        const userIds = workflows.map((w: any) => w.approver_id).filter(Boolean);
+        if (userIds.length > 0) {
+          const { data: userRows } = await supabase
+            .from('users')
+            .select('id, emp_name')
+            .in('id', userIds);
+          const nameMap = Object.fromEntries((userRows ?? []).map((u: any) => [u.id, u.emp_name]));
+          for (const w of workflows) {
+            (w as any).approver_name = nameMap[w.approver_id] ?? null;
+          }
+        }
+      }
+
       if (error) {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }

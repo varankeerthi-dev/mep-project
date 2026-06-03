@@ -20,7 +20,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT';
+type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST';
 
 type WorkflowLevel = {
   id: string;
@@ -42,6 +42,10 @@ const MODULE_META: Record<ModuleKey, { label: string; description: string }> = {
   SUBCONTRACTOR_PAYMENT: {
     label: 'Subcontractor Payments',
     description: 'Payments raised for subcontractors / vendors',
+  },
+  PAYMENT_REQUEST: {
+    label: 'Payment Requests',
+    description: 'Payment requests raised from the dashboard',
   },
 };
 
@@ -187,6 +191,7 @@ export const ApprovalSettings: React.FC = () => {
   const [modules, setModules] = useState<Record<ModuleKey, ModuleConfig>>(() => ({
     PURCHASE_PAYMENT: { enabled: false, levels: [] },
     SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
+    PAYMENT_REQUEST: { enabled: false, levels: [] },
   }));
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
@@ -232,6 +237,7 @@ export const ApprovalSettings: React.FC = () => {
     const next: Record<ModuleKey, ModuleConfig> = {
       PURCHASE_PAYMENT: { enabled: false, levels: [] },
       SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
+      PAYMENT_REQUEST: { enabled: false, levels: [] },
     };
 
     workflows.forEach((w: any) => {
@@ -421,7 +427,7 @@ export const ApprovalSettings: React.FC = () => {
         .from('approval_workflows')
         .delete()
         .eq('organisation_id', orgId)
-        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT']);
+        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST']);
 
       if (error) throw error;
 

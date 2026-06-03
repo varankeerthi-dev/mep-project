@@ -1487,49 +1487,51 @@ const ApprovalTable = ({
                     </td>
                     <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
                       {chain.length ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                          {row.status === 'PENDING' ? (
-                            <>
-                              <div className="flex items-center gap-1.5 text-xs">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                  Pending
+                        <div className="flex flex-col items-start gap-1">
+                          {chain.map((w, i) => {
+                            const isCompleted = i + 1 < row.currentLevel;
+                            const isCurrent = i + 1 === row.currentLevel;
+                            const isPending = i + 1 > row.currentLevel;
+                            const name = w.approver_name || w.approver_role || '—';
+                            return (
+                              <div key={w.id} className="flex items-center gap-1.5 text-xs">
+                                {isCompleted ? (
+                                  <span className="shrink-0 w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                  </span>
+                                ) : isCurrent && row.status === 'PENDING' ? (
+                                  <span className="shrink-0 w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                  </span>
+                                ) : row.status === 'REJECTED' && isCurrent ? (
+                                  <span className="shrink-0 w-4 h-4 rounded-full bg-red-100 flex items-center justify-center">
+                                    <XCircle className="w-2.5 h-2.5 text-red-600" />
+                                  </span>
+                                ) : (
+                                  <span className="shrink-0 w-4 h-4 rounded-full bg-zinc-100 flex items-center justify-center">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-300" />
+                                  </span>
+                                )}
+                                <span className={isCurrent ? 'font-semibold text-zinc-900' : 'text-zinc-500'}>
+                                  {name}
                                 </span>
-                                <span className="text-zinc-400">with</span>
-                                <span className="font-medium text-zinc-900">
-                                  {chain[row.currentLevel - 1]?.approver_role ?? '—'}
-                                </span>
+                                {isCurrent && row.status === 'PENDING' && (
+                                  <span className="text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 font-medium leading-none">
+                                    Now
+                                  </span>
+                                )}
                               </div>
-                              {chain[row.currentLevel] && (
-                                <div className="text-[10px] text-zinc-500">
-                                  Next: {chain[row.currentLevel].approver_role}
-                                </div>
-                              )}
-                            </>
-                          ) : row.status === 'APPROVED' ? (
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium">
-                                <CheckCircle2 className="w-3 h-3" />
-                                Approved
-                              </span>
-                              {chain[row.currentLevel - 1] && (
-                                <span className="text-zinc-500">by {chain[row.currentLevel - 1].approver_role}</span>
-                              )}
+                            );
+                          })}
+                          {row.status === 'APPROVED' && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[10px] font-medium text-emerald-600">All approved</span>
                             </div>
-                          ) : row.status === 'REJECTED' ? (
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 font-medium">
-                                <XCircle className="w-3 h-3" />
-                                Rejected
-                              </span>
-                              {chain[row.currentLevel - 1] && (
-                                <span className="text-zinc-500">by {chain[row.currentLevel - 1].approver_role}</span>
-                              )}
+                          )}
+                          {row.status === 'REJECTED' && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[10px] font-medium text-red-600">Rejected</span>
                             </div>
-                          ) : (
-                            <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
-                              {approvalStatusLabel(row.status)}
-                            </span>
                           )}
                         </div>
                       ) : (

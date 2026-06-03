@@ -72,6 +72,7 @@ export interface ApprovalWorkflow {
   max_amount?: number;
   approver_role: string;
   approver_id?: string;
+  approver_name?: string | null;
   is_active: boolean;
   organisation_id: string;
   created_at: string;
