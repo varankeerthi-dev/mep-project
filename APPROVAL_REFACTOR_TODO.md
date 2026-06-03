@@ -8,7 +8,7 @@ Status of phases. Each phase ends with a git commit (rollback checkpoint).
 | 2 | Row interactions (hover quick-approve/reject, action menu, bulk) | done | `c7abb57` |
 | 3 | Above-table layer (stats, filter bar, pill nav) | done | `30657be` |
 | 4 | Modal → Drawer (side drawer, tabs) | done | `00aa2af` |
-| 5 | Polish (empty states, overdue SLA, loading/error states) | in progress | — |
+| 5 | Polish (empty states, overdue SLA, loading/error states) | done | `a116d3e` |
 | — | Full end-to-end test of approval tab | pending | — |
 
 ## Out of scope (per user)
