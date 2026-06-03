@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApprovalAPI } from '@/approvals/api';
 import type { Approval, ApprovalWorkflow, ApiResponse } from '@/types/approvals';
-import { useReleaseSubcontractorPayment as useReleaseSubcontractorPaymentImpl } from '@/modules/Purchase/hooks/usePurchaseQueries';
+import {
+  useReleaseSubcontractorPayment as useReleaseSubcontractorPaymentImpl,
+  useSubcontractorPaymentsForAccountant as useSubcontractorPaymentsForAccountantImpl,
+} from '@/modules/Purchase/hooks/usePurchaseQueries';
 
 export const useReleaseSubcontractorPayment = useReleaseSubcontractorPaymentImpl;
+export const useSubcontractorPaymentsForAccountant = useSubcontractorPaymentsForAccountantImpl;
 
 export function useApprovalsForUser(orgId: string | undefined) {
   return useQuery({
