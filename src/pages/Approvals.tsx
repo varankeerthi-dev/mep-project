@@ -648,129 +648,174 @@ const Approvals: React.FC = () => {
       </div>
 
       {showDetails && selectedApproval && (
-        <Dialog open={showDetails} onOpenChange={(open) => !open && setShowDetails(false)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{selectedApproval.title}</DialogTitle>
-            </DialogHeader>
+        <Dialog open={showDetails} onOpenChange={(open) => { if (!open) { setShowDetails(false); setActionMode('none'); } }}>
+          <DialogContent className="!fixed !right-0 !top-0 !bottom-0 !left-auto !translate-x-0 !translate-y-0 !m-0 h-full max-w-xl w-full rounded-none border-l border-zinc-200 overflow-hidden flex flex-col !p-0">
+            {/* Close button */}
+            <button
+              onClick={() => { setShowDetails(false); setActionMode('none'); }}
+              className="absolute top-4 right-4 z-10 p-1 rounded-md hover:bg-zinc-100"
+            >
+              <X className="w-4 h-4 text-zinc-500" />
+            </button>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <Detail label="Amount" value={selectedApproval.amount ? `₹${selectedApproval.amount.toLocaleString()}` : '-'} />
-                <Detail label="Type" value={APPROVAL_TYPES.find((t) => t.type === selectedApproval.approvalType)?.label} />
-                <Detail label="Status" value={approvalStatusLabel(selectedApproval.status)} />
+            {/* Header */}
+            <div className="px-6 pt-6 pb-0 border-b border-zinc-100">
+              <DialogTitle className="text-base font-semibold text-zinc-900 pr-8">
+                {selectedApproval.title}
+              </DialogTitle>
+              <div className="flex items-center gap-2 mt-2 pb-3">
+                <span className={SCORE_COLORS[selectedApproval.status] + ' text-[10px] px-2 py-0.5 rounded-full border font-semibold'}>
+                  {approvalStatusLabel(selectedApproval.status)}
+                </span>
+                <span className={TYPE_COLORS[selectedApproval.approval_type as string] + ' text-[10px] px-2 py-0.5 rounded-full border font-semibold'}>
+                  {TYPE_LABEL[selectedApproval.approval_type as string] ?? selectedApproval.approval_type}
+                </span>
               </div>
+            </div>
 
-              {detailsMap[selectedApproval.id] && (
-                <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 text-sm">
-                  <SectionRow label="Total invoice / PO / contract amount" value={`₹${detailsMap[selectedApproval.id].totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
-                  <SectionRow label="Amount under approval now" value={`₹${detailsMap[selectedApproval.id].currentAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
-                  <SectionRow label="Prior payments already made" value={`₹${detailsMap[selectedApproval.id].paidSoFar.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
-                  <SectionRow label="Remaining balance" value={`₹${detailsMap[selectedApproval.id].balance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
-                  <SectionRow label="Payment mode" value="—" />
-                </div>
-              )}
+            {/* Tabs */}
+            <div className="flex border-b border-zinc-200 px-6">
+              <TabBtn active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
+                Overview
+              </TabBtn>
+              <TabBtn
+                active={activeTab === 'history'}
+                onClick={() => {
+                  setActiveTab('history');
+                  if (history.length === 0 && !historyLoading) {
+                    fetchApprovalHistory(selectedApproval);
+                  }
+                }}
+              >
+                History {history.length > 0 && `(${history.length})`}
+              </TabBtn>
+            </div>
 
-              {paymentDetail && (
-                <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 text-sm">
-                  <SectionRow label="Vendor / Party" value={paymentDetail.vendor?.company_name || paymentDetail.subcontractor?.company_name || '-'} />
-                  <SectionRow label="Mode" value={paymentDetail.payment_mode || '-'} />
-                  <SectionRow label="Reference" value={paymentDetail.reference_no || '-'} />
-                  <SectionRow label="Narration" value={paymentDetail.narration || '-'} />
-                  {paymentDetail._bills?.length > 0 && (
-                    <div className="px-4 py-2.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-1">Linked bills</div>
-                      <div className="space-y-1">
-                        {paymentDetail._bills.map((bill: any) => (
-                          <div key={bill.bill_id} className="flex items-center justify-between text-xs">
-                            <span className="font-medium text-zinc-800">{bill.bill?.bill_number || bill.bill_id}</span>
-                            <span className="text-zinc-700">₹{Number(bill.adjusted_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        ))}
-                      </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {activeTab === 'overview' && (
+                <>
+                  {/* Meta grid */}
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <Detail label="Amount" value={selectedApproval.amount ? `₹${selectedApproval.amount.toLocaleString('en-IN')}` : '-'} />
+                    <Detail label="Priority" value={selectedApproval.priority} />
+                    <Detail
+                      label="Submitted"
+                      value={formatDate(selectedApproval.requested_at || selectedApproval.requestedAt || selectedApproval.created_at)}
+                    />
+                    <Detail label="Requester" value={selectedApproval.requesterName || '-'} />
+                    <Detail label="Project" value={selectedApproval.projectName || '-'} />
+                    <Detail label="Reference" value={selectedApproval.referenceNumber || '-'} />
+                  </div>
+
+                  {/* Financial breakdown */}
+                  {detailsMap[selectedApproval.id] && (
+                    <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100">
+                      <SectionRow label="Total invoice / PO / contract amount" value={formatAmount(detailsMap[selectedApproval.id].totalAmount)} />
+                      <SectionRow label="Amount under approval now" value={formatAmount(detailsMap[selectedApproval.id].currentAmount)} />
+                      <SectionRow label="Prior payments already made" value={formatAmount(detailsMap[selectedApproval.id].paidSoFar)} />
+                      <SectionRow label="Remaining balance" value={formatAmount(detailsMap[selectedApproval.id].balance)} />
                     </div>
                   )}
+
+                  {/* Vendor / Party info */}
+                  {paymentDetail && (
+                    <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100">
+                      <SectionRow label="Vendor / Party" value={paymentDetail.vendor?.company_name || paymentDetail.subcontractor?.company_name || '-'} />
+                      <SectionRow label="Mode" value={paymentDetail.payment_mode || '-'} />
+                      <SectionRow label="Reference" value={paymentDetail.reference_no || '-'} />
+                      {paymentDetail.narration && <SectionRow label="Narration" value={paymentDetail.narration} />}
+                      {paymentDetail._bills?.length > 0 && (
+                        <div className="px-4 py-2.5">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">Linked bills</div>
+                          {paymentDetail._bills.map((bill: any) => (
+                            <div key={bill.bill_id} className="flex items-center justify-between text-xs py-1">
+                              <span className="font-medium text-zinc-800">{bill.bill?.bill_number || bill.bill_id}</span>
+                              <span className="text-zinc-700">{formatAmount(Number(bill.adjusted_amount || 0))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeTab === 'history' && (
+                <div className="space-y-2">
+                  {historyLoading && <p className="text-xs text-zinc-500 py-4 text-center">Loading history…</p>}
+                  {!historyLoading && history.length === 0 && <p className="text-xs text-zinc-500 py-4 text-center">No history yet.</p>}
+                  {history.map((entry, idx) => (
+                    <div key={entry.id ?? idx} className="text-xs border border-zinc-100 rounded-md px-3 py-2.5">
+                      <div className="font-semibold text-zinc-800">
+                        {approvalStatusLabel(entry.action as ApprovalRow['status'])}
+                      </div>
+                      <div className="text-zinc-500 mt-0.5">
+                        {new Date((entry as any).action_at ?? entry.requested_at ?? entry.created_at).toLocaleString('en-IN')}
+                      </div>
+                      {(entry as any).comments && (
+                        <div className="text-zinc-600 mt-1 italic">&ldquo;{(entry as any).comments}&rdquo;</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            <DialogFooter className="flex items-center justify-between">
-              <Button variant="secondary" onClick={() => setShowDetails(false)}>
-                Close
-              </Button>
-              {selectedApproval.status === 'PENDING' && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="primary"
-                    className="bg-amber-600 hover:bg-amber-700"
-                    onClick={() => handleProcessAction('HOLD')}
-                  >
-                    Hold
-                  </Button>
-                  <Button
-                    variant="initial"
-                    className="border-zinc-200 text-red-600 hover:bg-red-50"
-                    onClick={() => setActionMode('reject')}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Reject
-                  </Button>
-                  <Button onClick={() => handleProcessAction('APPROVED')}>
-                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                    Approve
-                  </Button>
-                </div>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {actionMode === 'reject' && selectedApproval && (
-        <Dialog open={actionMode === 'reject'} onOpenChange={(open) => !open && setActionMode('none')}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reject this request?</DialogTitle>
-            </DialogHeader>
-            <p className="text-xs text-zinc-600">
-              This action cannot be undone automatically. Please state the reason so the requester can fix and resubmit.
-            </p>
-            <Input
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Reason for rejection"
-            />
-            <DialogFooter>
-              <Button variant="secondary" onClick={() => setActionMode('none')}>
-                Cancel
-              </Button>
-              <Button className="bg-red-600 hover:bg-red-700" onClick={() => handleProcessAction('REJECTED')}>
-                Confirm rejection
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {showHistory && (
-        <Dialog open={showHistory} onOpenChange={(open) => !open && setShowHistory(false)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Approval history</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              {historyLoading && <p className="text-xs text-zinc-500">Loading...</p>}
-              {!historyLoading && history.length === 0 && <p className="text-xs text-zinc-500">No history yet.</p>}
-              {history.map((entry, idx) => (
-                <div key={entry.id ?? idx} className="text-xs border border-zinc-100 rounded-md px-3 py-2">
-                  <div className="font-semibold text-zinc-800">{entry.action}</div>
-                  <div className="text-zinc-500">{new Date((entry as any).action_at ?? entry.requested_at).toLocaleString('en-IN')}</div>
-                </div>
-              ))}
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setShowHistory(false)}>Close</Button>
-            </DialogFooter>
+            {/* Footer actions */}
+            {selectedApproval.status === 'PENDING' && (
+              <div className="border-t border-zinc-200 px-6 py-4">
+                {actionMode === 'reject' ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-zinc-600">
+                      State the reason so the requester can fix and resubmit.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        autoFocus
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder="Reason for rejection"
+                        className="h-9 text-xs"
+                      />
+                      <Button variant="secondary" size="sm" onClick={() => { setActionMode('none'); setRejectionReason(''); }}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700"
+                        onClick={() => handleProcessAction('REJECTED')}
+                        disabled={!rejectionReason.trim()}
+                      >
+                        Confirm
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50"
+                      onClick={() => setActionMode('reject')}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                      onClick={() => handleProcessAction('HOLD')}
+                    >
+                      Hold
+                    </Button>
+                    <Button size="sm" onClick={() => handleProcessAction('APPROVED')}>
+                      Approve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}
