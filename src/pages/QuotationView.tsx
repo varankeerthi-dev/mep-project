@@ -18,7 +18,7 @@ import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw } from 'lucide-react';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 import { ApprovalIntegration } from '../approvals/integration';
 
