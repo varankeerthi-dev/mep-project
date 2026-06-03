@@ -38,7 +38,7 @@ import { cn } from '../../../lib/utils';
 import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrgApprovalSettings } from '@/hooks/useApprovals';
-import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest } from '../hooks/usePurchaseQueries';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
@@ -70,6 +70,7 @@ export const Payments: React.FC = () => {
   const [activeView, setActiveView] = useState<'payments' | 'requests'>('payments');
 
   const { data: payments = [], isLoading } = usePayments(organisation?.id);
+  const { data: requests = [], isLoading: requestsLoading } = usePaymentRequests(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
   const { data: vendorBills = [] } = useVendorOpenBills(organisation?.id, vendorId || undefined, openDialog && !isAdvance);
   const { settings: approvalSettings } = useOrgApprovalSettings(organisation?.id);
@@ -454,7 +455,7 @@ export const Payments: React.FC = () => {
           <AppTable
             data={requests}
             columns={requestColumns}
-            loading={requests.isLoading}
+            loading={requestsLoading}
           />
         )}
       </div>

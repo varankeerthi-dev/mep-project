@@ -908,7 +908,7 @@ type PillProps = {
 const Pill = ({ label, value, active, onClick, accent }: PillProps) => (
   <button
     onClick={onClick}
-    className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-3 text-sm transition-all ${
+    className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-[10px] text-sm transition-all ${
       active ? 'border-zinc-900 text-zinc-900' : 'border-zinc-200 text-zinc-700 hover:bg-zinc-100'
     }`}
   >
@@ -1233,16 +1233,13 @@ const ApprovalTable = ({
     },
     {
       id: 'request',
-      header: 'Request',
+      header: 'Party name',
       cell: ({ row }: { row: TableRow }) => {
         const age = formatAge(row.original.requestedAt);
-        const refNum = row.original.referenceNumber;
         return (
           <div className="min-w-[220px]">
             <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">{row.original.title}</div>
             <div className="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
-              {refNum && <span className="font-mono">{refNum}</span>}
-              {refNum && <span className="text-zinc-300">·</span>}
               <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
                 {age.text}
               </span>
@@ -1401,7 +1398,7 @@ const ApprovalTable = ({
       columns={columns as any}
       loading={false}
       enableRowSelection={enableRowSelection}
-      onRowSelectionChange={onSelectionChange ? (r: any[]) => onSelectionChange(r) : undefined}
+              onRowSelectionChange={onSelectionChange || undefined}
       enablePagination
     />
   );
