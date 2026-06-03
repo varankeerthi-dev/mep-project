@@ -803,8 +803,8 @@ export default function QuotationList() {
                         );
                         if (col.id === 'prepared_by') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                            <div className="truncate" title={q.creator?.full_name || q.prepared_by || '-'}>
-                              {q.creator?.full_name || q.prepared_by || '-'}
+                            <div className="truncate" title={q.prepared_by || '-'}>
+                              {q.prepared_by || '-'}
                             </div>
                           </td>
                         );

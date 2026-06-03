@@ -73,6 +73,7 @@ export default function CreateQuotation() {
   const isConverting = Boolean(convertFrom && sourceId && !editId && !duplicateId);
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
   const { organisation } = useAuth();
+  const { user } = useAuth();
   
   const [saving, setSaving] = useState(false);
   const { data: clients = [] } = useClients();
@@ -1960,7 +1961,8 @@ const loadQuoteNoPreview = useCallback(async () => {
         client_contact: formData.client_contact,
         variant_id: formData.variant_id || null,
         reference: formData.reference || null,
-        prepared_by: formData.prepared_by || null,
+        created_by: user?.id ?? null,
+        prepared_by: formData.prepared_by || user?.user_metadata?.full_name || user?.email?.split('@')[0] || null,
         subtotal: calculations.subtotal,
         total_item_discount: calculations.totalItemDiscount,
         extra_discount_percent: parseFloat(formData.extra_discount_percent) || 0,
