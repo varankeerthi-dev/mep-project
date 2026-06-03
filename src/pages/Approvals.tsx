@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { CheckCircle2, RefreshCw, X, XCircle } from 'lucide-react';
+import { CheckCircle2, RefreshCw, X, XCircle, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { AppTable } from '@/components/ui/AppTable';
@@ -334,6 +334,98 @@ const Approvals: React.FC = () => {
     }
   };
 
+  // —————— Quick actions (inline) ——————
+
+  const [selectedRows, setSelectedRows] = useState<ApprovalRow[]>([]);
+
+  const handleQuickApprove = async (row: ApprovalRow) => {
+    try {
+      const res = await ApprovalAPI.processApproval(row.id, { action: 'APPROVED' });
+      if (!res.success) {
+        toast.error(res.error?.message ?? 'Approval failed');
+        return;
+      }
+      toast.success(`Approved: ${row.title}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Approval failed');
+    }
+  };
+
+  const handleQuickReject = async (row: ApprovalRow, reason: string) => {
+    try {
+      const res = await ApprovalAPI.processApproval(row.id, {
+        action: 'REJECTED',
+        comments: reason,
+      });
+      if (!res.success) {
+        toast.error(res.error?.message ?? 'Rejection failed');
+        return;
+      }
+      toast.success(`Rejected: ${row.title}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Rejection failed');
+    }
+  };
+
+  const handleOpenOriginal = (row: ApprovalRow) => {
+    const routes: Record<string, string> = {
+      payment_requests: '/purchase/payments',
+      purchase_payments: '/purchase/payments',
+      subcontractor_payments: '/purchase/payments',
+      purchase_orders: '/purchase/purchase-orders',
+      work_orders: '/work-orders',
+      invoices: '/invoices',
+      quotations: '/quotations',
+      material_dispatches: '/material-dispatch',
+    };
+    const path = routes[row.referenceType] || '#';
+    if (path !== '#') {
+      window.open(path, '_blank');
+    } else {
+      toast.info(`Source tab: ${row.referenceType}`);
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selectedRows.length) return;
+    const pending = selectedRows.filter((r) => r.status === 'PENDING');
+    if (!pending.length) {
+      toast.info('No pending rows selected');
+      return;
+    }
+    let ok = 0;
+    for (const row of pending) {
+      try {
+        const res = await ApprovalAPI.processApproval(row.id, { action: 'APPROVED' });
+        if (res.success) ok++;
+      } catch { /* skip one */ }
+    }
+    toast.success(`Approved ${ok} of ${pending.length} selected`);
+    setSelectedRows([]);
+  };
+
+  const handleBulkReject = async () => {
+    if (!selectedRows.length) return;
+    const reason = 'Bulk rejected';
+    const pending = selectedRows.filter((r) => r.status === 'PENDING');
+    if (!pending.length) {
+      toast.info('No pending rows selected');
+      return;
+    }
+    let ok = 0;
+    for (const row of pending) {
+      try {
+        const res = await ApprovalAPI.processApproval(row.id, {
+          action: 'REJECTED',
+          comments: reason,
+        });
+        if (res.success) ok++;
+      } catch { /* skip one */ }
+    }
+    toast.success(`Rejected ${ok} of ${pending.length} selected`);
+    setSelectedRows([]);
+  };
+
   return (
     <div className="p-6 space-y-5 bg-zinc-50 min-h-screen">
       <div className="bg-white border border-zinc-200 rounded-none py-5">
@@ -388,13 +480,54 @@ const Approvals: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white border border-zinc-200 rounded-none">
+      <div className="bg-white border border-zinc-200 rounded-none relative">
         <ApprovalTable
           rows={filteredList}
           onView={handleOpenDetails}
           loading={isLoading}
           workflows={workflows}
+          onQuickApprove={handleQuickApprove}
+          onQuickReject={handleQuickReject}
+          onOpenOriginal={handleOpenOriginal}
+          enableRowSelection
+          onSelectionChange={setSelectedRows}
+          selectedRows={selectedRows}
+          onFetchHistory={fetchApprovalHistory}
         />
+
+        {selectedRows.length > 0 && (
+          <div className="sticky bottom-0 left-0 right-0 z-30 border-t border-zinc-200 bg-white px-6 py-3 flex items-center justify-between shadow-sm">
+            <span className="text-sm text-zinc-700">
+              <strong>{selectedRows.length}</strong> selected
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleBulkApprove}
+              >
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Approve all
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="text-red-600 border-red-200 hover:bg-red-50"
+                onClick={handleBulkReject}
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                Reject all
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedRows([])}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showDetails && selectedApproval && (
@@ -711,8 +844,14 @@ type ApprovalTableProps = {
   rows: ApprovalRow[];
   onView: (row: ApprovalRow) => void;
   loading: boolean;
-  chainFor?: (row: ApprovalRow) => string | undefined;
   workflows?: ApprovalWorkflow[];
+  onQuickApprove?: (row: ApprovalRow) => void;
+  onQuickReject?: (row: ApprovalRow, reason: string) => void;
+  onOpenOriginal?: (row: ApprovalRow) => void;
+  enableRowSelection?: boolean;
+  selectedRows?: ApprovalRow[];
+  onSelectionChange?: (rows: ApprovalRow[]) => void;
+  onFetchHistory?: (approval: Approval) => void;
 };
 
 const MAX_STEPPER_VISIBLE = 4;
@@ -765,7 +904,18 @@ const Stepper = ({
   );
 };
 
-const ApprovalTable = ({ rows, onView, loading, workflows = [] }: ApprovalTableProps) => {
+const ApprovalTable = ({
+  rows,
+  onView,
+  loading,
+  workflows = [],
+  onQuickApprove,
+  onQuickReject,
+  onOpenOriginal,
+  enableRowSelection,
+  onSelectionChange,
+  onFetchHistory,
+}: ApprovalTableProps) => {
   const columns: TableColumns[] = [
     {
       id: 'type',
@@ -900,12 +1050,17 @@ const ApprovalTable = ({ rows, onView, loading, workflows = [] }: ApprovalTableP
     {
       id: 'action',
       header: '',
-      size: 80,
+      size: 140,
       enableSorting: false,
       cell: ({ row }: { row: TableRow }) => (
-        <Button variant="ghost" size="sm" onClick={() => onView(row.original)}>
-          View
-        </Button>
+        <ActionCell
+          row={row}
+          onView={onView}
+          onQuickApprove={onQuickApprove}
+          onQuickReject={onQuickReject}
+          onOpenOriginal={onOpenOriginal}
+          onFetchHistory={onFetchHistory}
+        />
       ),
     },
   ];
@@ -929,8 +1084,157 @@ const ApprovalTable = ({ rows, onView, loading, workflows = [] }: ApprovalTableP
       data={rows}
       columns={columns as any}
       loading={false}
+      enableRowSelection={enableRowSelection}
+      onRowSelectionChange={onSelectionChange ? (r: any[]) => onSelectionChange(r) : undefined}
+      enablePagination
     />
   );
 };
+
+const ActionCell = ({
+  row,
+  onView,
+  onQuickApprove,
+  onQuickReject,
+  onOpenOriginal,
+  onFetchHistory,
+}: {
+  row: TableRow;
+  onView: (row: ApprovalRow) => void;
+  onQuickApprove?: (row: ApprovalRow) => void;
+  onQuickReject?: (row: ApprovalRow, reason: string) => void;
+  onOpenOriginal?: (row: ApprovalRow) => void;
+  onFetchHistory?: (approval: Approval) => void;
+}) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const isPending = row.original.status === 'PENDING';
+
+  const handleRejectSubmit = () => {
+    if (!rejectReason.trim() || !onQuickReject) return;
+    onQuickReject(row.original, rejectReason.trim());
+    setRejectOpen(false);
+    setRejectReason('');
+  };
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      {/* Quick approve (pending only, shown on hover) */}
+      {isPending && onQuickApprove && !rejectOpen && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onQuickApprove(row.original); }}
+          className="p-1 rounded-md text-zinc-300 hover:text-emerald-600 hover:bg-emerald-50 transition-colors group-hover/row:opacity-100 opacity-0"
+          title="Quick approve"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Quick reject input */}
+      {isPending && rejectOpen && (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reason…"
+            className="w-28 h-6 text-[10px] px-1.5 border border-zinc-300 rounded focus:outline-none focus:ring-1 focus:ring-red-400"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRejectSubmit();
+              if (e.key === 'Escape') { setRejectOpen(false); setRejectReason(''); }
+            }}
+          />
+          <button onClick={handleRejectSubmit} className="text-[10px] text-red-600 font-medium hover:underline">
+            Submit
+          </button>
+          <button onClick={() => { setRejectOpen(false); setRejectReason(''); }} className="text-[10px] text-zinc-400 hover:underline">
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Quick reject button (pending only) */}
+      {isPending && onQuickReject && !rejectOpen && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setRejectOpen(true); }}
+          className="p-1 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors group-hover/row:opacity-100 opacity-0"
+          title="Quick reject"
+        >
+          <XCircle className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* View button */}
+      <button
+        onClick={() => onView(row.original)}
+        className="text-[11px] text-blue-600 hover:underline font-medium ml-1"
+      >
+        View
+      </button>
+
+      {/* ⋮ Menu */}
+      <div className="relative">
+        <button
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+          className="p-1 rounded-md hover:bg-zinc-100 transition-colors"
+        >
+          <MoreHorizontal className="w-4 h-4 text-zinc-400" />
+        </button>
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 py-1">
+              <MenuBtn onClick={() => { setMenuOpen(false); onView(row.original); }}>
+                View details
+              </MenuBtn>
+              <MenuBtn onClick={() => { setMenuOpen(false); onOpenOriginal?.(row.original); }}>
+                Open original
+              </MenuBtn>
+              <MenuBtn onClick={() => { setMenuOpen(false); onFetchHistory?.(row.original as any); }}>
+                Approval history
+              </MenuBtn>
+              {isPending && (
+                <>
+                  <div className="border-t border-zinc-100 my-1" />
+                  <MenuBtn
+                    onClick={() => { setMenuOpen(false); onQuickApprove?.(row.original); }}
+                    className="text-emerald-700"
+                  >
+                    Approve
+                  </MenuBtn>
+                  <MenuBtn
+                    onClick={() => { setMenuOpen(false); setRejectOpen(true); }}
+                    className="text-red-600"
+                  >
+                    Reject
+                  </MenuBtn>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const MenuBtn = ({
+  onClick,
+  className,
+  children,
+}: {
+  onClick: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-50 flex items-center gap-2 text-zinc-700 ${className ?? ''}`}
+  >
+    {children}
+  </button>
+);
 
 export default Approvals;

@@ -400,7 +400,7 @@ export function AppTable<T extends Record<string, any>>({
                 <tr
                   key={row.id}
                   className={cn(
-                    'border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors cursor-pointer',
+                    'group/row border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors cursor-pointer',
                     row.getIsSelected() && 'bg-indigo-50/30'
                   )}
                   onClick={() => {
