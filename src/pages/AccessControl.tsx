@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { Check, Loader2, Plus, Shield, UserPlus, Users, Mail, Phone, Clock, Sparkles, Crown, Star } from 'lucide-react';
+import { Check, Loader2, Plus, Shield, UserPlus, Users, Mail, Phone, Clock, Sparkles, Crown, Globe } from 'lucide-react';
 import { useApproveAccessRequest, useEmployees, useOrgAccessRequests, useRoles, useUpsertEmployee } from '@/rbac';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const tabButton = (active: boolean) =>
   `inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-all duration-200 rounded-full ${
@@ -79,6 +80,7 @@ export default function AccessControlPage() {
 
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [selectedRoleByReq, setSelectedRoleByReq] = useState<Record<string, string>>({});
+  const [grantPortal, setGrantPortal] = useState(false);
 
   const defaultMemberRoleId = useMemo(() => {
     const match = (roles.data ?? []).find((r) => r.name === 'Member');
@@ -94,7 +96,47 @@ export default function AccessControlPage() {
       phone: values.phone || null,
       status: 'active',
     });
+
+    if (grantPortal) {
+      const { data: existingUsers } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .ilike('email', values.email)
+        .maybeSingle();
+
+      if (existingUsers) {
+        await supabase.from('org_members').upsert({
+          organisation_id: orgId,
+          user_id: existingUsers.id,
+          role: 'Employee',
+          status: 'active',
+        }, { onConflict: 'organisation_id,user_id' });
+      } else {
+        const tempPw = Math.random().toString(36).slice(2) + 'Ab1!';
+        const { data: sd, error: se } = await supabase.auth.signUp({
+          email: values.email,
+          password: tempPw,
+        });
+        if (!se && sd?.user) {
+          await supabase.from('users').upsert({
+            id: sd.user.id,
+            emp_name: values.full_name,
+            email: values.email,
+            role: 'Employee',
+            emp_id: 'EMP-' + Date.now().toString().slice(-6),
+          }, { onConflict: 'id' });
+          await supabase.from('org_members').upsert({
+            organisation_id: orgId,
+            user_id: sd.user.id,
+            role: 'Employee',
+            status: 'active',
+          }, { onConflict: 'organisation_id,user_id' });
+        }
+      }
+    }
+
     employeeForm.reset({ full_name: '', email: '', phone: '' });
+    setGrantPortal(false);
   };
 
   const handleApprove = async (requestId: string) => {
@@ -271,6 +313,20 @@ export default function AccessControlPage() {
                 <label className="space-y-2">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Phone (optional)</div>
                   <input className={inputCn} {...employeeForm.register('phone')} placeholder="+1 (555) 000-0000" />
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-zinc-200 bg-zinc-50/50 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={grantPortal}
+                    onChange={(e) => setGrantPortal(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <div className="text-[13px] font-medium text-zinc-900">Web portal access</div>
+                    <div className="text-[11px] text-zinc-500">Send invitation to create an account</div>
+                  </div>
+                  <Globe className="ml-auto h-4 w-4 text-zinc-400" />
                 </label>
 
                 {upsertEmployee.isError && (
