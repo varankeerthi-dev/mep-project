@@ -37,6 +37,8 @@ export class ApprovalAPI {
 
       const maxLevels = workflow ? workflow.level : 1;
 
+      const denorm = await this.enrichApprovalMetadata(user.id, organisationId, data.reference_type, data.reference_id);
+
       const { data: approval, error } = await supabase
         .from('approvals')
         .insert({
@@ -49,7 +51,12 @@ export class ApprovalAPI {
           priority: data.priority || 'NORMAL',
           requested_by: user.id,
           max_levels: maxLevels,
-          organisation_id: organisationId
+          organisation_id: organisationId,
+          requester_name: data.requester_name ?? denorm.requester_name ?? null,
+          requester_role: data.requester_role ?? denorm.requester_role ?? null,
+          project_id: data.project_id ?? denorm.project_id ?? null,
+          project_name: data.project_name ?? denorm.project_name ?? null,
+          reference_number: data.reference_number ?? denorm.reference_number ?? null,
         })
         .select()
         .single();
@@ -405,4 +412,82 @@ export class ApprovalAPI {
       };
     }
   }
+
+  private static async enrichApprovalMetadata(
+    userId: string,
+    organisationId: string,
+    referenceType: string,
+    referenceId: string
+  ): Promise<{
+    requester_name?: string | null;
+    requester_role?: string | null;
+    project_id?: string | null;
+    project_name?: string | null;
+    reference_number?: string | null;
+  }> {
+    try {
+      const [profileRes, memberRes] = await Promise.all([
+        supabase
+          .from('user_profiles')
+          .select('full_name, role')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('org_members')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('organisation_id', organisationId)
+          .maybeSingle(),
+      ]);
+
+      const requesterName = profileRes.data?.full_name ?? null;
+      const requesterRole = memberRes.data?.role ?? profileRes.data?.role ?? null;
+
+      const refSpec = REFERENCE_DENORM_MAP[referenceType];
+      let projectId: string | null = null;
+      let projectName: string | null = null;
+      let referenceNumber: string | null = null;
+
+      if (refSpec && referenceId) {
+        const { data: refRow } = await supabase
+          .from(refSpec.table)
+          .select(refSpec.select)
+          .eq('id', referenceId)
+          .maybeSingle();
+
+        if (refRow) {
+          projectId = (refRow as any).project_id ?? null;
+          projectName = (refRow as any).project?.name ?? null;
+          referenceNumber = refSpec.numberField
+            ? (refRow as any)[refSpec.numberField] ?? null
+            : null;
+        }
+      }
+
+      return {
+        requester_name: requesterName,
+        requester_role: requesterRole,
+        project_id: projectId,
+        project_name: projectName,
+        reference_number: referenceNumber,
+      };
+    } catch (e) {
+      console.error('enrichApprovalMetadata failed', e);
+      return {};
+    }
+  }
 }
+
+const REFERENCE_DENORM_MAP: Record<
+  string,
+  { table: string; select: string; numberField: string | null }
+> = {
+  payment_requests:       { table: 'payment_requests',       select: 'project_id, project:projects(name), request_no', numberField: 'request_no' },
+  purchase_payments:      { table: 'purchase_payments',      select: 'project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
+  subcontractor_payments: { table: 'subcontractor_payments', select: 'project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
+  purchase_orders:        { table: 'purchase_orders',        select: 'project_id, project:projects(name), po_number',   numberField: 'po_number'   },
+  work_orders:            { table: 'work_orders',            select: 'project_id, project:projects(name), wo_number',   numberField: 'wo_number'   },
+  invoices:               { table: 'invoices',               select: 'project_id, project:projects(name), invoice_number', numberField: 'invoice_number' },
+  quotations:             { table: 'quotations',             select: 'project_id, project:projects(name), quotation_number', numberField: 'quotation_number' },
+  material_dispatches:    { table: 'material_dispatches',    select: 'project_id, project:projects(name), dispatch_number', numberField: 'dispatch_number' },
+};

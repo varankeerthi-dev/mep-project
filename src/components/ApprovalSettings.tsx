@@ -269,6 +269,37 @@ export const ApprovalSettings: React.FC = () => {
   };
 
   const [backfilling, setBackfilling] = useState(false);
+  const [backfillingMeta, setBackfillingMeta] = useState(false);
+
+  const handleBackfillMetadata = async () => {
+    if (!orgId) return;
+    try {
+      setBackfillingMeta(true);
+
+      const { data, error } = await supabase.rpc('backfill_approval_denorm', {
+        p_org_id: orgId,
+      });
+
+      if (error) {
+        const msg = error.message || 'Metadata backfill failed';
+        if (error.code === 'PGRST202' || msg.includes('function') || msg.includes('not found')) {
+          toast.error('Run sql/phase1_backfill_approval_metadata.sql first');
+        } else {
+          toast.error(msg);
+        }
+        return;
+      }
+
+      const summary = (data ?? [])
+        .map((row: any) => `${row.step}: ${row.updated_count}`)
+        .join(' · ');
+      toast.success(summary ? `Backfilled (${summary})` : 'No rows needed updating');
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Metadata backfill failed');
+    } finally {
+      setBackfillingMeta(false);
+    }
+  };
 
   const handleBackfillApprovals = async () => {
     if (!orgId) return;
@@ -400,6 +431,14 @@ export const ApprovalSettings: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleBackfillMetadata}
+            disabled={backfillingMeta}
+            title="Populate requester, project and reference number for existing approval rows"
+          >
+            {backfillingMeta ? 'Backfilling metadata…' : 'Backfill approval metadata'}
+          </Button>
           <Button variant="secondary" onClick={handleBackfillApprovals} disabled={backfilling}>
             {backfilling ? 'Backfilling…' : 'Backfill missing approvals'}
           </Button>

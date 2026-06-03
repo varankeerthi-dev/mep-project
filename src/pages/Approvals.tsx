@@ -31,8 +31,13 @@ type ApprovalRow = {
   currentLevel: number;
   maxLevels: number;
   status: string;
+  priority?: string;
   requestedAt: string;
   nextStep?: string;
+  requesterName?: string | null;
+  requesterRole?: string | null;
+  projectName?: string | null;
+  referenceNumber?: string | null;
 };
 
 type PaymentDetail = {
@@ -49,6 +54,67 @@ const SCORE_COLORS: Record<string, string> = {
   HOLD: 'bg-orange-100 text-orange-700 border-orange-200',
   FORWARDED: 'bg-purple-100 text-purple-700 border-purple-200',
 };
+
+const TYPE_LABEL: Record<string, string> = {
+  PURCHASE_ORDER: 'Purchase Order',
+  WORK_ORDER: 'Work Order',
+  QUOTATION: 'Quotation',
+  INVOICE: 'Invoice',
+  PROFORMA_INVOICE: 'Proforma Invoice',
+  PAYMENT_REQUEST: 'Payment Request',
+  PURCHASE_PAYMENT: 'Vendor Payment',
+  SUBCONTRACTOR_PAYMENT: 'Subcontractor Payment',
+  MATERIAL_DISPATCH: 'Material Dispatch',
+  SITE_VISIT: 'Site Visit',
+  EXPENSE_CLAIM: 'Expense Claim',
+  SITE_REPORT_REQUEST: 'Site Report',
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  PURCHASE_ORDER: 'bg-blue-50 text-blue-700 border-blue-200',
+  WORK_ORDER: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  QUOTATION: 'bg-violet-50 text-violet-700 border-violet-200',
+  INVOICE: 'bg-amber-50 text-amber-700 border-amber-200',
+  PROFORMA_INVOICE: 'bg-violet-50 text-violet-700 border-violet-200',
+  PAYMENT_REQUEST: 'bg-red-50 text-red-700 border-red-200',
+  PURCHASE_PAYMENT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  SUBCONTRACTOR_PAYMENT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  MATERIAL_DISPATCH: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  SITE_VISIT: 'bg-lime-50 text-lime-700 border-lime-200',
+  EXPENSE_CLAIM: 'bg-orange-50 text-orange-700 border-orange-200',
+  SITE_REPORT_REQUEST: 'bg-sky-50 text-sky-700 border-sky-200',
+};
+
+const PRIORITY_DOT: Record<string, string> = {
+  LOW: 'bg-zinc-300',
+  NORMAL: 'bg-blue-500',
+  HIGH: 'bg-amber-500',
+  URGENT: 'bg-red-500',
+};
+
+const SLA_DAYS = 3;
+
+function ageInDays(iso?: string | null): number {
+  if (!iso) return 0;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+function formatAge(iso?: string | null): { text: string; overdue: boolean } {
+  const d = ageInDays(iso);
+  if (d === 0) return { text: 'today', overdue: false };
+  if (d === 1) return { text: '1d ago', overdue: d > SLA_DAYS };
+  return { text: `${d}d ago`, overdue: d > SLA_DAYS };
+}
+
+function formatDate(iso?: string | null): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+  } catch {
+    return '—';
+  }
+}
 
 const Approvals: React.FC = () => {
   const { organisation } = useAuth();
@@ -327,7 +393,7 @@ const Approvals: React.FC = () => {
           rows={filteredList}
           onView={handleOpenDetails}
           loading={isLoading}
-          chainFor={(row) => chainLabel(row, workflows)}
+          workflows={workflows}
         />
       </div>
 
@@ -509,13 +575,28 @@ const Detail = ({ label, value }: DetailProps) => (
   </div>
 );
 
-function normalize(items: ApprovalRow[]): ApprovalRow[] {
-  return items.map((item) => ({
-    ...item,
-    referenceType: guessReferenceType(item.approvalType),
-    currentLevel: item.currentLevel || 1,
-    maxLevels: item.maxLevels || 1,
-  }));
+function normalize(items: any[]): ApprovalRow[] {
+  return items.map((item) => {
+    const approvalType = item.approvalType || item.approval_type || 'PURCHASE_PAYMENT';
+    return {
+      id: item.id,
+      title: item.title || item.vendor?.company_name || 'Vendor Payment',
+      amount: Number(item.amount_requested ?? item.amount ?? 0),
+      approvalType,
+      referenceType: item.referenceType || item.reference_type || guessReferenceType(approvalType),
+      referenceId: item.referenceId || item.reference_id || item.id,
+      currentLevel: item.currentLevel || item.current_level || 1,
+      maxLevels: item.maxLevels || item.max_levels || 1,
+      status: item.status || 'PENDING',
+      priority: item.priority || 'NORMAL',
+      requestedAt: item.requestedAt || item.requested_at || item.created_at,
+      requesterName: item.requesterName ?? item.requester_name ?? null,
+      requesterRole: item.requesterRole ?? item.requester_role ?? null,
+      projectName: item.projectName ?? item.project_name ?? null,
+      referenceNumber:
+        item.referenceNumber ?? item.reference_number ?? item.voucher_no ?? null,
+    };
+  });
 }
 
 function normalizeUnified(items: any[]): ApprovalRow[] {
@@ -529,7 +610,12 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     currentLevel: item.current_level || 1,
     maxLevels: item.max_levels || 1,
     status: item.status || 'PENDING',
+    priority: item.priority || 'NORMAL',
     requestedAt: item.requested_at || item.created_at,
+    requesterName: item.requester_name ?? null,
+    requesterRole: item.requester_role ?? null,
+    projectName: item.project_name ?? null,
+    referenceNumber: item.reference_number ?? null,
   }));
 }
 
@@ -617,6 +703,8 @@ type TableColumns = {
   id: string;
   header: string;
   cell?: any;
+  size?: number;
+  enableSorting?: boolean;
 };
 
 type ApprovalTableProps = {
@@ -624,57 +712,196 @@ type ApprovalTableProps = {
   onView: (row: ApprovalRow) => void;
   loading: boolean;
   chainFor?: (row: ApprovalRow) => string | undefined;
+  workflows?: ApprovalWorkflow[];
 };
 
-const ApprovalTable = ({ rows, onView, loading, chainFor }: ApprovalTableProps) => {
+const MAX_STEPPER_VISIBLE = 4;
+
+const Stepper = ({
+  chain,
+  currentLevel,
+  maxLevels,
+}: {
+  chain: ApprovalWorkflow[];
+  currentLevel: number;
+  maxLevels: number;
+}) => {
+  const total = Math.max(maxLevels, chain.length, 1);
+  const visibleSteps = Array.from({ length: Math.min(total, MAX_STEPPER_VISIBLE) }, (_, i) => i + 1);
+  const overflow = total - visibleSteps.length;
+
+  return (
+    <div className="flex items-center gap-1" title={chain.map((c) => `L${c.level} ${c.approver_role}`).join(' → ')}>
+      {visibleSteps.map((level, idx) => {
+        const isDone = level < currentLevel;
+        const isCurrent = level === currentLevel;
+        const isFuture = level > currentLevel;
+        return (
+          <div key={level} className="flex items-center">
+            <div
+              className={
+                'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border ' +
+                (isDone
+                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                  : isCurrent
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white border-zinc-300 text-zinc-400')
+              }
+            >
+              {isDone ? <CheckCircle2 className="w-3 h-3" /> : isCurrent ? <span className="w-1.5 h-1.5 rounded-full bg-white" /> : level}
+            </div>
+            {idx < visibleSteps.length - 1 && (
+              <div
+                className={
+                  'w-3 h-px ' + (isDone || isCurrent ? 'bg-emerald-400' : 'bg-zinc-300')
+                }
+              />
+            )}
+          </div>
+        );
+      })}
+      {overflow > 0 && <span className="text-[10px] text-zinc-500 ml-1">+{overflow}</span>}
+    </div>
+  );
+};
+
+const ApprovalTable = ({ rows, onView, loading, workflows = [] }: ApprovalTableProps) => {
   const columns: TableColumns[] = [
     {
-      id: 'title',
+      id: 'type',
+      header: 'Type',
+      size: 150,
+      enableSorting: false,
+      cell: ({ row }: { row: TableRow }) => {
+        const t = row.original.approvalType;
+        return (
+          <span
+            className={
+              'inline-flex items-center text-[10px] font-semibold px-2 py-1 rounded-full border ' +
+              (TYPE_COLORS[t] ?? 'bg-zinc-50 text-zinc-700 border-zinc-200')
+            }
+          >
+            {TYPE_LABEL[t] ?? t}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'request',
       header: 'Request',
-      cell: ({ row }: { row: TableRow }) => (
-        <div>
-          <div className="text-sm font-medium text-zinc-900">{row.original.title}</div>
-          <div className="text-[11px] text-zinc-500">
-            {(row.original.requestedAt || '').slice(0, 10)}
+      cell: ({ row }: { row: TableRow }) => {
+        const age = formatAge(row.original.requestedAt);
+        const refNum = row.original.referenceNumber;
+        return (
+          <div className="min-w-[220px]">
+            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">{row.original.title}</div>
+            <div className="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+              {refNum && <span className="font-mono">{refNum}</span>}
+              {refNum && <span className="text-zinc-300">·</span>}
+              <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
+                {age.text}
+              </span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
+    },
+    {
+      id: 'project',
+      header: 'Project',
+      size: 160,
+      enableSorting: false,
+      cell: ({ row }: { row: TableRow }) =>
+        row.original.projectName ? (
+          <span className="inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700 max-w-[150px] truncate">
+            {row.original.projectName}
+          </span>
+        ) : (
+          <span className="text-zinc-300 text-xs">—</span>
+        ),
+    },
+    {
+      id: 'requester',
+      header: 'Requester',
+      size: 180,
+      enableSorting: false,
+      cell: ({ row }: { row: TableRow }) => {
+        const name = row.original.requesterName;
+        const role = row.original.requesterRole;
+        if (!name) return <span className="text-zinc-300 text-xs">—</span>;
+        const initials = name
+          .split(' ')
+          .map((p) => p.charAt(0))
+          .slice(0, 2)
+          .join('')
+          .toUpperCase();
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-[10px] font-semibold">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[12px] font-medium text-zinc-900 truncate max-w-[120px]">{name}</div>
+              {role && <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{role}</div>}
+            </div>
+          </div>
+        );
+      },
     },
     {
       id: 'amount',
       header: 'Amount',
+      size: 160,
       cell: ({ row }: { row: TableRow }) => (
-        <div className="text-sm font-medium">
-          {row.original.amount ? `₹${row.original.amount.toLocaleString()}` : '-'}
+        <div className="flex items-center justify-end gap-2">
+          <div className="text-sm font-semibold text-zinc-900 tabular-nums">
+            {row.original.amount ? `₹${row.original.amount.toLocaleString('en-IN')}` : '—'}
+          </div>
+          <span
+            className={
+              'w-2 h-2 rounded-full shrink-0 ' +
+              (PRIORITY_DOT[(row.original.priority as string) ?? 'NORMAL'] ?? 'bg-blue-500')
+            }
+            title={`Priority: ${row.original.priority ?? 'NORMAL'}`}
+          />
         </div>
       ),
     },
     {
-      id: 'approvalType',
-      header: 'Type',
-      cell: ({ row }: { row: TableRow }) => (
-        <span className="inline-flex text-[10px] font-semibold px-2 py-1 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-700">
-          {row.original.approvalType}
-        </span>
-      ),
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: ({ row }: { row: TableRow }) => (
-        <span className={`inline-flex text-[10px] px-2 py-1 rounded-full border ${SCORE_COLORS[row.original.status] ?? 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
-          {approvalStatusLabel(row.original.status)}
-        </span>
-      ),
-    },
-    {
-      id: 'chain',
-      header: 'Chain',
-      cell: ({ row }: { row: TableRow }) => chainFor?.(row.original) ?? '—',
+      id: 'workflow',
+      header: 'Workflow',
+      size: 200,
+      enableSorting: false,
+      cell: ({ row }: { row: TableRow }) => {
+        const chain = workflows
+          .filter((w) => w.approval_type === row.original.approvalType && w.is_active)
+          .sort((a, b) => a.level - b.level);
+        if (!chain.length) {
+          return <span className="text-[11px] text-zinc-400">No workflow</span>;
+        }
+        return (
+          <div className="flex flex-col gap-1">
+            <Stepper
+              chain={chain}
+              currentLevel={row.original.currentLevel}
+              maxLevels={row.original.maxLevels}
+            />
+            <div className="text-[10px] text-zinc-500">
+              {row.original.status === 'PENDING' ? (
+                <>L{row.original.currentLevel} · {chain[row.original.currentLevel - 1]?.approver_role ?? '—'}</>
+              ) : (
+                approvalStatusLabel(row.original.status)
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       id: 'action',
       header: '',
+      size: 80,
+      enableSorting: false,
       cell: ({ row }: { row: TableRow }) => (
         <Button variant="ghost" size="sm" onClick={() => onView(row.original)}>
           View

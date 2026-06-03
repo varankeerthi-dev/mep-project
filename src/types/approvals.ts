@@ -56,6 +56,11 @@ export interface Approval {
   assigned_approver_id?: string | null;
   created_at: string;
   updated_at: string;
+  requester_name?: string | null;
+  requester_role?: string | null;
+  project_id?: string | null;
+  project_name?: string | null;
+  reference_number?: string | null;
 }
 
 export interface ApprovalWorkflow {
@@ -105,6 +110,11 @@ export interface ApprovalRequest {
   description?: string;
   amount?: number;
   priority?: ApprovalPriority;
+  requester_name?: string;
+  requester_role?: string;
+  project_id?: string;
+  project_name?: string;
+  reference_number?: string;
 }
 
 export interface ApprovalActionRequest {
