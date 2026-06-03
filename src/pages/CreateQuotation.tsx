@@ -1945,7 +1945,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         return;
       }
 
-      const needsApproval = calculations.grandTotal > 100000;
+      const needsApproval = !editId;
       let quotationId = editId;
 
       const quotationData = {
