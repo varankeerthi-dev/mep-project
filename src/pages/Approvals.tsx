@@ -121,6 +121,10 @@ const Approvals: React.FC = () => {
   const orgId = organisation?.id as string | undefined;
   const { settings } = useOrgApprovalSettings(orgId);
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
   const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'approved' | 'released'>('awaiting');
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -239,13 +243,53 @@ const Approvals: React.FC = () => {
     [awaitingActions, pendingOthers, approvedActions, releasedActions]
   );
 
-  const filteredList = useMemo(
-    () =>
-      activeList.filter((row) =>
-        row.title.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [activeList, searchTerm]
+  const stats = useMemo(() => {
+    const totalPending = payApprovals
+      .filter((r) => r.status === 'PENDING')
+      .reduce((s, r) => s + r.amount, 0);
+    const awaitingCount = awaitingActions.length;
+    const urgentCount = awaitingActions.filter(
+      (r) => r.priority === 'URGENT' || r.priority === 'HIGH'
+    ).length;
+    const overdueCount = payApprovals.filter(
+      (r) => r.status === 'PENDING' && ageInDays(r.requestedAt) > SLA_DAYS
+    ).length;
+    return { totalPending, awaitingCount, urgentCount, overdueCount };
+  }, [payApprovals, awaitingActions]);
+
+  const projectOptions = useMemo(
+    () => Array.from(new Set(activeList.map((r) => r.projectName).filter(Boolean))) as string[],
+    [activeList]
   );
+
+  const filteredList = useMemo(() => {
+    let list = activeList;
+    if (typeFilter.length)
+      list = list.filter((r) => typeFilter.includes(r.approvalType));
+    if (priorityFilter.length)
+      list = list.filter((r) =>
+        priorityFilter.includes(r.priority || 'NORMAL')
+      );
+    if (projectFilter.length)
+      list = list.filter((r) =>
+        projectFilter.includes(r.projectName || '')
+      );
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          (r.referenceNumber || '').toLowerCase().includes(q) ||
+          (r.requesterName || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [activeList, typeFilter, priorityFilter, projectFilter, searchTerm]);
+
+  const anyFilterActive =
+    typeFilter.length > 0 ||
+    priorityFilter.length > 0 ||
+    projectFilter.length > 0;
 
   const handleOpenDetails = async (row: ApprovalRow) => {
     setSelectedApproval(normalizeOne(row));
@@ -426,6 +470,8 @@ const Approvals: React.FC = () => {
     setSelectedRows([]);
   };
 
+  const fuzzyActiveFilterCount = (typeFilter.length > 0 ? 1 : 0) + (priorityFilter.length > 0 ? 1 : 0) + (projectFilter.length > 0 ? 1 : 0);
+
   return (
     <div className="p-6 space-y-5 bg-zinc-50 min-h-screen">
       <div className="bg-white border border-zinc-200 rounded-none py-5">
@@ -437,6 +483,27 @@ const Approvals: React.FC = () => {
         </div>
       </div>
 
+      {/* Stats strip */}
+      <div className="flex items-center gap-4 text-xs text-zinc-600 px-1">
+        <span className="font-semibold text-zinc-900">
+          ₹{(stats.totalPending / 100).toFixed(1)}K pending value
+        </span>
+        <span className="text-zinc-300">·</span>
+        <span>
+          {stats.awaitingCount} awaiting you
+          {stats.urgentCount > 0 && (
+            <span className="text-red-600 font-semibold ml-1">
+              ({stats.urgentCount} urgent)
+            </span>
+          )}
+        </span>
+        <span className="text-zinc-300">·</span>
+        <span className={stats.overdueCount > 0 ? 'text-red-600 font-semibold' : ''}>
+          {stats.overdueCount} overdue
+        </span>
+      </div>
+
+      {/* Section pills */}
       <div className="flex flex-wrap items-center gap-4">
         <Pill
           label="Awaiting my action"
@@ -468,17 +535,67 @@ const Approvals: React.FC = () => {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      {/* Search + filter toggles */}
+      <div className="flex items-center gap-2">
         <div className="flex-1 relative">
           <input
             type="text"
-            placeholder="Search approvals..."
+            placeholder="Search by title, ref#, or requester…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`text-xs px-3 py-2 border rounded-none transition-colors ${
+            showFilters || anyFilterActive
+              ? 'bg-zinc-900 text-white border-zinc-900'
+              : 'bg-white text-zinc-600 border-zinc-300 hover:bg-zinc-100'
+          }`}
+        >
+          Filters {fuzzyActiveFilterCount > 0 ? `(${fuzzyActiveFilterCount})` : ''}
+        </button>
+        {anyFilterActive && (
+          <button
+            onClick={() => { setTypeFilter([]); setPriorityFilter([]); setProjectFilter([]); }}
+            className="text-xs text-zinc-500 hover:text-red-600 underline"
+          >
+            Clear
+          </button>
+        )}
       </div>
+
+      {/* Filter chips (collapsible) */}
+      {showFilters && (
+        <div className="bg-white border border-zinc-200 rounded-none p-4 space-y-3">
+          <FilterChipGroup
+            label="Type"
+            options={Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))}
+            selected={typeFilter}
+            onChange={setTypeFilter}
+          />
+          <FilterChipGroup
+            label="Priority"
+            options={[
+              { value: 'LOW', label: 'Low' },
+              { value: 'NORMAL', label: 'Normal' },
+              { value: 'HIGH', label: 'High' },
+              { value: 'URGENT', label: 'Urgent' },
+            ]}
+            selected={priorityFilter}
+            onChange={setPriorityFilter}
+          />
+          {projectOptions.length > 0 && (
+            <FilterChipGroup
+              label="Project"
+              options={projectOptions.map((p) => ({ value: p, label: p }))}
+              selected={projectFilter}
+              onChange={setProjectFilter}
+            />
+          )}
+        </div>
+      )}
 
       <div className="bg-white border border-zinc-200 rounded-none relative">
         <ApprovalTable
@@ -707,6 +824,46 @@ const Detail = ({ label, value }: DetailProps) => (
     <div className="text-sm font-medium text-zinc-900">{value ?? '-'}</div>
   </div>
 );
+
+const FilterChipGroup = <T extends string>({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  selected: T[];
+  onChange: (selected: T[]) => void;
+}) => {
+  const toggle = (value: T) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((v) => v !== value));
+    } else {
+      onChange([...selected, value]);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 w-16 shrink-0">
+        {label}
+      </span>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => toggle(opt.value)}
+          className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+            selected.includes(opt.value)
+              ? 'bg-zinc-900 text-white border-zinc-900'
+              : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 function normalize(items: any[]): ApprovalRow[] {
   return items.map((item) => {
