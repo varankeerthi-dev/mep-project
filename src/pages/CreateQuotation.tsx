@@ -1945,35 +1945,8 @@ const loadQuoteNoPreview = useCallback(async () => {
         return;
       }
 
-      // Check if approval is needed based on grand total
-      const needsApproval = calculations.grandTotal > 100000; // Example threshold - can be configurable
+      const needsApproval = calculations.grandTotal > 100000;
       let quotationId = editId;
-      let finalStatus = saveAndNew ? 'Draft' : (formData.status || 'Draft');
-
-      // If approval is needed, create approval request first
-      if (needsApproval && !editId) {
-        try {
-          const approvalResult = await ApprovalIntegration.createQuotationApproval(
-            'temp-id', // Will be updated after saving
-            formData.client_name || 'Unknown Client',
-            formData.quotation_no || 'QT-TEMP',
-            calculations.grandTotal,
-            'NORMAL'
-          );
-
-          if (approvalResult.success && approvalResult.approvalId) {
-            finalStatus = 'PENDING_APPROVAL';
-            if (import.meta.env.DEV) console.log('Quotation approval request created:', approvalResult.approvalId);
-          } else if (approvalResult.error) {
-            console.error('Failed to create approval request:', approvalResult.error);
-            // Continue with draft status but show error
-            toast.error('Failed to create approval request', { description: approvalResult.error });
-          }
-        } catch (approvalError) {
-          console.error('Error creating approval request:', approvalError);
-          toast.error('Error creating approval request', { description: 'Quotation saved as draft.' });
-        }
-      }
 
       const quotationData = {
         client_id: formData.client_id,
@@ -1995,7 +1968,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         total_tax: calculations.totalTax,
         round_off: calculations.roundOff,
         grand_total: calculations.grandTotal,
-        status: finalStatus,
+        status: editId ? formData.status || 'Draft' : 'Draft',
         negotiation_mode: formData.negotiation_mode,
         authorized_signatory_id: (() => {
           const val = formData.authorized_signatory_id;
@@ -2213,19 +2186,24 @@ const itemsToInsert = items.map(item => ({
       queryClient.invalidateQueries({ queryKey: ['quotation_items', quotationId] });
       queryClient.invalidateQueries({ queryKey: ['quotation-terms', quotationId] });
 
-      // Update approval with actual quotation ID if approval was created
-      if (needsApproval && !editId && finalStatus === 'PENDING_APPROVAL' && quotationId) {
+      if (needsApproval && !editId && quotationId) {
         try {
-          const approvalUpdateResult = await ApprovalIntegration.updateApprovalReference(
+          const approvalResult = await ApprovalIntegration.createQuotationApproval(
             quotationId,
-            'quotation_header',
-            quotationId
+            formData.client_name || 'Unknown Client',
+            formData.quotation_no || 'QT-' + quotationId.slice(0, 8),
+            calculations.grandTotal,
+            'NORMAL'
           );
-          if (approvalUpdateResult.success) {
-            if (import.meta.env.DEV) console.log('Approval reference updated with quotation ID:', quotationId);
+          if (approvalResult.success) {
+            if (import.meta.env.DEV) console.log('Quotation approval created:', approvalResult.approvalId);
+          } else if (approvalResult.error && !approvalResult.error.includes('No approval required')) {
+            console.error('Failed to create approval request:', approvalResult.error);
+            toast.error('Quotation saved but approval request failed', { description: approvalResult.error });
           }
-        } catch (updateError) {
-          console.error('Error updating approval reference:', updateError);
+        } catch (approvalError) {
+          console.error('Error creating approval request:', approvalError);
+          toast.error('Quotation saved but approval creation failed', { description: 'Approval can be requested later.' });
         }
       }
 

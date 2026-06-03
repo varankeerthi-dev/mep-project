@@ -185,7 +185,7 @@ export class ApprovalIntegration {
 
       if (response.success && response.data) {
         await supabase
-          .from('quotations')
+          .from('quotation_header')
           .update({
             status: 'PENDING_APPROVAL',
             approval_id: response.data.id
@@ -526,7 +526,7 @@ export class ApprovalIntegration {
 
       const organisationId = await currentOrgId(user.id);
       if (!organisationId) {
-        return { success: false, error: { code: 'NO_ORG', message: 'User not associated with any organisation' } };
+        return { success: false, error: 'User not associated with any organisation' };
       }
 
       const { error } = await supabase

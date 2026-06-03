@@ -20,7 +20,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST';
+type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION';
 
 type WorkflowLevel = {
   id: string;
@@ -46,6 +46,10 @@ const MODULE_META: Record<ModuleKey, { label: string; description: string }> = {
   PAYMENT_REQUEST: {
     label: 'Payment Requests',
     description: 'Payment requests raised from the dashboard',
+  },
+  QUOTATION: {
+    label: 'Quotations',
+    description: 'Client quotations requiring approval',
   },
 };
 
@@ -192,6 +196,7 @@ export const ApprovalSettings: React.FC = () => {
     PURCHASE_PAYMENT: { enabled: false, levels: [] },
     SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
     PAYMENT_REQUEST: { enabled: false, levels: [] },
+    QUOTATION: { enabled: false, levels: [] },
   }));
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
@@ -229,8 +234,12 @@ export const ApprovalSettings: React.FC = () => {
     const isFresh =
       modules.PURCHASE_PAYMENT.enabled ||
       modules.SUBCONTRACTOR_PAYMENT.enabled ||
+      modules.PAYMENT_REQUEST.enabled ||
+      modules.QUOTATION.enabled ||
       modules.PURCHASE_PAYMENT.levels.length > 0 ||
-      modules.SUBCONTRACTOR_PAYMENT.levels.length > 0;
+      modules.SUBCONTRACTOR_PAYMENT.levels.length > 0 ||
+      modules.PAYMENT_REQUEST.levels.length > 0 ||
+      modules.QUOTATION.levels.length > 0;
 
     if (isFresh) return;
 
@@ -238,6 +247,7 @@ export const ApprovalSettings: React.FC = () => {
       PURCHASE_PAYMENT: { enabled: false, levels: [] },
       SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
       PAYMENT_REQUEST: { enabled: false, levels: [] },
+      QUOTATION: { enabled: false, levels: [] },
     };
 
     workflows.forEach((w: any) => {
@@ -427,7 +437,7 @@ export const ApprovalSettings: React.FC = () => {
         .from('approval_workflows')
         .delete()
         .eq('organisation_id', orgId)
-        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST']);
+        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION']);
 
       if (error) throw error;
 
