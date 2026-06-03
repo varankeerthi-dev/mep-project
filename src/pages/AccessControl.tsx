@@ -100,14 +100,14 @@ export default function AccessControlPage() {
     if (grantPortal) {
       const { data: existingUsers } = await supabase
         .from('user_profiles')
-        .select('id')
+        .select('user_id')
         .ilike('email', values.email)
         .maybeSingle();
 
       if (existingUsers) {
         await supabase.from('org_members').upsert({
           organisation_id: orgId,
-          user_id: existingUsers.id,
+          user_id: existingUsers.user_id,
           role: 'Employee',
           status: 'active',
         }, { onConflict: 'organisation_id,user_id' });

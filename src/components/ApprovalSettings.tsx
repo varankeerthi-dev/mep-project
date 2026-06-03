@@ -405,12 +405,12 @@ export const ApprovalSettings: React.FC = () => {
 
       const { data: userProfiles } = await supabase
         .from('user_profiles')
-        .select('id, email')
+        .select('user_id, email')
         .not('email', 'is', null);
 
       const emailToUserId = new Map<string, string>();
       for (const p of userProfiles ?? []) {
-        if (p.email) emailToUserId.set(p.email.toLowerCase(), p.id);
+        if (p.email) emailToUserId.set(p.email.toLowerCase(), p.user_id);
       }
       for (const m of orgMembers) {
         const email = (m as any).user?.email;
