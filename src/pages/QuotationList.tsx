@@ -30,11 +30,11 @@ import {
   X as XIcon,
 } from 'lucide-react';
 
-const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Approved (Sent)', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
 const SUB_TABS = ['All Quotes', 'Drafts'];
 
-const STATUS_FILTER_OPTIONS = ['All', 'Sent', 'Under Negotiation', 'Approved', 'Approved (Sent)', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+const STATUS_FILTER_OPTIONS = ['All', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:              { bg: '#f3f4f6', color: '#6b7280' },
@@ -51,6 +51,9 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 
 const getStatusColor = (status?: string) =>
   STATUS_COLORS[status ?? ''] ?? STATUS_COLORS['Draft'];
+
+const displayStatus = (q: any) =>
+  q.status === 'Approved' && q.sent_at ? 'Approved (Sent)' : q.status;
 
 const MANDATORY_COLUMNS = ['date', 'quotation_no', 'client', 'grand_total'];
 const ALL_COLUMNS = [
@@ -346,13 +349,7 @@ export default function QuotationList() {
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
-      if (statusFilter !== 'All') {
-        if (statusFilter === 'Approved') {
-          query = query.in('status', ['Approved', 'Approved (Sent)']);
-        } else {
-          query = query.eq('status', statusFilter);
-        }
-      }
+      if (statusFilter !== 'All') query = query.eq('status', statusFilter);
 
       const data = await timedSupabaseQuery(query, 'Quotation list');
       const today = new Date().toISOString().split('T')[0];
@@ -414,7 +411,7 @@ export default function QuotationList() {
     return {
       draft: quotations.filter((q: any) => q.status === 'Draft').length,
       sent: quotations.filter((q: any) => q.status === 'Sent').length,
-      approved: quotations.filter((q: any) => q.status === 'Approved' || q.status === 'Approved (Sent)').length,
+      approved: quotations.filter((q: any) => q.status === 'Approved').length,
       converted: quotations.filter((q: any) => q.status === 'Converted').length,
     };
   }, [quotations]);
@@ -815,9 +812,9 @@ export default function QuotationList() {
                           <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
                             <span 
                               className="text-sm font-medium"
-                              style={{ color: getStatusColor(q.status).color }}
+                              style={{ color: getStatusColor(displayStatus(q)).color }}
                             >
-                              {q.status}
+                              {displayStatus(q)}
                             </span>
                           </td>
                         );
@@ -941,10 +938,12 @@ export default function QuotationList() {
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   setOpenMenuId(null);
-                                  const newStatus = q.status === 'Approved' ? 'Approved (Sent)' : 'Sent';
+                                  const now = new Date().toISOString();
+                                  const update: any = { updated_at: now, sent_at: now };
+                                  if (q.status === 'Draft') update.status = 'Sent';
                                   const { error } = await supabase
                                     .from('quotation_header')
-                                    .update({ status: newStatus, updated_at: new Date().toISOString() })
+                                    .update(update)
                                     .eq('id', q.id)
                                     .eq('organisation_id', organisation?.id);
                                   if (error) {

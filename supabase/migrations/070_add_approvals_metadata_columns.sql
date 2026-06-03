@@ -11,3 +11,6 @@ alter table public.approvals add column if not exists released_at timestamptz;
 
 -- Link quotation_header to its approval record.
 alter table public.quotation_header add column if not exists approval_id uuid references public.approvals(id) on delete set null;
+
+-- Track when a quotation was sent to the client (independent of approval status).
+alter table public.quotation_header add column if not exists sent_at timestamptz;
