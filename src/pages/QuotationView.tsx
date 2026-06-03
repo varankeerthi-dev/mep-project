@@ -20,7 +20,7 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
-import { ApprovalIntegration } from '../approvals/integration';
+import { ApprovalAPI } from '../approvals/api';
 
 
 
@@ -282,25 +282,16 @@ export default function QuotationView() {
     if (!quotationId || !quotation) return;
     
     try {
-      const response = await fetch('/api/approvals/process-action', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: JSON.stringify({
-          approval_id: quotation.approval_id || quotationId,
-          action: action,
-          comments: `${action === 'APPROVED' ? 'Approved via quotation view' : 'Rejected via quotation view'}`
-        })
-      });
+      const res = await ApprovalAPI.processApproval(
+        quotation.approval_id || quotationId,
+        { action, comments: `${action === 'APPROVED' ? 'Approved via quotation view' : 'Rejected via quotation view'}` }
+      );
 
-      if (response.ok) {
+      if (res.success) {
         alert(`Quotation ${action.toLowerCase()} successfully!`);
-        // Refresh quotation data
         quotationQuery.refetch();
       } else {
-        alert(`Failed to ${action.toLowerCase()} quotation`);
+        alert(res.error?.message || `Failed to ${action.toLowerCase()} quotation`);
       }
     } catch (error) {
       console.error('Error processing approval:', error);
