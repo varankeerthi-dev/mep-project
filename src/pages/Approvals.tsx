@@ -85,6 +85,33 @@ const TYPE_COLORS: Record<string, string> = {
   SITE_REPORT_REQUEST: 'bg-sky-50 text-sky-700 border-sky-200',
 };
 
+const EMPTY_STATES = {
+  awaiting: {
+    icon: '✓',
+    bg: '#d1fae5',
+    title: 'All caught up',
+    subtitle: 'No approvals awaiting your action right now.',
+  },
+  others: {
+    icon: '⏸',
+    bg: '#fef3c7',
+    title: 'Nothing pending',
+    subtitle: 'No approvals pending from others right now.',
+  },
+  approved: {
+    icon: '✓',
+    bg: '#dbeafe',
+    title: 'No approvals yet',
+    subtitle: 'You haven\'t approved anything in this period.',
+  },
+  released: {
+    icon: '→',
+    bg: '#ede9fe',
+    title: 'Nothing released',
+    subtitle: 'No released approvals to show.',
+  },
+};
+
 const PRIORITY_DOT: Record<string, string> = {
   LOW: 'bg-zinc-300',
   NORMAL: 'bg-blue-500',
@@ -107,6 +134,18 @@ function formatAge(iso?: string | null): { text: string; overdue: boolean } {
   return { text: `${d}d ago`, overdue: d > SLA_DAYS };
 }
 
+function formatRelativeTime(date: Date): string {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function formatAmount(n: number): string {
+  return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+}
+
 function formatDate(iso?: string | null): string {
   if (!iso) return '—';
   try {
@@ -126,13 +165,16 @@ const Approvals: React.FC = () => {
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'approved' | 'released'>('awaiting');
-  const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
+  const [selectedApproval, setSelectedApproval] = useState<ApprovalRow | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [actionMode, setActionMode] = useState<'none' | 'reject'>('none');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<Approval[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
 
   const { data: approvals = [], isLoading: approvalsLoading } = usePaymentsForApproval(orgId);
   const { data: unifiedApprovals = [], isLoading: unifiedLoading } = useApprovalsForUser(orgId);
@@ -151,17 +193,23 @@ const Approvals: React.FC = () => {
   const paymentModeEnabled = settings?.PURCHASE_PAYMENT ?? false;
   const isLoading = approvalsLoading || unifiedLoading;
 
+  useEffect(() => {
+    if (payApprovals.length > 0) setLastRefresh(new Date());
+  }, [payApprovals.length]);
+
   const fetchApprovalHistory = async (approval: Approval) => {
     try {
       setHistoryLoading(true);
+      setHistoryError(false);
       const res = await ApprovalAPI.getApprovalHistory(approval.id);
       if (res.success && res.data) {
         setHistory(res.data as any);
-        setShowHistory(true);
       } else {
+        setHistoryError(true);
         toast.error('Failed to load history');
       }
     } catch (e) {
+      setHistoryError(true);
       toast.error('Failed to load history');
     } finally {
       setHistoryLoading(false);
@@ -292,7 +340,7 @@ const Approvals: React.FC = () => {
     projectFilter.length > 0;
 
   const handleOpenDetails = async (row: ApprovalRow) => {
-    setSelectedApproval(normalizeOne(row));
+    setSelectedApproval(row);
     setShowDetails(true);
     setActionMode('none');
     setRejectionReason('');
@@ -610,6 +658,7 @@ const Approvals: React.FC = () => {
           onSelectionChange={setSelectedRows}
           selectedRows={selectedRows}
           onFetchHistory={fetchApprovalHistory}
+          activeSection={activeSection}
         />
 
         {selectedRows.length > 0 && (
@@ -647,6 +696,20 @@ const Approvals: React.FC = () => {
         )}
       </div>
 
+      {/* Last updated footer */}
+      <div className="flex items-center justify-end gap-2 text-[10px] text-zinc-400 px-1">
+        <span>
+          Updated {formatRelativeTime(lastRefresh)}
+        </span>
+        <button
+          onClick={() => window.location.reload()}
+          className="hover:text-zinc-700 transition-colors"
+          title="Refresh page"
+        >
+          <RefreshCw className="w-3 h-3" />
+        </button>
+      </div>
+
       {showDetails && selectedApproval && (
         <Dialog open={showDetails} onOpenChange={(open) => { if (!open) { setShowDetails(false); setActionMode('none'); } }}>
           <DialogContent className="!fixed !right-0 !top-0 !bottom-0 !left-auto !translate-x-0 !translate-y-0 !m-0 h-full max-w-xl w-full rounded-none border-l border-zinc-200 overflow-hidden flex flex-col !p-0">
@@ -667,8 +730,8 @@ const Approvals: React.FC = () => {
                 <span className={SCORE_COLORS[selectedApproval.status] + ' text-[10px] px-2 py-0.5 rounded-full border font-semibold'}>
                   {approvalStatusLabel(selectedApproval.status)}
                 </span>
-                <span className={TYPE_COLORS[selectedApproval.approval_type as string] + ' text-[10px] px-2 py-0.5 rounded-full border font-semibold'}>
-                  {TYPE_LABEL[selectedApproval.approval_type as string] ?? selectedApproval.approval_type}
+                <span className={TYPE_COLORS[selectedApproval.approvalType] + ' text-[10px] px-2 py-0.5 rounded-full border font-semibold'}>
+                  {TYPE_LABEL[selectedApproval.approvalType] ?? selectedApproval.approvalType}
                 </span>
               </div>
             </div>
@@ -683,7 +746,7 @@ const Approvals: React.FC = () => {
                 onClick={() => {
                   setActiveTab('history');
                   if (history.length === 0 && !historyLoading) {
-                    fetchApprovalHistory(selectedApproval);
+                    fetchApprovalHistory(selectedApproval as unknown as Approval);
                   }
                 }}
               >
@@ -701,7 +764,7 @@ const Approvals: React.FC = () => {
                     <Detail label="Priority" value={selectedApproval.priority} />
                     <Detail
                       label="Submitted"
-                      value={formatDate(selectedApproval.requested_at || selectedApproval.requestedAt || selectedApproval.created_at)}
+                      value={formatDate(selectedApproval.requestedAt)}
                     />
                     <Detail label="Requester" value={selectedApproval.requesterName || '-'} />
                     <Detail label="Project" value={selectedApproval.projectName || '-'} />
@@ -744,7 +807,18 @@ const Approvals: React.FC = () => {
               {activeTab === 'history' && (
                 <div className="space-y-2">
                   {historyLoading && <p className="text-xs text-zinc-500 py-4 text-center">Loading history…</p>}
-                  {!historyLoading && history.length === 0 && <p className="text-xs text-zinc-500 py-4 text-center">No history yet.</p>}
+                  {historyError && (
+                    <div className="text-center py-4">
+                      <p className="text-xs text-red-600 mb-2">Failed to load history</p>
+                      <button
+                        onClick={() => fetchApprovalHistory(selectedApproval as unknown as Approval)}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  )}
+                  {!historyLoading && !historyError && history.length === 0 && <p className="text-xs text-zinc-500 py-4 text-center">No history yet.</p>}
                   {history.map((entry, idx) => (
                     <div key={entry.id ?? idx} className="text-xs border border-zinc-100 rounded-md px-3 py-2.5">
                       <div className="font-semibold text-zinc-800">
@@ -870,6 +944,27 @@ const Detail = ({ label, value }: DetailProps) => (
   </div>
 );
 
+const TabBtn = ({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => (
+  <button
+    onClick={onClick}
+    className={`text-xs font-semibold px-1 py-2.5 border-b-2 transition-colors ${
+      active
+        ? 'border-zinc-900 text-zinc-900'
+        : 'border-transparent text-zinc-400 hover:text-zinc-600'
+    }`}
+  >
+    {children}
+  </button>
+);
+
 const FilterChipGroup = <T extends string>({
   label,
   options,
@@ -952,10 +1047,6 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     projectName: item.project_name ?? null,
     referenceNumber: item.reference_number ?? null,
   }));
-}
-
-function normalizeOne(row: ApprovalRow): Approval {
-  return row as any;
 }
 
 type WorkflowMeta = Pick<ApprovalWorkflow, 'approver_role' | 'level'>;
@@ -1054,6 +1145,7 @@ type ApprovalTableProps = {
   selectedRows?: ApprovalRow[];
   onSelectionChange?: (rows: ApprovalRow[]) => void;
   onFetchHistory?: (approval: Approval) => void;
+  activeSection: 'awaiting' | 'others' | 'approved' | 'released';
 };
 
 const MAX_STEPPER_VISIBLE = 4;
@@ -1117,6 +1209,7 @@ const ApprovalTable = ({
   enableRowSelection,
   onSelectionChange,
   onFetchHistory,
+  activeSection,
 }: ApprovalTableProps) => {
   const columns: TableColumns[] = [
     {
@@ -1153,6 +1246,11 @@ const ApprovalTable = ({
               <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
                 {age.text}
               </span>
+              {age.overdue && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
+                  Overdue
+                </span>
+              )}
             </div>
           </div>
         );
@@ -1268,15 +1366,31 @@ const ApprovalTable = ({
   ];
 
   if (loading) {
-    return <div className="px-6 py-8 text-sm text-zinc-500">Loading...</div>;
+    return (
+      <div className="p-6 space-y-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex items-center gap-4 animate-pulse">
+            <div className="h-5 w-20 bg-zinc-200 rounded" />
+            <div className="h-5 w-60 bg-zinc-200 rounded" />
+            <div className="h-5 w-28 bg-zinc-200 rounded" />
+            <div className="h-5 w-36 bg-zinc-200 rounded" />
+            <div className="h-5 w-24 bg-zinc-200 rounded ml-auto" />
+            <div className="h-5 w-32 bg-zinc-200 rounded" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (!rows.length) {
+    const empty = EMPTY_STATES[activeSection];
     return (
       <div className="px-6 py-10 text-center">
-        <RefreshCw className="mx-auto h-10 w-10 text-zinc-300 mb-2" />
-        <h3 className="text-sm font-medium text-zinc-700">No approvals here</h3>
-        <p className="text-xs text-zinc-500 mt-1">This view only shows relevant approvals based on your role.</p>
+        <div className="mx-auto h-10 w-10 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: empty.bg }}>
+          <span className="text-lg">{empty.icon}</span>
+        </div>
+        <h3 className="text-sm font-medium text-zinc-700">{empty.title}</h3>
+        <p className="text-xs text-zinc-500 mt-1">{empty.subtitle}</p>
       </div>
     );
   }

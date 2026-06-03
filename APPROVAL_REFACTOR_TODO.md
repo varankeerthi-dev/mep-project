@@ -3,12 +3,12 @@
 Status of phases. Each phase ends with a git commit (rollback checkpoint).
 
 | Phase | Title | Status | Commit |
-|---|---|---|---|
-| 1 | Information density (denorm columns, stepper, requester/project/ref) | done | next commit |
-| 2 | Row interactions (hover quick-approve/reject, action menu, bulk) | pending | — |
-| 3 | Above-table layer (stats, filter bar, pill nav) | pending | — |
-| 4 | Modal → Drawer (side drawer, tabs) | pending | — |
-| 5 | Polish (empty states, overdue SLA, error states) | pending | — |
+|---|---|---|---|---|
+| 1 | Information density (denorm columns, stepper, requester/project/ref) | done | `21a0240` |
+| 2 | Row interactions (hover quick-approve/reject, action menu, bulk) | done | `c7abb57` |
+| 3 | Above-table layer (stats, filter bar, pill nav) | done | `30657be` |
+| 4 | Modal → Drawer (side drawer, tabs) | done | `00aa2af` |
+| 5 | Polish (empty states, overdue SLA, loading/error states) | in progress | — |
 | — | Full end-to-end test of approval tab | pending | — |
 
 ## Out of scope (per user)
