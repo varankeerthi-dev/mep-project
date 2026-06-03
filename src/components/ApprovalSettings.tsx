@@ -443,11 +443,35 @@ export const ApprovalSettings: React.FC = () => {
             } else {
               const employee = employeeMap.get(approverId);
               if (employee) {
-                const authUserId = emailToUserId.get(employee.email.toLowerCase());
+                let authUserId = emailToUserId.get(employee.email.toLowerCase());
                 if (!authUserId) {
-                  toast.error(`"${employee.full_name}" has no account yet. Add them via Settings → Team Members first.`);
-                  setSaving(false);
-                  return;
+                  const tempPw = Math.random().toString(36).slice(2) + 'Ab1!';
+                  const { data: sd, error: se } = await supabase.auth.signUp({
+                    email: employee.email,
+                    password: tempPw,
+                  });
+                  if (se) {
+                    if (se.message?.toLowerCase().includes('already registered')) {
+                      toast.error(`"${employee.full_name}" already has an account but isn't linked to this org. Ask them to submit an access request.`);
+                    } else {
+                      toast.error(se.message);
+                    }
+                    setSaving(false);
+                    return;
+                  }
+                  if (!sd?.user) {
+                    toast.error(`Failed to create account for "${employee.full_name}"`);
+                    setSaving(false);
+                    return;
+                  }
+                  authUserId = sd.user.id;
+                  await supabase.from('users').upsert({
+                    id: authUserId,
+                    emp_name: employee.full_name,
+                    email: employee.email,
+                    role: member?.role ?? 'Employee',
+                    emp_id: 'EMP-' + Date.now().toString().slice(-6),
+                  }, { onConflict: 'id' });
                 }
                 const { error: omError } = await supabase.from('org_members').upsert({
                   organisation_id: orgId,
