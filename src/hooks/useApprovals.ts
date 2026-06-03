@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApprovalAPI } from '@/approvals/api';
-import type { Approval, ApprovalWorkflow, ApiResponse } from '@/types/approvals';
+import type { Approval, ApprovalWorkflow } from '@/types/approvals';
 import {
   useReleaseSubcontractorPayment as useReleaseSubcontractorPaymentImpl,
   useSubcontractorPaymentsForAccountant as useSubcontractorPaymentsForAccountantImpl,
@@ -23,43 +23,17 @@ export function useApprovalsForUser(orgId: string | undefined) {
 }
 
 export function useOrgApprovalWorkflows(orgId: string | undefined) {
-  const [data, setData] = useState<ApprovalWorkflow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { data = [], isLoading } = useQuery({
+    queryKey: ['approval-workflows', orgId],
+    queryFn: async (): Promise<ApprovalWorkflow[]> => {
+      const res = await ApprovalAPI.getApprovalWorkflows();
+      if (!res.success) return [];
+      return res.data ?? [];
+    },
+    enabled: !!orgId,
+  });
 
-  useEffect(() => {
-    if (!orgId) {
-      setData([]);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    ApprovalAPI.getApprovalWorkflows()
-      .then((res: ApiResponse<ApprovalWorkflow[]>) => {
-        if (!cancelled) setData(res.success ? (res.data ?? []) : []);
-      })
-      .catch(() => {
-        if (!cancelled) setData([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [orgId]);
-
-  const refetch = () => {
-    if (!orgId) return;
-    setLoading(true);
-    ApprovalAPI.getApprovalWorkflows()
-      .then((res: ApiResponse<ApprovalWorkflow[]>) => {
-        setData(res.success ? (res.data ?? []) : []);
-      })
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  };
-
-  return { data, loading, refetch };
+  return { data, loading: isLoading, refetch: () => {} };
 }
 
 type ApprovalSettingsForOrg = Record<

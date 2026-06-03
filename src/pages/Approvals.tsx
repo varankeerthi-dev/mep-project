@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, RefreshCw, X, XCircle, MoreHorizontal, Download } from 'lucide-react';
+import { CheckCircle2, RefreshCw, X, XCircle, MoreHorizontal, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -38,6 +38,7 @@ type ApprovalRow = {
   requesterRole?: string | null;
   projectName?: string | null;
   referenceNumber?: string | null;
+  releasedAt?: string | null;
 };
 
 type PaymentDetail = {
@@ -211,6 +212,7 @@ const Approvals: React.FC = () => {
       if (document.visibilityState === 'visible') {
         queryClient.invalidateQueries({ queryKey: ['approvals', 'list', orgId] });
         queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'approval', 'pending', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['approval-workflows', orgId] });
         setLastRefresh(new Date());
       }
     }, 30000);
@@ -239,13 +241,10 @@ const Approvals: React.FC = () => {
   const loadDetailsFor = async (row: ApprovalRow) => {
     if (detailsMap[row.id]) return;
     try {
-      const [paymentsRes, billsRes] = await Promise.all([
-        ApprovalAPI.getApprovalsForUser({
-          search: row.title,
-          type: [row.approvalType as any],
-        }),
-        fetch('/api/purchase-bills').catch(() => null),
-      ]);
+      const paymentsRes = await ApprovalAPI.getApprovalsForUser({
+        search: row.title,
+        type: [row.approvalType as any],
+      });
 
       const related = paymentsRes.success
         ? (paymentsRes.data ?? []).filter((p: any) => p.reference_type === row.referenceType)
@@ -267,25 +266,27 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const awaitingActions = useMemo(
-    () => tidy(payApprovals, 'awaiting'),
-    [payApprovals]
-  );
+  const sectionMap = useMemo(() => {
+    const awaiting: ApprovalRow[] = [];
+    const others: ApprovalRow[] = [];
+    const approved: ApprovalRow[] = [];
+    const released: ApprovalRow[] = [];
+    for (const row of payApprovals) {
+      const s = row.status;
+      if (s === 'PENDING') awaiting.push(row);
+      else if (s === 'FORWARDED' || s === 'HOLD') others.push(row);
+      else if (s === 'APPROVED') {
+        approved.push(row);
+        if (row.releasedAt) released.push(row);
+      }
+    }
+    return { awaiting, others, approved, released };
+  }, [payApprovals]);
 
-  const approvedActions = useMemo(
-    () => tidy(payApprovals, 'approved'),
-    [payApprovals]
-  );
-
-  const releasedActions = useMemo(
-    () => tidy(payApprovals, 'released'),
-    [payApprovals]
-  );
-
-  const pendingOthers = useMemo(
-    () => tidy(payApprovals, 'others'),
-    [payApprovals]
-  );
+  const awaitingActions = sectionMap.awaiting;
+  const approvedActions = sectionMap.approved;
+  const releasedActions = sectionMap.released;
+  const pendingOthers = sectionMap.others;
 
   const activeList = useMemo(() => {
     switch (activeSection) {
@@ -475,6 +476,7 @@ const Approvals: React.FC = () => {
   // —————— Quick actions (inline) ——————
 
   const [selectedRows, setSelectedRows] = useState<ApprovalRow[]>([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const handleQuickApprove = async (row: ApprovalRow) => {
     try {
@@ -527,12 +529,13 @@ const Approvals: React.FC = () => {
   };
 
   const handleBulkApprove = async () => {
-    if (!selectedRows.length) return;
+    if (!selectedRows.length || bulkProcessing) return;
     const pending = selectedRows.filter((r) => r.status === 'PENDING');
     if (!pending.length) {
       toast.info('No pending rows selected');
       return;
     }
+    setBulkProcessing(true);
     let ok = 0;
     for (const row of pending) {
       try {
@@ -543,16 +546,18 @@ const Approvals: React.FC = () => {
     toast.success(`Approved ${ok} of ${pending.length} selected`);
     setRemovedIds(prev => new Set([...prev, ...pending.map(r => r.id)]));
     setSelectedRows([]);
+    setBulkProcessing(false);
   };
 
   const handleBulkReject = async () => {
-    if (!selectedRows.length) return;
+    if (!selectedRows.length || bulkProcessing) return;
     const reason = 'Bulk rejected';
     const pending = selectedRows.filter((r) => r.status === 'PENDING');
     if (!pending.length) {
       toast.info('No pending rows selected');
       return;
     }
+    setBulkProcessing(true);
     let ok = 0;
     for (const row of pending) {
       try {
@@ -566,6 +571,7 @@ const Approvals: React.FC = () => {
     toast.success(`Rejected ${ok} of ${pending.length} selected`);
     setRemovedIds(prev => new Set([...prev, ...pending.map(r => r.id)]));
     setSelectedRows([]);
+    setBulkProcessing(false);
   };
 
   const fuzzyActiveFilterCount = (typeFilter.length > 0 ? 1 : 0) + (priorityFilter.length > 0 ? 1 : 0) + (projectFilter.length > 0 ? 1 : 0);
@@ -679,9 +685,13 @@ const Approvals: React.FC = () => {
         )}
         <button
           onClick={() => {
+            const esc = (v: unknown) => {
+              const s = String(v ?? '');
+              return /["\n,;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            };
             const header = ['Type','Party','Project','Requester','Amount','Status','Submitted'].join(',');
             const rows = filteredList.map(r =>
-              [r.approvalType, r.title.replace(/,/g,''), r.projectName||'', (r.requesterName||'').replace(/,/g,''), r.amount, r.status, r.requestedAt||''].join(',')
+              [r.approvalType, esc(r.title), r.projectName||'', esc(r.requesterName), r.amount, r.status, r.requestedAt||''].join(',')
             ).join('\n');
             const blob = new Blob([header + '\n' + rows], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
@@ -763,23 +773,26 @@ const Approvals: React.FC = () => {
                 variant="secondary"
                 size="sm"
                 onClick={handleBulkApprove}
+                disabled={bulkProcessing}
               >
-                <CheckCircle2 className="w-4 h-4 mr-1" />
-                Approve all
+                {bulkProcessing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                {bulkProcessing ? 'Processing...' : 'Approve all'}
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
                 className="text-red-600 border-red-200 hover:bg-red-50"
                 onClick={handleBulkReject}
+                disabled={bulkProcessing}
               >
-                <XCircle className="w-4 h-4 mr-1" />
-                Reject all
+                {bulkProcessing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <XCircle className="w-4 h-4 mr-1" />}
+                {bulkProcessing ? 'Processing...' : 'Reject all'}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedRows([])}
+                disabled={bulkProcessing}
               >
                 Clear
               </Button>
@@ -1199,7 +1212,7 @@ function tidy(list: ApprovalRow[], scope: string): ApprovalRow[] {
     if (scope === 'awaiting') return row.status === 'PENDING';
     if (scope === 'others') return row.status === 'FORWARDED' || row.status === 'HOLD';
     if (scope === 'approved') return row.status === 'APPROVED';
-    if (scope === 'released') return row.status === 'APPROVED' && !!(row as any).releasedAt;
+    if (scope === 'released') return row.status === 'APPROVED' && !!row.releasedAt;
     return false;
   });
 }
@@ -1285,18 +1298,34 @@ const ApprovalTable = ({
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex items-center gap-4 animate-pulse">
-            <div className="h-5 w-20 bg-zinc-200 rounded" />
-            <div className="h-5 w-60 bg-zinc-200 rounded" />
-            <div className="h-5 w-28 bg-zinc-200 rounded" />
-            <div className="h-5 w-36 bg-zinc-200 rounded" />
-            <div className="h-5 w-24 bg-zinc-200 rounded ml-auto" />
-            <div className="h-5 w-32 bg-zinc-200 rounded" />
-          </div>
-        ))}
-      </div>
+      <table className="w-full border-separate border-spacing-0">
+        <thead>
+          <tr>
+            {enableRowSelection && <th className="h-[36px] px-4 w-[50px] bg-white border-b border-zinc-200" />}
+            <th className="h-[36px] px-6 pl-1 w-[150px] bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 w-[160px] bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 w-[180px] bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 w-[160px] bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 w-[220px] bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 w-[140px] bg-white border-b border-zinc-200" />
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <tr key={i} className="animate-pulse border-t border-zinc-200/70">
+              {enableRowSelection && <td className="px-4 py-[75px] text-center"><div className="h-4 w-4 mx-auto bg-zinc-200 rounded" /></td>}
+              <td className="px-6 py-[75px]"><div className="h-4 w-16 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-48 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-24 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-28 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-12 bg-zinc-200 rounded mx-auto" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     );
   }
 
