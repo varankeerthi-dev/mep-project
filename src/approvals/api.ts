@@ -363,22 +363,16 @@ export class ApprovalAPI {
     try {
       switch (approval.reference_type) {
         case 'purchase_orders':
-          await supabase
-            .from('purchase_orders')
-            .update({ status: 'APPROVED' })
-            .eq('id', approval.reference_id);
+          await supabase.from('purchase_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
           break;
         case 'work_orders':
-          await supabase
-            .from('work_orders')
-            .update({ status: 'APPROVED' })
-            .eq('id', approval.reference_id);
+          await supabase.from('work_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
           break;
         case 'invoices':
-          await supabase
-            .from('invoices')
-            .update({ status: 'APPROVED' })
-            .eq('id', approval.reference_id);
+          await supabase.from('invoices').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
+          break;
+        case 'quotations':
+          await supabase.from('quotation_header').update({ status: 'Approved' }).eq('id', approval.reference_id);
           break;
       }
     } catch (error) {
