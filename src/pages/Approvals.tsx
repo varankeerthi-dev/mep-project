@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { CheckCircle2, RefreshCw, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { CheckCircle2, RefreshCw, X, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { AppTable } from '@/components/ui/AppTable';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOrgApprovalSettings, useOrgApprovalWorkflows } from '@/hooks/useApprovals';
+import { useOrgApprovalSettings, useOrgApprovalWorkflows, useApprovalsForUser } from '@/hooks/useApprovals';
 import { usePaymentsForApproval, useApprovePayment } from '../modules/Purchase/hooks/usePurchaseQueries';
 import { ApprovalAPI } from '@/approvals/api';
 import { toast } from '@/lib/logger';
@@ -53,7 +53,7 @@ const SCORE_COLORS: Record<string, string> = {
 const Approvals: React.FC = () => {
   const { organisation } = useAuth();
   const orgId = organisation?.id as string | undefined;
-  const { data: settings } = useOrgApprovalSettings(orgId);
+  const { settings } = useOrgApprovalSettings(orgId);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'approved' | 'released'>('awaiting');
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
@@ -65,9 +65,13 @@ const Approvals: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const { data: approvals = [], isLoading: approvalsLoading } = usePaymentsForApproval(orgId);
+  const { data: unifiedApprovals = [], isLoading: unifiedLoading } = useApprovalsForUser(orgId);
   const payApprovals = useMemo(
-    () => normalize(approvals as any[]),
-    [approvals]
+    () => [
+      ...normalizeUnified(unifiedApprovals as any[]),
+      ...normalize(approvals as any[]),
+    ],
+    [approvals, unifiedApprovals]
   );
 
   const { data: workflows = [] } = useOrgApprovalWorkflows(orgId);
@@ -75,6 +79,7 @@ const Approvals: React.FC = () => {
   const [detailsMap, setDetailsMap] = useState<Record<string, PaymentDetail>>({});
 
   const paymentModeEnabled = settings?.PURCHASE_PAYMENT ?? false;
+  const isLoading = approvalsLoading || unifiedLoading;
 
   const fetchApprovalHistory = async (approval: Approval) => {
     try {
@@ -125,8 +130,8 @@ const Approvals: React.FC = () => {
   };
 
   const awaitingActions = useMemo(
-    () => paymentModeEnabled ? tidy(payApprovals, 'awaiting') : [],
-    [payApprovals, paymentModeEnabled]
+    () => tidy(payApprovals, 'awaiting'),
+    [payApprovals]
   );
 
   const approvedActions = useMemo(
@@ -274,7 +279,7 @@ const Approvals: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-4">
         <Pill
           label="Awaiting my action"
           value={sectionCounts.awaiting}
@@ -307,13 +312,12 @@ const Approvals: React.FC = () => {
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input
             type="text"
             placeholder="Search approvals..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -322,7 +326,7 @@ const Approvals: React.FC = () => {
         <ApprovalTable
           rows={filteredList}
           onView={handleOpenDetails}
-          loading={approvalsLoading}
+          loading={isLoading}
           chainFor={(row) => chainLabel(row, workflows)}
         />
       </div>
@@ -469,12 +473,11 @@ type PillProps = {
 const Pill = ({ label, value, active, onClick, accent }: PillProps) => (
   <button
     onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-all ${
+    className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-3 text-sm transition-all ${
       active ? 'border-zinc-900 text-zinc-900' : 'border-zinc-200 text-zinc-700 hover:bg-zinc-100'
     }`}
   >
     <span className={`h-2.5 w-2.5 rounded-full ${active ? accent : 'bg-zinc-300'}`} />
-    <span className="hidden sm:inline">{label}</span>
     <span>{label}</span>
     <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}>
       {value}
@@ -512,6 +515,21 @@ function normalize(items: ApprovalRow[]): ApprovalRow[] {
     referenceType: guessReferenceType(item.approvalType),
     currentLevel: item.currentLevel || 1,
     maxLevels: item.maxLevels || 1,
+  }));
+}
+
+function normalizeUnified(items: any[]): ApprovalRow[] {
+  return items.map((item) => ({
+    id: item.id,
+    title: item.title || '',
+    amount: Number(item.amount || 0),
+    approvalType: item.approval_type,
+    referenceType: item.reference_type || guessReferenceType(item.approval_type),
+    referenceId: item.reference_id,
+    currentLevel: item.current_level || 1,
+    maxLevels: item.max_levels || 1,
+    status: item.status || 'PENDING',
+    requestedAt: item.requested_at || item.created_at,
   }));
 }
 
@@ -574,10 +592,10 @@ function approvalStatusLabel(status: ApprovalRow['status']) {
 
 function tidy(list: ApprovalRow[], scope: string): ApprovalRow[] {
   return list.filter((row) => {
-    if (scope === 'awaiting') return row.currentLevel >= row.maxLevels; // todo: replace with real pending-for-user rule
-    if (scope === 'others') return false;
+    if (scope === 'awaiting') return row.status === 'PENDING';
+    if (scope === 'others') return row.status === 'FORWARDED' || row.status === 'HOLD';
     if (scope === 'approved') return row.status === 'APPROVED';
-    if (scope === 'released') return row.status === 'APPROVED'; // todo: map released state when available
+    if (scope === 'released') return row.status === 'APPROVED' && !!(row as any).releasedAt;
     return false;
   });
 }

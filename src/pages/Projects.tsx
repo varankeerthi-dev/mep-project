@@ -11,7 +11,6 @@ import MaterialIntentsList from './MaterialIntentsList';
 import ProjectMaterialList from './ProjectMaterialList';
 import MaterialUsageTracker from './MaterialUsageTracker';
 import MaterialConsumptionReport from './MaterialConsumptionReport';
-import ToolsDashboard from './ToolsDashboard';
 import { getMeetings } from '../meetings/api/meetings';
 
 const ProjectList = React.lazy(() => import('./ProjectList'));
@@ -22,7 +21,6 @@ const SiteMaterials = React.lazy(() => import('./ProjectManagementInternal').the
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
-  { id: 'tools-management', label: 'Tools', icon: Package, component: null },
 ];
 
 const MATERIAL_SUBTABS = [
@@ -98,7 +96,6 @@ export default function Projects() {
   };
 
   const isMaterialManagement = activeTab === 'material-management';
-  const isToolsManagement = activeTab === 'tools-management';
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -174,8 +171,6 @@ export default function Projects() {
               )}
             </div>
           </div>
-        ) : isToolsManagement ? (
-          <ToolsDashboard />
         ) : (
           <Suspense fallback={<div className="flex h-64 items-center justify-center text-zinc-400">Loading projects...</div>}>
             <ProjectList />

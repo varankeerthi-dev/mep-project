@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ApprovalAPI } from '@/approvals/api';
-import type { ApprovalWorkflow, ApiResponse } from '@/types/approvals';
+import type { Approval, ApprovalWorkflow, ApiResponse } from '@/types/approvals';
 import { useReleaseSubcontractorPayment as useReleaseSubcontractorPaymentImpl } from '@/modules/Purchase/hooks/usePurchaseQueries';
 
 export const useReleaseSubcontractorPayment = useReleaseSubcontractorPaymentImpl;
+
+export function useApprovalsForUser(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ['approvals', 'list', orgId],
+    queryFn: async (): Promise<Approval[]> => {
+      const res = await ApprovalAPI.getApprovalsForUser();
+      if (!res.success) return [];
+      return res.data ?? [];
+    },
+    enabled: !!orgId,
+  });
+}
 
 export function useOrgApprovalWorkflows(orgId: string | undefined) {
   const [data, setData] = useState<ApprovalWorkflow[]>([]);
@@ -61,11 +74,21 @@ export function useOrgApprovalSettings(orgId: string | undefined) {
     if (!orgId) return;
     setLoading(true);
     try {
+      const supabaseClient = (await import('@/lib/supabase')).supabase;
+
+      const settingsPromise = supabaseClient
+        .from('approval_settings')
+        .select('*')
+        .eq('organisation_id', orgId)
+        .then((res: any) => {
+          if (res.error && res.error.code === 'PGRST205') {
+            return { data: [], error: null };
+          }
+          return res;
+        });
+
       const [{ data: rows }, workflows] = await Promise.all([
-        (await import('@/lib/supabase')).supabase
-          .from('approval_settings')
-          .select('*')
-          .eq('organisation_id', orgId),
+        settingsPromise,
         ApprovalAPI.getApprovalWorkflows(),
       ]) as any;
 
@@ -120,9 +143,9 @@ export function useOrgApprovalSettings(orgId: string | undefined) {
           organisation_id: orgId,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'setting_key' }
+        { onConflict: 'organisation_id,setting_key' }
       );
-      if (error) throw error;
+      if (error && error.code !== 'PGRST205') throw error;
     } finally {
       setLoading(false);
     }

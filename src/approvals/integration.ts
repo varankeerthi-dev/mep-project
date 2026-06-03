@@ -410,10 +410,15 @@ export class ApprovalIntegration {
       const organisationId = await currentOrgId(user.id);
       if (!organisationId) return false;
 
+      const typesToCheck =
+        approvalType === 'PAYMENT_REQUEST'
+          ? ['PAYMENT_REQUEST', 'PURCHASE_PAYMENT']
+          : [approvalType];
+
       const { data: workflows } = await supabase
         .from('approval_workflows')
         .select('id')
-        .eq('approval_type', approvalType)
+        .in('approval_type', typesToCheck)
         .lte('min_amount', amount)
         .or(`max_amount.is.null,max_amount.gte.${amount}`)
         .eq('is_active', true)

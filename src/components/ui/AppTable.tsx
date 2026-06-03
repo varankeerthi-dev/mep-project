@@ -18,12 +18,14 @@ import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, More
 export type ColumnFilterType = 'text' | 'select' | 'date';
 
 export interface AppTableColumn<T extends Record<string, any>> {
+  id?: string;
   accessorKey?: keyof T | string;
   header: string;
   cell?: (info: { getValue: () => any; row: { original: T }; column: { id: string } }) => ReactNode;
   filterType?: ColumnFilterType;
   filterOptions?: { label: string; value: string }[];
   size?: number;
+  enableSorting?: boolean;
 }
 
 export interface AppTableProps<T extends Record<string, any>> {
@@ -112,11 +114,12 @@ export function AppTable<T extends Record<string, any>>({
 
     columns.forEach((col) => {
       const colDef: ColumnDef<T> = {
-        accessorKey: col.accessorKey as string,
+        ...(col.id ? { id: col.id } : {}),
+        ...(col.accessorKey ? { accessorKey: col.accessorKey as string } : {}),
         header: col.header,
-        cell: col.cell ? ({ row, getValue }) => col.cell!({ getValue, row, column: { id: col.accessorKey as string } }) : undefined,
+        cell: col.cell ? ({ row, getValue }) => col.cell!({ getValue, row, column: { id: (col.id ?? col.accessorKey) as string } }) : undefined,
         size: col.size,
-        enableSorting: col.size !== 0,
+        enableSorting: col.enableSorting ?? col.size !== 0,
       };
       if (col.filterType) {
         (colDef as any).filterType = col.filterType;

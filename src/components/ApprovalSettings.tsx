@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getOrganisationMembers } from '@/supabase';
 import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT';
 
@@ -267,6 +268,80 @@ export const ApprovalSettings: React.FC = () => {
     }));
   };
 
+  const [backfilling, setBackfilling] = useState(false);
+
+  const handleBackfillApprovals = async () => {
+    if (!orgId) return;
+    try {
+      setBackfilling(true);
+
+      const { data: requests, error: reqError } = await supabase
+        .from('payment_requests')
+        .select('id, amount_requested, priority, payment_mode, status, vendor:purchase_vendors(company_name)')
+        .eq('organisation_id', orgId);
+
+      if (reqError) throw reqError;
+
+      const { data: existing, error: exError } = await supabase
+        .from('approvals')
+        .select('reference_id')
+        .eq('organisation_id', orgId)
+        .eq('approval_type', 'PAYMENT_REQUEST');
+
+      if (exError) throw exError;
+
+      const linked = new Set((existing || []).map((r: any) => r.reference_id));
+      const pending = (requests || []).filter((r: any) => !linked.has(r.id));
+
+      if (pending.length === 0) {
+        toast.success('No payment requests need backfilling');
+        return;
+      }
+
+      const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
+        Low: 'LOW', Normal: 'NORMAL', High: 'HIGH', Urgent: 'URGENT',
+      };
+
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        toast.error('Not signed in');
+        return;
+      }
+
+      const rows = pending.map((req: any) => {
+        const vendorName = req?.vendor?.company_name || 'Vendor';
+        const amount = Number(req.amount_requested || 0);
+        return {
+          approval_type: 'PAYMENT_REQUEST',
+          reference_id: req.id,
+          reference_type: 'payment_requests',
+          title: `Payment Request - ${vendorName}`,
+          description: `Payment request for ${vendorName} with amount of ₹${amount.toLocaleString()}`,
+          amount,
+          priority: priorityMap[req.priority] || 'NORMAL',
+          status: 'PENDING',
+          current_level: 1,
+          max_levels: 1,
+          requested_by: authUser.id,
+          organisation_id: orgId,
+        };
+      });
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('approvals')
+        .insert(rows)
+        .select('id');
+
+      if (insertError) throw insertError;
+
+      toast.success(`Backfilled ${inserted?.length ?? 0} of ${pending.length} payment requests`);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Backfill failed');
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!orgId || !user?.id) return;
     try {
@@ -324,9 +399,14 @@ export const ApprovalSettings: React.FC = () => {
             requests only.
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save settings'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleBackfillApprovals} disabled={backfilling}>
+            {backfilling ? 'Backfilling…' : 'Backfill missing approvals'}
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save settings'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6">

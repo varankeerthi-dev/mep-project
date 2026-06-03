@@ -3,6 +3,7 @@ import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
 import { createPurchaseRequisition, deletePurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, updatePurchaseRequisition, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
 import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, listRequisitionLinesForSourcing, fulfillFromStoreLine, sendToPurchaseLine, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
+import { ApprovalIntegration } from '../../../approvals/integration';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -747,17 +748,61 @@ export const useCreatePaymentRequest = () => {
   
   return useMutation({
     mutationFn: withSessionCheck(async (requestData: any) => {
+      const payload = { ...requestData };
+
+      if (!payload.request_date) {
+        payload.request_date = new Date().toISOString().slice(0, 10);
+      }
+
+      if (!payload.request_no) {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const prefix = `PMR-${yy}${mm}-`;
+
+        const { data: existing, error: lookupError } = await supabase
+          .from('payment_requests')
+          .select('request_no')
+          .eq('organisation_id', payload.organisation_id)
+          .ilike('request_no', `${prefix}%`);
+
+        if (lookupError) throw lookupError;
+        const next = (existing?.length || 0) + 1;
+        payload.request_no = `${prefix}${String(next).padStart(4, '0')}`;
+      }
+
       const { data, error } = await supabase
         .from('payment_requests')
-        .insert(requestData)
-        .select()
+        .insert(payload)
+        .select('*, vendor:purchase_vendors(company_name)')
         .single();
       
       if (error) throw error;
+
+      try {
+        const vendorName = (data as any)?.vendor?.company_name || 'Vendor';
+        const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
+          Low: 'LOW',
+          Normal: 'NORMAL',
+          High: 'HIGH',
+          Urgent: 'URGENT',
+        };
+        await ApprovalIntegration.createPaymentApproval(
+          data.id,
+          vendorName,
+          payload.payment_mode || 'Payment Request',
+          Number(payload.amount_requested || 0),
+          priorityMap[payload.priority] || 'NORMAL'
+        );
+      } catch (approvalErr) {
+        console.error('Failed to create approval entry for payment request', approvalErr);
+      }
+
       return data;
     }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
   });
 };
