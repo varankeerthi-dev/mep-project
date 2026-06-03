@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrgApprovalWorkflows } from '@/hooks/useApprovals';
 import { useQuery } from '@tanstack/react-query';
 import { getOrganisationMembers } from '@/supabase';
+import { useEmployees } from '@/rbac/hooks';
 import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -190,6 +191,23 @@ export const ApprovalSettings: React.FC = () => {
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
   const { data: orgMembers = [] } = useOrgMembers(orgId);
+  const { data: employeeRows = [] } = useEmployees(orgId);
+
+  const allMembers = useMemo(() => {
+    const memberMap = new Map<string, OrgMember>();
+    for (const m of orgMembers) memberMap.set(m.user_id, m);
+    const seenIds = new Set(memberMap.keys());
+    for (const e of employeeRows) {
+      if (!seenIds.has(e.id)) {
+        memberMap.set(e.id, {
+          user_id: e.id,
+          role: 'Employee',
+          user: { full_name: e.full_name, email: e.email },
+        });
+      }
+    }
+    return Array.from(memberMap.values());
+  }, [orgMembers, employeeRows]);
 
   const [saving, setSaving] = useState(false);
 
@@ -390,7 +408,7 @@ export const ApprovalSettings: React.FC = () => {
         const config = modules[module];
         config.levels.forEach((level, index) => {
           if (!level.approverId) return;
-          const member = orgMembers.find((m: any) => String(m.user_id) === String(level.approverId));
+          const member = allMembers.find((m: any) => String(m.user_id) === String(level.approverId));
           rows.push({
             organisation_id: orgId,
             approval_type: module,
@@ -507,8 +525,8 @@ export const ApprovalSettings: React.FC = () => {
                         />
                       </div>
                       <div className="col-span-4">
-                        <EmployeeSelect
-                          members={orgMembers}
+                          <EmployeeSelect
+                          members={allMembers}
                           value={level.approverId}
                           search={memberSearch[level.id] || ''}
                           onSearchChange={(text) =>
