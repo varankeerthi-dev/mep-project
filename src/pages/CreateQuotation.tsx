@@ -1961,7 +1961,6 @@ const loadQuoteNoPreview = useCallback(async () => {
         client_contact: formData.client_contact,
         variant_id: formData.variant_id || null,
         reference: formData.reference || null,
-        created_by: user?.id ?? null,
         prepared_by: formData.prepared_by || user?.user_metadata?.full_name || user?.email?.split('@')[0] || null,
         subtotal: calculations.subtotal,
         total_item_discount: calculations.totalItemDiscount,
