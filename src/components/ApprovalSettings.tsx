@@ -473,12 +473,12 @@ export const ApprovalSettings: React.FC = () => {
                     emp_id: 'EMP-' + Date.now().toString().slice(-6),
                   }, { onConflict: 'id' });
                 }
-                const { error: omError } = await supabase.from('org_members').upsert({
-                  organisation_id: orgId,
-                  user_id: authUserId,
-                  role: member?.role ?? 'Employee',
-                  status: 'active',
-                }, { onConflict: 'organisation_id,user_id' });
+                const { error: omError } = await supabase.rpc('add_org_member', {
+                  p_organisation_id: orgId,
+                  p_user_id: authUserId,
+                  p_role: member?.role ?? 'Employee',
+                  p_status: 'active',
+                });
                 if (omError) throw omError;
                 resolvedIds.set(approverId, authUserId);
                 approverId = authUserId;

@@ -105,12 +105,12 @@ export default function AccessControlPage() {
         .maybeSingle();
 
       if (existingUsers) {
-        await supabase.from('org_members').upsert({
-          organisation_id: orgId,
-          user_id: existingUsers.user_id,
-          role: 'Employee',
-          status: 'active',
-        }, { onConflict: 'organisation_id,user_id' });
+        await supabase.rpc('add_org_member', {
+          p_organisation_id: orgId,
+          p_user_id: existingUsers.user_id,
+          p_role: 'Employee',
+          p_status: 'active',
+        });
       } else {
         const tempPw = Math.random().toString(36).slice(2) + 'Ab1!';
         const { data: sd, error: se } = await supabase.auth.signUp({
@@ -125,12 +125,12 @@ export default function AccessControlPage() {
             role: 'Employee',
             emp_id: 'EMP-' + Date.now().toString().slice(-6),
           }, { onConflict: 'id' });
-          await supabase.from('org_members').upsert({
-            organisation_id: orgId,
-            user_id: sd.user.id,
-            role: 'Employee',
-            status: 'active',
-          }, { onConflict: 'organisation_id,user_id' });
+          await supabase.rpc('add_org_member', {
+            p_organisation_id: orgId,
+            p_user_id: sd.user.id,
+            p_role: 'Employee',
+            p_status: 'active',
+          });
         }
       }
     }

@@ -49,12 +49,12 @@ export function AddTeamMemberModal({ isOpen, onClose, organisationId, onSuccess 
       }, { onConflict: 'id' });
       if (userError) throw userError;
 
-      const { error: omError } = await supabase.from('org_members').upsert({
-        organisation_id: organisationId,
-        user_id: authUserId,
-        role: formData.role,
-        status: 'active',
-      }, { onConflict: 'organisation_id,user_id' });
+      const { error: omError } = await supabase.rpc('add_org_member', {
+        p_organisation_id: organisationId,
+        p_user_id: authUserId,
+        p_role: formData.role,
+        p_status: 'active',
+      });
       if (omError) throw omError;
 
       setFormData({ emp_name: '', email: '', role: 'Assistant' });
