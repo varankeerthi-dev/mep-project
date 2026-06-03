@@ -193,6 +193,12 @@ export const ApprovalSettings: React.FC = () => {
   const { data: orgMembers = [] } = useOrgMembers(orgId);
   const { data: employeeRows = [] } = useEmployees(orgId);
 
+  const employeeMap = useMemo(() => {
+    const map = new Map<string, typeof employeeRows[0]>();
+    for (const e of employeeRows) map.set(e.id, e);
+    return map;
+  }, [employeeRows]);
+
   const allMembers = useMemo(() => {
     const memberMap = new Map<string, OrgMember>();
     for (const m of orgMembers) memberMap.set(m.user_id, m);
@@ -204,6 +210,7 @@ export const ApprovalSettings: React.FC = () => {
           role: 'Employee',
           user: { full_name: e.full_name, email: e.email },
         });
+        seenIds.add(e.id);
       }
     }
     return Array.from(memberMap.values());
@@ -395,6 +402,21 @@ export const ApprovalSettings: React.FC = () => {
     if (!orgId || !user?.id) return;
     try {
       setSaving(true);
+
+      const { data: userProfiles } = await supabase
+        .from('user_profiles')
+        .select('id, email')
+        .not('email', 'is', null);
+
+      const emailToUserId = new Map<string, string>();
+      for (const p of userProfiles ?? []) {
+        if (p.email) emailToUserId.set(p.email.toLowerCase(), p.id);
+      }
+      for (const m of orgMembers) {
+        const email = (m as any).user?.email;
+        if (email) emailToUserId.set(String(email).toLowerCase(), m.user_id);
+      }
+
       const { error } = await (await import('@/lib/supabase')).supabase
         .from('approval_workflows')
         .delete()
@@ -404,11 +426,43 @@ export const ApprovalSettings: React.FC = () => {
       if (error) throw error;
 
       const rows: any[] = [];
-      (Object.keys(modules) as ModuleKey[]).forEach((module) => {
+      const resolvedIds = new Map<string, string>();
+
+      for (const module of Object.keys(modules) as ModuleKey[]) {
         const config = modules[module];
-        config.levels.forEach((level, index) => {
-          if (!level.approverId) return;
+        for (let index = 0; index < config.levels.length; index++) {
+          const level = config.levels[index];
+          if (!level.approverId) continue;
+
+          let approverId = level.approverId;
           const member = allMembers.find((m: any) => String(m.user_id) === String(level.approverId));
+
+          if (!orgMembers.some((m: any) => String(m.user_id) === String(approverId))) {
+            if (resolvedIds.has(approverId)) {
+              approverId = resolvedIds.get(approverId)!;
+            } else {
+              const employee = employeeMap.get(approverId);
+              if (employee) {
+                const authUserId = emailToUserId.get(employee.email.toLowerCase());
+                if (authUserId) {
+                  const { error: omError } = await supabase.from('org_members').upsert({
+                    organisation_id: orgId,
+                    user_id: authUserId,
+                    role: member?.role ?? 'Employee',
+                    status: 'active',
+                  }, { onConflict: 'organisation_id,user_id' });
+                  if (omError) throw omError;
+                  resolvedIds.set(approverId, authUserId);
+                  approverId = authUserId;
+                } else {
+                  toast.error(`"${employee.full_name}" needs an auth account. Add them via Settings → Team Members first.`);
+                  setSaving(false);
+                  return;
+                }
+              }
+            }
+          }
+
           rows.push({
             organisation_id: orgId,
             approval_type: module,
@@ -416,11 +470,11 @@ export const ApprovalSettings: React.FC = () => {
             min_amount: level.minAmount ? Number(level.minAmount) : 0,
             max_amount: level.maxAmount ? Number(level.maxAmount) : null,
             approver_role: member?.role ? String(member.role) : null,
-            approver_id: level.approverId,
+            approver_id: approverId,
             is_active: config.enabled,
           });
-        });
-      });
+        }
+      }
 
       if (rows.length > 0) {
         const { error: insertError } = await (
