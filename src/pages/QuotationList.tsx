@@ -30,17 +30,18 @@ import {
   X as XIcon,
 } from 'lucide-react';
 
-const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Approved (Sent)', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
 const SUB_TABS = ['All Quotes', 'Drafts'];
 
-const STATUS_FILTER_OPTIONS = ['All', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+const STATUS_FILTER_OPTIONS = ['All', 'Sent', 'Under Negotiation', 'Approved', 'Approved (Sent)', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:              { bg: '#f3f4f6', color: '#6b7280' },
   Sent:               { bg: '#dbeafe', color: '#1d4ed8' },
   'Under Negotiation':{ bg: '#fef3c7', color: '#b45309' },
   Approved:           { bg: '#d1fae5', color: '#047857' },
+  'Approved (Sent)':  { bg: '#bfdbfe', color: '#1e40af' },
   Rejected:           { bg: '#fee2e2', color: '#dc2626' },
   Converted:          { bg: '#d1fae5', color: '#065f46' },
   Cancelled:          { bg: '#fee2e2', color: '#991b1b' },
@@ -345,7 +346,13 @@ export default function QuotationList() {
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
-      if (statusFilter !== 'All') query = query.eq('status', statusFilter);
+      if (statusFilter !== 'All') {
+        if (statusFilter === 'Approved') {
+          query = query.in('status', ['Approved', 'Approved (Sent)']);
+        } else {
+          query = query.eq('status', statusFilter);
+        }
+      }
 
       const data = await timedSupabaseQuery(query, 'Quotation list');
       const today = new Date().toISOString().split('T')[0];
@@ -407,7 +414,7 @@ export default function QuotationList() {
     return {
       draft: quotations.filter((q: any) => q.status === 'Draft').length,
       sent: quotations.filter((q: any) => q.status === 'Sent').length,
-      approved: quotations.filter((q: any) => q.status === 'Approved').length,
+      approved: quotations.filter((q: any) => q.status === 'Approved' || q.status === 'Approved (Sent)').length,
       converted: quotations.filter((q: any) => q.status === 'Converted').length,
     };
   }, [quotations]);
@@ -929,14 +936,15 @@ export default function QuotationList() {
                             >
                               Edit
                             </button>
-                            {q.status === 'Draft' && (
+                            {(q.status === 'Draft' || q.status === 'Approved') && (
                               <button
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   setOpenMenuId(null);
+                                  const newStatus = q.status === 'Approved' ? 'Approved (Sent)' : 'Sent';
                                   const { error } = await supabase
                                     .from('quotation_header')
-                                    .update({ status: 'Sent', updated_at: new Date().toISOString() })
+                                    .update({ status: newStatus, updated_at: new Date().toISOString() })
                                     .eq('id', q.id)
                                     .eq('organisation_id', organisation?.id);
                                   if (error) {
