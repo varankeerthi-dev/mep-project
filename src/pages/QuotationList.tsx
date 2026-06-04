@@ -888,7 +888,7 @@ export default function QuotationList() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenMenuId(null);
-                                navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
+                                navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
                               }}
                               className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
                               style={{ padding: '6px' }}
@@ -899,7 +899,7 @@ export default function QuotationList() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenMenuId(null);
-                                navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
+                                navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
                               }}
                               className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
                               style={{ padding: '6px' }}

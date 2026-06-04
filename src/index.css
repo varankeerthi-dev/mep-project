@@ -5,6 +5,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+@font-face {
+  font-family: 'Caliber';
+  src: local('Caliber Light'), local('Caliber-Light');
+  font-weight: 300;
+  font-style: normal;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================
@@ -30,15 +37,210 @@ html, body {
 .quick-access-bar {
   position: fixed;
   top: 0;
-  left: 0;
+  left: 220px;
   right: 0;
-  height: 48px;
+  height: 32px;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 16px;
   z-index: 1000;
-  background: white;
+  background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
-  padding: 0 1.5rem;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-family: 'Caliber', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 300;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.quick-access-left,
+.quick-access-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.quick-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-weight: 300;
+  font-size: 11px;
+  color: #4b5563;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+  border-radius: 4px;
+}
+
+.quick-access-bar.sidebar-collapsed {
+  left: 64px;
+}
+
+.quick-tool-btn:hover {
+  transform: scale(1.15);
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.quick-tool-btn.menu-btn {
+  padding: 2px 6px;
+}
+
+.quick-bar-divider {
+  width: 1px;
+  height: 16px;
+  background: #e5e7eb;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-profile-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.user-profile-compact:hover {
+  transform: scale(1.08);
+  background: #f3f4f6;
+}
+
+.user-avatar-compact {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.user-info-compact {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.user-name-compact {
+  font-weight: 400;
+  font-size: 10px;
+  color: #374151;
+  line-height: 1.2;
+}
+
+.user-role-compact {
+  font-weight: 300;
+  font-size: 8px;
+  color: #9ca3af;
+  line-height: 1.2;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 220px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  z-index: 1100;
+}
+
+.user-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+}
+
+.user-dropdown-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-dropdown-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #111827;
+}
+
+.user-dropdown-email {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.user-dropdown-role {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.user-dropdown-item:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.user-dropdown-divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 6px 0;
 }
 
 .sidebar {
@@ -77,13 +279,14 @@ html, body {
 
 .main-content {
   margin-left: 220px;
+  margin-top: 32px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  height: 100vh;
+  height: calc(100vh - 32px);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: #f9fafb;
-  padding: 1.5rem; /* Added vertical padding */
+  padding: 1.5rem;
 }
 
 /* Subtabs Heading Typography & Tab Spacing */
@@ -122,6 +325,12 @@ html, body {
   .sidebar.collapsed {
     width: 72px;
   }
+  .quick-access-bar {
+    left: 220px;
+  }
+  .quick-access-bar.sidebar-collapsed {
+    left: 72px;
+  }
   .main-content {
     margin-left: 220px;
   }
@@ -133,12 +342,13 @@ html, body {
 /* Mobile */
 @media (max-width: 768px) {
   .quick-access-bar {
-    height: 48px;
-    padding: 0 1rem;
+    left: 0;
+    height: 32px;
+    padding: 0 4px;
   }
 
   .sidebar {
-    top: 48px;
+    top: 32px;
     transform: translateX(-100%);
     width: 280px;
     z-index: 1100;
@@ -149,10 +359,10 @@ html, body {
   }
 
   .main-content {
-    margin-top: 0;
+    margin-top: 32px;
     margin-left: 0;
     width: 100%;
-    height: 100vh;
+    height: calc(100vh - 32px);
     padding: 1rem;
   }
 
@@ -314,43 +524,7 @@ body {
   background: var(--gray-50);
 }
 
-/* Top Navigation */
-.top-navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 48px;
-  background: white;
-  border-bottom: 1px solid var(--gray-200);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  z-index: 1000;
-}
-
-.top-navbar .logo {
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--gray-800);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.top-navbar .logo-icon {
-  width: 32px;
-  height: 32px;
-  background: var(--primary);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-}
-
+/* Mobile menu button */
 .mobile-menu-btn {
   display: none;
   align-items: center;
@@ -359,7 +533,6 @@ body {
   height: 36px;
   background: var(--gray-100);
   border: none;
-  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -386,126 +559,6 @@ body {
   .logo-text {
     display: inline;
   }
-}
-
-.top-navbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.top-nav-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--gray-100);
-  border: none;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--gray-600);
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.top-nav-btn:hover {
-  background: var(--gray-200);
-  color: var(--gray-800);
-}
-
-.top-nav-btn.primary {
-  background: var(--primary);
-  color: white;
-}
-
-.top-nav-btn.primary:hover {
-  background: var(--primary-dark);
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: var(--gray-100);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.user-profile:hover {
-  background: var(--gray-200);
-}
-
-.user-profile-avatar {
-  width: 24px;
-  height: 24px;
-  background: var(--primary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.user-profile-name {
-  font-weight: 500;
-  font-size: 12px;
-  color: var(--gray-700);
-}
-
-/* User Dropdown */
-.user-menu {
-  position: relative;
-}
-
-.user-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 220px;
-  background: white;
-  border: 1px solid var(--gray-200);
-  border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 8px;
-  z-index: 1100;
-}
-
-.user-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  color: var(--gray-700);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-}
-
-.user-dropdown-item:hover {
-  background: var(--gray-100);
-  color: var(--gray-800);
-}
-
-.user-dropdown-item svg {
-  width: 18px;
-  height: 18px;
-  color: var(--gray-600);
-  flex-shrink: 0;
-}
-
-.user-dropdown-divider {
-  height: 1px;
-  background: var(--gray-100);
-  margin: 6px 0;
 }
 
 /* Main Content — canonical layout set at top of file (fixed layout).

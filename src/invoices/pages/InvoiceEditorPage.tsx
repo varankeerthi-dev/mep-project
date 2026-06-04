@@ -874,6 +874,9 @@ export default function InvoiceEditorPage() {
   const loadedInvoiceIdRef = useRef<string>('');
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
 
+  const lastItemsSnapshotRef = useRef<string>('');
+  const conversionAppliedRef = useRef(false);
+
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
   const clients = clientsQuery.data ?? [];
@@ -918,6 +921,10 @@ export default function InvoiceEditorPage() {
   }, [selectedSourceType, selectedSourceId, sourceOptionsQuery.data, totals.total]);
 
   useEffect(() => {
+    const snapshot = JSON.stringify(watchedItems.map((i: any) => ({ q: i.qty, r: i.rate, a: i.amount })));
+    if (snapshot === lastItemsSnapshotRef.current) return;
+    lastItemsSnapshotRef.current = snapshot;
+
     watchedItems.forEach((item, index) => {
       const amount = Number(((Number(item.qty) || 0) * (Number(item.rate) || 0)).toFixed(2));
       if ((item.amount ?? 0) !== amount) {
@@ -946,6 +953,8 @@ export default function InvoiceEditorPage() {
 
   useEffect(() => {
     if (!isConverting || !conversionQuery.data) return;
+    if (conversionAppliedRef.current) return;
+    conversionAppliedRef.current = true;
 
     conversionInfoRef.current = {
       type: convertFrom!,
@@ -1077,6 +1086,8 @@ export default function InvoiceEditorPage() {
 
   useEffect(() => {
     if (!sourceDraftQuery.data || !selectedSourceId) return;
+
+    if (isConverting) return;
 
     const key = `${selectedSourceType}:${selectedSourceId}:${selectedMode}`;
     const isInitialEditSource = isEditMode && `${selectedSourceType}:${selectedSourceId}` === initialSourceKeyRef.current;

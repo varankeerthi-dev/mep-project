@@ -2377,26 +2377,26 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         </div>
 
         {/* Document Details Grid */}
-        <div className="bg-white border border-zinc-200 mb-6 shadow-sm">
-          <div className="px-4 py-3 border-b border-zinc-200 flex items-center gap-2">
-              <div className="w-1 h-4 bg-blue-600 rounded-sm"></div>
+        <div className="bg-white border border-zinc-200 mb-10 shadow-sm">
+          <div className="px-5 py-4 border-b border-zinc-200 flex items-center gap-2">
+              <div className="w-1 h-5 bg-blue-600 rounded-sm"></div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_320px] gap-6 px-6 pt-6 pb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_320px] gap-8 px-8 pt-8 pb-8">
               
               {/* Column 1: DOCUMENT */}
-              <div className="space-y-4 pl-4">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-3">Document</h3>
+              <div className="space-y-6 pl-4">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-4">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-6 pb-[14px]">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-8 pb-[18px]">
                   <div className="flex flex-col pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Quotation No <span className="text-red-500">*</span></label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Quotation No <span className="text-red-500">*</span></label>
                     <div className="w-full px-2 py-1.5 border border-zinc-200 bg-zinc-50 text-zinc-600 text-xs font-medium focus:outline-none transition-colors min-h-10 flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Prepared By</label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Prepared By</label>
                     <input 
                       type="text" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2407,9 +2407,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-6 pb-[14px] pt-4">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-8 pb-[18px] pt-5">
                   <div className="flex flex-col pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Quotation Date <span className="text-red-500">*</span></label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
                       className="w-full px-3 py-3 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2418,7 +2418,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Valid Till</label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Valid Till</label>
                     <input 
                       type="date" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2428,9 +2428,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-7 pb-[18px]">
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Variant</label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Variant</label>
                     <select 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
                       value={formData.variant_id} 
@@ -2443,7 +2443,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Reference</label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Reference</label>
                     <input 
                       type="text" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2455,7 +2455,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-zinc-600 mb-1.5 pl-1">Payment Terms</label>
+                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Payment Terms</label>
                   <input 
                     type="text" 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2467,11 +2467,11 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
 
               {/* Column 2: CLIENT */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-3">Client</h3>
+              <div className="space-y-6">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-4">Client</h3>
                 
-                <div className="flex flex-col client-dropdown-container space-y-4">
-                  <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">Client <span className="text-red-500">*</span></label>
+                <div className="flex flex-col client-dropdown-container space-y-6">
+                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
@@ -2516,7 +2516,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col pt-5">
-                  <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">Contact</label>
+                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Contact</label>
                   <input 
                     type="text" 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2526,8 +2526,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   />
                 </div>
 
-                <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">Billing Address</label>
+                <div className="flex flex-col py-3">
+                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Billing Address</label>
                   <textarea 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
                     value={formData.billing_address} 
@@ -2536,9 +2536,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-6 pb-[18px]">
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">GSTIN</label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">GSTIN</label>
                     <input 
                       type="text" 
                       className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
@@ -2548,7 +2548,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 mb-1 pl-1">State</label>
+                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">State</label>
                     <div className="relative">
                       <select 
                         className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
@@ -2567,10 +2567,10 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
 
               {/* Column 3: PROJECT & DISCOUNTS */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-3">Project</h3>
+              <div className="space-y-6">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-4">Project</h3>
                 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <select 
                     className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
                     value={formData.project_id} 
@@ -2611,23 +2611,15 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                           });
                         }
                         
-                        return renderVariants.length > 0 ? renderVariants.map((variant, index) => {
-                          const colors = [
-                            { border: 'border-blue-500', bg: 'bg-blue-50/50', text: 'text-blue-700', percentBg: 'bg-blue-100/50', percentText: 'text-blue-600' },
-                            { border: 'border-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700', percentBg: 'bg-amber-100/50', percentText: 'text-amber-600' },
-                            { border: 'border-purple-400', bg: 'bg-purple-50/50', text: 'text-purple-700', percentBg: 'bg-purple-100/50', percentText: 'text-purple-600' },
-                            { border: 'border-emerald-500', bg: 'bg-emerald-50/50', text: 'text-emerald-700', percentBg: 'bg-emerald-100/50', percentText: 'text-emerald-600' },
-                          ];
-                          const color = colors[index % colors.length];
-                        
+                        return renderVariants.length > 0 ? renderVariants.map((variant) => {
                           const settings = discountSettings[variant.id];
                           const discountValue = headerDiscounts[variant.id] || 0;
                           const approvalDisplay = getApprovalDisplayStatus(variant.id);
                         
                           return (
-                            <div key={variant.id} className="flex items-center justify-between border border-zinc-100 bg-white rounded-md h-[48px]">
-                              <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-none h-full`}>
-                                <span className={`text-xs font-bold uppercase tracking-wider ${color.text} truncate`}>
+                            <div key={variant.id} className="flex items-center justify-between border border-zinc-200 bg-white rounded-md h-[48px]">
+                              <div className="flex items-center gap-2 px-2.5 flex-1 h-full">
+                                <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 truncate">
                                   {variant.variant_name}
                                 </span>
                                 {approvalDisplay !== 'none' && (
@@ -2639,10 +2631,10 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                                   </span>
                                 )}
                               </div>
-                              <div className={`flex items-center border border-zinc-200 rounded-none bg-white shadow-sm`}>
+                              <div className="flex items-center border border-zinc-200 rounded-none bg-white shadow-sm">
                                 <input
                                   type="number"
-                                  className={`w-[60px] px-2 py-2 text-right text-xs font-bold ${color.text} bg-transparent outline-none`}
+                                  className="w-[60px] px-2 py-3 text-right text-xs font-bold text-zinc-600 bg-transparent outline-none"
                                   value={headerDiscounts[variant.id] || 0}
                                   onChange={(e) => {
                                     const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
@@ -2659,7 +2651,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                                   max="100"
                                   step="0.01"
                                 />
-                                <div className={`px-2 py-2 text-xs font-bold ${color.percentText} border-l border-zinc-200`}>
+                                <div className="px-2 py-3 text-xs font-bold text-zinc-400 border-l border-zinc-200">
                                   %
                                 </div>
                               </div>

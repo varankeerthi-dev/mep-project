@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
+import QuickAccessBar from './components/QuickAccessBar';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
@@ -217,6 +218,18 @@ export default function App() {
 
   const handleSidebarToggle = useCallback(() => {
     setSidebarCollapsed(prev => !prev);
+  }, []);
+
+  const handleNewQuote = useCallback(() => {
+    navigate('/quotation/create');
+  }, [navigate]);
+
+  const handleNewDC = useCallback(() => {
+    navigate('/dc/create');
+  }, [navigate]);
+
+  const handleHelp = useCallback(() => {
+    alert('Help is on the way!');
   }, []);
 
   const renderedPage = useMemo(() => {
@@ -635,7 +648,17 @@ export default function App() {
   return (
     <AuthContext.Provider value={authContextValue}>
       <div className="app-container">
-                
+
+        <QuickAccessBar
+          onNewQuote={handleNewQuote}
+          onNewDC={handleNewDC}
+          onHelp={handleHelp}
+          onLogout={handleLogout}
+          onMenuToggle={() => setMobileSidebarOpen(prev => !prev)}
+          organisation={organisation}
+          sidebarCollapsed={sidebarCollapsed}
+        />
+                 
         {/* Mobile backdrop - closes sidebar when clicked */}
         <div 
           className={`sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
