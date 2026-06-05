@@ -2377,7 +2377,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         </div>
 
         {/* Document Details Grid */}
-        <div className="bg-white border border-zinc-200 mb-10 shadow-sm">
+        <div className="bg-white border border-zinc-200 mb-10 shadow-sm p-[5px]">
           <div className="px-5 py-4 border-b border-zinc-200 flex items-center gap-2">
               <div className="w-1 h-5 bg-blue-600 rounded-sm"></div>
             </div>
@@ -2385,18 +2385,18 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_400px] gap-12 px-10 pt-10 pb-10">
               
               {/* Column 1: DOCUMENT */}
-              <div className="space-y-8 pl-4">
+              <div className="space-y-8 pl-6">
                 <h3 className="text-xs font-semibold text-zinc-500 mb-8">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px]">
-                  <div className="flex flex-col pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-3 py-2 border border-zinc-200 bg-zinc-50 text-zinc-600 text-sm font-medium focus:outline-none transition-colors min-h-12 flex items-center">
+                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px]">
+                  <div className="flex flex-col gap-2 pt-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">Quotation No <span className="text-red-500">*</span></label>
+                    <div className="w-full px-4 py-3 border border-zinc-200 bg-zinc-50 text-zinc-600 text-sm font-medium focus:outline-none transition-colors min-h-12 flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
-                  <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Prepared By</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">Prepared By</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2407,9 +2407,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px] pt-5">
-                  <div className="flex flex-col pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Quotation Date <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px] pt-5">
+                  <div className="flex flex-col gap-2 pt-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2417,8 +2417,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
                   </div>
-                  <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Valid Till</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">Valid Till</label>
                     <input 
                       type="date" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2428,9 +2428,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px]">
-                  <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Variant</label>
+                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px]">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">Variant</label>
                     <select 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.variant_id} 
@@ -2442,8 +2442,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                       ))}
                     </select>
                   </div>
-                  <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Reference</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">Reference</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2454,8 +2454,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Payment Terms</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-zinc-600 mb-2">Payment Terms</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2470,8 +2470,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               <div className="space-y-8">
                 <h3 className="text-xs font-semibold text-zinc-500 mb-8">Client</h3>
                 
-                <div className="flex flex-col client-dropdown-container space-y-8">
-                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Client <span className="text-red-500">*</span></label>
+                <div className="flex flex-col gap-2 client-dropdown-container">
+                  <label className="text-sm font-semibold text-zinc-600 mb-2">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
@@ -2515,8 +2515,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="flex flex-col pt-5">
-                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Contact</label>
+                <div className="flex flex-col gap-2 pt-2">
+                  <label className="text-sm font-semibold text-zinc-600 mb-2">Contact</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2526,8 +2526,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   />
                 </div>
 
-                <div className="flex flex-col py-3">
-                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Billing Address</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-zinc-600 mb-2">Billing Address</label>
                   <textarea 
                     className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[60px] resize-y" 
                     value={formData.billing_address} 
@@ -2536,9 +2536,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px]">
-                  <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">GSTIN</label>
+                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px]">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">GSTIN</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2547,8 +2547,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                       placeholder="27AABCU9603R1ZX"
                     />
                   </div>
-                  <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">State</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-zinc-600 mb-2">State</label>
                     <div className="relative">
                       <select 
                         className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
@@ -2570,19 +2570,22 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               <div className="space-y-8">
                 <h3 className="text-xs font-semibold text-zinc-500 mb-8">Project</h3>
                 
-                <div className="space-y-8">
-                  <select 
-                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
-                    value={formData.project_id} 
-                    onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                  >
-                    <option value="">Select project...</option>
-                    {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
-                      <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-2 top-2 pointer-events-none">
-                    <svg className="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-zinc-600 mb-2">Project</label>
+                  <div className="relative">
+                    <select 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
+                      value={formData.project_id} 
+                      onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                    >
+                      <option value="">Select project...</option>
+                      {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
+                        <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-2 top-3 pointer-events-none">
+                      <svg className="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
                   </div>
                 </div>
 
