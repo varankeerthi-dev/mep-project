@@ -1237,20 +1237,22 @@ export default function QuotationView() {
                 <div 
                   key={q.id}
                   onClick={() => navigate(`/quotation/view?id=${q.id}`)}
-                  className={`px-6 cursor-pointer transition-colors hover:bg-sky-50/30 ${quotationId === q.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white'}`}
+                  className={`px-4 cursor-pointer transition-colors hover:bg-sky-50/30 ${quotationId === q.id ? 'bg-sky-100' : 'bg-white'}`}
                   style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] font-bold text-zinc-900 truncate pr-2">
+                    <span className="text-[13px] font-bold text-zinc-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {q.client?.client_name || 'Walk-in Client'}
                     </span>
-                    <span className="text-[12px] font-bold text-zinc-900">
+                    <span className="text-[12px] font-bold text-zinc-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {formatCurrency(q.grand_total)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mt-1 gap-4" style={{ paddingRight: '14px' }}>
-                    <div className="text-[11px] text-zinc-500 font-mono">
-                      {q.quotation_no} <span className="mx-1 text-zinc-300">•</span> {formatDate(q.date)}
+                  <div className="flex justify-between items-center mt-1 gap-4">
+                    <div className="text-[11px] font-inter flex items-center" style={{ paddingLeft: '10px', paddingRight: '10px', marginLeft: '1px', gap: '5px' }}>
+                      <span className="text-zinc-700 font-medium">{q.quotation_no}</span>
+                      <span className="text-zinc-300">•</span>
+                      <span className="text-blue-500">{formatDate(q.date)}</span>
                     </div>
                     <span 
                       className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
@@ -1297,27 +1299,27 @@ export default function QuotationView() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mb-6">
+          <div className="flex flex-wrap items-center gap-[20px] mb-6 px-8 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
             {isEditable && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" onClick={handleEdit}>
+              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" onClick={handleEdit}>
                 <Edit className="w-[14px] h-[14px]" />
                 Edit
               </button>
             )}
             {canApprove && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-green-600 text-white border border-transparent rounded hover:bg-green-700 transition-all text-[12px] font-bold" onClick={() => handleApprovalAction('APPROVED')}>
+              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-all text-[13px] font-semibold" onClick={() => handleApprovalAction('APPROVED')}>
                 <CheckCircle className="w-[14px] h-[14px]" />
                 Approve
               </button>
             )}
-            <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" onClick={handleDuplicate}>
+            <button className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" onClick={handleDuplicate}>
               <Copy className="w-[14px] h-[14px]" />
               Duplicate
             </button>
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
                 onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); setShowActionsMenu(false); }}
               >
                 <FileText className="w-[14px] h-[14px]" />
@@ -1335,7 +1337,7 @@ export default function QuotationView() {
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
                 onClick={() => { 
                   setShowPrintMenu(!showPrintMenu); 
                   setShowConvertMenu(false); 
@@ -1421,7 +1423,7 @@ export default function QuotationView() {
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-4 h-[25px] min-w-[40px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
                 onClick={() => { 
                   setShowActionsMenu(!showActionsMenu); 
                   setShowPrintMenu(false); 
@@ -1458,14 +1460,14 @@ export default function QuotationView() {
             </div>
 
             {isCancellable && (
-<button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" onClick={handleCancel}>
-              <XCircle className="w-[14px] h-[14px]" />
-              Cancel
-            </button>
+              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-[13px] font-semibold" onClick={handleCancel}>
+                <XCircle className="w-[14px] h-[14px]" />
+                Cancel
+              </button>
             )}
             
             {isDeletable && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-red-600 border border-red-300 rounded hover:bg-red-50 transition-all text-[12px] font-bold" onClick={handleDelete}>
+              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-[13px] font-semibold" onClick={handleDelete}>
                 <Trash2 className="w-[14px] h-[14px]" />
                 Delete
               </button>

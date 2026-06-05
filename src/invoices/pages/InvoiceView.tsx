@@ -281,7 +281,7 @@ export default function InvoiceView() {
                   key={inv.id}
                   onClick={() => navigate(`/invoices/view?id=${inv.id}`)}
                   className={`px-4 cursor-pointer transition-colors hover:bg-sky-50/30 ${
-                    invoiceId === inv.id ? 'bg-sky-50' : 'bg-white'
+                    invoiceId === inv.id ? 'bg-sky-100' : 'bg-white'
                   }`}
                   style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
@@ -367,7 +367,7 @@ export default function InvoiceView() {
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-[20px] mb-6 px-8 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
                 <button
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
                   onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
                 >
                   <Edit className="w-[14px] h-[14px]" />
@@ -375,7 +375,7 @@ export default function InvoiceView() {
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
                   onClick={handleDuplicate}
                 >
                   <Copy className="w-[14px] h-[14px]" />
@@ -384,7 +384,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-all text-[13px] font-semibold"
                     onClick={() => {
                       setShowPaymentMenu(!showPaymentMenu);
                     }}
@@ -430,7 +430,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
                     onClick={() => {
                       setShowConvertMenu(!showConvertMenu);
                       setShowPrintMenu(false);
@@ -466,7 +466,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
                     onClick={() => {
                       setShowPrintMenu(!showPrintMenu);
                       setShowConvertMenu(false);
@@ -564,7 +564,7 @@ export default function InvoiceView() {
 
                 {selectedInvoice.status === 'draft' && (
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-[13px] font-semibold"
                     onClick={handleDelete}
                   >
                     <Trash2 className="w-[14px] h-[14px]" />

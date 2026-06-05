@@ -2386,17 +2386,17 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               
               {/* Column 1: DOCUMENT */}
               <div className="space-y-8 pl-4">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-5">Document</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 mb-8">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-10 gap-y-10 pb-[18px]">
+                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px]">
                   <div className="flex flex-col pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Quotation No <span className="text-red-500">*</span></label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Quotation No <span className="text-red-500">*</span></label>
                     <div className="w-full px-3 py-2 border border-zinc-200 bg-zinc-50 text-zinc-600 text-sm font-medium focus:outline-none transition-colors min-h-12 flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Prepared By</label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Prepared By</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2407,9 +2407,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-10 gap-y-10 pb-[18px] pt-5">
+                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px] pt-5">
                   <div className="flex flex-col pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Quotation Date <span className="text-red-500">*</span></label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2418,7 +2418,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Valid Till</label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Valid Till</label>
                     <input 
                       type="date" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2428,9 +2428,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-10 gap-y-9 pb-[18px]">
+                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px]">
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Variant</label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Variant</label>
                     <select 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.variant_id} 
@@ -2443,7 +2443,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Reference</label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Reference</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2455,7 +2455,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Payment Terms</label>
+                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Payment Terms</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2468,10 +2468,10 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
               {/* Column 2: CLIENT */}
               <div className="space-y-8">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-5">Client</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 mb-8">Client</h3>
                 
                 <div className="flex flex-col client-dropdown-container space-y-8">
-                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Client <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
@@ -2516,7 +2516,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col pt-5">
-                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Contact</label>
+                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Contact</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2527,7 +2527,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
 
                 <div className="flex flex-col py-3">
-                  <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Billing Address</label>
+                  <label className="text-sm font-semibold text-zinc-600 py-3 px-4">Billing Address</label>
                   <textarea 
                     className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[60px] resize-y" 
                     value={formData.billing_address} 
@@ -2536,9 +2536,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-10 gap-y-8 pb-[18px]">
+                <div className="grid grid-cols-2 gap-x-16 gap-y-10 pb-[18px]">
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">GSTIN</label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">GSTIN</label>
                     <input 
                       type="text" 
                       className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
@@ -2548,7 +2548,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">State</label>
+                    <label className="text-sm font-semibold text-zinc-600 py-3 px-4">State</label>
                     <div className="relative">
                       <select 
                         className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
@@ -2568,7 +2568,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
               {/* Column 3: PROJECT & DISCOUNTS */}
               <div className="space-y-8">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-5">Project</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 mb-8">Project</h3>
                 
                 <div className="space-y-8">
                   <select 
