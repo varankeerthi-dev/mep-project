@@ -399,6 +399,135 @@ export class ApprovalIntegration {
     }
   }
 
+  static async createProformaInvoiceApproval(
+    proformaId: string,
+    clientName: string,
+    proformaNumber: string,
+    totalAmount: number,
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+  ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const approvalNeeded = await this.checkApprovalNeeded('PROFORMA_INVOICE', totalAmount);
+      if (!approvalNeeded) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'PROFORMA_INVOICE',
+        reference_id: proformaId,
+        reference_type: 'proforma_invoices',
+        title: `Proforma Invoice - ${proformaNumber}`,
+        description: `Proforma invoice ${proformaNumber} for ${clientName} with total amount of ₹${totalAmount.toLocaleString()}`,
+        amount: totalAmount,
+        priority
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('proforma_invoices')
+          .update({
+            status: 'PENDING_APPROVAL',
+            approval_id: response.data.id
+          })
+          .eq('id', proformaId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create approval request' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  static async createSiteVisitApproval(
+    siteVisitId: string,
+    projectName: string,
+    visitorName: string,
+    totalAmount: number,
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+  ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const approvalNeeded = await this.checkApprovalNeeded('SITE_VISIT', totalAmount);
+      if (!approvalNeeded) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'SITE_VISIT',
+        reference_id: siteVisitId,
+        reference_type: 'site_visits',
+        title: `Site Visit - ${projectName}`,
+        description: `Site visit report by ${visitorName} for ${projectName}`,
+        amount: totalAmount,
+        priority
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('site_visits')
+          .update({
+            status: 'PENDING_APPROVAL',
+            approval_id: response.data.id
+          })
+          .eq('id', siteVisitId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create approval request' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  static async createExpenseClaimApproval(
+    expenseId: string,
+    claimantName: string,
+    description: string,
+    totalAmount: number,
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+  ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const approvalNeeded = await this.checkApprovalNeeded('EXPENSE_CLAIM', totalAmount);
+      if (!approvalNeeded) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'EXPENSE_CLAIM',
+        reference_id: expenseId,
+        reference_type: 'expense_claims',
+        title: `Expense Claim - ${claimantName}`,
+        description: `Expense claim by ${claimantName}: ${description} with amount of ₹${totalAmount.toLocaleString()}`,
+        amount: totalAmount,
+        priority
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('expense_claims')
+          .update({
+            status: 'PENDING_APPROVAL',
+            approval_id: response.data.id
+          })
+          .eq('id', expenseId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create approval request' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
   private static async checkApprovalNeeded(
     approvalType: string,
     amount: number
@@ -579,6 +708,30 @@ export class ApprovalIntegration {
 
         case 'MATERIAL_DISPATCH':
           await this.generateDispatchNote(documentId);
+          break;
+
+        case 'PURCHASE_PAYMENT':
+          await this.processPayment(documentId);
+          break;
+
+        case 'SUBCONTRACTOR_PAYMENT':
+          await this.processPayment(documentId);
+          break;
+
+        case 'PROFORMA_INVOICE':
+          await this.sendInvoiceToClient(documentId);
+          break;
+
+        case 'SITE_VISIT':
+          console.log('Site visit approved:', documentId);
+          break;
+
+        case 'EXPENSE_CLAIM':
+          await this.processPayment(documentId);
+          break;
+
+        case 'SITE_REPORT_REQUEST':
+          console.log('Site report approved:', documentId);
           break;
       }
     } catch (error) {

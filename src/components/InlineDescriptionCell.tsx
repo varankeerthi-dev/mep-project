@@ -38,7 +38,7 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
   const handleTextareaInput = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 60) + 'px';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
     }
   };
 
@@ -57,17 +57,17 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
           placeholder="Enter description..."
           style={{
             width: '100%',
-            padding: '4px 6px',
+            padding: '8px 8px',
             border: '1px solid #3b82f6',
             borderRadius: '4px',
-            fontSize: '11px',
-            lineHeight: '1.4',
+            fontSize: '12px',
+            lineHeight: '1.5',
             resize: 'none',
             outline: 'none',
             background: '#fff',
             color: '#171717',
-            minHeight: '24px',
-            maxHeight: '60px',
+            minHeight: '56px',
+            maxHeight: '120px',
             overflow: 'auto',
           }}
         />
@@ -115,18 +115,21 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', position: 'relative', marginTop: '2px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', position: 'relative', marginTop: '4px' }}>
       {description ? (
         <div
           onClick={() => setIsEditing(true)}
           style={{
-            fontSize: '10px',
+            fontSize: '11px',
             color: '#737373',
-            lineHeight: '1.3',
+            lineHeight: '1.5',
             cursor: 'pointer',
-            paddingRight: '14px',
+            padding: '8px 18px 8px 8px',
             position: 'relative',
             wordBreak: 'break-word',
+            background: '#fafafa',
+            borderRadius: '4px',
+            border: '1px solid #f0f0f0',
           }}
         >
           {description}
@@ -167,13 +170,17 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
         <div
           onClick={() => setIsEditing(true)}
           style={{
-            fontSize: '10px',
+            fontSize: '11px',
             color: '#a3a3a3',
             cursor: 'pointer',
             fontStyle: 'italic',
+            padding: '8px 8px',
+            border: '1px dashed #e5e7eb',
+            borderRadius: '4px',
+            background: '#fafafa',
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#3b82f6'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#a3a3a3'; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#3b82f6'; (e.currentTarget as HTMLElement).style.color = '#3b82f6'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLElement).style.color = '#a3a3a3'; }}
         >
           Add description...
         </div>

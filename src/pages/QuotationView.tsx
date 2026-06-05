@@ -1473,49 +1473,82 @@ export default function QuotationView() {
           </div>
 
           <div className="space-y-6 bg-white border border-zinc-200 shadow-2xl min-h-[1120px] mb-12 rounded-none" style={{ padding: '14px' }}>
-            <div className="grid grid-cols-2 gap-[72px] border-b border-zinc-100 pb-12">
-              <div>
-                <h3 className="text-lg font-bold text-zinc-900 mb-6">General Information</h3>
-                <dl className="space-y-8">
-                  <div className="flex justify-between border-b border-zinc-50 pb-2">
-                    <dt className="text-[13px] text-zinc-500">Date</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900">{formatDate(quotation.date)}</dd>
-                  </div>
-                  <div className="flex justify-between border-b border-zinc-50 pb-2">
-                    <dt className="text-[13px] text-zinc-500">Valid Till</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900">{formatDate(quotation.valid_till)}</dd>
-                  </div>
-                  <div className="flex justify-between border-b border-zinc-50 pb-2">
-                    <dt className="text-[13px] text-zinc-500">Payment Terms</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900">{quotation.payment_terms || '-'}</dd>
-                  </div>
-                  <div className="flex justify-between border-b border-zinc-50 pb-2">
-                    <dt className="text-[13px] text-zinc-500">Contact No</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900">{quotation.contact_no || '-'}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-[13px] text-zinc-500">Remarks</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 text-right">{quotation.remarks || quotation.reference || '-'}</dd>
-                  </div>
-                </dl>
+            <div className="border-b border-zinc-100 pb-10">
+              <div className="grid grid-cols-4 gap-x-8 mb-3">
+                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Document</h3>
+                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Terms</h3>
+                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Client</h3>
+                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Project & Shipping</h3>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-zinc-900 mb-6">Client & Project</h3>
-                <div className="space-y-4">
+              <div className="border-t border-blue-200 mb-6"></div>
+              <div className="grid grid-cols-4 gap-x-8">
+                <div className="space-y-3">
                   <div>
-                    <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Client</dt>
-                    <dd className="text-[15px] font-bold text-zinc-900">{quotation.client?.client_name || quotation.client?.name}</dd>
+                    <dt className="text-[11px] text-zinc-400">Quotation No</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.quotation_no || '-'}</dd>
                   </div>
-                  {quotation.project && (
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Date</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{formatDate(quotation.date)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Valid Till</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{formatDate(quotation.valid_till)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Revision No</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.revision_no || '00'}</dd>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Payment Terms</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.payment_terms || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Reference</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.reference || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Prepared By</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.prepared_by || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Remarks</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5 truncate max-w-[200px]" title={quotation.remarks || quotation.reference || '-'}>{quotation.remarks || quotation.reference || '-'}</dd>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Name</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.client?.client_name || quotation.client?.name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Contact No</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.contact_no || quotation.client?.phone || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">GSTIN</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.gstin || quotation.client?.gstin || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">State</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.state || quotation.client?.state || '-'}</dd>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Project</dt>
+                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.project?.project_name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-zinc-400">Billing Address</dt>
+                    <dd className="text-[13px] text-zinc-600 mt-0.5 leading-snug line-clamp-2">{quotation.billing_address || '-'}</dd>
+                  </div>
+                  {quotation.shipping_address && quotation.shipping_address !== quotation.billing_address && (
                     <div>
-                      <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Project</dt>
-                      <dd className="text-[13px] font-medium text-zinc-700">{quotation.project.project_name}</dd>
-                    </div>
-                  )}
-                  {quotation.billing_address && (
-                    <div>
-                      <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Billing Address</dt>
-                      <dd className="text-[13px] text-zinc-500 leading-relaxed whitespace-pre-line">{quotation.billing_address}</dd>
+                      <dt className="text-[11px] text-zinc-400">Shipping Address</dt>
+                      <dd className="text-[13px] text-zinc-600 mt-0.5 leading-snug line-clamp-2">{quotation.shipping_address}</dd>
                     </div>
                   )}
                 </div>

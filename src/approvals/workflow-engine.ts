@@ -309,10 +309,31 @@ export class ApprovalWorkflowEngine {
           tableName = 'invoices';
           break;
         case 'quotations':
-          tableName = 'quotations';
+          tableName = 'quotation_header';
           break;
         case 'proforma_invoices':
           tableName = 'proforma_invoices';
+          break;
+        case 'payment_requests':
+          tableName = 'payment_requests';
+          break;
+        case 'purchase_payments':
+          tableName = 'purchase_payments';
+          break;
+        case 'subcontractor_payments':
+          tableName = 'subcontractor_payments';
+          break;
+        case 'material_dispatches':
+          tableName = 'material_dispatches';
+          break;
+        case 'site_visits':
+          tableName = 'site_visits';
+          break;
+        case 'expense_claims':
+          tableName = 'expense_claims';
+          break;
+        case 'site_reports':
+          tableName = 'site_reports';
           break;
         default:
           console.log('Unknown reference type:', approval.reference_type);
@@ -434,7 +455,33 @@ export class ApprovalWorkflowEngine {
         case 'INVOICE':
           await this.triggerInvoiceWorkflows(approval);
           break;
-        // Add more cases as needed
+        case 'QUOTATION':
+          await this.triggerQuotationWorkflows(approval);
+          break;
+        case 'PROFORMA_INVOICE':
+          await this.triggerProformaInvoiceWorkflows(approval);
+          break;
+        case 'PAYMENT_REQUEST':
+          await this.triggerPaymentRequestWorkflows(approval);
+          break;
+        case 'PURCHASE_PAYMENT':
+          await this.triggerPurchasePaymentWorkflows(approval);
+          break;
+        case 'SUBCONTRACTOR_PAYMENT':
+          await this.triggerSubcontractorPaymentWorkflows(approval);
+          break;
+        case 'MATERIAL_DISPATCH':
+          await this.triggerMaterialDispatchWorkflows(approval);
+          break;
+        case 'SITE_VISIT':
+          await this.triggerSiteVisitWorkflows(approval);
+          break;
+        case 'EXPENSE_CLAIM':
+          await this.triggerExpenseClaimWorkflows(approval);
+          break;
+        case 'SITE_REPORT_REQUEST':
+          await this.triggerSiteReportWorkflows(approval);
+          break;
       }
     } catch (error) {
       console.error('Error triggering post-approval workflows:', error);

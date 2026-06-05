@@ -1577,6 +1577,7 @@ body {
   border-radius: 8px;
   background: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-anchor: none;
 }
 
 .grid-table {
@@ -1662,10 +1663,10 @@ body {
 }
 
 .grid-table td {
-  border-right: 1px solid rgba(0, 0, 0, 0.15);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   padding: 0;
-  vertical-align: middle;
+  vertical-align: top;
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -1690,14 +1691,12 @@ body {
 .grid-table .cell-select {
   width: 100%;
   height: 28px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border: none;
   padding: 0 6px;
   font-size: 11px;
   color: #1f2937;
-  background: white;
+  background: transparent;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
   max-width: 100%;
   overflow: hidden;
@@ -1706,8 +1705,14 @@ body {
 
 .grid-table .cell-input:focus, 
 .grid-table .cell-select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  background: #f0f7ff;
+  outline: none;
+}
+
+.grid-table .cell-input:focus, 
+.grid-table .cell-select:focus {
+  background: #f0f7ff;
+  outline: none;
 }
 
 .grid-table .cell-input[disabled], 

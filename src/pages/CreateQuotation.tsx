@@ -1355,7 +1355,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     setShowItemPicker(false);
     setItemSearch('');
     setTimeout(() => {
-      itemsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      itemsTableRef.current?.scrollIntoView({ behavior: 'instant', block: 'nearest' });
     }, 50);
   };
 
@@ -1426,7 +1426,7 @@ const loadQuoteNoPreview = useCallback(async () => {
 
     setItems((prev) => [...prev, ...newItems]);
     setTimeout(() => {
-      itemsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      itemsTableRef.current?.scrollIntoView({ behavior: 'instant', block: 'nearest' });
     }, 50);
   };
 
@@ -2382,16 +2382,16 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               <div className="w-1 h-5 bg-blue-600 rounded-sm"></div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_320px] gap-8 px-8 pt-8 pb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_400px] gap-12 px-10 pt-10 pb-10">
               
               {/* Column 1: DOCUMENT */}
-              <div className="space-y-6 pl-4">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-4">Document</h3>
+              <div className="space-y-8 pl-4">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-5">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-8 pb-[18px]">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-10 pb-[18px]">
                   <div className="flex flex-col pt-2">
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-2 py-1.5 border border-zinc-200 bg-zinc-50 text-zinc-600 text-xs font-medium focus:outline-none transition-colors min-h-10 flex items-center">
+                    <div className="w-full px-3 py-2 border border-zinc-200 bg-zinc-50 text-zinc-600 text-sm font-medium focus:outline-none transition-colors min-h-12 flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
@@ -2399,7 +2399,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Prepared By</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.prepared_by || ''} 
                       onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                       placeholder="Sales executive..."
@@ -2407,12 +2407,12 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-8 pb-[18px] pt-5">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-10 pb-[18px] pt-5">
                   <div className="flex flex-col pt-2">
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-3 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
@@ -2421,18 +2421,18 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Valid Till</label>
                     <input 
                       type="date" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.valid_till} 
                       onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-7 pb-[18px]">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-9 pb-[18px]">
                   <div className="flex flex-col">
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Variant</label>
                     <select 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.variant_id} 
                       onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                     >
@@ -2446,7 +2446,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Reference</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.reference || ''} 
                       onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                       placeholder="Client RFQ No..."
@@ -2458,7 +2458,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Payment Terms</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                     value={formData.payment_terms} 
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                     placeholder="Net 30 Days"
@@ -2467,10 +2467,10 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
 
               {/* Column 2: CLIENT */}
-              <div className="space-y-6">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-4">Client</h3>
+              <div className="space-y-8">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-5">Client</h3>
                 
-                <div className="flex flex-col client-dropdown-container space-y-6">
+                <div className="flex flex-col client-dropdown-container space-y-8">
                   <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
@@ -2519,7 +2519,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Contact</label>
                   <input 
                     type="text" 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                     value={formData.client_contact} 
                     onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                     placeholder="+91 98765 43210"
@@ -2529,19 +2529,19 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 <div className="flex flex-col py-3">
                   <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">Billing Address</label>
                   <textarea 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
+                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[60px] resize-y" 
                     value={formData.billing_address} 
                     onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
                     placeholder="Full billing address..."
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-6 pb-[18px]">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-8 pb-[18px]">
                   <div className="flex flex-col">
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">GSTIN</label>
                     <input 
                       type="text" 
-                      className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10" 
+                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.gstin} 
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                       placeholder="27AABCU9603R1ZX"
@@ -2551,7 +2551,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 my-4 pl-1">State</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
+                        className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
                         value={formData.state} 
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       >
@@ -2567,12 +2567,12 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
 
               {/* Column 3: PROJECT & DISCOUNTS */}
-              <div className="space-y-6">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-4">Project</h3>
+              <div className="space-y-8">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-5">Project</h3>
                 
-                <div className="space-y-6">
+                <div className="space-y-8">
                   <select 
-                    className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-10 appearance-none" 
+                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
                     value={formData.project_id} 
                     onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                   >

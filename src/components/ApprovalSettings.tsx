@@ -231,15 +231,9 @@ export const ApprovalSettings: React.FC = () => {
   useEffect(() => {
     if (!workflows || workflows.length === 0) return;
 
-    const isFresh =
-      modules.PURCHASE_PAYMENT.enabled ||
-      modules.SUBCONTRACTOR_PAYMENT.enabled ||
-      modules.PAYMENT_REQUEST.enabled ||
-      modules.QUOTATION.enabled ||
-      modules.PURCHASE_PAYMENT.levels.length > 0 ||
-      modules.SUBCONTRACTOR_PAYMENT.levels.length > 0 ||
-      modules.PAYMENT_REQUEST.levels.length > 0 ||
-      modules.QUOTATION.levels.length > 0;
+    const isFresh = Object.values(modules).some(
+      (m) => m.enabled || m.levels.length > 0
+    );
 
     if (isFresh) return;
 
