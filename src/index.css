@@ -1590,6 +1590,15 @@ body {
   border-radius: 8px;
 }
 
+.grid-table .cell-input:hover,
+.grid-table .cell-select:hover {
+  background: #eef4fa;
+}
+
+.grid-table .cell-static:hover {
+  background: #f0f6ff;
+}
+
 .grid-table th {
   background: #f8fafc;
   color: #374151;

@@ -360,16 +360,7 @@ export default function CreateQuotation() {
   useEffect(() => {
     if (!initQuery.data) return;
     
-    // Only initialize if we haven't already for this specific editId/duplicateId combination
-    const currentId = `${editId || ''}-${duplicateId || ''}`;
-    if (initializedRef.current === currentId) return;
-
-    const { pricing, settings, template, quickQuoteConfig, orgFullDetails } = initQuery.data;
-
-    const materialsWithService = materials.map(item => ({
-      ...item,
-      isService: item.item_type === 'service'
-    }));
+    const { pricing } = initQuery.data;
 
     const pricingMap = {};
     const makesMap = {};
@@ -403,6 +394,20 @@ export default function CreateQuotation() {
 
     setVariantPricing(pricingMap);
     setItemMakes(finalMakesMap);
+  }, [initQuery.data, materials]);
+
+  useEffect(() => {
+    if (!initQuery.data) return;
+    
+    const currentId = `${editId || ''}-${duplicateId || ''}`;
+    if (initializedRef.current === currentId) return;
+
+    const { settings, template, quickQuoteConfig, pricing, orgFullDetails } = initQuery.data;
+
+    const materialsWithService = materials.map(item => ({
+      ...item,
+      isService: item.item_type === 'service'
+    }));
 
     if (quickQuoteConfig) {
       const normalizedQuickQuote = normalizeQuickQuoteConfig(quickQuoteConfig, materialsWithService, pricing || []);
@@ -1245,6 +1250,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     // Invalidate queries to refresh materials list and variant pricing
     queryClient.invalidateQueries({ queryKey: ['materials'] });
     queryClient.invalidateQueries({ queryKey: ['itemVariantPricing'] });
+    queryClient.invalidateQueries({ queryKey: ['quotationInit'] });
     
     // Optionally, you can add the new item to the current quotation
     // This is commented out for now, but you can enable it if needed
@@ -2399,7 +2405,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 mb-2">Prepared By</label>
                     <input 
                       type="text" 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.prepared_by || ''} 
                       onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                       placeholder="Sales executive..."
@@ -2412,7 +2418,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 mb-2">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
@@ -2421,7 +2427,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 mb-2">Valid Till</label>
                     <input 
                       type="date" 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.valid_till} 
                       onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                     />
@@ -2432,7 +2438,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-zinc-600 mb-2">Variant</label>
                     <select 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.variant_id} 
                       onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                     >
@@ -2446,7 +2452,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 mb-2">Reference</label>
                     <input 
                       type="text" 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.reference || ''} 
                       onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                       placeholder="Client RFQ No..."
@@ -2458,7 +2464,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <label className="text-sm font-semibold text-zinc-600 mb-2">Payment Terms</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                    className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                     value={formData.payment_terms} 
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                     placeholder="Net 30 Days"
@@ -2519,7 +2525,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <label className="text-sm font-semibold text-zinc-600 mb-2">Contact</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                    className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                     value={formData.client_contact} 
                     onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                     placeholder="+91 98765 43210"
@@ -2529,7 +2535,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-zinc-600 mb-2">Billing Address</label>
                   <textarea 
-                    className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[60px] resize-y" 
+                    className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[60px] resize-y" 
                     value={formData.billing_address} 
                     onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
                     placeholder="Full billing address..."
@@ -2541,7 +2547,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 mb-2">GSTIN</label>
                     <input 
                       type="text" 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.gstin} 
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                       placeholder="27AABCU9603R1ZX"
@@ -2551,7 +2557,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <label className="text-sm font-semibold text-zinc-600 mb-2">State</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
+                        className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
                         value={formData.state} 
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       >
@@ -2574,7 +2580,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <label className="text-sm font-semibold text-zinc-600 mb-2">Project</label>
                   <div className="relative">
                     <select 
-                      className="w-full px-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
+                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
                       value={formData.project_id} 
                       onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                     >
@@ -2604,7 +2610,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   </div>
                    
                   {activeTab === 'items' ? (
-                    <div className="space-y-[15px]">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-[10px]">
                       {(() => {
                         const renderVariants = [...variants];
                         if (formData.include_erection_charges) {
@@ -2620,24 +2626,22 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                           const approvalDisplay = getApprovalDisplayStatus(variant.id);
                         
                           return (
-                            <div key={variant.id} className="flex items-center justify-between border border-zinc-200 bg-white rounded-md h-[48px]">
-                              <div className="flex items-center gap-2 px-2.5 flex-1 h-full">
-                                <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 truncate">
-                                  {variant.variant_name}
+                            <div key={variant.id} className="flex items-center justify-between bg-white min-h-[40px] px-2.5 py-1">
+                              <span className="text-xs font-bold text-zinc-700 mr-2 break-words">
+                                {variant.variant_name}
+                              </span>
+                              {approvalDisplay !== 'none' && (
+                                <span className={`text-[8px] px-1 py-0.5 rounded-none font-bold uppercase tracking-tighter mr-1 ${
+                                  approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
+                                  approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
+                                }`}>
+                                  {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
                                 </span>
-                                {approvalDisplay !== 'none' && (
-                                  <span className={`text-[8px] px-1 py-0.5 rounded-none font-bold uppercase tracking-tighter ${
-                                    approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
-                                    approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
-                                  }`}>
-                                    {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center border border-zinc-200 rounded-none bg-white shadow-sm">
+                              )}
+                              <div className="flex items-center border border-zinc-200 rounded-none bg-white shadow-sm shrink-0 h-[40px] w-[100px] hover:border-blue-400 hover:shadow-md transition-all" title="Enter the discount percentage">
                                 <input
                                   type="number"
-                                  className="w-[60px] px-2 py-3 text-right text-xs font-bold text-zinc-600 bg-transparent outline-none"
+                                  className="flex-1 px-2.5 text-right text-sm font-bold text-zinc-600 bg-transparent outline-none h-full hover:bg-zinc-50 transition-colors"
                                   value={headerDiscounts[variant.id] || 0}
                                   onChange={(e) => {
                                     const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
@@ -2654,14 +2658,14 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                                   max="100"
                                   step="0.01"
                                 />
-                                <div className="px-2 py-3 text-xs font-bold text-zinc-400 border-l border-zinc-200">
+                                <div className="px-2.5 text-sm font-bold text-zinc-400 border-l border-zinc-200 h-full flex items-center">
                                   %
                                 </div>
                               </div>
                             </div>
                           );
                         }) : (
-                          <div className="text-xs text-zinc-500 italic p-2 border border-zinc-100 bg-zinc-50">
+                          <div className="col-span-2 text-xs text-zinc-500 italic p-2 border border-zinc-100 bg-zinc-50">
                             No variants available.
                           </div>
                         );
@@ -2751,20 +2755,21 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
-              className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all flex items-center justify-center gap-1.5"
+              className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5"
+              onClick={() => setShowItemCreateDrawer(true)}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
               Add Material
             </button>
             <div className="w-px h-6 bg-zinc-200 mx-2"></div>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all" onClick={addSectionHeader}>+ Add Header</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all" onClick={addEmptyItemRow}>+ Add Row</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Add Header</button>
             <button className="h-9 min-w-[110px] px-4 text-xs font-bold text-amber-600 hover:text-amber-700 transition-all" onClick={() => addSubtotal()}>+ Add Sub-total</button>
-            <button className="h-9 min-w-[120px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
+            <button className="h-9 min-w-[120px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               Add Multiple Items
             </button>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
           </div>
         </div>
 
