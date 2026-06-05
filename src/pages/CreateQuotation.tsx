@@ -3217,11 +3217,25 @@ className="text-center cell-static col-shrink row-drag-handle"
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4">
         <div>
           <div className="card" style={{ padding: '12px', height: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Notes & Remarks:</label>
+            </div>
+            <textarea 
+              className="form-input" 
+              style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
+              placeholder="Enter internal notes or additional instructions..."
+              value={formData.remarks || ''}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+            />
+          </div>
+        </div>
+        <div>
+          <div className="card" style={{ padding: '12px', height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Terms & Conditions:</label>
               <button
                 onClick={() => setShowTermsDrawer(true)}
                 style={{
@@ -3242,16 +3256,55 @@ className="text-center cell-static col-shrink row-drag-handle"
                 onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
               >
                 <FileText size={12} />
-                Terms & Conditions
+                {formData.terms_conditions ? 'Edit' : 'Add'}
               </button>
             </div>
-            <textarea 
-              className="form-input" 
-              style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
-              placeholder="Enter internal notes or additional instructions..."
-              value={formData.remarks || ''}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-            />
+            {formData.terms_conditions ? (
+              <div style={{
+                fontSize: '13px',
+                color: '#374151',
+                overflowY: 'auto',
+                height: 'calc(100% - 40px)',
+                minHeight: '120px',
+                lineHeight: 1.6,
+              }}>
+                {formData.terms_conditions.sections?.map((section: any, i: number) => (
+                  <div key={section.id || i} style={{ marginBottom: '12px' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '12px' }}>
+                      {section.title || `Section ${i + 1}`}
+                    </div>
+                    {section.items?.map((item: any, j: number) => (
+                      <div key={item.id || j} style={{
+                        paddingLeft: '12px',
+                        position: 'relative',
+                        marginBottom: '2px',
+                        fontSize: '11px',
+                        color: '#525252',
+                      }}>
+                        <span style={{ position: 'absolute', left: '0' }}>
+                          {item.item_type === 'bullet' ? '\u2022' : `${j + 1}.`}
+                        </span>
+                        {item.content}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                width: '100%',
+                height: 'calc(100% - 40px)',
+                minHeight: '120px',
+                fontSize: '13px',
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontStyle: 'italic',
+              }}>
+                No terms & conditions added
+              </div>
+            )}
           </div>
         </div>
         <div className="card" style={{ padding: '12px' }}>
