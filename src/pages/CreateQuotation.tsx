@@ -2252,7 +2252,7 @@ const itemsToInsert = items.map(item => ({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-10 pb-2">
+      <div className="flex items-center justify-between sticky top-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ marginBottom: '24px' }}>
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
