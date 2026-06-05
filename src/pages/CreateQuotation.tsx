@@ -20,6 +20,7 @@ import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
 import { FileText, Plus, Mail } from 'lucide-react';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
+import { SearchableItemSelect } from '../components/SearchableItemSelect';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
 import { lookupServiceRate } from '../hooks/useErectionCharges';
 import { ErectionSection } from '../components/ErectionSection';
@@ -2741,7 +2742,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </div>
           </div>
 
-      <div className="bg-white rounded-none border border-zinc-200 shadow-sm overflow-hidden mb-6 mt-8" ref={itemsTableRef}>
+      <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
@@ -2946,12 +2947,11 @@ className="text-center cell-static col-shrink row-drag-handle"
                       )}
                       {templateSettings?.column_settings?.optional?.item !== false && (
                         <td className="col-item" style={{ position: 'relative' }}>
-                        <select
-                          className="cell-select"
+                        <SearchableItemSelect
                           value={item.item_id}
-                          onChange={(e) => {
-                            const mat = materials.find(m => m.id === e.target.value);
-                            updateItem(item.id, 'item_id', e.target.value);
+                          materials={materials}
+                          onChange={(materialId, mat) => {
+                            updateItem(item.id, 'item_id', materialId);
                             if (mat) {
                               updateItem(item.id, 'material', mat);
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
@@ -2965,12 +2965,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                               updateItem(item.id, 'rate', finalRate);
                             }
                           }}
-                        >
-                          <option value="">Select Item</option>
-                          {materials.map(m => (
-                            <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
-                          ))}
-                        </select>
+                        />
                         {hoveredItemId === item.id && item.item_id && (
                           <button
                             type="button"
