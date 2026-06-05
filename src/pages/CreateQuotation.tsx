@@ -1972,8 +1972,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           return null;
         })(),
         revision_no: formData.revision_no || 1,
-        revision_history: formData.revision_history || [],
-        terms_conditions: formData.terms_conditions || null
+        revision_history: formData.revision_history || []
       };
 
       if (editId) {
@@ -2072,6 +2071,16 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
         quotationId = data[0].id;
         setFormData(prev => ({ ...prev, id: quotationId }));
+
+        if (formData.terms_conditions) {
+          supabase.from('quotation_terms_conditions').insert({
+            quotation_id: quotationId,
+            organisation_id: organisation?.id,
+            custom_content: JSON.stringify(formData.terms_conditions),
+            template_id: formData.terms_conditions.id,
+            is_custom: true
+          }).then().catch(err => console.error('Error saving terms:', err));
+        }
 
         // Update series after successful insert (fire and forget - don't await)
         if (defaultSeries) {
