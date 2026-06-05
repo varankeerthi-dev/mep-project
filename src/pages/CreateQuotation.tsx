@@ -150,6 +150,19 @@ export default function CreateQuotation() {
   const [quickQuoteIncludeThreadItems, setQuickQuoteIncludeThreadItems] = useState(true);
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
   const [showTermsDrawer, setShowTermsDrawer] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -2262,7 +2275,7 @@ const itemsToInsert = items.map(item => ({
 
   return (
     <div>
-      <div className="flex items-center justify-between sticky top-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ marginBottom: '24px' }}>
+      <div ref={headerRef} className="flex items-center justify-between fixed top-0 left-0 right-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ marginBottom: 0 }}>
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
@@ -2376,6 +2389,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
           </div>
         </div>
       </div>
+      <div style={{ paddingTop: headerHeight }}>
       <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
         </div>
 
@@ -3914,6 +3928,7 @@ className="text-center cell-static col-shrink row-drag-handle"
           </DialogContent>
         </Dialog>
       )}
+      </div>
     </div>
   );
 }
