@@ -2876,11 +2876,11 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                         >
                           {item.description ? itemCountBefore + 1 : ':::'}
                         </td>
-                        <td colSpan={12} style={{ padding: '4px 8px' }}>
+                        <td colSpan={20} style={{ padding: '4px 8px' }}>
                           <input
                             type="text"
                             className="cell-input"
-                            style={{ fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '13px' }}
+                            style={{ width: '100%', fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '13px' }}
                             placeholder="Enter Section Header (e.g. First Floor Piping)..."
                             value={item.description}
                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
@@ -2914,11 +2914,11 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                         >
                           ---
                         </td>
-                        <td colSpan={12} style={{ padding: '4px 8px' }}>
+                        <td colSpan={20} style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <input
                             type="text"
                             className="cell-input"
-                            style={{ fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '13px' }}
+                            style={{ flex: 1, fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '13px' }}
                             placeholder="Enter sub-total label..."
                             value={item.subtotal_label || ''}
                             onChange={(e) => {
@@ -2926,11 +2926,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                               updateItem(item.id, 'description', e.target.value);
                             }}
                           />
-                        </td>
-                        <td className="text-right font-bold" style={{ color: '#b45309', paddingRight: '12px' }}>
-                          {formatCurrency(groupAmount)}
-                        </td>
-                        <td className="delete-cell col-shrink">
+                          <span className="text-right font-bold" style={{ color: '#b45309', padding: '0 12px 0 24px', whiteSpace: 'nowrap' }}>
+                            {formatCurrency(groupAmount)}
+                          </span>
                           <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
                         </td>
                       </tr>
