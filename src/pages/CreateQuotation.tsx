@@ -2775,9 +2775,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </span>
 </div>
           
-          <div className="flex flex-col items-end gap-1">
-            <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Add</span>
           <div className="flex items-center gap-2">
+            <div className="flex flex-col items-center gap-0.5">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
@@ -2786,10 +2786,22 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
               Material
             </button>
-            <div className="w-px h-6 bg-zinc-200 mx-2"></div>
+            </div>
+            <div className="w-px h-6 bg-zinc-200 mx-1"></div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addEmptyItemRow}>+ Row</button>
+            </div>
+            <div className="w-px h-6 bg-zinc-200 mx-1"></div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Section</button>
+            </div>
+            <div className="w-px h-6 bg-zinc-200 mx-1"></div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-amber-700 hover:text-amber-800 transition-all" onClick={() => addSubtotal()}>+ Sub-total</button>
+            </div>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
             <button className="h-9 min-w-[120px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
@@ -2800,7 +2812,6 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
               Columns
             </button>
-          </div>
           </div>
         </div>
 
