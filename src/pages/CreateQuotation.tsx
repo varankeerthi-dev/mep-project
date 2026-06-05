@@ -2780,20 +2780,24 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
               className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5"
-              onClick={() => setShowItemCreateDrawer(true)}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
-              Add Material
+              Add
             </button>
             <div className="w-px h-6 bg-zinc-200 mx-2"></div>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Add Header</button>
-            <button className="h-9 min-w-[110px] px-4 text-xs font-bold text-amber-600 hover:text-amber-700 transition-all" onClick={() => addSubtotal()}>+ Add Sub-total</button>
-            <button className="h-9 min-w-[120px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
+            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addEmptyItemRow}>+ Row</button>
+            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Section</button>
+            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-amber-700 hover:text-amber-800 transition-all" onClick={() => addSubtotal()}>+ Sub-total</button>
+            <div className="w-px h-6 bg-zinc-200 mx-1"></div>
+            <button className="h-9 min-w-[120px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-              Add Multiple Items
+              Multiple Items
             </button>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
+            <div className="w-px h-6 bg-zinc-200 mx-1"></div>
+            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-500 hover:text-zinc-700 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowCustomLabelEditor(true)}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+              Columns
+            </button>
           </div>
         </div>
 
