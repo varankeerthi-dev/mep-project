@@ -31,7 +31,7 @@ interface TermsTemplate {
 interface TermsConditionsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  quotationId: string;
+  quotationId?: string;
   onSave: (termsData: any) => void;
 }
 
@@ -236,30 +236,25 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
   };
 
   const saveTermsToQuotation = async () => {
-    if (!selectedTemplate || !quotationId) {
-      console.log('Missing data:', { selectedTemplate: !!selectedTemplate, quotationId });
+    if (!selectedTemplate) return;
+
+    if (!quotationId) {
+      onSave(selectedTemplate);
+      onClose();
       return;
     }
 
     setSaving(true);
     try {
-      console.log('Saving terms for quotation:', quotationId);
-      console.log('Selected template:', selectedTemplate);
-      
-      // First check if terms already exist for this quotation
       const { data: existingTerms, error: checkError } = await supabase
         .from('quotation_terms_conditions')
         .select('id')
         .eq('quotation_id', quotationId)
         .maybeSingle();
 
-      console.log('Existing terms check:', { existingTerms, checkError });
-
       let error;
       
       if (existingTerms) {
-        console.log('Updating existing terms');
-        // Update existing terms
         const { error: updateError } = await supabase
           .from('quotation_terms_conditions')
           .update({
@@ -269,10 +264,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
           })
           .eq('quotation_id', quotationId);
         error = updateError;
-        console.log('Update result:', { error: updateError });
       } else {
-        console.log('Inserting new terms');
-        // Insert new terms
         const { error: insertError } = await supabase
           .from('quotation_terms_conditions')
           .insert({
@@ -283,12 +275,10 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
             is_custom: true
           });
         error = insertError;
-        console.log('Insert result:', { error: insertError });
       }
 
       if (error) throw error;
 
-      console.log('Terms saved successfully');
       onSave(selectedTemplate);
       onClose();
     } catch (error) {

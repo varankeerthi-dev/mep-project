@@ -1972,7 +1972,8 @@ const loadQuoteNoPreview = useCallback(async () => {
           return null;
         })(),
         revision_no: formData.revision_no || 1,
-        revision_history: formData.revision_history || []
+        revision_history: formData.revision_history || [],
+        terms_conditions: formData.terms_conditions || null
       };
 
       if (editId) {
