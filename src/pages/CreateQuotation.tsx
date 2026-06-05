@@ -2072,12 +2072,12 @@ const loadQuoteNoPreview = useCallback(async () => {
         quotationId = data[0].id;
         setFormData(prev => ({ ...prev, id: quotationId }));
 
-        if (formData.terms_conditions) {
+        if (formData.terms_conditions || formData.terms_text) {
           supabase.from('quotation_terms_conditions').insert({
             quotation_id: quotationId,
             organisation_id: organisation?.id,
-            custom_content: JSON.stringify(formData.terms_conditions),
-            template_id: formData.terms_conditions.id,
+            custom_content: JSON.stringify(formData.terms_conditions || { text: formData.terms_text }),
+            template_id: formData.terms_conditions?.id || null,
             is_custom: true
           }).then().catch(err => console.error('Error saving terms:', err));
         }
@@ -3259,51 +3259,22 @@ className="text-center cell-static col-shrink row-drag-handle"
                 {formData.terms_conditions ? 'Edit' : 'Add'}
               </button>
             </div>
-            {formData.terms_conditions ? (
-              <div style={{
-                fontSize: '13px',
-                color: '#374151',
-                overflowY: 'auto',
-                height: 'calc(100% - 40px)',
-                minHeight: '120px',
-                lineHeight: 1.6,
-              }}>
-                {formData.terms_conditions.sections?.map((section: any, i: number) => (
-                  <div key={section.id || i} style={{ marginBottom: '12px' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '12px' }}>
-                      {section.title || `Section ${i + 1}`}
-                    </div>
-                    {section.items?.map((item: any, j: number) => (
-                      <div key={item.id || j} style={{
-                        paddingLeft: '12px',
-                        position: 'relative',
-                        marginBottom: '2px',
-                        fontSize: '11px',
-                        color: '#525252',
-                      }}>
-                        <span style={{ position: 'absolute', left: '0' }}>
-                          {item.item_type === 'bullet' ? '\u2022' : `${j + 1}.`}
-                        </span>
-                        {item.content}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+            {formData.terms_conditions || formData.terms_text ? (
+              <textarea
+                className="form-input"
+                style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
+                placeholder="Type terms & conditions here, or use the drawer to add from a template..."
+                value={formData.terms_text || ''}
+                onChange={(e) => setFormData({ ...formData, terms_text: e.target.value })}
+              />
             ) : (
-              <div style={{
-                width: '100%',
-                height: 'calc(100% - 40px)',
-                minHeight: '120px',
-                fontSize: '13px',
-                color: '#9ca3af',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontStyle: 'italic',
-              }}>
-                No terms & conditions added
-              </div>
+              <textarea
+                className="form-input"
+                style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
+                placeholder="Type terms & conditions here, or use the drawer to add from a template..."
+                value={formData.terms_text || ''}
+                onChange={(e) => setFormData({ ...formData, terms_text: e.target.value })}
+              />
             )}
           </div>
         </div>
@@ -3706,7 +3677,7 @@ className="text-center cell-static col-shrink row-drag-handle"
         onClose={() => setShowTermsDrawer(false)}
         quotationId={formData.id}
         onSave={(terms) => {
-          setFormData({ ...formData, terms_conditions: terms });
+          setFormData({ ...formData, terms_conditions: terms, terms_text: terms.sections?.map((s: any) => `${s.title}\n${s.items?.map((i: any) => i.content).join('\n')}`).join('\n\n') || '' });
           setShowTermsDrawer(false);
         }}
       />
