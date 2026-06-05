@@ -2776,8 +2776,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 </div>
           
           <div className="flex items-center gap-2">
-            <div className="flex flex-col items-center gap-0.5">
-              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
+            <div className="flex flex-col items-center gap-0">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 0.8, marginTop: '-3px' }}>Add</span>
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
@@ -2788,18 +2788,18 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </button>
             </div>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
-            <div className="flex flex-col items-center gap-0.5">
-              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
+            <div className="flex flex-col items-center gap-0">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 0.8, marginTop: '-3px' }}>Add</span>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addEmptyItemRow}>+ Row</button>
             </div>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
-            <div className="flex flex-col items-center gap-0.5">
-              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
+            <div className="flex flex-col items-center gap-0">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 0.8, marginTop: '-3px' }}>Add</span>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Section</button>
             </div>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
-            <div className="flex flex-col items-center gap-0.5">
-              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1 }}>Add</span>
+            <div className="flex flex-col items-center gap-0">
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 0.8, marginTop: '-3px' }}>Add</span>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-amber-700 hover:text-amber-800 transition-all" onClick={() => addSubtotal()}>+ Sub-total</button>
             </div>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
