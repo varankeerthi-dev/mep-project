@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../App';
-import { FollowupTabs } from '@/components/follow-up/followup-tabs';
+import { FollowupTabs, FollowupTabsMobile } from '@/components/follow-up/followup-tabs';
 import { FollowupSearch } from '@/components/follow-up/followup-search';
 import { FollowupFilterBar } from '@/components/follow-up/followup-filter-bar';
 import {
@@ -98,6 +98,8 @@ export default function FollowUpCentre() {
     clientName: string;
     followUpStatus?: string;
   } | null>(null);
+
+  const [mobileTabsOpen, setMobileTabsOpen] = useState(false);
 
   const handleOpenHistory = useCallback(
     (
@@ -684,13 +686,26 @@ export default function FollowUpCentre() {
     <div className="flex h-full min-h-0 flex-col bg-zinc-50/80">
       <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Follow-Up Centre</h1>
-            <p className="text-xs text-zinc-500">
-              Operational follow-up for quotations, PO/DC gaps, and invoice collections
-              {organisation?.name ? ` · ${organisation.name}` : ''}
-              {role ? ` · ${role}` : ''}
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileTabsOpen(true)}
+              className="lg:hidden p-2 rounded-lg hover:bg-zinc-100 text-zinc-600"
+              aria-label="Open tabs"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9h6v6H9z" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Follow-Up Centre</h1>
+              <p className="text-xs text-zinc-500">
+                Operational follow-up for quotations, PO/DC gaps, and invoice collections
+                {organisation?.name ? ` · ${organisation.name}` : ''}
+                {role ? ` · ${role}` : ''}
+              </p>
+            </div>
           </div>
           <div className="flex flex-col items-end gap-1">
             {dataSource === 'mock' && (
@@ -705,22 +720,49 @@ export default function FollowUpCentre() {
         </div>
       </header>
 
-      <FollowupTabs
+      <FollowupTabsMobile
         activeTab={filters.tab}
         onTabChange={setTab}
         counts={tabCounts}
+        onClose={() => setMobileTabsOpen(false)}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-4 pb-5 pt-5">
+      <div className="hidden lg:flex h-full min-h-0 flex-col">
+        <FollowupTabs
+          activeTab={filters.tab}
+          onTabChange={setTab}
+          counts={tabCounts}
+          orientation="horizontal"
+        />
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-4 pb-5 pt-5">
+          <section className="sticky top-0 z-20 shrink-0">
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-[10px] shadow-sm">
+              <FollowupSearch value={search} onChange={setSearch} />
+              <FollowupFilterBar
+                tab={filters.tab}
+                filters={filters}
+                assignees={assignees}
+                onChange={setFilters}
+              />
+            </div>
+          </section>
+
+          <section className="min-h-0 flex-1 overflow-hidden pt-1">
+            {renderTabContent(filters.tab)}
+          </section>
+        </div>
+      </div>
+
+      <div className="lg:hidden flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-4 pb-5 pt-5">
         <section className="sticky top-0 z-20 shrink-0">
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-[10px] shadow-sm">
             <FollowupSearch value={search} onChange={setSearch} />
             <FollowupFilterBar
-            tab={filters.tab}
-            filters={filters}
-            assignees={assignees}
-            onChange={setFilters}
-          />
+              tab={filters.tab}
+              filters={filters}
+              assignees={assignees}
+              onChange={setFilters}
+            />
           </div>
         </section>
 

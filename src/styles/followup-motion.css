@@ -1,0 +1,223 @@
+/* ==========================================
+   FOLLOW-UP CENTRE MOTION SYSTEM
+   Spring physics: stiffness 170, damping 20
+   Stagger: 20ms with ±5ms jitter
+   ========================================== */
+
+@keyframes fu-entrance {
+  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+  60% { transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fu-slide-in-right {
+  0% { opacity: 0; transform: translateX(16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fu-slide-in-left {
+  0% { opacity: 0; transform: translateX(-16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fu-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fu-fade-in-reduced {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fu-scale-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  60% { transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fu-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes fu-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Animation utility classes */
+.animate-fu-entrance {
+  animation: fu-entrance 250ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-fu-slide-in-right {
+  animation: fu-slide-in-right 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-fu-slide-in-left {
+  animation: fu-slide-in-left 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-fu-fade-in {
+  animation: fu-fade-in 150ms ease-out both;
+}
+
+.animate-fu-fade-in-reduced {
+  animation: fu-fade-in-reduced 100ms ease-out both;
+}
+
+.animate-fu-scale-in {
+  animation: fu-scale-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-fu-pulse {
+  animation: fu-pulse 2s ease-in-out infinite;
+}
+
+.animate-fu-shake {
+  animation: fu-shake 400ms ease-in-out;
+}
+
+/* Stagger delay utilities (applied via inline style) */
+.fu-stagger-0 { animation-delay: 0ms; }
+.fu-stagger-1 { animation-delay: 20ms; }
+.fu-stagger-2 { animation-delay: 40ms; }
+.fu-stagger-3 { animation-delay: 60ms; }
+.fu-stagger-4 { animation-delay: 80ms; }
+.fu-stagger-5 { animation-delay: 100ms; }
+.fu-stagger-6 { animation-delay: 120ms; }
+.fu-stagger-7 { animation-delay: 140ms; }
+.fu-stagger-8 { animation-delay: 160ms; }
+.fu-stagger-9 { animation-delay: 180ms; }
+.fu-stagger-10 { animation-delay: 200ms; }
+.fu-stagger-11 { animation-delay: 220ms; }
+.fu-stagger-12 { animation-delay: 240ms; }
+.fu-stagger-13 { animation-delay: 260ms; }
+.fu-stagger-14 { animation-delay: 280ms; }
+.fu-stagger-15 { animation-delay: 300ms; }
+.fu-stagger-16 { animation-delay: 320ms; }
+.fu-stagger-17 { animation-delay: 340ms; }
+.fu-stagger-18 { animation-delay: 360ms; }
+.fu-stagger-19 { animation-delay: 380ms; }
+.fu-stagger-20 { animation-delay: 400ms; }
+
+/* Transition utilities */
+.transition-fu-interactive {
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-fu-spring-hover {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-fu-color {
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-fu-transform {
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover/Active/Focus states for interactive elements */
+.fu-interactive {
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fu-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.fu-interactive:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.fu-interactive:focus-visible {
+  outline: none;
+  ring: 2px;
+  ring-color: rgb(59 130 246 / 0.3);
+  ring-offset: 2px;
+}
+
+/* Badge hover */
+.fu-badge:hover {
+  transform: scale(1.05);
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fu-badge:active {
+  transform: scale(0.95);
+}
+
+/* Tab hover */
+.fu-tab:hover {
+  transform: translateX(2px);
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card/row hover */
+.fu-row:hover {
+  background-color: rgb(244 244 245 / 0.5);
+  border-left-width: 3px;
+  border-left-color: rgb(59 130 246);
+}
+
+/* Button spring hover */
+.fu-button {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fu-button:hover {
+  transform: translateY(-0.125rem);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.fu-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fu-entrance,
+  .animate-fu-slide-in-right,
+  .animate-fu-slide-in-left,
+  .animate-fu-scale-in,
+  .animate-fu-fade-in {
+    animation: fu-fade-in-reduced 100ms ease-out both !important;
+  }
+  
+  .fu-interactive,
+  .fu-badge,
+  .fu-tab,
+  .fu-row,
+  .fu-button,
+  .transition-fu-interactive,
+  .transition-fu-spring-hover,
+  .transition-fu-color,
+  .transition-fu-transform {
+    transition: none !important;
+  }
+  
+  .fu-interactive:hover,
+  .fu-button:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  
+  .fu-interactive:active,
+  .fu-button:active {
+    transform: none !important;
+  }
+}

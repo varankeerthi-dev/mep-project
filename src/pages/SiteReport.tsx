@@ -1141,23 +1141,24 @@ export function SiteReport() {
       return;
     }
 
+    const values = form.getValues();
     const siteReportData = {
-      id: form.getValues('id') || 'temp-' + Date.now(),
-      report_date: form.getValues('date'),
-      client_name: clients.find(c => c.id === form.getValues('client'))?.client_name,
-      project_name: projects.find(p => p.id === form.getValues('projectName'))?.project_name,
-      pm_name: form.getValues('pmName'),
-      pm_status: form.getValues('pmStatus'),
-      weather: form.getValues('weather'),
+      id: 'temp-' + Date.now(),
+      report_date: values.date,
+      client_name: clients.find(c => c.id === values.client)?.client_name,
+      project_name: projects.find(p => p.id === values.projectName)?.project_name,
+      pm_name: '',
+      pm_status: values.reporting?.pmStatus || 'Draft',
+      weather: '',
       manpower: {
-        subContractors: form.getValues('manpower.subContractors') || [],
-        workCarriedOut: form.getValues('workCarriedOut') || [],
-        milestonesCompleted: form.getValues('milestonesCompleted') || []
+        subContractors: values.manpower?.subContractors || [],
+        workCarriedOut: values.workCarriedOut || [],
+        milestonesCompleted: values.milestonesCompleted || []
       },
       photos: [],
       footer: {
-        enginear: form.getValues('footer.engineer'),
-        signatureDate: form.getValues('footer.signatureDate')
+        enginear: values.footer?.engineer || '',
+        signatureDate: values.footer?.signatureDate || ''
       }
     };
 
@@ -1173,7 +1174,7 @@ export function SiteReport() {
     const url = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `site-report-${form.getValues('date')}.pdf`;
+      link.download = `site-report-${values.date}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1189,9 +1190,7 @@ export function SiteReport() {
         .select(`
           id,
           report_date,
-          pm_name,
           pm_status,
-          weather,
           engineer_name,
           signature_date,
           organisation_id,
@@ -1211,9 +1210,9 @@ export function SiteReport() {
         report_date: report.report_date,
         client_name: (report.clients as any)?.client_name,
         project_name: (report.projects as any)?.project_name,
-        pm_name: report.pm_name || '',
+        pm_name: '',
         pm_status: report.pm_status,
-        weather: report.weather || '',
+        weather: '',
         manpower: {
           subContractors: (report as any).sub_contractors || [],
           workCarriedOut: (report as any).work_carried_out || [],

@@ -72,7 +72,7 @@ export function generateProGridSiteReportPdf(params: SiteReportParams): jsPDF {
     ['Weather', siteReport.weather || 'N/A']
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     head: [['Field', 'Value']],
     body: reportTableData,
     startY: currentY,
@@ -109,7 +109,7 @@ export function generateProGridSiteReportPdf(params: SiteReportParams): jsPDF {
       sub.count
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Sub-Contractor Name', 'Count']],
       body: manpowerTableData,
       startY: currentY,
@@ -145,7 +145,7 @@ export function generateProGridSiteReportPdf(params: SiteReportParams): jsPDF {
       work.description
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['#', 'Description']],
       body: workTableData,
       startY: currentY,
@@ -181,7 +181,7 @@ export function generateProGridSiteReportPdf(params: SiteReportParams): jsPDF {
       milestone.description
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['#', 'Description']],
       body: milestonesTableData,
       startY: currentY,
@@ -232,7 +232,7 @@ export function generateProGridSiteReportPdf(params: SiteReportParams): jsPDF {
       ['Signature Date', siteReport.footer.signatureDate || 'N/A']
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Field', 'Value']],
       body: footerTableData,
       startY: currentY,
@@ -260,7 +260,7 @@ export function generateProGridSiteReportPdf(params: SiteReportParams): jsPDF {
   }
 
   // Add footer note
-  appendProFooterNote(doc, currentY);
+  appendProFooterNote(doc, 'Site report — computer generated.');
 
   return doc;
 }

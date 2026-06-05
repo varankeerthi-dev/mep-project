@@ -61,11 +61,11 @@ export const PriorityQueueRow = memo(function PriorityQueueRow({
 
       <span
         className={cn(
-          'inline-flex w-[80px] shrink-0 items-center justify-center rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset',
+          'inline-flex w-[90px] shrink-0 items-center justify-center rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset',
           BAND_STYLES[item.priority_band]
         )}
       >
-        {item.priority_score}
+        {item.priority_band}
       </span>
 
       <span
@@ -136,7 +136,7 @@ export const PriorityQueueRow = memo(function PriorityQueueRow({
 export const priorityQueueTableHeader = (
   <div className="flex h-[36px] items-center px-4 text-[13px] font-semibold text-zinc-700 tracking-tight">
     <span className="w-[50px] shrink-0 text-center">#</span>
-    <span className="w-[80px] shrink-0 text-left">Score</span>
+    <span className="w-[90px] shrink-0 text-left">Band</span>
     <span className="w-[90px] shrink-0 text-left">Type</span>
     <span className="w-[140px] shrink-0 px-3 text-left">Reference</span>
     <div className="w-[300px] shrink-0 px-3 text-left">Client / Project</div>
