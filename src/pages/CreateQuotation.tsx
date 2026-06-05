@@ -1227,7 +1227,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         uom: material.unit,
         tax_percent: material.gst_rate || 0,
         discount_percent: 0,
-        description: material.display_name || material.name
+        description: ''
       }]);
     }
   };
@@ -2955,7 +2955,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                             if (mat) {
                               updateItem(item.id, 'material', mat);
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
-                              updateItem(item.id, 'description', mat.display_name || mat.name);
+                              updateItem(item.id, 'description', '');
                               updateItem(item.id, 'tax_percent', mat.gst_rate || 0);
                               const firstMake = itemMakes[mat.id]?.[0] || '';
                               updateItem(item.id, 'make', firstMake);
