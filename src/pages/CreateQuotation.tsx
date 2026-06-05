@@ -3514,12 +3514,12 @@ className="text-center cell-static col-shrink row-drag-handle"
                   />
                 </div>
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead style={{ background: '#f8fafc', position: 'sticky', top: 0 }}>
+                  <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '12px' }}>
+                    <thead>
                       <tr>
-                        <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb' }}>Item Name</th>
-                        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '90px' }}>Stock</th>
-                        <th style={{ padding: '8px', textAlign: 'center', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '60px' }}></th>
+                        <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', background: '#f8fafc', position: 'sticky', top: 0, zIndex: 2 }}>Item Name</th>
+                        <th style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '90px', background: '#f8fafc', position: 'sticky', top: 0, zIndex: 2 }}>Stock</th>
+                        <th style={{ padding: '8px', textAlign: 'center', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e5e7eb', width: '60px', background: '#f8fafc', position: 'sticky', top: 0, zIndex: 2 }}></th>
                       </tr>
                     </thead>
                     <tbody>
