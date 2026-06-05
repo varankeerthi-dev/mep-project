@@ -2441,7 +2441,30 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     <select 
                       className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
                       value={formData.variant_id} 
-                      onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
+                      onChange={(e) => {
+                        const newVariantId = e.target.value;
+                        setFormData({ ...formData, variant_id: newVariantId });
+                        if (items.length > 0) {
+                          setItems(prev => prev.map(item => {
+                            if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                            const mat = materials.find(m => m.id === item.item_id);
+                            if (!mat) return { ...item, variant_id: newVariantId || null };
+                            const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
+                            const variantDiscount = newVariantId ? (headerDiscounts[newVariantId] || 0) : 0;
+                            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                            return {
+                              ...item,
+                              variant_id: newVariantId || null,
+                              base_rate_snapshot: newRate,
+                              discount_percent: variantDiscount,
+                              applied_discount_percent: variantDiscount,
+                              rate: finalRate,
+                              final_rate_snapshot: finalRate,
+                              is_override: false
+                            };
+                          }));
+                        }
+                      }}
                     >
                       <option value="">Standard</option>
                       {variants.map(v => (
