@@ -2337,14 +2337,14 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </select>
             <button
               type="button"
-              className="h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
+              className="h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all"
               onClick={() => navigate('/quotation')}
             >
               Cancel
             </button>
             <button
               type="button"
-              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ${
                 saving ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               onClick={() => handleSave(true)}
@@ -2354,11 +2354,11 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </button>
             <button
               type="button"
-              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-white ${
+              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold transition-all ${
                 formData.status === 'Sent'
-                  ? 'bg-gradient-to-b from-emerald-700 to-emerald-900'
-                  : 'bg-gradient-to-b from-[#001f3f] to-[#003366]'
-              } shadow-none border-none hover:opacity-90 transition-all ${
+                  ? 'text-emerald-600 hover:text-emerald-700'
+                  : 'text-blue-600 hover:text-blue-700'
+              } ${
                 saving ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               onClick={() => handleSave(false)}
@@ -2751,20 +2751,20 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
-              className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+              className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all flex items-center justify-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
               Add Material
             </button>
             <div className="w-px h-6 bg-zinc-200 mx-2"></div>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
-            <button className="h-9 min-w-[110px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#b45309] to-[#d97706] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={() => addSubtotal()}>+ Add Sub-total</button>
-            <button className="h-9 min-w-[120px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all" onClick={addEmptyItemRow}>+ Add Row</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all" onClick={addSectionHeader}>+ Add Header</button>
+            <button className="h-9 min-w-[110px] px-4 text-xs font-bold text-amber-600 hover:text-amber-700 transition-all" onClick={() => addSubtotal()}>+ Add Sub-total</button>
+            <button className="h-9 min-w-[120px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               Add Multiple Items
             </button>
-            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
+            <button className="h-9 min-w-[100px] px-4 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
           </div>
         </div>
 
@@ -3662,14 +3662,14 @@ className="text-center cell-static col-shrink row-drag-handle"
             <DialogFooter className="gap-2 sm:gap-0">
               <button
                 type="button"
-                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md"
                 onClick={() => setConfirmDialog(null)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${confirmDialog.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`px-4 py-2 text-sm font-medium rounded-md ${confirmDialog.destructive ? 'text-red-600 hover:text-red-700' : 'text-blue-600 hover:text-blue-700'}`}
                 onClick={confirmDialog.onConfirm}
               >
                 {confirmDialog.confirmLabel || 'Confirm'}
@@ -3708,8 +3708,8 @@ className="text-center cell-static col-shrink row-drag-handle"
                     <button
                       key={s}
                       type="button"
-                      className="px-2.5 py-1 text-xs font-medium text-zinc-600 bg-zinc-100 border border-zinc-200 rounded-md hover:bg-zinc-200"
-                      onClick={() => inputDialog.onSubmit(s)}
+                    className="px-2.5 py-1 text-xs font-medium text-zinc-600 bg-zinc-100 border border-zinc-200 rounded-md"
+                    onClick={() => inputDialog.onSubmit(s)}
                     >
                       {s}
                     </button>
@@ -3720,14 +3720,14 @@ className="text-center cell-static col-shrink row-drag-handle"
             <DialogFooter className="gap-2 sm:gap-0">
               <button
                 type="button"
-                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md"
                 onClick={() => setInputDialog(null)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                className="px-4 py-2 text-sm font-medium text-blue-600 rounded-md hover:text-blue-700"
                 onClick={() => {
                   const input = document.getElementById('input-dialog-field') as HTMLInputElement;
                   const val = input?.value || '';
@@ -3776,7 +3776,7 @@ className="text-center cell-static col-shrink row-drag-handle"
             <DialogFooter>
               <button
                 type="button"
-                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md"
                 onClick={() => setRevisionDialogOpen(false)}
               >
                 Close
