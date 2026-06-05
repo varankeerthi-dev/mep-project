@@ -2727,7 +2727,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
             )}
 
-            {/* Bottom Options (Erection Charges, Round Off) */}
+            {/* Bottom Options (Erection Charges) */}
             <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/50 flex items-center gap-6">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input 
@@ -2737,16 +2737,6 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
                 />
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Include Erection Charges</span>
-              </label>
-              
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  className="w-3.5 h-3.5 text-blue-600 border-zinc-300 rounded-none focus:ring-0 focus:ring-offset-0"
-                  checked={formData.round_off_enabled}
-                  onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })}
-                />
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Enable Round Off</span>
               </label>
             </div>
           </div>
@@ -3542,10 +3532,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                             style={{ cursor: isSelected ? 'default' : 'pointer', background: isSelected ? '#f0fdf4' : '#fff' }}
                             onClick={() => {
                               if (itemId && !isSelected) {
-                                const existing = pickerItems.find(p => p.item_id === itemId);
-                                if (!existing) {
-                                  handleAddToPicker(itemId);
-                                }
+                                handleAddItemToPicker(row.original);
                               }
                             }}
                           >
