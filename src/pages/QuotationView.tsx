@@ -1074,6 +1074,50 @@ export default function QuotationView() {
 
     let rowsHTML = '';
     quotation.items.forEach((item, index) => {
+      if (item.is_header) {
+        let colCount = 0;
+        if (optionalCols.sno !== false) colCount++;
+        if (optionalCols.hsn_code) colCount++;
+        if (optionalCols.item !== false) colCount++;
+        if (optionalCols.variant) colCount++;
+        if (optionalCols.description) colCount++;
+        if (optionalCols.qty !== false) colCount++;
+        if (optionalCols.uom !== false) colCount++;
+        if (optionalCols.rate) colCount++;
+        if (optionalCols.discount_percent) colCount++;
+        if (optionalCols.rate_after_discount) colCount++;
+        if (optionalCols.tax_percent) colCount++;
+        if (optionalCols.custom1) colCount++;
+        if (optionalCols.custom2) colCount++;
+        colCount++;
+        rowsHTML += `<tr><td colspan="${colCount}" style="padding:10px 14px;font-weight:bold;font-size:13px;background:#f8fafc">${item.description || 'Section'}</td></tr>`;
+        return;
+      }
+      if (item.is_subtotal) {
+        let subtotalAmount = 0;
+        for (let i = index - 1; i >= 0; i--) {
+          const prev = quotation.items[i];
+          if (prev.is_subtotal || prev.is_header) break;
+          subtotalAmount += parseFloat(prev.line_total) || 0;
+        }
+        let colCount = 0;
+        if (optionalCols.sno !== false) colCount++;
+        if (optionalCols.hsn_code) colCount++;
+        if (optionalCols.item !== false) colCount++;
+        if (optionalCols.variant) colCount++;
+        if (optionalCols.description) colCount++;
+        if (optionalCols.qty !== false) colCount++;
+        if (optionalCols.uom !== false) colCount++;
+        if (optionalCols.rate) colCount++;
+        if (optionalCols.discount_percent) colCount++;
+        if (optionalCols.rate_after_discount) colCount++;
+        if (optionalCols.tax_percent) colCount++;
+        if (optionalCols.custom1) colCount++;
+        if (optionalCols.custom2) colCount++;
+        colCount++;
+        rowsHTML += `<tr style="background:#fef9c3;border-top:2px solid #eab308"><td colspan="${colCount}" style="padding:10px 14px"><div style="display:flex;justify-content:flex-end;width:100%;gap:16px"><span style="font-weight:bold;font-size:13px;color:#b45309;text-align:right">${item.subtotal_label || 'Sub-total:'}</span><span style="font-weight:bold;font-size:13px;color:#b45309;min-width:100px;text-align:right">${formatCurrency(subtotalAmount)}</span></div></td></tr>`;
+        return;
+      }
       const material = item.item || {};
       let rowHTML = '<tr>';
       if (optionalCols.sno !== false) rowHTML += `<td>${index + 1}</td>`;
@@ -1604,7 +1648,7 @@ export default function QuotationView() {
                       <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Total</span></th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white">
+                   <tbody className="bg-white">
                     {quotation.items?.map((item, index) => {
                       const template = templates.find(t => t.id === selectedTemplateId);
                       const optCols = template?.column_settings?.optional || {};
@@ -1617,6 +1661,61 @@ export default function QuotationView() {
                       const hasTax = quotation.items?.some(i => i.tax_percent > 0);
                       const hasCustom1 = quotation.items?.some(i => i.custom1);
                       const hasCustom2 = quotation.items?.some(i => i.custom2);
+
+                      if (item.is_header) {
+                        let colCount = 0;
+                        if (optCols.sno !== false) colCount++;
+                        if (hasHSN) colCount++;
+                        if (hasItemCode) colCount++;
+                        if (hasMake) colCount++;
+                        colCount++;
+                        if (hasVariant) colCount++;
+                        colCount += 3;
+                        if (hasDiscount) colCount++;
+                        if (hasTax) colCount++;
+                        if (hasCustom1) colCount++;
+                        if (hasCustom2) colCount++;
+                        colCount++;
+                        return (
+                          <tr key={item.id} style={{ background: '#f8fafc' }}>
+                            <td colSpan={colCount} style={{ padding: '10px 14px' }}>
+                              <span className="text-[13px] font-bold text-zinc-800">{item.description || 'Section'}</span>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      if (item.is_subtotal) {
+                        let subtotalAmount = 0;
+                        for (let i = index - 1; i >= 0; i--) {
+                          const prev = quotation.items[i];
+                          if (prev.is_subtotal || prev.is_header) break;
+                          subtotalAmount += parseFloat(prev.line_total) || 0;
+                        }
+                        let colCount = 0;
+                        if (optCols.sno !== false) colCount++;
+                        if (hasHSN) colCount++;
+                        if (hasItemCode) colCount++;
+                        if (hasMake) colCount++;
+                        colCount++;
+                        if (hasVariant) colCount++;
+                        colCount += 3;
+                        if (hasDiscount) colCount++;
+                        if (hasTax) colCount++;
+                        if (hasCustom1) colCount++;
+                        if (hasCustom2) colCount++;
+                        colCount++;
+                        return (
+                          <tr key={item.id} style={{ background: '#fef9c3', borderTop: '2px solid #eab308' }}>
+                            <td colSpan={colCount} style={{ padding: '10px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: '16px' }}>
+                                <span className="text-[13px] font-bold text-amber-700" style={{ textAlign: 'right' }}>{item.subtotal_label || 'Sub-total:'}</span>
+                                <span className="text-[13px] font-bold text-amber-700" style={{ minWidth: '100px', textAlign: 'right' }}>{formatCurrency(subtotalAmount)}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
 
                       return (
                         <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">

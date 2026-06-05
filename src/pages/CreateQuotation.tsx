@@ -126,6 +126,21 @@ export default function CreateQuotation() {
   const [clientSearch, setClientSearch] = useState('');
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 
+  const getVisibleColumnCount = () => {
+    let count = 1;
+    if (templateSettings?.column_settings?.optional?.hsn_code !== false) count++;
+    if (templateSettings?.column_settings?.optional?.item !== false) count++;
+    if (templateSettings?.column_settings?.optional?.client_part_no === true) count++;
+    if (templateSettings?.column_settings?.optional?.client_description === true) count++;
+    if (templateSettings?.column_settings?.optional?.make !== false) count++;
+    if (templateSettings?.column_settings?.optional?.variant !== false) count++;
+    count += 7;
+    if (templateSettings?.column_settings?.optional?.custom1 === true) count++;
+    if (templateSettings?.column_settings?.optional?.custom2 === true) count++;
+    count += 2;
+    return count;
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -1690,76 +1705,51 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const addSectionHeader = () => {
-    setInputDialog({
-      open: true,
-      title: 'Add Section Header',
-      placeholder: 'e.g. First Floor Piping, Fire Protection...',
-      defaultValue: '',
-      allowEmpty: false,
-      suggestions: ['First Floor Piping', 'Ground Floor', 'Electrical Works', 'Fire Protection'],
-      onSubmit: (value) => {
-        if (!value.trim()) return;
-        const rowId = Date.now() + Math.random();
-        setItems((prev) => [
-          ...prev,
-          {
-            id: rowId,
-            item_id: null,
-            variant_id: null,
-            description: value.trim(),
-            qty: null,
-            uom: '',
-            rate: 0,
-            discount_percent: 0,
-            discount_amount: 0,
-            tax_percent: 0,
-            tax_amount: 0,
-            line_total: 0,
-            is_header: true,
-            display_order: prev.length
-          }
-        ]);
-        setInputDialog(null);
+    const rowId = Date.now() + Math.random();
+    setItems((prev) => [
+      ...prev,
+      {
+        id: rowId,
+        item_id: null,
+        variant_id: null,
+        description: '',
+        qty: null,
+        uom: '',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        tax_percent: 0,
+        tax_amount: 0,
+        line_total: 0,
+        is_header: true,
+        display_order: prev.length
       }
-    });
+    ]);
   };
 
   const addSubtotal = (afterIndex?: number) => {
-    const presetLabels = ['Civil:', 'Electrical:', 'Plumbing:', 'HVAC:', 'Fire Protection:'];
-    setInputDialog({
-      open: true,
-      title: 'Add Sub-total Label',
-      placeholder: 'Type a label or pick from suggestions...',
-      defaultValue: '',
-      allowEmpty: false,
-      suggestions: presetLabels,
-      onSubmit: (value) => {
-        if (!value || !value.trim()) return;
-        const rowId = Date.now() + Math.random();
-        setItems((prev) => {
-          const newItems = [...prev];
-          const insertIndex = afterIndex !== undefined ? afterIndex + 1 : newItems.length;
-          newItems.splice(insertIndex, 0, {
-            id: rowId,
-            item_id: null,
-            variant_id: null,
-            description: value.trim(),
-            qty: null,
-            uom: '',
-            rate: 0,
-            discount_percent: 0,
-            discount_amount: 0,
-            tax_percent: 0,
-            tax_amount: 0,
-            line_total: 0,
-            is_subtotal: true,
-            subtotal_label: value.trim(),
-            display_order: insertIndex
-          });
-          return newItems.map((item, idx) => ({ ...item, display_order: idx }));
-        });
-        setInputDialog(null);
-      }
+    const rowId = Date.now() + Math.random();
+    setItems((prev) => {
+      const newItems = [...prev];
+      const insertIndex = afterIndex !== undefined ? afterIndex + 1 : newItems.length;
+      newItems.splice(insertIndex, 0, {
+        id: rowId,
+        item_id: null,
+        variant_id: null,
+        description: '',
+        qty: null,
+        uom: '',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        tax_percent: 0,
+        tax_amount: 0,
+        line_total: 0,
+        is_subtotal: true,
+        subtotal_label: '',
+        display_order: insertIndex
+      });
+      return newItems.map((item, idx) => ({ ...item, display_order: idx }));
     });
   };
 
@@ -1772,9 +1762,9 @@ const loadQuoteNoPreview = useCallback(async () => {
     let totalItemDiscount = 0;
     let totalTax = 0;
     
-    // Sub-total groups
+    // Sub-total groups — each subtotal captures items above it until the previous subtotal
     const subTotalGroups: { [key: string]: number } = {};
-    let currentGroup = 'default';
+    let runningGroupTotal = 0;
 
     // Calculate taxes by rate for mixed tax scenarios
     const taxGroups: { [key: string]: { baseAmount: number; taxAmount: number; sgst: number; cgst: number } } = {};
@@ -1783,9 +1773,11 @@ const loadQuoteNoPreview = useCallback(async () => {
       // Skip header rows
       if (item.is_header) return;
       
-      // Track sub-total groups
+      // When a subtotal is encountered, save the accumulated total above it
       if (item.is_subtotal) {
-        currentGroup = item.subtotal_label || 'Sub-total:';
+        const label = item.subtotal_label || 'Sub-total:';
+        subTotalGroups[label] = runningGroupTotal;
+        runningGroupTotal = 0;
         return;
       }
       
@@ -1805,11 +1797,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       totalItemDiscount += discountAmount;
       totalTax += taxAmount;
       
-      // Add to current sub-total group
-      if (!subTotalGroups[currentGroup]) {
-        subTotalGroups[currentGroup] = 0;
-      }
-      subTotalGroups[currentGroup] += net;
+      runningGroupTotal += net;
 
       // Group taxes by rate (only for items, not sub-totals)
       if (taxPercent > 0) {
@@ -2845,7 +2833,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Multiple Items".</td>
+                  <td colSpan={getVisibleColumnCount()} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Multiple Items".</td>
                 </tr>
               ) : (
                 items
@@ -2862,32 +2850,20 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                     return (
                       <tr 
                         key={item.id} 
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDropOnRow(e, item.id)}
-                        className={draggingItemId === item.id ? 'row-dragging' : ''}
                         style={{ background: '#f8fafc' }}
                       >
-                        <td 
-                          className="text-center cell-static col-shrink row-drag-handle" 
-                          title="Drag to reorder"
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, item.id)}
-                          onDragEnd={handleDragEnd}
-                        >
-                          {item.description ? itemCountBefore + 1 : ':::'}
-                        </td>
-                        <td colSpan={20} style={{ padding: '4px 8px' }}>
-                          <input
-                            type="text"
-                            className="cell-input"
-                            style={{ width: '100%', fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '13px' }}
-                            placeholder="Enter Section Header (e.g. First Floor Piping)..."
-                            value={item.description}
-                            onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                          />
-                        </td>
-                        <td className="delete-cell col-shrink">
-                          <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        <td colSpan={getVisibleColumnCount()} style={{ padding: '6px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <input
+                              type="text"
+                              className="cell-input"
+                              style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '14px', textAlign: 'left' }}
+                              placeholder="Enter Section Header (e.g. First Floor Piping)..."
+                              value={item.description}
+                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                            />
+                            <button type="button" className="btn-delete" onClick={() => removeItem(item.id)} style={{ flexShrink: 0, marginLeft: 8 }}>×</button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -2902,34 +2878,30 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                         key={item.id} 
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDropOnRow(e, item.id)}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.id)}
+                        onDragEnd={handleDragEnd}
                         className={draggingItemId === item.id ? 'row-dragging' : ''}
-                        style={{ background: '#fef9c3', borderTop: '2px solid #eab308' }}
+                        style={{ background: '#fef9c3', borderTop: '2px solid #eab308', cursor: 'grab' }}
                       >
-                        <td 
-                          className="text-center cell-static col-shrink row-drag-handle" 
-                          title="Drag to reorder"
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, item.id)}
-                          onDragEnd={handleDragEnd}
-                        >
-                          ---
-                        </td>
-                        <td colSpan={20} style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <input
-                            type="text"
-                            className="cell-input"
-                            style={{ flex: 1, fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '13px' }}
-                            placeholder="Enter sub-total label..."
-                            value={item.subtotal_label || ''}
-                            onChange={(e) => {
-                              updateItem(item.id, 'subtotal_label', e.target.value);
-                              updateItem(item.id, 'description', e.target.value);
-                            }}
-                          />
-                          <span className="text-right font-bold" style={{ color: '#b45309', padding: '0 12px 0 24px', whiteSpace: 'nowrap' }}>
-                            {formatCurrency(groupAmount)}
-                          </span>
-                          <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        <td colSpan={getVisibleColumnCount()} style={{ padding: '6px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: '16px' }}>
+                            <input
+                              type="text"
+                              className="cell-input"
+                              style={{ maxWidth: '240px', fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '13px', textAlign: 'right' }}
+                              placeholder="Sub-total label..."
+                              value={item.subtotal_label || ''}
+                              onChange={(e) => {
+                                updateItem(item.id, 'subtotal_label', e.target.value);
+                                updateItem(item.id, 'description', e.target.value);
+                              }}
+                            />
+                            <span className="text-right font-bold" style={{ color: '#b45309', whiteSpace: 'nowrap', minWidth: '100px', textAlign: 'right' }}>
+                              {formatCurrency(groupAmount)}
+                            </span>
+                            <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -2940,7 +2912,8 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                       key={item.id} 
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDropOnRow(e, item.id)}
-                      onFocus={() => {
+                      onFocus={(e) => {
+                        if ((e.target as HTMLElement).closest('.btn-delete')) return;
                         if (index === items.length - 1) {
                           addEmptyItemRow();
                         }
@@ -3386,72 +3359,53 @@ className="text-center cell-static col-shrink row-drag-handle"
             <div style={{ color: '#1e293b', fontSize: '12px', fontStyle: 'italic', fontWeight: 600, textAlign: 'right', marginTop: '2px' }}>
               INR {calculations.amountInWords}
             </div>
-          </div>
-        </div>
-      </div>
-
-
-
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-zinc-100 mb-20">
-        <div className="flex items-center gap-4 bg-white border border-zinc-200 rounded-none px-6 py-4 shadow-sm w-full md:w-auto">
-          <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
-            <select 
-              className="bg-transparent border-none p-0 text-sm font-bold text-zinc-800 focus:ring-0 cursor-pointer min-w-[200px]"
-              value={formData.authorized_signatory_id ?? ''} 
-              onChange={(e) => {
-                const val = e.target.value;
-                setFormData({ ...formData, authorized_signatory_id: val || '' });
-              }}
-            >
-              <option value="">Select Signatory...</option>
-              {(organisation?.signatures || []).length > 0 ? (
-                (organisation?.signatures || []).map((sig) => (
-                  <option key={String(sig.id)} value={String(sig.id)}>{sig.name}</option>
-                ))
-              ) : (
-                <option disabled>No signatures - Add in Settings → Organisation</option>
+            <div style={{ marginTop: '12px', padding: '12px', borderTop: '1px solid #e5e7eb', fontFamily: 'Inter, sans-serif' }}>
+              <div className="flex items-center gap-3 bg-white border border-zinc-200 rounded-none px-3 py-2 shadow-sm">
+                <div className="w-7 h-7 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 flex-shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
+                  <select 
+                    className="bg-transparent border-none p-0 text-xs font-bold text-zinc-800 focus:ring-0 cursor-pointer w-full"
+                    value={formData.authorized_signatory_id ?? ''} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, authorized_signatory_id: val || '' });
+                    }}
+                  >
+                    <option value="">Select Signatory...</option>
+                    {(organisation?.signatures || []).length > 0 ? (
+                      (organisation?.signatures || []).map((sig) => (
+                        <option key={String(sig.id)} value={String(sig.id)}>{sig.name}</option>
+                      ))
+                    ) : (
+                      <option disabled>No signatures - Add in Settings → Organisation</option>
+                    )}
+                  </select>
+                  {(organisation?.signatures || []).length === 0 && (
+                    <a href="/settings" target="_blank" className="text-[10px] text-blue-600 underline">Add signatures here</a>
+                  )}
+                </div>
+              </div>
+              {formData.authorized_signatory_id && formData.authorized_signatory_id !== null && (
+                <div className="bg-white border border-zinc-200 rounded-none px-3 py-2 shadow-sm mt-2">
+                  <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Signature Preview</div>
+                  <div className="h-8 flex items-center">
+                    {(() => {
+                      const sigId = String(formData.authorized_signatory_id);
+                      const selectedSig = (organisation?.signatures || []).find(s => String(s.id) === sigId);
+                      if (selectedSig?.url) {
+                        return <img src={selectedSig.url} alt={selectedSig.name} className="max-h-7 max-w-[120px] object-contain" />;
+                      }
+                      return <span className="text-zinc-400 text-[11px]">No signature preview</span>;
+                    })()}
+                  </div>
+                </div>
               )}
-            </select>
-            {(organisation?.signatures || []).length === 0 && (
-              <>
-                <a 
-                  href="/settings" 
-                  target="_blank"
-                  className="text-xs text-blue-600 underline ml-2"
-                >
-                  Add signatures here
-                </a>
-                </>
-            )}
-          </div>
-        </div>
-        
-        {/* Signature Preview */}
-        {formData.authorized_signatory_id && formData.authorized_signatory_id !== null && (
-          <div className="bg-white border border-zinc-200 rounded-none px-4 py-3 shadow-sm">
-            <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Signature Preview</div>
-            <div className="h-16 flex items-center">
-              {(() => {
-                const sigId = String(formData.authorized_signatory_id);
-                const selectedSig = (organisation?.signatures || []).find(s => String(s.id) === sigId);
-                if (selectedSig?.url) {
-                  return (
-                    <img 
-                      src={selectedSig.url} 
-                      alt={selectedSig.name} 
-                      className="max-h-14 max-w-[180px] object-contain"
-                    />
-                  );
-                }
-                return <span className="text-zinc-400 text-sm">No signature preview</span>;
-              })()}
             </div>
           </div>
-        )}
+        </div>
       </div>
       
       {showCustomLabelEditor && (
