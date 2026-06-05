@@ -112,6 +112,10 @@ export default function CreateQuotation() {
   suggestions?: string[];
   allowEmpty?: boolean;
 } | null>(null);
+  const [discountConfirm, setDiscountConfirm] = useState<{
+    portfolio: any;
+    clientName: string;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState('items');
   const [activeSection, setActiveSection] = useState('materials');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -1149,27 +1153,9 @@ const loadQuoteNoPreview = useCallback(async () => {
       setHeaderDiscounts(portfolio.discounts);
 
       if (items.length > 0) {
-        setConfirmDialog({
-          open: true,
-          title: 'Apply Client Discount Profile',
-          description: 'Apply this client\'s discount portfolio to all existing items? Existing row-level overrides will be reset.',
-          confirmLabel: 'Apply',
-          onConfirm: () => {
-            setItems(items.map(item => {
-              const disc = portfolio.discounts[item.variant_id] || 0;
-              const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
-              const finalRate = calculateVariantDiscountedRate(baseRate, disc);
-              return { 
-                ...item, 
-                discount_percent: disc, 
-                applied_discount_percent: disc,
-                final_rate_snapshot: finalRate,
-                rate: finalRate,
-                is_override: false
-              };
-            }));
-            setConfirmDialog(null);
-          }
+        setDiscountConfirm({
+          portfolio,
+          clientName: client?.display_name || client?.name || 'this client'
         });
       }
     }
@@ -3700,6 +3686,105 @@ className="text-center cell-static col-shrink row-drag-handle"
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {discountConfirm && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.3)',
+          }}
+          onClick={() => setDiscountConfirm(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#f0f0f0',
+              border: '1px solid #c4c4c4',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+              width: '420px',
+              fontFamily: '"Segoe UI", system-ui, sans-serif',
+              fontSize: '13px',
+              color: '#222',
+              userSelect: 'none',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '16px 20px 12px',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm1 15H9v-2h2v2zm0-4H9V5h2v6z" fill="#f5a623"/>
+              </svg>
+              <span style={{ fontWeight: 600, fontSize: '14px' }}>Apply client discount profile?</span>
+            </div>
+            <div style={{ padding: '0 20px 16px', lineHeight: 1.5, color: '#444' }}>
+              Apply <strong>{discountConfirm.clientName}</strong>&rsquo;s discount portfolio to all existing items? Row-level overrides will be reset.
+            </div>
+            <div
+              style={{
+                display: 'flex', justifyContent: 'flex-end', gap: '8px',
+                padding: '12px 20px',
+                borderTop: '1px solid #d4d4d4',
+                background: '#e8e8e8',
+              }}
+            >
+              <button
+                onClick={() => setDiscountConfirm(null)}
+                style={{
+                  padding: '6px 18px',
+                  border: '1px solid #b0b0b0',
+                  background: '#f5f5f5',
+                  color: '#222',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  minWidth: '70px',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e5e5'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#f5f5f5'}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const { portfolio } = discountConfirm;
+                  setItems(items.map(item => {
+                    const disc = portfolio.discounts[item.variant_id] || 0;
+                    const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+                    const finalRate = calculateVariantDiscountedRate(baseRate, disc);
+                    return {
+                      ...item,
+                      discount_percent: disc,
+                      applied_discount_percent: disc,
+                      final_rate_snapshot: finalRate,
+                      rate: finalRate,
+                      is_override: false
+                    };
+                  }));
+                  setDiscountConfirm(null);
+                }}
+                style={{
+                  padding: '6px 18px',
+                  border: '1px solid #0066cc',
+                  background: '#0066cc',
+                  color: '#fff',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  minWidth: '70px',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#0052a3'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#0066cc'}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {inputDialog && (
