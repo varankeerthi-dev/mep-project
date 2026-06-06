@@ -814,9 +814,10 @@ export const useCreatePaymentRequest = () => {
 
       return data;
     }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['payment-requests', data?.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals', 'list', data?.organisation_id] });
     },
   });
 };
