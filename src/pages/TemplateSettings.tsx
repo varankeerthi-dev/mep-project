@@ -577,6 +577,24 @@ export default function TemplateSettings() {
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'vertical' }
       }
+    },
+    {
+      template_name: 'Enterprise Quotation Template',
+      template_code: 'QTN_ENTERPRISE',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'default' }
+      }
     }
   ];
 
@@ -1511,6 +1529,9 @@ const handleNew = (preset: any = null) => {
       <div className="page-header">
         <h1 className="page-title">Template Settings</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-secondary" onClick={seedBuiltInTemplates} disabled={loading}>
+            Restore Defaults
+          </button>
           <button 
             className="btn btn-secondary" 
             onClick={() => handleNew('vertical')}

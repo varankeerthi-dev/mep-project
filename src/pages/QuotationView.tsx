@@ -8,6 +8,7 @@ import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
+import { generateQuotationPdf } from '../pdf/enterpriseQuotationPdf';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
@@ -831,6 +832,106 @@ export default function QuotationView() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         gridDoc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      // Special handling for Enterprise Quotation Template
+      if (template.template_code === 'QTN_ENTERPRISE') {
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
+        const isInterState = quotation.state && organisation?.state &&
+          quotation.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
+        
+        const selectedSignatory = (organisation?.signatures || []).find(s => s.id == quotation.authorized_signatory_id);
+
+        const opts = {
+          org: {
+            name: organisation?.name || '',
+            address: organisation?.address || '',
+            city: organisation?.city || '',
+            state: organisation?.state || '',
+            pincode: organisation?.pincode || '',
+            gstin: organisation?.gstin || '',
+            phone: organisation?.phone || '',
+            email: organisation?.email || '',
+            logo_url: organisation?.logo_url || ''
+          },
+          client: {
+            display_name: quotation.client?.client_name || quotation.client?.name || '',
+            billing_address: quotation.billing_address || '',
+            gstin: quotation.client?.gstin || quotation.gstin || '',
+            state: quotation.client?.state || quotation.state || ''
+          },
+          header: {
+            quotation_no: quotation.quotation_no || '',
+            revision_no: quotation.revision_no ? parseInt(quotation.revision_no) : undefined,
+            date: formatDate(quotation.date),
+            valid_till: formatDate(quotation.valid_till),
+            payment_terms: quotation.payment_terms || '',
+            reference: quotation.reference || '',
+            prepared_by: quotation.prepared_by || '',
+            remarks: quotation.remarks || '',
+            project_name: quotation.project?.project_name || quotation.project?.project_code || ''
+          },
+          items: (quotation.items || []).map((item: any) => ({
+            is_header: item.is_header,
+            is_subtotal: item.is_subtotal,
+            subtotal_label: item.subtotal_label,
+            description: item.description || item.item?.name || item.item?.display_name || '',
+            item_code: item.item_code || item.item?.item_code || '',
+            hsn_code: item.sac_code || item.item?.hsn_code || '',
+            variant_name: item.variant?.variant_name || '',
+            qty: item.qty,
+            uom: item.uom,
+            base_rate_snapshot: item.base_rate_snapshot || item.rate,
+            discount_percent: item.discount_percent,
+            rate: item.rate,
+            tax_percent: item.tax_percent,
+            line_total: item.line_total,
+            custom1: item.custom1,
+            custom2: item.custom2
+          })),
+          calculations: {
+            subtotal: quotation.subtotal || 0,
+            totalItemDiscount: quotation.total_item_discount || 0,
+            extraDiscountAmount: quotation.extra_discount_amount || 0,
+            cgst: isInterState ? 0 : (quotation.total_tax || 0) / 2,
+            sgst: isInterState ? 0 : (quotation.total_tax || 0) / 2,
+            igst: isInterState ? (quotation.total_tax || 0) : 0,
+            isInterState: isInterState,
+            totalTax: quotation.total_tax || 0,
+            roundOff: quotation.round_off || 0,
+            grandTotal: quotation.grand_total || 0,
+            amountInWords: quotation.amount_in_words || ''
+          },
+          columnSettings: template.column_settings,
+          signatory: {
+            name: selectedSignatory?.name || '',
+            designation: organisation?.signatory_designation || 'Authorised Signatory',
+            for_company: organisation?.name || ''
+          },
+          bankDetails: {
+            bank_name: organisation?.bank_name,
+            branch: organisation?.bank_branch,
+            account_name: organisation?.bank_account_name || organisation?.name,
+            account_no: organisation?.bank_account_no,
+            ifsc: organisation?.bank_ifsc,
+            account_type: organisation?.bank_account_type,
+            swift: organisation?.bank_swift
+          },
+          termsAndConditions: quotationWithTerms.terms_conditions 
+            ? quotationWithTerms.terms_conditions.split('\n').filter((t: string) => t.trim().length > 0)
+            : ['Payment as per terms mentioned above.', 'This is a system-generated document.'],
+          companyLogoBase64: organisation?.logo_url 
+        };
+
+        const enterpriseDoc = generateQuotationPdf(opts as any);
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        enterpriseDoc.save(`${safeFileName}.pdf`);
         return;
       }
 
