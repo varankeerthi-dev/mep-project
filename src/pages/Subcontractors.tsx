@@ -4679,7 +4679,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
                 <button type="button" onClick={() => setShowRequestDialog(false)} style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '600', borderRadius: '8px', background: '#fff', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={createPaymentRequest.isPending} style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '600', borderRadius: '8px', background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer' }}>{createPaymentRequest.isPending ? 'Submitting...' : 'Submit Request'}</button>
+                <button type="submit" disabled={createPaymentRequest.isPending} style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '600', borderRadius: '8px', background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer' }}>{createPaymentRequest.isPending ? 'Submitting...' : 'Submit for Approval'}</button>
               </div>
             </form>
           </div>
