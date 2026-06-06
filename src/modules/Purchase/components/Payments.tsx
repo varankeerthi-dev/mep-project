@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -38,7 +38,7 @@ import { cn } from '../../../lib/utils';
 import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrgApprovalSettings } from '@/hooks/useApprovals';
-import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests } from '../hooks/usePurchaseQueries';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests, useDeletePaymentRequest, useResendPaymentRequest, useUpdatePaymentRequest } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
@@ -76,7 +76,12 @@ export const Payments: React.FC = () => {
   const { settings: approvalSettings } = useOrgApprovalSettings(organisation?.id);
   const createPayment = useCreatePayment();
   const createPaymentWithApproval = useCreatePaymentWithApproval();
+  const [editRequest, setEditRequest] = useState<any | null>(null);
+  const editIdRef = useRef<string | null>(null);
   const createPaymentRequest = useCreatePaymentRequest();
+  const updatePaymentRequest = useUpdatePaymentRequest();
+  const deletePaymentRequest = useDeletePaymentRequest();
+  const resendPaymentRequest = useResendPaymentRequest();
   const selectedBills = vendorBills.filter((bill: any) => selectedBillIds.includes(String(bill.id)));
   const isLastStep = isAdvance ? activeStep === 1 : activeStep === 2;
   const paymentApprovalEnabled = approvalSettings?.PURCHASE_PAYMENT ?? false;
@@ -99,11 +104,24 @@ export const Payments: React.FC = () => {
     setVendorProformaAmount('');
   };
 
-  const handleCreateRequest = () => {
+  const handleCreateRequest = (request?: any) => {
+    if (request) {
+      editIdRef.current = request?.id || request?.request_id || null;
+      setEditRequest(request);
+      setRequestVendorId(request.vendor_id || '');
+      setRequestAmount(String(request.amount_requested || ''));
+      setRequestPriority(request.priority || 'Normal');
+      setRequestDueDate(request.due_date || '');
+      setRequestPaymentMode(request.payment_mode || 'Bank Transfer');
+      setRequestBankAccount(request.bank_account_id || '');
+      setRequestReason(request.reason || '');
+    }
     setOpenRequestDialog(true);
   };
 
   const resetRequestForm = () => {
+    editIdRef.current = null;
+    setEditRequest(null);
     setRequestVendorId('');
     setRequestAmount('');
     setRequestPriority('Normal');
@@ -269,6 +287,29 @@ export const Payments: React.FC = () => {
       },
     },
     {
+      id: 'approval_status',
+      header: 'Approval Status',
+      cell: ({ row }: any) => {
+        const raw = row.original.approval_status || row.original.workflow_step || row.original.status;
+        const colors: Record<string, string> = {
+          pending_approval: 'bg-amber-50 text-amber-700 border-amber-200',
+          PENDING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
+          approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          rejected: 'bg-red-50 text-red-700 border-red-200',
+          Rejected: 'bg-red-50 text-red-700 border-red-200',
+          released: 'bg-blue-100 text-blue-700 border-blue-200',
+          Released: 'bg-blue-100 text-blue-700 border-blue-200',
+        };
+        const label = typeof raw === 'string' ? raw.replace(/_/g, ' ') : '-';
+        return (
+          <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${colors[raw] || 'bg-zinc-50 text-zinc-500 border-zinc-200'}`}>
+            {label}
+          </span>
+        );
+      },
+    },
+    {
       id: 'due_date',
       header: 'Due By',
       cell: ({ row }: any) => {
@@ -289,6 +330,63 @@ export const Payments: React.FC = () => {
       cell: ({ row }: any) => (
         <span className="text-xs text-zinc-600 truncate block max-w-[240px]">{row.original.reason || '-'}</span>
       ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }: any) => {
+        const r = row.original;
+        const canEdit = r.status !== 'Approved' && r.status !== 'APPROVED';
+        const canResend = r.status === 'Rejected' || r.status === 'Cancelled';
+        return (
+          <div className="flex items-center gap-1">
+            {canEdit && (
+              <button
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  handleCreateRequest(r);
+                }}
+                className="h-7 px-2 text-[10px] font-semibold text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-md hover:bg-zinc-100 transition-colors active:scale-[0.98]"
+                title="Edit this request"
+              >
+                Edit
+              </button>
+            )}
+            {canResend && (
+              <button
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  resendPaymentRequest.mutate(
+                    { requestId: r.id, organisationId: r.organisation_id },
+                    { onSuccess: () => toast.success('Re-submitted for approval'), onError: (e: any) => toast.error(e?.message ?? 'Resend failed') }
+                  );
+                }}
+                disabled={resendPaymentRequest.isPending}
+                className="h-7 px-2 text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors active:scale-[0.98]"
+                title="Resend for approval"
+              >
+                Resend
+              </button>
+            )}
+            <button
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (confirm('Delete this payment request?')) {
+                  deletePaymentRequest.mutate(
+                    { requestId: r.id, organisationId: r.organisation_id },
+                    { onSuccess: () => toast.success('Payment request deleted'), onError: (e: any) => toast.error(e?.message ?? 'Delete failed') }
+                  );
+                }
+              }}
+              disabled={deletePaymentRequest.isPending}
+              className="h-7 px-2 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors active:scale-[0.98]"
+              title="Delete this request"
+            >
+              Delete
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -661,14 +759,18 @@ export const Payments: React.FC = () => {
       </Dialog>
 
       {/* Payment Request Dialog */}
-      <Dialog open={openRequestDialog} onOpenChange={(open) => !open && setOpenRequestDialog(false)}>
+      <Dialog open={openRequestDialog} onOpenChange={(open) => {
+        if (!open) { setOpenRequestDialog(false); resetRequestForm(); }
+      }}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden">
           <DialogHeader className="px-10 py-8 border-b bg-primary/5">
             <DialogTitle className="text-2xl font-bold flex items-center gap-3">
               <PlusCircle className="h-6 w-6 text-primary" />
-              Create Payment Request
+              {editRequest ? 'Edit Payment Request' : 'Create Payment Request'}
             </DialogTitle>
-            <p className="text-sm text-zinc-500 mt-1">Fill in the payment details below. Required fields are marked.</p>
+            <p className="text-sm text-zinc-500 mt-1">
+              {editRequest ? 'Update the payment request details below.' : 'Fill in the payment details below. Required fields are marked.'}
+            </p>
           </DialogHeader>
 
           <form
@@ -697,20 +799,34 @@ export const Payments: React.FC = () => {
               }
 
               try {
-                await createPaymentRequest.mutateAsync({
-                  organisation_id: organisation.id,
-                  vendor_id: requestVendorId,
-                  amount_requested: Number(requestAmount),
-                  priority: requestPriority,
-                  due_date: requestDueDate,
-                  payment_mode: requestPaymentMode,
-                  bank_account_id: requestBankAccount || null,
-                  reason: requestReason,
-                  status: 'Pending',
-                  requested_by: user?.id,
-                });
-
-                toast.success('Payment request submitted for approval.');
+                if (editIdRef.current) {
+                  await updatePaymentRequest.mutateAsync({
+                    id: editIdRef.current,
+                    organisation_id: organisation.id || null,
+                    vendor_id: requestVendorId || null,
+                    amount_requested: Number(requestAmount),
+                    priority: requestPriority,
+                    due_date: requestDueDate,
+                    payment_mode: requestPaymentMode,
+                    bank_account_id: requestBankAccount || null,
+                    reason: requestReason,
+                  });
+                  toast.success('Payment request updated.');
+                } else {
+                  await createPaymentRequest.mutateAsync({
+                    organisation_id: organisation.id || null,
+                    vendor_id: requestVendorId || null,
+                    amount_requested: Number(requestAmount),
+                    priority: requestPriority,
+                    due_date: requestDueDate,
+                    payment_mode: requestPaymentMode,
+                    bank_account_id: requestBankAccount || null,
+                    reason: requestReason,
+                    status: 'Pending',
+                    requested_by: user?.id || null,
+                  });
+                  toast.success('Payment request submitted for approval.');
+                }
                 setOpenRequestDialog(false);
                 resetRequestForm();
               } catch (err: any) {
@@ -820,8 +936,10 @@ export const Payments: React.FC = () => {
               >
                 Cancel
               </ShadcnButton>
-              <ShadcnButton type="submit" disabled={createPaymentRequest.isPending} className="px-12 h-12 text-sm font-semibold">
-                {createPaymentRequest.isPending ? 'Submitting...' : 'Submit Request'}
+              <ShadcnButton type="submit" disabled={createPaymentRequest.isPending || updatePaymentRequest.isPending} className="px-12 h-12 text-sm font-semibold">
+                {editRequest
+                  ? updatePaymentRequest.isPending ? 'Updating...' : 'Update Request'
+                  : createPaymentRequest.isPending ? 'Submitting...' : 'Submit Request'}
               </ShadcnButton>
             </div>
           </form>

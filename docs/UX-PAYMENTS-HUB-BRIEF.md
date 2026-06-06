@@ -80,11 +80,13 @@ End-to-end target: **under 8 seconds per payment** for a Finance user clearing 3
 **Tone:** Calm, dense, trustworthy. This is a money screen — no animation flourishes that imply playfulness. Treat it the way Stripe treats payouts: a scannable ledger with one obvious next action per row.
 
 **Key principles:**
-- **Dense over spacious.** Finance users will scan 30–80 rows. Row height ≤ 44px.
+- **Comfortable density for high row counts.** Row cells use `py-3` (12px top/bottom padding). Content is readable for 30–80 rows without feeling cramped. Headers get `py-2` (8px) for visual hierarchy.
 - **Inline action, not nested click.** "Release" is a button in the row, not a "View → then act" pattern.
 - **Type is visible, not hidden.** Vendor vs Subcontractor must be glanceable via an icon + 1-letter pill, not a column you have to read.
 - **Status is the centre.** A vertical status pipeline (Requested → Approved → Released → Paid) shown as a 4-dot progress strip per row.
 - **Money lives on the right.** All amounts right-aligned, tabular nums, currency prefix muted, value bold.
+- **Columns are properly aligned.** Text columns left-aligned, numbers right-aligned, actions centered. No misaligned content within columns.
+- **Active & hover states.** Rows have distinct hover (`bg-blue-100/80`) and active/selected (`bg-indigo-50/50 border-l-blue-600`) states for clear interaction feedback.
 
 Consistent with existing system: zinc grays, indigo-600 primary, Inter font, shadcn AppTable, sticky header pattern from FollowUpCentre.
 
@@ -102,8 +104,6 @@ Consistent with existing system: zinc grays, indigo-600 primary, Inter font, sha
 │  Payable                Release     Today                            │
 ├──────────────────────────────────────────────────────────────────────┤
 │ [All 42] [Vendor 28] [Subcontractor 12] [Advance 2]   🔍 search...   │
-│ ─────────────────────────────────────────────                        │
-│ ⭕ Awaiting Release · ⭕ Scheduled · ⭕ Released · ⭕ All              │
 ├──────────────────────────────────────────────────────────────────────┤
 │ ☐ Type │ Voucher │ Payee          │ Project │ Approved │ ₹ Amount │ ●●●○ │ [Release] │
 │ ☐  V   │ PR-104  │ Acme Supplies  │ Tower A │ Today    │  45,000  │ ●●●○ │ [Release] │
@@ -115,6 +115,9 @@ Consistent with existing system: zinc grays, indigo-600 primary, Inter font, sha
 ```
 
 **Notes:**
+- **Row density**: cells use `py-3` (12px padding top/bottom). Headers use `py-2` (8px). This keeps rows compact enough for 30-80 items while giving each cell breathing room and clear click targets.
+- **Column alignment**: text columns left-aligned, number/amount columns right-aligned (`tabular-nums` font), action buttons centered. No mixed alignment within a column.
+- **Active & hover**: rows show `hover:bg-blue-100/80` on hover and `bg-indigo-50/50 border-l-[3px] border-l-blue-600` when selected/active.
 - **Single icon column** carries the type (V/S/A) with a tooltip; saves 80px of horizontal real estate
 - **Status pipeline** (`●●●○`) replaces the "Approved on" date — shows where in the workflow the row sits, hover reveals timeline
 - **Right rail** — selecting any row opens a side panel with full context (no navigation)

@@ -87,7 +87,7 @@ export function AppTable<T extends Record<string, any>>({
   emptyMessage = 'No data available',
   className,
   bulkActions,
-  rowPadding = 'py-[26px]',
+  rowPadding = 'py-3',
   cellAlign = 'left',
 }: AppTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -369,7 +369,7 @@ export function AppTable<T extends Record<string, any>>({
       className={cn(
         'group/row border-t border-zinc-200/70 transition-all',
         rowIndex % 2 === 1 ? 'bg-zinc-50/30' : 'bg-white',
-        'hover:bg-blue-100/80 hover:shadow-sm',
+        'hover:bg-blue-100/80 hover:shadow-sm cursor-pointer',
         row.getIsSelected() && 'bg-indigo-50/50 border-l-[3px] border-l-blue-600'
       )}
       style={{

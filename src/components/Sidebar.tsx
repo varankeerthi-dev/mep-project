@@ -52,6 +52,12 @@ const menuData: MenuSection[] = [
     ]
   },
   {
+    section: 'Finance',
+    items: [
+      { id: 'payments-hub', label: 'Payments Hub', path: '/finance/payments' }
+    ]
+  },
+  {
     section: 'Client',
     items: [
       {
@@ -98,6 +104,7 @@ const menuData: MenuSection[] = [
           { id: 'subcontractor-dailylogs', label: 'Daily Logs', path: '/subcontractors/dailylogs' },
           { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors/payments' },
           { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
+          { id: 'subcontractor-payment-queue', label: 'Payment Queue', path: '/finance/payments?scope=subcontractor' },
           { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' }
         ]
       }
@@ -194,7 +201,7 @@ const menuData: MenuSection[] = [
           { id: 'purchase-invoice-verification', label: 'Invoice Verification', path: '/purchase/invoice-verification' },
           { id: 'purchase-debit-notes', label: 'Debit Notes', path: '/purchase/debit-notes' },
           { id: 'purchase-payments', label: 'Payments', path: '/purchase/payments' },
-          { id: 'purchase-payment-queue', label: 'Payment Queue', path: '/purchase/payment-queue' },
+          { id: 'purchase-payment-queue', label: 'Bills Due', path: '/purchase/payment-queue' },
         ]
       }
     ]
@@ -294,6 +301,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'purchase-invoice-verification': 'ShieldCheckIcon',
   'purchase-debit-notes': 'PencilSquareIcon',
   'purchase-payments': 'BanknotesIcon',
+  'payments-hub': 'WalletIcon',
   'purchase-payment-queue': 'ClockIcon',
   procurement: 'ClipboardDocumentListIcon',
   dc: 'TruckIcon',

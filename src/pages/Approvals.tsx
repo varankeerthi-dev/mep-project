@@ -213,6 +213,7 @@ const Approvals: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['approvals', 'list', orgId] });
         queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'approval', 'pending', orgId] });
         queryClient.invalidateQueries({ queryKey: ['approval-workflows', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['payment-requests', orgId] });
         setLastRefresh(new Date());
       }
     }, 30000);
@@ -492,6 +493,11 @@ const Approvals: React.FC = () => {
       }
       toast.success(`Approved: ${row.title}`);
       setRemovedIds(prev => new Set(prev).add(row.id));
+      if (row.referenceType === 'payment_requests' || row.referenceType === 'purchase_payments' || row.referenceType === 'subcontractor_payments') {
+        queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
+        queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
+      }
     } catch (e: any) {
       toast.error(e?.message ?? 'Approval failed');
     }
@@ -518,12 +524,12 @@ const Approvals: React.FC = () => {
     const routes: Record<string, string> = {
       payment_requests: '/purchase/payments',
       purchase_payments: '/purchase/payments',
-      subcontractor_payments: '/purchase/payments',
-      purchase_orders: '/purchase/purchase-orders',
-      work_orders: '/work-orders',
+      subcontractor_payments: '/subcontractors/payments',
+      purchase_orders: '/purchase/orders',
+      work_orders: '/subcontractors/workorders',
       invoices: '/invoices',
-      quotations: '/quotations',
-      material_dispatches: '/material-dispatch',
+      quotations: '/quotation',
+      material_dispatches: '/store/materials',
     };
     const path = routes[row.referenceType] || '#';
     if (path !== '#') {

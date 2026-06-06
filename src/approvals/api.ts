@@ -374,6 +374,26 @@ export class ApprovalAPI {
         case 'quotations':
           await supabase.from('quotation_header').update({ status: 'Approved' }).eq('id', approval.reference_id);
           break;
+        case 'payment_requests':
+          await supabase.from('payment_requests').update({
+            status: 'Approved',
+            approved_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          break;
+        case 'purchase_payments':
+          await supabase.from('purchase_payments').update({
+            workflow_step: 'approved',
+            approval_status: 'Approved',
+            approved_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          break;
+        case 'subcontractor_payments':
+          await supabase.from('subcontractor_payments').update({
+            workflow_step: 'approved',
+            approval_status: 'Approved',
+            approved_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          break;
       }
     } catch (error) {
       console.error('Error triggering post-approval actions:', error);

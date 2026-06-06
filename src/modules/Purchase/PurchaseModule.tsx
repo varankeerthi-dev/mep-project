@@ -10,6 +10,7 @@ import InvoiceVerification from './components/InvoiceVerification';
 import { DebitNoteView } from './components/DebitNoteView';
 import { Payments } from './components/Payments';
 import { PaymentQueue } from './components/PaymentQueue';
+import { AccountantQueue } from './components/AccountantQueue';
 import Dashboard from './components/Dashboard';
 
 const TAB_MAP: Record<string, { label: string; component: React.FC }> = {
@@ -22,7 +23,8 @@ const TAB_MAP: Record<string, { label: string; component: React.FC }> = {
   'invoice-verification': { label: 'Invoice Verification', component: InvoiceVerification },
   'debit-notes': { label: 'Debit Notes', component: DebitNoteView },
   payments: { label: 'Payments', component: Payments },
-  'payment-queue': { label: 'Payment Queue', component: PaymentQueue },
+  'payment-queue': { label: 'Bills Due', component: PaymentQueue },
+  'payment-accountant': { label: 'Accountant', component: AccountantQueue },
 };
 
 export const PurchaseModule: React.FC = () => {
@@ -42,6 +44,7 @@ export const PurchaseModule: React.FC = () => {
     if (path.includes('/purchase/debit-notes')) return 'debit-notes';
     if (path.includes('/purchase/payments')) return 'payments';
     if (path.includes('/purchase/payment-queue')) return 'payment-queue';
+    if (path.includes('/purchase/payment-accountant')) return 'payment-accountant';
     return 'dashboard';
   };
 

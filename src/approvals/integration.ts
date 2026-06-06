@@ -612,6 +612,28 @@ export class ApprovalIntegration {
           }
           break;
 
+        case 'purchase_payments':
+          await supabase.from('purchase_payments').update({
+            workflow_step: status === 'APPROVED' ? 'approved' : 'rejected',
+            approval_status: status === 'APPROVED' ? 'Approved' : 'Rejected',
+            approved_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          if (status === 'APPROVED') {
+            await this.triggerPostApprovalActions('PURCHASE_PAYMENT', approval.reference_id);
+          }
+          break;
+
+        case 'subcontractor_payments':
+          await supabase.from('subcontractor_payments').update({
+            workflow_step: status === 'APPROVED' ? 'approved' : 'rejected',
+            approval_status: status === 'APPROVED' ? 'Approved' : 'Rejected',
+            approved_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          if (status === 'APPROVED') {
+            await this.triggerPostApprovalActions('SUBCONTRACTOR_PAYMENT', approval.reference_id);
+          }
+          break;
+
         case 'material_dispatches':
           await this.updateDocumentStatus('material_dispatches', approval.reference_id, newStatus);
           if (status === 'APPROVED') {

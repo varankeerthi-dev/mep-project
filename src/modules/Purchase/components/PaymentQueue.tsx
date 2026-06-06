@@ -178,7 +178,7 @@ export const PaymentQueue: React.FC = () => {
       {/* Compact Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-medium text-zinc-900">Payment Queue</h1>
+          <h1 className="text-base font-medium text-zinc-900">Bills Due</h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
             {criticalCount} Due
           </span>

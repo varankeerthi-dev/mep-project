@@ -750,6 +750,12 @@ export const useCreatePaymentRequest = () => {
     mutationFn: withSessionCheck(async (requestData: any) => {
       const payload = { ...requestData };
 
+      for (const key of ['organisation_id', 'vendor_id', 'requested_by', 'bank_account_id']) {
+        if (payload[key] === undefined || payload[key] === 'undefined') {
+          payload[key] = null;
+        }
+      }
+
       if (!payload.request_date) {
         payload.request_date = new Date().toISOString().slice(0, 10);
       }
@@ -828,6 +834,113 @@ export const useApprovePaymentRequest = () => {
     }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
+    },
+  });
+};
+
+export const useUpdatePaymentRequest = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async (requestData: any) => {
+      const { id, organisation_id, ...updates } = requestData;
+      if (!id || id === 'undefined') throw new Error('Invalid request ID');
+      if (!organisation_id || organisation_id === 'undefined') throw new Error('Invalid organisation ID');
+
+      for (const key of Object.keys(updates)) {
+        if (updates[key] === undefined || updates[key] === 'undefined') {
+          updates[key] = null;
+        }
+      }
+      const { data, error } = await supabase
+        .from('payment_requests')
+        .update(updates)
+        .eq('id', id)
+        .eq('organisation_id', organisation_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
+    },
+  });
+};
+
+export const useDeletePaymentRequest = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ requestId, organisationId }: { requestId: string; organisationId: string }) => {
+      const { error } = await supabase
+        .from('payment_requests')
+        .delete()
+        .eq('id', requestId)
+        .eq('organisation_id', organisationId);
+
+      if (error) throw error;
+      return { organisationId };
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisationId] });
+    },
+  });
+};
+
+export const useResendPaymentRequest = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ requestId, organisationId }: { requestId: string; organisationId: string }) => {
+      const { data: request, error: fetchError } = await supabase
+        .from('payment_requests')
+        .select('*')
+        .eq('id', requestId)
+        .eq('organisation_id', organisationId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const { error: resetError } = await supabase
+        .from('payment_requests')
+        .update({
+          status: 'Pending',
+          approval_id: null,
+          approved_by: null,
+          approved_at: null,
+        })
+        .eq('id', requestId)
+        .eq('organisation_id', organisationId);
+
+      if (resetError) throw resetError;
+
+      try {
+        const { ApprovalIntegration } = await import('@/approvals/integration');
+        const vendorName = request.vendor_name || 'Vendor';
+        const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
+          Low: 'LOW',
+          Normal: 'NORMAL',
+          High: 'HIGH',
+          Urgent: 'URGENT',
+        };
+        await ApprovalIntegration.createPaymentApproval(
+          request.id,
+          vendorName,
+          request.payment_mode || 'Payment Request',
+          Number(request.amount_requested || 0),
+          priorityMap[request.priority] || 'NORMAL'
+        );
+      } catch (approvalErr) {
+        console.error('Failed to create approval for resent payment request', approvalErr);
+      }
+
+      return { organisationId };
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisationId] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
   });
 };
@@ -1106,6 +1219,25 @@ export const usePaymentsForApproval = (organisationId: string | undefined) => {
   });
 };
 
+export const useApprovedPaymentRequests = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['payment-requests', 'approved', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('payment_requests')
+        .select('*, vendor:purchase_vendors(company_name)')
+        .eq('organisation_id', organisationId)
+        .eq('status', 'Approved')
+        .order('approved_at', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+  });
+};
+
 export const useApprovedPaymentsForAccountant = (organisationId: string | undefined) => {
   return useQuery({
     queryKey: ['purchase-payments', 'accountant', organisationId],
@@ -1115,7 +1247,8 @@ export const useApprovedPaymentsForAccountant = (organisationId: string | undefi
         .from('purchase_payments')
         .select('*, vendor:purchase_vendors(company_name)')
         .eq('organisation_id', organisationId)
-        .eq('workflow_step', 'approved')
+        .not('workflow_step', 'in', '("released","rejected")')
+        .or('approval_status.eq.Approved,workflow_step.eq.approved')
         .order('approved_at', { ascending: true });
 
       if (error) throw error;
@@ -1299,7 +1432,8 @@ export const useSubcontractorPaymentsForAccountant = (organisationId: string | u
         .from('subcontractor_payments')
         .select('*, subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
-        .eq('workflow_step', 'approved')
+        .not('workflow_step', 'in', '("released","rejected")')
+        .or('approval_status.eq.Approved,workflow_step.eq.approved')
         .order('approved_at', { ascending: true });
 
       if (error) throw error;
