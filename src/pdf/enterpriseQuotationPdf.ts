@@ -203,7 +203,7 @@ function fmt(n: number | string | undefined, decimals = 2): string {
 }
 
 function fmtCur(n: number | string | undefined): string {
-  return '₹ ' + fmt(n, 2);
+  return 'Rs. ' + fmt(n, 2);
 }
 
 function fmtPct(n: number | string | undefined): string {
@@ -225,18 +225,24 @@ function buildColumns(cs?: ColumnSettings): ColDef[] {
 
   const defs: (ColDef & { include: boolean })[] = [
     { key: 'sno',              header: 'S.No',           width: 8,   align: 'center', mandatory: true,  include: true },
+    { key: 'client_part_no',   header: 'Client Part No', width: 18,  align: 'left',   mandatory: false, include: !!opt.client_part_no },
     { key: 'item_code',        header: 'Code',           width: 18,  align: 'left',   mandatory: false, include: opt.item_code !== false },
+    { key: 'make',             header: 'Make',           width: 16,  align: 'left',   mandatory: false, include: !!opt.make },
+    { key: 'category',         header: 'Category',       width: 16,  align: 'left',   mandatory: false, include: !!opt.category },
     { key: 'item',             header: 'Item / Description', width: 0, align: 'left', mandatory: true,  include: true },
     { key: 'description',      header: 'Spec / Notes',   width: 24,  align: 'left',   mandatory: false, include: !!opt.description },
+    { key: 'client_description', header: 'Client Desc',  width: 24,  align: 'left',   mandatory: false, include: !!opt.client_description },
     { key: 'hsn_code',         header: 'HSN/SAC',        width: 14,  align: 'center', mandatory: false, include: !!opt.hsn_code },
     { key: 'variant',          header: 'Variant',        width: 16,  align: 'left',   mandatory: false, include: !!opt.variant },
     { key: 'qty',              header: 'Qty',            width: 10,  align: 'right',  mandatory: true,  include: true },
     { key: 'uom',              header: 'UOM',            width: 10,  align: 'center', mandatory: true,  include: true },
     { key: 'rate',             header: 'Rate',           width: 18,  align: 'right',  mandatory: false, include: !!opt.rate },
     { key: 'discount_percent', header: 'Disc%',          width: 10,  align: 'right',  mandatory: false, include: !!opt.discount_percent },
+    { key: 'discount_amount',  header: 'Disc. Amt',      width: 14,  align: 'right',  mandatory: false, include: !!opt.discount_amount },
     { key: 'rate_after_discount', header: lbl.rate_after_discount ?? 'Rate/Unit', width: 20, align: 'right', mandatory: false, include: !!opt.rate_after_discount },
     { key: 'tax_percent',      header: 'GST%',           width: 10,  align: 'right',  mandatory: false, include: !!opt.tax_percent },
-    { key: 'line_total',       header: 'Amount (₹)',     width: 24,  align: 'right',  mandatory: true,  include: true },
+    { key: 'tax_amount',       header: 'Tax Amt',        width: 14,  align: 'right',  mandatory: false, include: !!opt.tax_amount },
+    { key: 'line_total',       header: 'Amount (Rs.)',     width: 24,  align: 'right',  mandatory: true,  include: true },
     { key: 'custom1',          header: lbl.custom1 ?? 'Custom 1', width: 18, align: 'left', mandatory: false, include: !!opt.custom1 },
     { key: 'custom2',          header: lbl.custom2 ?? 'Custom 2', width: 18, align: 'left', mandatory: false, include: !!opt.custom2 },
   ];
@@ -555,7 +561,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   });
 
   const finalY: number = (doc as any).lastAutoTable.finalY ?? curY;
-  const footerBlockH = computeFooterHeight(calculations, termsAndConditions, items);
+  const footerBlockH = computeFooterHeight(calculations, items);
 
   let fY = finalY + 4;
   if (fY + footerBlockH > PAGE_H - MARGIN - 8) {
@@ -582,12 +588,58 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 4, { align: 'center' });
   }
 
-  drawFooterBlock(doc, fY, calculations, signatory, bankDetails, header.remarks, termsAndConditions, items, org.name);
+  drawFooterBlock(doc, fY, calculations, signatory, bankDetails, header.remarks, items, org.name);
+
+  if (termsAndConditions && termsAndConditions.length > 0) {
+    doc.addPage();
+    const y0 = MARGIN;
+    doc.setFillColor(...C.primary);
+    doc.rect(MARGIN, y0, CONTENT_W, 1.5, 'F');
+    doc.setFont('Helvetica', 'Bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...C.primary);
+    doc.text(org.name ?? '', MARGIN + 2, y0 + 4);
+    doc.setFont('Helvetica', 'Normal');
+    doc.setTextColor(...C.muted);
+    doc.text(`Quotation: ${header.quotation_no}  |  Terms & Conditions`, PAGE_W - MARGIN, y0 + 4, { align: 'right' });
+    doc.setLineWidth(0.25);
+    doc.setDrawColor(...C.border);
+    doc.line(MARGIN, y0 + 6, PAGE_W - MARGIN, y0 + 6);
+    
+    let leftY = y0 + 14;
+    
+    doc.setFont('Helvetica', 'Bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...C.primary);
+    doc.text('Terms & Conditions', MARGIN, leftY);
+    leftY += 6;
+
+    doc.setFont('Helvetica', 'Normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.text);
+    termsAndConditions.forEach((t, i) => {
+      const tLines = doc.splitTextToSize(`${i + 1}. ${t}`, CONTENT_W - 4);
+      
+      if (leftY + tLines.length * 4 > PAGE_H - MARGIN - 10) {
+         doc.addPage();
+         leftY = MARGIN + 10;
+      }
+      
+      doc.text(tLines, MARGIN, leftY);
+      leftY += tLines.length * 4.5 + 2;
+    });
+
+    const pageNum = (doc.internal as any).getCurrentPageInfo().pageNumber;
+    doc.setFont('Helvetica', 'Normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...C.muted);
+    doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 4, { align: 'center' });
+  }
 
   return doc;
 }
 
-function computeFooterHeight(calc: Calculations, terms?: string[], items?: QuotationItem[]): number {
+function computeFooterHeight(calc: Calculations, items?: QuotationItem[]): number {
   let h = 0;
   h += 8;
 
@@ -603,7 +655,6 @@ function computeFooterHeight(calc: Calculations, terms?: string[], items?: Quota
   summaryH += 9;
 
   let leftH = 0;
-  if (terms && terms.length > 0) leftH += 7 + terms.length * 5;
 
   h += Math.max(summaryH, leftH) + 4;
 
@@ -631,7 +682,6 @@ function drawFooterBlock(
   signatory?: AuthorisedSignatory,
   bank?: BankDetails,
   remarks?: string,
-  terms?: string[],
   items?: QuotationItem[],
   orgName?: string
 ): number {
@@ -721,26 +771,6 @@ function drawFooterBlock(
     const rmLines = doc.splitTextToSize(remarks, leftW - 4);
     doc.text(rmLines, MARGIN, leftY + 8);
     leftY += 8 + rmLines.length * 3.8 + 3;
-  }
-
-  if (terms && terms.length > 0) {
-    doc.setFont('Helvetica', 'Bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.primary);
-    doc.text('Terms & Conditions', MARGIN, leftY + 4);
-    doc.setDrawColor(...C.border);
-    doc.setLineWidth(0.2);
-    doc.line(MARGIN + 40, leftY + 2, MARGIN + leftW, leftY + 2);
-    leftY += 7;
-
-    doc.setFont('Helvetica', 'Normal');
-    doc.setFontSize(7);
-    doc.setTextColor(...C.text);
-    terms.forEach((t, i) => {
-      const tLines = doc.splitTextToSize(`${i + 1}. ${t}`, leftW - 2);
-      doc.text(tLines, MARGIN, leftY);
-      leftY += tLines.length * 3.6 + 1;
-    });
   }
 
   y = Math.max(leftY, rightY) + 4;

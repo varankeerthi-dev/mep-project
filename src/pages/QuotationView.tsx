@@ -525,6 +525,136 @@ export default function QuotationView() {
         return html;
       }
 
+      if (tmpl?.template_code === 'QTN_ENTERPRISE') {
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
+        const isInterState = quotation.state && organisation?.state &&
+          quotation.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
+        
+        const selectedSignatory = (organisation?.signatures || []).find(s => s.id == quotation.authorized_signatory_id);
+
+        const opts = {
+          org: {
+            name: organisation?.name || '',
+            address: organisation?.address || '',
+            city: organisation?.city || '',
+            state: organisation?.state || '',
+            pincode: organisation?.pincode || '',
+            gstin: organisation?.gstin || '',
+            phone: organisation?.phone || '',
+            email: organisation?.email || '',
+            logo_url: organisation?.logo_url || ''
+          },
+          client: {
+            display_name: quotation.client?.client_name || quotation.client?.name || '',
+            billing_address: quotation.billing_address || '',
+            gstin: quotation.client?.gstin || quotation.gstin || '',
+            state: quotation.client?.state || quotation.state || ''
+          },
+          header: {
+            quotation_no: quotation.quotation_no || '',
+            revision_no: quotation.revision_no ? parseInt(quotation.revision_no) : undefined,
+            date: formatDate(quotation.date),
+            valid_till: formatDate(quotation.valid_till),
+            payment_terms: quotation.payment_terms || '',
+            reference: quotation.reference || '',
+            prepared_by: quotation.prepared_by || '',
+            remarks: quotation.remarks || '',
+            project_name: quotation.project?.project_name || quotation.project?.project_code || ''
+          },
+          items: (quotation.items || []).map((item: any) => ({
+            is_header: item.is_header,
+            is_subtotal: item.is_subtotal,
+            subtotal_label: item.subtotal_label,
+            description: item.description || item.item?.name || item.item?.display_name || '',
+            item_code: item.item_code || item.item?.item_code || '',
+            hsn_code: item.sac_code || item.item?.hsn_code || '',
+            variant_name: item.variant?.variant_name || '',
+            qty: item.qty,
+            uom: item.uom,
+            base_rate_snapshot: item.base_rate_snapshot || item.rate,
+            discount_percent: item.discount_percent,
+            rate: item.rate,
+            tax_percent: item.tax_percent,
+            line_total: item.line_total,
+            custom1: item.custom1,
+            custom2: item.custom2
+          })),
+          calculations: {
+            subtotal: quotation.subtotal || 0,
+            totalItemDiscount: quotation.total_item_discount || 0,
+            extraDiscountAmount: quotation.extra_discount_amount || 0,
+            cgst: isInterState ? 0 : (quotation.total_tax || 0) / 2,
+            sgst: isInterState ? 0 : (quotation.total_tax || 0) / 2,
+            igst: isInterState ? (quotation.total_tax || 0) : 0,
+            isInterState: isInterState,
+            totalTax: quotation.total_tax || 0,
+            roundOff: quotation.round_off || 0,
+            grandTotal: quotation.grand_total || 0,
+            amountInWords: quotation.amount_in_words || ''
+          },
+          columnSettings: tmpl.column_settings,
+          signatory: {
+            name: selectedSignatory?.name || '',
+            designation: organisation?.signatory_designation || 'Authorised Signatory',
+            for_company: organisation?.name || ''
+          },
+          bankDetails: {
+            bank_name: organisation?.bank_name,
+            branch: organisation?.bank_branch,
+            account_name: organisation?.bank_account_name || organisation?.name,
+            account_no: organisation?.bank_account_no,
+            ifsc: organisation?.bank_ifsc,
+            account_type: organisation?.bank_account_type,
+            swift: organisation?.bank_swift
+          },
+          termsAndConditions: (() => {
+            const rawTerms = quotationWithTerms.terms_conditions;
+            let parsedTerms: string[] = [];
+            if (rawTerms) {
+              try {
+                const parsed = typeof rawTerms === 'string' ? JSON.parse(rawTerms) : rawTerms;
+                const extractSections = (obj: any) => {
+                  if (!obj) return;
+                  if (Array.isArray(obj)) {
+                    obj.forEach(extractSections);
+                  } else if (obj.sections && Array.isArray(obj.sections)) {
+                    obj.sections.forEach((sec: any) => {
+                      if (sec.items && Array.isArray(sec.items)) {
+                        sec.items.forEach((item: any) => {
+                          if (item.content) parsedTerms.push(item.content);
+                        });
+                      }
+                    });
+                  }
+                };
+                extractSections(parsed);
+                if (parsedTerms.length === 0) {
+                  parsedTerms = typeof rawTerms === 'string' ? rawTerms.split('\n') : [];
+                }
+              } catch (e) {
+                parsedTerms = typeof rawTerms === 'string' ? rawTerms.split('\n') : [];
+              }
+            }
+            const finalTerms = parsedTerms.filter(t => t && t.trim().length > 0);
+            return finalTerms.length > 0 ? finalTerms : ['Payment as per terms mentioned above.', 'This is a system-generated document.'];
+          })(),
+          companyLogoBase64: organisation?.logo_url 
+        };
+
+        try {
+          const enterpriseDoc = generateQuotationPdf(opts as any);
+          const pdfBlob = enterpriseDoc.output('blob');
+          const blobUrl = URL.createObjectURL(pdfBlob);
+          return `<iframe src="${blobUrl}#view=FitH" width="100%" height="800px" style="border: none; border-radius: 8px;"></iframe>`;
+        } catch (e) {
+          console.error("Enterprise Preview Error", e);
+          return `<div class="p-8 text-center text-red-500">Error generating PDF preview</div>`;
+        }
+      }
+
       // Default HTML template
       return generateQuotationHTML(tmpl);
     };
