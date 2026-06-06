@@ -2919,6 +2919,7 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
 
 export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) { return <SubcontractorAttendance onNavigate={onNavigate} /> }
 
+import { toast } from '@/lib/logger';
 import { useOrgApprovalSettings, useSubcontractorPaymentsForAccountant, useReleaseSubcontractorPayment } from '@/hooks/useApprovals';
 import { ApprovalIntegration } from '../approvals/integration';
 import { usePaymentRequests, useCreatePaymentRequest, useDeletePaymentRequest } from '../modules/Purchase/hooks/usePurchaseQueries';
@@ -4615,9 +4616,9 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
             </div>
             <form onSubmit={async (e) => {
               e.preventDefault();
-              if (!organisation?.id) return;
-              if (!requestSubcontractorId) { alert('Select a subcontractor'); return; }
-              if (!requestAmount || Number(requestAmount) <= 0) { alert('Enter a valid amount'); return; }
+              if (!organisation?.id) { toast.error('Organisation is required.'); return; }
+              if (!requestSubcontractorId) { toast.error('Please select a subcontractor.'); return; }
+              if (!requestAmount || Number(requestAmount) <= 0) { toast.error('Please enter a valid amount.'); return; }
               try {
                 await createPaymentRequest.mutateAsync({
                   organisation_id: organisation.id,
@@ -4632,9 +4633,9 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   requested_by: user?.id || null,
                 });
                 setShowRequestDialog(false);
-                alert('Payment request submitted for approval.');
+                toast.success('Payment request submitted for approval.');
               } catch (err: any) {
-                alert(err?.message ?? 'Failed to submit request.');
+                toast.error(err?.message ?? 'Failed to submit request.');
               }
             }} style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gap: '16px' }}>
