@@ -215,16 +215,17 @@ export class ApprovalIntegration {
     payeeName: string,
     paymentType: string,
     totalAmount: number,
-    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL',
+    approvalType: 'PAYMENT_REQUEST' | 'SUBCONTRACTOR_PAYMENT' = 'PAYMENT_REQUEST'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('PAYMENT_REQUEST', totalAmount);
+      const approvalNeeded = await this.checkApprovalNeeded(approvalType, totalAmount);
       if (!approvalNeeded) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
       const approvalRequest: ApprovalRequest = {
-        approval_type: 'PAYMENT_REQUEST',
+        approval_type: approvalType,
         reference_id: paymentId,
         reference_type: 'payment_requests',
         title: `Payment Request - ${payeeName}`,
@@ -540,8 +541,8 @@ export class ApprovalIntegration {
       if (!organisationId) return false;
 
       const typesToCheck =
-        approvalType === 'PAYMENT_REQUEST'
-          ? ['PAYMENT_REQUEST', 'PURCHASE_PAYMENT']
+        approvalType === 'PAYMENT_REQUEST' || approvalType === 'SUBCONTRACTOR_PAYMENT'
+          ? ['PAYMENT_REQUEST', 'PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT']
           : [approvalType];
 
       const { data: workflows } = await supabase

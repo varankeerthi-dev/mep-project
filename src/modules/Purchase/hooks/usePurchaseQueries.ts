@@ -794,12 +794,14 @@ export const useCreatePaymentRequest = () => {
           High: 'HIGH',
           Urgent: 'URGENT',
         };
+        const isSubcontractor = !!payload.subcontractor_id && payload.subcontractor_id !== 'null';
         const approvalResult = await ApprovalIntegration.createPaymentApproval(
           data.id,
           payeeName,
           payload.payment_mode || 'Payment Request',
           Number(payload.amount_requested || 0),
-          priorityMap[payload.priority] || 'NORMAL'
+          priorityMap[payload.priority] || 'NORMAL',
+          isSubcontractor ? 'SUBCONTRACTOR_PAYMENT' : 'PAYMENT_REQUEST'
         );
         if (!approvalResult.success && approvalResult.error === 'No approval required for this amount') {
           await supabase.from('payment_requests').update({ status: 'Approved', approved_at: new Date().toISOString() }).eq('id', data.id);
