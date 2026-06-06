@@ -2921,6 +2921,12 @@ export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) { return <S
 
 import { useOrgApprovalSettings, useSubcontractorPaymentsForAccountant, useReleaseSubcontractorPayment } from '@/hooks/useApprovals';
 import { ApprovalIntegration } from '../approvals/integration';
+import { usePaymentRequests, useCreatePaymentRequest, useDeletePaymentRequest } from '../modules/Purchase/hooks/usePurchaseQueries';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 
 export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const { organisation, user } = useAuth();
@@ -2928,7 +2934,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const { settings: approvalSettings, updateSetting } = useOrgApprovalSettings(orgId);
   const subcontractorPaymentApprovalEnabled = approvalSettings?.SUBCONTRACTOR_PAYMENT ?? false;
 
-  const [activeTab, setActiveTab] = useState<'payments' | 'ledger'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'ledger' | 'requests'>('payments');
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [subcontractors, setSubcontractors] = useState<any[]>([]);
@@ -2967,6 +2973,20 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
     description: '',
     status: 'Pending'
   });
+
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestSubcontractorId, setRequestSubcontractorId] = useState('');
+  const [requestAmount, setRequestAmount] = useState('');
+  const [requestPriority, setRequestPriority] = useState('Normal');
+  const [requestDueDate, setRequestDueDate] = useState('');
+  const [requestPaymentMode, setRequestPaymentMode] = useState('Bank Transfer');
+  const [requestBankAccount, setRequestBankAccount] = useState('');
+  const [requestReason, setRequestReason] = useState('');
+  const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('all');
+
+  const { data: allPaymentRequests = [], isLoading: paymentRequestsLoading } = usePaymentRequests(orgId);
+  const createPaymentRequest = useCreatePaymentRequest();
+  const deletePaymentRequest = useDeletePaymentRequest();
 
   const accountantQuery = useSubcontractorPaymentsForAccountant(orgId);
   const releasePayment = useReleaseSubcontractorPayment();
@@ -3059,6 +3079,27 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
     if (dateTo && i.invoice_date > dateTo) return false;
     return true;
   });
+
+  const subPaymentRequests = useMemo(() =>
+    allPaymentRequests.filter((r: any) => r.subcontractor_id && r.subcontractor_id !== 'undefined'),
+    [allPaymentRequests]
+  );
+
+  const requestCounts = useMemo(() => ({
+    all: subPaymentRequests.length,
+    pending: subPaymentRequests.filter((r: any) => r.status !== 'Approved' && r.status !== 'APPROVED' && r.status !== 'Rejected' && r.status !== 'Cancelled' && r.status !== 'Paid').length,
+    approved: subPaymentRequests.filter((r: any) => r.status === 'Approved' || r.status === 'APPROVED' || r.status === 'Paid').length,
+  }), [subPaymentRequests]);
+
+  const filteredRequests = useMemo(() => {
+    let list = subPaymentRequests;
+    if (requestFilter === 'pending') {
+      list = list.filter((r: any) => r.status !== 'Approved' && r.status !== 'APPROVED' && r.status !== 'Rejected' && r.status !== 'Cancelled' && r.status !== 'Paid');
+    } else if (requestFilter === 'approved') {
+      list = list.filter((r: any) => r.status === 'Approved' || r.status === 'APPROVED' || r.status === 'Paid');
+    }
+    return list;
+  }, [subPaymentRequests, requestFilter]);
 
   // Build ledger entries from payments and invoices
   const ledgerEntries = [
@@ -3411,6 +3452,29 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   <span style={{ fontSize: '16px' }}>+</span> New Payment
                 </button>
               )}
+              {activeTab === 'requests' && (
+                <button
+                  onClick={() => { setRequestSubcontractorId(''); setRequestAmount(''); setRequestPriority('Normal'); setRequestDueDate(''); setRequestPaymentMode('Bank Transfer'); setRequestBankAccount(''); setRequestReason(''); setShowRequestDialog(true); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '8px',
+                    background: '#0f172a',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#1e293b'}
+                  onMouseOut={(e) => e.currentTarget.style.background = '#0f172a'}
+                >
+                  <span style={{ fontSize: '16px' }}>+</span> New Request
+                </button>
+              )}
               {activeTab === 'ledger' && (
                 <>
                   <button
@@ -3514,6 +3578,22 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               }}
             >
               Ledger
+            </button>
+            <button
+              onClick={() => setActiveTab('requests')}
+              style={{
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: activeTab === 'requests' ? '#0f172a' : '#64748b',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: activeTab === 'requests' ? '2px solid #0f172a' : '2px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              Payment Requests
             </button>
           </div>
 
@@ -3758,6 +3838,110 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            ) : activeTab === 'requests' ? (
+              <>
+                <div style={{ display: 'flex', gap: '8px', padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+                  {(['all', 'pending', 'approved'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setRequestFilter(f)}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        borderRadius: '999px',
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        background: requestFilter === f ? '#0f172a' : '#fff',
+                        color: requestFilter === f ? '#fff' : '#64748b',
+                        borderColor: requestFilter === f ? '#0f172a' : '#e2e8f0',
+                      }}
+                    >
+                      {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({requestCounts[f]})
+                    </button>
+                  ))}
+                </div>
+                {filteredRequests.length === 0 ? (
+                  <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                    <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+                      No payment requests found
+                    </h3>
+                    <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
+                      Create a payment request to get approval
+                    </p>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                        {['Date', 'Subcontractor', 'Amount', 'Priority', 'Status', 'Approval', 'Due By', 'Reason', 'Actions'].map((header) => (
+                          <th key={header} style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            color: '#64748b'
+                          }}>
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRequests.map((req: any) => {
+                        const isPaid = req.status === 'Paid';
+                        const statusColors: Record<string, string> = { Pending: '#dbeafe', Approved: '#dcfce7', Rejected: '#fee2e2', Cancelled: '#f1f5f9', Paid: '#dbeafe' };
+                        const statusTextColors: Record<string, string> = { Pending: '#1e40af', Approved: '#166534', Rejected: '#991b1b', Cancelled: '#64748b', Paid: '#1e40af' };
+                        const priorityColors: Record<string, string> = { Urgent: 'bg-rose-100 text-rose-700', High: 'bg-orange-100 text-orange-700', Normal: 'bg-zinc-100 text-zinc-700', Low: 'bg-blue-100 text-blue-700' };
+                        const prio = req.priority || 'Normal';
+                        return (
+                          <tr key={req.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a' }}>{req.request_date}</td>
+                            <td style={{ padding: '16px', fontSize: '14px', color: '#334155', fontWeight: '500' }}>{req.subcontractor?.company_name || '-'}</td>
+                            <td style={{ padding: '16px', fontSize: '14px', color: '#16a34a', fontWeight: '600' }}>₹{Number(req.amount_requested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td style={{ padding: '16px' }}>
+                              <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }} className={priorityColors[prio] || 'bg-zinc-100 text-zinc-700'}>
+                                {req.priority}
+                              </span>
+                            </td>
+                            <td style={{ padding: '16px' }}>
+                              <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: isPaid ? '#dcfce7' : statusColors[req.status] || '#f1f5f9', color: isPaid ? '#166534' : statusTextColors[req.status] || '#64748b' }}>
+                                {isPaid ? 'Paid' : req.status === 'Approved' ? 'Unpaid' : req.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '16px' }}>
+                              <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: statusColors[req.status] || '#f1f5f9', color: statusTextColors[req.status] || '#64748b' }}>
+                                {req.status === 'Approved' ? 'Approved' : req.status === 'Rejected' ? 'Rejected' : req.status === 'Paid' ? 'Paid' : 'Pending'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '16px', fontSize: '14px', color: '#64748b' }}>{req.due_date || '-'}</td>
+                            <td style={{ padding: '16px', fontSize: '13px', color: '#0f172a' }}>{req.reason || '-'}</td>
+                            <td style={{ padding: '16px' }}>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Delete this payment request?')) {
+                                    deletePaymentRequest.mutate(
+                                      { requestId: req.id, organisationId: req.organisation_id },
+                                      { onSuccess: () => {} }
+                                    );
+                                  }
+                                }}
+                                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: '#fef2f2', color: '#dc2626', border: 'none', cursor: 'pointer' }}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -4412,6 +4596,89 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                 >
                   {editingPayment ? 'Update Payment' : 'Create Payment'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Request Dialog */}
+      {showRequestDialog && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{ background: '#fff', borderRadius: '8px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e5e5e5' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>New Payment Request</h3>
+              <button onClick={() => setShowRequestDialog(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!organisation?.id) return;
+              if (!requestSubcontractorId) { alert('Select a subcontractor'); return; }
+              if (!requestAmount || Number(requestAmount) <= 0) { alert('Enter a valid amount'); return; }
+              try {
+                await createPaymentRequest.mutateAsync({
+                  organisation_id: organisation.id,
+                  subcontractor_id: requestSubcontractorId,
+                  amount_requested: Number(requestAmount),
+                  priority: requestPriority,
+                  due_date: requestDueDate,
+                  payment_mode: requestPaymentMode,
+                  bank_account_id: requestBankAccount || null,
+                  reason: requestReason,
+                  status: 'Pending',
+                  requested_by: user?.id || null,
+                });
+                setShowRequestDialog(false);
+                alert('Payment request submitted for approval.');
+              } catch (err: any) {
+                alert(err?.message ?? 'Failed to submit request.');
+              }
+            }} style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Subcontractor *</label>
+                  <select value={requestSubcontractorId} onChange={(e) => setRequestSubcontractorId(e.target.value)} required style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}>
+                    <option value="">Select subcontractor</option>
+                    {subcontractors.map((s: any) => <option key={s.id} value={s.id}>{s.company_name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Amount Requested *</label>
+                  <input type="number" value={requestAmount} onChange={(e) => setRequestAmount(e.target.value)} placeholder="0.00" required min="0" step="0.01" style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Priority</label>
+                    <select value={requestPriority} onChange={(e) => setRequestPriority(e.target.value)} style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}>
+                      {['Low', 'Normal', 'High', 'Urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Payment Mode</label>
+                    <select value={requestPaymentMode} onChange={(e) => setRequestPaymentMode(e.target.value)} style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}>
+                      {['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'].map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Expected Payment Date</label>
+                  <input type="date" value={requestDueDate} onChange={(e) => setRequestDueDate(e.target.value)} style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Bank Account / Reference</label>
+                  <input type="text" value={requestBankAccount} onChange={(e) => setRequestBankAccount(e.target.value)} placeholder="e.g. HDFC 12345" style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Reason / Notes</label>
+                  <textarea value={requestReason} onChange={(e) => setRequestReason(e.target.value)} placeholder="Explain what this payment is for..." rows={4} style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none', resize: 'vertical' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                <button type="button" onClick={() => setShowRequestDialog(false)} style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '600', borderRadius: '8px', background: '#fff', color: '#64748b', border: '1px solid #e2e8f0', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={createPaymentRequest.isPending} style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '600', borderRadius: '8px', background: '#0f172a', color: '#fff', border: 'none', cursor: 'pointer' }}>{createPaymentRequest.isPending ? 'Submitting...' : 'Submit Request'}</button>
               </div>
             </form>
           </div>

@@ -427,3 +427,10 @@ ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS make VARCHAR(255);
 ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS variant VARCHAR(255);
 ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS sr INTEGER;
+
+-- ==========================================
+-- MIGRATION: Support subcontractor payment requests
+-- ==========================================
+ALTER TABLE payment_requests ALTER COLUMN vendor_id DROP NOT NULL;
+ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS subcontractor_id UUID REFERENCES subcontractors(id) ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS idx_payment_requests_subcontractor ON payment_requests(subcontractor_id);

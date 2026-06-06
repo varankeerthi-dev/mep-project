@@ -242,8 +242,8 @@ export const Payments: React.FC = () => {
     },
     {
       id: 'vendor',
-      header: 'Vendor',
-      cell: ({ row }: any) => <span className="text-[10px]">{row.original.vendor?.company_name || '-'}</span>,
+      header: 'Payee',
+      cell: ({ row }: any) => <span className="text-[10px]">{row.original.vendor?.company_name || row.original.subcontractor?.company_name || '-'}</span>,
     },
     {
       id: 'amount_requested',
@@ -590,6 +590,7 @@ export const Payments: React.FC = () => {
               })}
               columns={requestColumns}
               loading={requestsLoading}
+              defaultPageSize={20}
             />
           </>
         )}

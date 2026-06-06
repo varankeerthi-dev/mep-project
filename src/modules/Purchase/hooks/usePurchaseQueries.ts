@@ -732,7 +732,7 @@ export const usePaymentRequests = (organisationId: string | undefined) => {
       
       const { data, error } = await supabase
         .from('payment_requests')
-        .select('*, vendor:purchase_vendors(company_name)')
+        .select('*, vendor:purchase_vendors(company_name), subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
         .order('request_date', { ascending: false });
       
@@ -750,7 +750,7 @@ export const useCreatePaymentRequest = () => {
     mutationFn: withSessionCheck(async (requestData: any) => {
       const payload = { ...requestData };
 
-      for (const key of ['organisation_id', 'vendor_id', 'requested_by', 'bank_account_id']) {
+      for (const key of ['organisation_id', 'vendor_id', 'subcontractor_id', 'requested_by', 'bank_account_id']) {
         if (payload[key] === undefined || payload[key] === 'undefined') {
           payload[key] = null;
         }
@@ -780,13 +780,14 @@ export const useCreatePaymentRequest = () => {
       const { data, error } = await supabase
         .from('payment_requests')
         .insert(payload)
-        .select('*, vendor:purchase_vendors(company_name)')
+        .select('*, vendor:purchase_vendors(company_name), subcontractor:subcontractors(company_name)')
         .single();
       
       if (error) throw error;
 
       try {
-        const vendorName = (data as any)?.vendor?.company_name || 'Vendor';
+        const record = data as any;
+        const payeeName = record?.vendor?.company_name || record?.subcontractor?.company_name || 'Payee';
         const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
           Low: 'LOW',
           Normal: 'NORMAL',
@@ -795,7 +796,7 @@ export const useCreatePaymentRequest = () => {
         };
         await ApprovalIntegration.createPaymentApproval(
           data.id,
-          vendorName,
+          payeeName,
           payload.payment_mode || 'Payment Request',
           Number(payload.amount_requested || 0),
           priorityMap[payload.priority] || 'NORMAL'
@@ -1226,7 +1227,7 @@ export const useApprovedPaymentRequests = (organisationId: string | undefined) =
       if (!organisationId) return [];
       const { data, error } = await supabase
         .from('payment_requests')
-        .select('*, vendor:purchase_vendors(company_name)')
+        .select('*, vendor:purchase_vendors(company_name), subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
         .eq('status', 'Approved')
         .order('approved_at', { ascending: true });
