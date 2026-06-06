@@ -68,6 +68,7 @@ export const Payments: React.FC = () => {
   const [requestBankAccount, setRequestBankAccount] = useState('');
   const [requestReason, setRequestReason] = useState('');
   const [activeView, setActiveView] = useState<'payments' | 'requests'>('payments');
+  const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('all');
 
   const { data: payments = [], isLoading } = usePayments(organisation?.id);
   const { data: requests = [], isLoading: requestsLoading } = usePaymentRequests(organisation?.id);
@@ -231,18 +232,24 @@ export const Payments: React.FC = () => {
     {
       id: 'request_date',
       header: 'Date',
-      cell: ({ row }: any) => new Date(row.original.request_date).toLocaleDateString('en-IN'),
+      cell: ({ row }: any) => {
+        const d = new Date(row.original.request_date);
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mmm = d.toLocaleString('en-US', { month: 'short' });
+        const yyyy = d.getFullYear();
+        return <span className="text-[10px]">{`${dd}-${mmm}-${yyyy}`}</span>;
+      },
     },
     {
       id: 'vendor',
       header: 'Vendor',
-      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
+      cell: ({ row }: any) => <span className="text-[10px]">{row.original.vendor?.company_name || '-'}</span>,
     },
     {
       id: 'amount_requested',
       header: 'Amount',
       cell: ({ row }: any) => (
-        <div className="font-medium text-right text-emerald-600">
+        <div className="font-medium text-left text-emerald-600 text-[10px]">
           ₹{Number(row.original.amount_requested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
@@ -250,7 +257,7 @@ export const Payments: React.FC = () => {
     {
       id: 'payment_mode',
       header: 'Mode',
-      cell: ({ row }: any) => row.original.payment_mode || '-',
+      cell: ({ row }: any) => <span className="text-[10px]">{row.original.payment_mode || '-'}</span>,
     },
     {
       id: 'priority',
@@ -271,17 +278,12 @@ export const Payments: React.FC = () => {
     },
     {
       id: 'status',
-      header: 'Status',
+      header: 'Paid/Unpaid',
       cell: ({ row }: any) => {
-        const colors: any = {
-          Pending: 'bg-amber-50 text-amber-700 border-amber-200',
-          Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          Rejected: 'bg-red-50 text-red-700 border-red-200',
-          Cancelled: 'bg-zinc-50 text-zinc-700 border-zinc-200',
-        };
+        const isPaid = row.original.status === 'Paid';
         return (
-          <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${colors[row.original.status] || colors.Pending}`}>
-            {row.original.status}
+          <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${isPaid ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-50 text-zinc-500 border-zinc-200'}`}>
+            {isPaid ? 'Paid' : 'Unpaid'}
           </span>
         );
       },
@@ -300,6 +302,8 @@ export const Payments: React.FC = () => {
           Rejected: 'bg-red-50 text-red-700 border-red-200',
           released: 'bg-blue-100 text-blue-700 border-blue-200',
           Released: 'bg-blue-100 text-blue-700 border-blue-200',
+          Paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+          paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
         };
         const label = typeof raw === 'string' ? raw.replace(/_/g, ' ') : '-';
         return (
@@ -316,9 +320,12 @@ export const Payments: React.FC = () => {
         if (!row.original.due_date) return '-';
         const due = new Date(row.original.due_date);
         const daysLeft = Math.ceil((due.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        const dd = String(due.getDate()).padStart(2, '0');
+        const mmm = due.toLocaleString('en-US', { month: 'short' });
+        const yyyy = due.getFullYear();
         return (
           <div>
-            <span className="text-xs text-zinc-700">{due.toLocaleDateString('en-IN')}</span>
+            <span className="text-[10px] text-zinc-700">{`${dd}-${mmm}-${yyyy}`}</span>
             <span className="ml-2 text-[10px] font-semibold text-zinc-500">{daysLeft > 0 ? `${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`}</span>
           </div>
         );
@@ -328,7 +335,7 @@ export const Payments: React.FC = () => {
       id: 'reason',
       header: 'Reason',
       cell: ({ row }: any) => (
-        <span className="text-xs text-zinc-600 truncate block max-w-[240px]">{row.original.reason || '-'}</span>
+        <span className="text-[10px] text-zinc-600 truncate block max-w-[240px]">{row.original.reason || '-'}</span>
       ),
     },
     {
@@ -550,11 +557,41 @@ export const Payments: React.FC = () => {
             loading={isLoading}
           />
         ) : (
-          <AppTable
-            data={requests}
-            columns={requestColumns}
-            loading={requestsLoading}
-          />
+          <>
+            <div className="flex items-center gap-2 px-6 pt-3 pb-2 border-b border-zinc-100">
+              {(['all', 'pending', 'approved'] as const).map((f) => {
+                const counts = {
+                  all: requests.length,
+                  pending: requests.filter((r: any) => r.status !== 'Approved' && r.status !== 'APPROVED' && r.status !== 'Rejected' && r.status !== 'Cancelled' && r.status !== 'Paid').length,
+                  approved: requests.filter((r: any) => r.status === 'Approved' || r.status === 'APPROVED' || r.status === 'Paid').length,
+                };
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setRequestFilter(f)}
+                    className={cn(
+                      'h-9 px-3 text-xs font-semibold rounded-full border transition-colors',
+                      requestFilter === f
+                        ? 'bg-zinc-900 text-white border-zinc-900'
+                        : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+                    )}
+                  >
+                    {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({counts[f]})
+                  </button>
+                );
+              })}
+            </div>
+            <AppTable
+              data={requests.filter((r: any) => {
+                if (requestFilter === 'all') return true;
+                if (requestFilter === 'pending') return r.status !== 'Approved' && r.status !== 'APPROVED' && r.status !== 'Rejected' && r.status !== 'Cancelled' && r.status !== 'Paid';
+                if (requestFilter === 'approved') return r.status === 'Approved' || r.status === 'APPROVED' || r.status === 'Paid';
+                return true;
+              })}
+              columns={requestColumns}
+              loading={requestsLoading}
+            />
+          </>
         )}
       </div>
 
