@@ -49,7 +49,9 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
         .from('subcontractor_work_orders')
         .select(`
           *,
-          subcontractors(id, company_name, contact_person, phone, email)
+          subcontractors(id, company_name, contact_person, phone, email),
+          clients(id, name),
+          projects(id, name)
         `)
         .eq('id', workOrderId)
         .single();
@@ -119,10 +121,21 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
     });
     
     const finalY = (doc as any).lastAutoTable?.finalY || 120;
-    doc.text(`Subtotal: ₹${workOrder.subtotal?.toFixed(2)}`, 150, finalY + 10);
-    doc.text(`CGST (${workOrder.cgst_percent}%): ₹${workOrder.cgst_amount?.toFixed(2)}`, 150, finalY + 17);
-    doc.text(`SGST (${workOrder.sgst_percent}%): ₹${workOrder.sgst_amount?.toFixed(2)}`, 150, finalY + 24);
-    doc.text(`Total: ₹${workOrder.total_amount?.toFixed(2)}`, 150, finalY + 31);
+    let currentY = finalY + 10;
+    doc.text(`Subtotal: ₹${workOrder.subtotal?.toFixed(2)}`, 150, currentY);
+    
+    if (workOrder.tax_type === 'GST') {
+      currentY += 7;
+      doc.text(`CGST (${workOrder.cgst_percent}%): ₹${workOrder.cgst_amount?.toFixed(2)}`, 150, currentY);
+      currentY += 7;
+      doc.text(`SGST (${workOrder.sgst_percent}%): ₹${workOrder.sgst_amount?.toFixed(2)}`, 150, currentY);
+    } else if (workOrder.tax_type === 'TDS') {
+      currentY += 7;
+      doc.text(`TDS (${workOrder.tds_percent}%): -₹${workOrder.tds_amount?.toFixed(2)}`, 150, currentY);
+    }
+    
+    currentY += 7;
+    doc.text(`Total: ₹${workOrder.total_amount?.toFixed(2)}`, 150, currentY);
     
     doc.save(`Work_Order_${workOrder.work_order_no}.pdf`);
   };
@@ -423,6 +436,13 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                      Client & Project
+                    </label>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#0f172a' }}>{workOrder.clients?.name || '-'}</div>
+                    <div style={{ fontSize: '14px', color: '#64748b' }}>{workOrder.projects?.name || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
                       Site Location
                     </label>
                     <div style={{ fontSize: '16px', color: '#334155' }}>{workOrder.site_location || '-'}</div>
@@ -458,6 +478,19 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                      Tax configuration
+                    </label>
+                    <div style={{ fontSize: '14px', color: '#334155', fontWeight: '600' }}>
+                      {workOrder.tax_type === 'GST' ? 'GST Taxable' : workOrder.tax_type === 'TDS' ? 'TDS Deductible' : 'None'}
+                    </div>
+                    {workOrder.tax_type === 'TDS' && (
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        TDS Rate: {workOrder.tds_percent}% (TDS Amount: {formatCurrency(workOrder.tds_amount)})
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
                       Remarks
                     </label>
                     <div style={{ fontSize: '14px', color: '#334155' }}>{workOrder.remarks || '-'}</div>
@@ -490,6 +523,57 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
                     ))}
                   </tbody>
                 </table>
+
+                {/* Subtotal & Taxes Summary */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', background: '#f8fafc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Subtotal:</span>
+                      <span style={{ fontWeight: '600', color: '#0f172a' }}>{formatCurrency(workOrder.subtotal)}</span>
+                    </div>
+                    {workOrder.tax_type === 'GST' && (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>CGST ({workOrder.cgst_percent}%):</span>
+                          <span>{formatCurrency(workOrder.cgst_amount)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>SGST ({workOrder.sgst_percent}%):</span>
+                          <span>{formatCurrency(workOrder.sgst_amount)}</span>
+                        </div>
+                        {parseFloat(workOrder.igst_amount || 0) > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748b' }}>IGST ({workOrder.igst_percent}%):</span>
+                            <span>{formatCurrency(workOrder.igst_amount)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {workOrder.tax_type === 'TDS' && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b45309', fontWeight: '500' }}>
+                        <span>TDS ({workOrder.tds_percent}%):</span>
+                        <span>-{formatCurrency(workOrder.tds_amount)}</span>
+                      </div>
+                    )}
+                    
+                    {workOrder.retention_held && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px dashed #cbd5e1', paddingTop: '8px', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                          <span>Retention ({workOrder.retention_percent}%):</span>
+                          <span style={{ fontWeight: '600' }}>{formatCurrency(workOrder.retention_amount)}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                          Held for {workOrder.retention_duration_months} Months ({workOrder.retention_conditions})
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: '8px', fontSize: '15px', fontWeight: '700', color: '#0f172a', marginTop: '4px' }}>
+                      <span>Total Contract Value:</span>
+                      <span>{formatCurrency(workOrder.total_amount)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

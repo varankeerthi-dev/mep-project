@@ -2987,6 +2987,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const [requestReason, setRequestReason] = useState('');
   const [requestClientId, setRequestClientId] = useState('');
   const [requestProjectId, setRequestProjectId] = useState('');
+  const [requestWorkOrderId, setRequestWorkOrderId] = useState('');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('all');
 
   const { data: allPaymentRequests = [], isLoading: paymentRequestsLoading } = usePaymentRequests(orgId);
@@ -3470,7 +3471,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               )}
               {activeTab === 'requests' && (
                 <button
-                  onClick={() => { setRequestSubcontractorId(''); setRequestAmount(''); setRequestPriority('Normal'); setRequestDueDate(''); setRequestPaymentMode('Bank Transfer'); setRequestBankAccount(''); setRequestReason(''); setRequestClientId(''); setRequestProjectId(''); setShowRequestDialog(true); }}
+                  onClick={() => { setRequestSubcontractorId(''); setRequestAmount(''); setRequestPriority('Normal'); setRequestDueDate(''); setRequestPaymentMode('Bank Transfer'); setRequestBankAccount(''); setRequestReason(''); setRequestClientId(''); setRequestProjectId(''); setRequestWorkOrderId(''); setShowRequestDialog(true); }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -4377,7 +4378,19 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   </label>
                   <select
                     value={formData.work_order_id}
-                    onChange={(e) => setFormData({ ...formData, work_order_id: e.target.value })}
+                    onChange={(e) => {
+                      const woId = e.target.value;
+                      const selectedWO = workOrders.find(wo => wo.id === woId);
+                      let updatedForm: any = { ...formData, work_order_id: woId };
+                      if (selectedWO && (selectedWO.tax_type === 'TDS' || parseFloat(selectedWO.tds_percent || 0) > 0)) {
+                        const tdsPercent = parseFloat(selectedWO.tds_percent) || 0;
+                        const gross = parseFloat(formData.gross_amount) || 0;
+                        const tdsAmount = (gross * tdsPercent) / 100;
+                        const netAmount = gross - tdsAmount;
+                        updatedForm = { ...updatedForm, tds_percentage: tdsPercent.toString(), tds_amount: tdsAmount.toString(), net_amount: netAmount.toString() };
+                      }
+                      setFormData(updatedForm);
+                    }}
                     style={{
                       width: '100%',
                       borderRadius: '8px',
@@ -4389,9 +4402,32 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   >
                     <option value="">Select work order</option>
                     {workOrders.filter(wo => wo.subcontractor_id === formData.subcontractor_id).map((wo) => (
-                      <option key={wo.id} value={wo.id}>{wo.work_order_no}</option>
+                      <option key={wo.id} value={wo.id}>{wo.work_order_no} - {wo.work_description?.substring(0, 30) || 'No description'}</option>
                     ))}
                   </select>
+                  {/* TDS alert when work order with TDS is selected */}
+                  {formData.work_order_id && (() => {
+                    const sel = workOrders.find(wo => wo.id === formData.work_order_id);
+                    if (!sel) return null;
+                    const tdsPct = parseFloat(sel.tds_percent || 0);
+                    const retPct = parseFloat(sel.retention_percent || 0);
+                    return (
+                      <>
+                        {(sel.tax_type === 'TDS' || tdsPct > 0) && (
+                          <div style={{ marginTop: '8px', padding: '10px 12px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', fontSize: '12px', color: '#92400e', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '14px' }}>⚠️</span>
+                            <span><strong>TDS Alert:</strong> This Work Order requires TDS deduction of <strong>{tdsPct}%</strong>. TDS rate has been pre-filled.</span>
+                          </div>
+                        )}
+                        {sel.retention_held && retPct > 0 && (
+                          <div style={{ marginTop: '6px', padding: '10px 12px', background: '#eff6ff', border: '1px solid #3b82f6', borderRadius: '6px', fontSize: '12px', color: '#1e40af', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '14px' }}>ℹ️</span>
+                            <span><strong>Retention:</strong> This Work Order has <strong>{retPct}%</strong> retention configured for {sel.retention_duration_months || 6} months.</span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Gross Amount */}
@@ -4648,6 +4684,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   requested_by: user?.id || null,
                   client_id: requestClientId || null,
                   project_id: requestProjectId || null,
+                  work_order_id: requestWorkOrderId || null,
                 });
                 setShowRequestDialog(false);
                 toast.success('Payment request submitted for approval.');
@@ -4658,11 +4695,58 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               <div style={{ display: 'grid', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Subcontractor *</label>
-                  <select value={requestSubcontractorId} onChange={(e) => setRequestSubcontractorId(e.target.value)} required style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}>
+                  <select value={requestSubcontractorId} onChange={(e) => { setRequestSubcontractorId(e.target.value); setRequestWorkOrderId(''); setRequestClientId(''); setRequestProjectId(''); }} required style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}>
                     <option value="">Select subcontractor</option>
                     {subcontractors.map((s: any) => <option key={s.id} value={s.id}>{s.company_name}</option>)}
                   </select>
                 </div>
+                {/* Work Order selector (filtered by subcontractor) */}
+                {requestSubcontractorId && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Work Order (Optional)</label>
+                    <select
+                      value={requestWorkOrderId}
+                      onChange={(e) => {
+                        const woId = e.target.value;
+                        const selectedWO = workOrders.find(wo => wo.id === woId);
+                        setRequestWorkOrderId(woId);
+                        if (selectedWO) {
+                          if (selectedWO.client_id) setRequestClientId(selectedWO.client_id);
+                          if (selectedWO.project_id) setRequestProjectId(selectedWO.project_id);
+                        }
+                      }}
+                      style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}
+                    >
+                      <option value="">Select work order (optional)</option>
+                      {workOrders.filter(wo => wo.subcontractor_id === requestSubcontractorId).map((wo: any) => (
+                        <option key={wo.id} value={wo.id}>{wo.work_order_no} - {wo.work_description?.substring(0, 30) || ''}</option>
+                      ))}
+                    </select>
+                    {/* TDS & Retention alerts for the selected WO */}
+                    {requestWorkOrderId && (() => {
+                      const sel = workOrders.find(wo => wo.id === requestWorkOrderId);
+                      if (!sel) return null;
+                      const tdsPct = parseFloat(sel.tds_percent || 0);
+                      const retPct = parseFloat(sel.retention_percent || 0);
+                      return (
+                        <>
+                          {(sel.tax_type === 'TDS' || tdsPct > 0) && (
+                            <div style={{ marginTop: '8px', padding: '10px 12px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', fontSize: '12px', color: '#92400e', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: '14px' }}>⚠️</span>
+                              <span><strong>Accountant Notice:</strong> This Work Order requires TDS deduction of <strong>{tdsPct}%</strong>. Please ensure TDS is deducted before payment release.</span>
+                            </div>
+                          )}
+                          {sel.retention_held && retPct > 0 && (
+                            <div style={{ marginTop: '6px', padding: '10px 12px', background: '#eff6ff', border: '1px solid #3b82f6', borderRadius: '6px', fontSize: '12px', color: '#1e40af', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: '14px' }}>ℹ️</span>
+                              <span><strong>Retention:</strong> This Work Order has <strong>{retPct}%</strong> retention for {sel.retention_duration_months || 6} months. Retention may apply on final payment.</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Amount Requested *</label>
                   <input type="number" value={requestAmount} onChange={(e) => setRequestAmount(e.target.value)} placeholder="0.00" required min="0" step="0.01" style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }} />

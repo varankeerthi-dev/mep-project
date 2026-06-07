@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRetentionTracking, useCreateRetention } from '../hooks/useMeasurementSheets';
 import { formatCurrency } from '../utils/formatters';
 import { format } from 'date-fns';
 import { Lock, Unlock, AlertTriangle, Save, X } from 'lucide-react';
+import { supabase } from '../supabase';
 
 interface FinalPaymentModalProps {
   workOrderId: string;
@@ -36,6 +37,35 @@ export function FinalPaymentModal({
   });
   const [retentionNotes, setRetentionNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (workOrderId) {
+      supabase
+        .from('subcontractor_work_orders')
+        .select('*')
+        .eq('id', workOrderId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            if (data.retention_held && parseFloat(data.retention_percent) > 0) {
+              setApplyRetention(true);
+              const percentage = parseFloat(data.retention_percent);
+              setRetentionPercentage(percentage);
+              setRetentionAmount(balanceDue * (percentage / 100));
+              
+              if (data.retention_duration_months) {
+                const release = new Date();
+                release.setMonth(release.getMonth() + parseInt(data.retention_duration_months));
+                setReleaseDate(release.toISOString().split('T')[0]);
+              }
+              if (data.retention_conditions) {
+                setRetentionNotes(data.retention_conditions);
+              }
+            }
+          }
+        });
+    }
+  }, [workOrderId, balanceDue]);
 
   // If retention already exists, show info
   if (existingRetention) {

@@ -750,7 +750,7 @@ export const useCreatePaymentRequest = () => {
     mutationFn: withSessionCheck(async (requestData: any) => {
       const payload = { ...requestData };
 
-      for (const key of ['organisation_id', 'vendor_id', 'subcontractor_id', 'requested_by', 'bank_account_id', 'client_id', 'project_id']) {
+      for (const key of ['organisation_id', 'vendor_id', 'subcontractor_id', 'requested_by', 'bank_account_id', 'client_id', 'project_id', 'work_order_id']) {
         if (!payload[key] || payload[key] === 'undefined' || payload[key] === 'null') {
           payload[key] = null;
         }

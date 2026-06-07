@@ -303,7 +303,7 @@ export class ApprovalWorkflowEngine {
           tableName = 'purchase_orders';
           break;
         case 'work_orders':
-          tableName = 'work_orders';
+          tableName = 'subcontractor_work_orders';
           break;
         case 'invoices':
           tableName = 'invoices';

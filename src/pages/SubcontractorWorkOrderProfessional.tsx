@@ -2,21 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Modal } from '../components/ui/Modal';
+import { useQuery } from '@tanstack/react-query';
 import {
   FileText,
   Plus,
-  Trash2,
-  Save,
   Download,
-  GripVertical,
-  X,
   Search,
   Filter,
   ChevronDown,
   ArrowUpDown,
-  MoreHorizontal,
   Calendar,
   Building2,
   IndianRupee,
@@ -24,77 +18,12 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Design System Colors - Grey/Neutral
-const COLORS = {
-  bgPage: '#f8fafc',
-  bgSurface: '#ffffff',
-  border: '#d4d4d4',
-  borderHover: '#a3a3a3',
-  textPrimary: '#171717',
-  textSecondary: '#525252',
-  textMuted: '#737373',
-  sectionHeader: '#059669',
-};
-
-const inputClass = `w-full rounded-lg border border-[${COLORS.border}] bg-white px-3 py-2 text-sm text-[${COLORS.textPrimary}] outline-none transition-all duration-200 focus:border-[${COLORS.borderHover}] focus:ring-2 focus:ring-[${COLORS.borderHover}]/10 placeholder:text-[${COLORS.textMuted}]`;
-
-interface LineItem {
-  id: string;
-  description: string;
-  quantity: number;
-  unit: string;
-  rate: number;
-  amount: number;
-}
-
-interface TermsCondition {
-  id: string;
-  text: string;
-  order: number;
-}
-
-interface WorkOrderFormData {
-  work_order_no: string;
-  subcontractor_id: string;
-  issue_date: string;
-  valid_until: string;
-  work_description: string;
-  site_location: string;
-  start_date: string;
-  end_date: string;
-  line_items: LineItem[];
-  subtotal: number;
-  cgst_percent: number;
-  sgst_percent: number;
-  igst_percent: number;
-  cgst_amount: number;
-  sgst_amount: number;
-  igst_amount: number;
-  total_amount: number;
-  advance_percent: number;
-  advance_amount: number;
-  payment_terms: string;
-  delivery_terms: string;
-  terms_conditions: TermsCondition[];
-  status: string;
-  remarks: string;
-}
-
-const DEFAULT_TERMS = [
-  'All works shall be executed as per approved drawings and specifications.',
-  'Contractor shall provide all necessary tools, equipment, and skilled labor.',
-  'Payment shall be made against verified measurements and completion certificates.',
-  'Contractor shall maintain site cleanliness and safety standards at all times.',
-  'Any variation in scope of work requires written approval from the company.',
-  'Contractor is responsible for quality of materials and workmanship.',
-  'Company reserves the right to reject substandard work without any liability.',
-  'Contractor shall comply with all statutory requirements and obtain necessary permits.',
-];
-
 // Status dot component - Grey style
 function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
     'Draft': 'bg-zinc-400',
+    'Pending Approval': 'bg-amber-400',
+    'PENDING_APPROVAL': 'bg-amber-400',
     'Issued': 'bg-zinc-500',
     'In Progress': 'bg-zinc-600',
     'Completed': 'bg-zinc-700',
@@ -105,743 +34,34 @@ function StatusDot({ status }: { status: string }) {
 
 // Status pill component - Grey style
 function StatusPill({ status }: { status: string }) {
+  const displayStatus = status === 'PENDING_APPROVAL' ? 'Pending Approval' : status;
   return (
     <div className="flex items-center gap-2">
       <StatusDot status={status} />
       <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">
-        {status}
+        {displayStatus}
       </span>
     </div>
-  );
-}
-
-export function WorkOrderCreateModal({
-  isOpen,
-  onClose,
-  onSuccess,
-  editMode = false,
-  workOrderData,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  editMode?: boolean;
-  workOrderData?: any;
-}) {
-  const { organisation } = useAuth();
-  const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const issueIdParam = searchParams.get('issue_id');
-
-  const [formData, setFormData] = useState<WorkOrderFormData>({
-    work_order_no: '',
-    subcontractor_id: '',
-    issue_date: new Date().toISOString().split('T')[0],
-    valid_until: '',
-    work_description: '',
-    site_location: '',
-    start_date: '',
-    end_date: '',
-    line_items: [],
-    subtotal: 0,
-    cgst_percent: 9,
-    sgst_percent: 9,
-    igst_percent: 0,
-    cgst_amount: 0,
-    sgst_amount: 0,
-    igst_amount: 0,
-    total_amount: 0,
-    advance_percent: 0,
-    advance_amount: 0,
-    payment_terms: 'Payment within 30 days from date of invoice',
-    delivery_terms: 'As per project schedule',
-    terms_conditions: DEFAULT_TERMS.map((text, idx) => ({
-      id: `term-${idx}`,
-      text,
-      order: idx,
-    })),
-    status: 'Draft',
-    remarks: '',
-  });
-
-  const [error, setError] = useState('');
-  const [draggedTerm, setDraggedTerm] = useState<number | null>(null);
-
-  // Fetch subcontractors for dropdown
-  const { data: subcontractors = [] } = useQuery({
-    queryKey: ['subcontractors', organisation?.id],
-    queryFn: async () => {
-      if (!organisation?.id) return [];
-      const { data } = await supabase
-        .from('subcontractors')
-        .select('id, company_name, sub_number')
-        .eq('organisation_id', organisation.id)
-        .eq('status', 'Active')
-        .order('company_name');
-      return data || [];
-    },
-    enabled: !!organisation?.id && isOpen,
-  });
-
-  // Fetch linked Issue info for pre-filling
-  const { data: linkedIssue } = useQuery({
-    queryKey: ['issue-for-wo', issueIdParam],
-    enabled: !!issueIdParam && isOpen,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('issues')
-        .select('id, title, description, project_id, location_block, equipment_tag')
-        .eq('id', issueIdParam)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  // Pre-fill from issue
-  useEffect(() => {
-    if (linkedIssue && isOpen && !editMode && formData.line_items.length === 0) {
-      const issueDesc = `${linkedIssue.title}${linkedIssue.description ? ` - ${linkedIssue.description}` : ''}`;
-      
-      setFormData(prev => ({
-        ...prev,
-        work_description: `Labor for Issue Resolution: ${issueDesc}`,
-        site_location: linkedIssue.location_block || '',
-        line_items: [{
-          id: `item-${Date.now()}`,
-          description: linkedIssue.equipment_tag || 'Labor Charges',
-          quantity: 1,
-          unit: 'Lump Sum',
-          rate: 0,
-          amount: 0
-        }]
-      }));
-    }
-  }, [linkedIssue, isOpen, editMode]);
-
-  // Auto-generate work order number
-  useEffect(() => {
-    if (isOpen && !editMode && organisation?.id) {
-      const generateWONumber = async () => {
-        const { data } = await supabase
-          .from('subcontractor_work_orders')
-          .select('work_order_no')
-          .eq('organisation_id', organisation.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        const lastWO = data?.[0]?.work_order_no;
-        let newNumber = 'WO/001';
-
-        if (lastWO && lastWO.match(/WO\/(\d+)/)) {
-          const num = parseInt(lastWO.match(/WO\/(\d+)/)?.[1] || '0', 10);
-          newNumber = `WO/${String(num + 1).padStart(3, '0')}`;
-        }
-
-        setFormData((prev) => ({ ...prev, work_order_no: newNumber }));
-      };
-
-      generateWONumber();
-    }
-  }, [isOpen, editMode, organisation?.id]);
-
-  // Calculate totals whenever line items or tax rates change
-  useEffect(() => {
-    const subtotal = formData.line_items.reduce((sum, item) => sum + item.amount, 0);
-    const cgst_amount = (subtotal * formData.cgst_percent) / 100;
-    const sgst_amount = (subtotal * formData.sgst_percent) / 100;
-    const igst_amount = (subtotal * formData.igst_percent) / 100;
-    const total_amount = subtotal + cgst_amount + sgst_amount + igst_amount;
-    const advance_amount = (total_amount * formData.advance_percent) / 100;
-
-    setFormData((prev) => ({
-      ...prev,
-      subtotal,
-      cgst_amount,
-      sgst_amount,
-      igst_amount,
-      total_amount,
-      advance_amount,
-    }));
-  }, [formData.line_items, formData.cgst_percent, formData.sgst_percent, formData.igst_percent, formData.advance_percent]);
-
-  const addLineItem = () => {
-    const newItem: LineItem = {
-      id: `item-${Date.now()}`,
-      description: '',
-      quantity: 1,
-      unit: 'Nos',
-      rate: 0,
-      amount: 0,
-    };
-    setFormData((prev) => ({
-      ...prev,
-      line_items: [...prev.line_items, newItem],
-    }));
-  };
-
-  const updateLineItem = (id: string, field: keyof LineItem, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      line_items: prev.line_items.map((item) => {
-        if (item.id === id) {
-          const updated = { ...item, [field]: value };
-          if (field === 'quantity' || field === 'rate') {
-            updated.amount = updated.quantity * updated.rate;
-          }
-          return updated;
-        }
-        return item;
-      }),
-    }));
-  };
-
-  const removeLineItem = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      line_items: prev.line_items.filter((item) => item.id !== id),
-    }));
-  };
-
-  const addTerm = () => {
-    const newTerm: TermsCondition = {
-      id: `term-${Date.now()}`,
-      text: '',
-      order: formData.terms_conditions.length,
-    };
-    setFormData((prev) => ({
-      ...prev,
-      terms_conditions: [...prev.terms_conditions, newTerm],
-    }));
-  };
-
-  const updateTerm = (id: string, text: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      terms_conditions: prev.terms_conditions.map((term) =>
-        term.id === id ? { ...term, text } : term
-      ),
-    }));
-  };
-
-  const removeTerm = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      terms_conditions: prev.terms_conditions.filter((term) => term.id !== id),
-    }));
-  };
-
-  const handleDragStart = (index: number) => {
-    setDraggedTerm(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedTerm === null || draggedTerm === index) return;
-
-    const terms = [...formData.terms_conditions];
-    const draggedItem = terms[draggedTerm];
-    terms.splice(draggedTerm, 1);
-    terms.splice(index, 0, draggedItem);
-
-    setFormData((prev) => ({
-      ...prev,
-      terms_conditions: terms.map((term, idx) => ({ ...term, order: idx })),
-    }));
-    setDraggedTerm(index);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedTerm(null);
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!organisation?.id) throw new Error('No organisation');
-
-      const payload = {
-        organisation_id: organisation.id,
-        issue_id: issueIdParam || null,
-        work_order_no: formData.work_order_no,
-        subcontractor_id: formData.subcontractor_id,
-        issue_date: formData.issue_date,
-        valid_until: formData.valid_until,
-        work_description: formData.work_description,
-        site_location: formData.site_location,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        line_items: formData.line_items,
-        subtotal: formData.subtotal,
-        cgst_percent: formData.cgst_percent,
-        sgst_percent: formData.sgst_percent,
-        igst_percent: formData.igst_percent,
-        cgst_amount: formData.cgst_amount,
-        sgst_amount: formData.sgst_amount,
-        igst_amount: formData.igst_amount,
-        total_amount: formData.total_amount,
-        advance_percent: formData.advance_percent,
-        advance_amount: formData.advance_amount,
-        payment_terms: formData.payment_terms,
-        delivery_terms: formData.delivery_terms,
-        terms_conditions: formData.terms_conditions,
-        status: formData.status,
-        remarks: formData.remarks,
-      };
-
-      if (editMode && workOrderData?.id) {
-        const { error } = await supabase
-          .from('subcontractor_work_orders')
-          .update(payload)
-          .eq('id', workOrderData.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('subcontractor_work_orders')
-          .insert(payload)
-          .select()
-          .single();
-        if (error) throw error;
-
-        // Log creation in issue timeline if issue_id is present
-        if (issueIdParam && data) {
-          await supabase.from('issue_activity_logs').insert({
-            issue_id: issueIdParam,
-            action: 'work_order_created',
-            new_value: { wo_id: data.id, wo_number: formData.work_order_no },
-            done_by: (organisation as any)?.created_by || null,
-            done_by_name: organisation?.name || 'System'
-          });
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcontractor_work_orders'] });
-      onSuccess();
-    },
-    onError: (err: any) => {
-      setError(err.message || 'Failed to save work order');
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.subcontractor_id) {
-      setError('Please select a subcontractor');
-      return;
-    }
-    saveMutation.mutate();
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={editMode ? 'Edit Work Order' : 'Create Work Order'}
-      size="lg"
-      footer={
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-5 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saveMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
-          >
-            <Save size={16} />
-            {saveMutation.isPending ? 'Saving...' : editMode ? 'Update' : 'Save'}
-          </button>
-        </div>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-
-        {/* Work Order Details */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Work Order No <span className="text-zinc-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.work_order_no}
-              onChange={(e) => setFormData({ ...formData, work_order_no: e.target.value })}
-              className={inputClass}
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Subcontractor <span className="text-zinc-400">*</span>
-            </label>
-            <select
-              value={formData.subcontractor_id}
-              onChange={(e) => setFormData({ ...formData, subcontractor_id: e.target.value })}
-              className={inputClass}
-              required
-            >
-              <option value="">Select subcontractor</option>
-              {subcontractors.map((sub: any) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.company_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Issue Date
-            </label>
-            <input
-              type="date"
-              value={formData.issue_date}
-              onChange={(e) => setFormData({ ...formData, issue_date: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Valid Until
-            </label>
-            <input
-              type="date"
-              value={formData.valid_until}
-              onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Work Description
-            </label>
-            <textarea
-              value={formData.work_description}
-              onChange={(e) => setFormData({ ...formData, work_description: e.target.value })}
-              rows={3}
-              className={`${inputClass} resize-y`}
-              placeholder="Brief description of work scope"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Site Location
-            </label>
-            <input
-              type="text"
-              value={formData.site_location}
-              onChange={(e) => setFormData({ ...formData, site_location: e.target.value })}
-              className={inputClass}
-              placeholder="Project site address"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Status
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className={inputClass}
-            >
-              <option>Draft</option>
-              <option>Issued</option>
-              <option>In Progress</option>
-              <option>Completed</option>
-              <option>Cancelled</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Line Items */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-5 py-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Line Items</h3>
-              <button
-                type="button"
-                onClick={addLineItem}
-                className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-200"
-              >
-                <Plus size={16} />
-                Add Item
-              </button>
-            </div>
-          </div>
-          <div className="p-5">
-            {formData.line_items.length === 0 ? (
-              <div className="text-center py-8 text-zinc-400">
-                <FileText className="mx-auto mb-2" size={32} />
-                <p className="text-sm">No line items added yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {formData.line_items.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    className="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-4 sm:grid-cols-12"
-                  >
-                    <div className="sm:col-span-5">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
-                        placeholder="Item description"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                        Qty
-                      </label>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                        Unit
-                      </label>
-                      <select
-                        value={item.unit}
-                        onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
-                      >
-                        <option>Nos</option>
-                        <option>MT</option>
-                        <option>Sq.M</option>
-                        <option>Cu.M</option>
-                        <option>Rft</option>
-                        <option>Lump Sum</option>
-                      </select>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                        Rate (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={item.rate}
-                        onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
-                      />
-                    </div>
-                    <div className="sm:col-span-1 flex items-end">
-                      <button
-                        type="button"
-                        onClick={() => removeLineItem(item.id)}
-                        className="rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Totals */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Subtotal
-            </label>
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-800">
-              ₹{formData.subtotal.toFixed(2)}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              CGST ({formData.cgst_percent}%)
-            </label>
-            <input
-              type="number"
-              value={formData.cgst_percent}
-              onChange={(e) => setFormData({ ...formData, cgst_percent: parseFloat(e.target.value) || 0 })}
-              className={inputClass}
-            />
-            <div className="text-xs text-zinc-500">₹{formData.cgst_amount.toFixed(2)}</div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              SGST ({formData.sgst_percent}%)
-            </label>
-            <input
-              type="number"
-              value={formData.sgst_percent}
-              onChange={(e) => setFormData({ ...formData, sgst_percent: parseFloat(e.target.value) || 0 })}
-              className={inputClass}
-            />
-            <div className="text-xs text-zinc-500">₹{formData.sgst_amount.toFixed(2)}</div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Total Amount
-            </label>
-            <div className="rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2.5 text-sm font-bold text-zinc-900">
-              ₹{formData.total_amount.toFixed(2)}
-            </div>
-          </div>
-        </div>
-
-        {/* Terms & Conditions */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-5 py-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Terms & Conditions</h3>
-              <button
-                type="button"
-                onClick={addTerm}
-                className="inline-flex items-center gap-2 rounded-lg bg-white border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                <Plus size={16} />
-                Add Term
-              </button>
-            </div>
-          </div>
-          <div className="p-5">
-            <div className="space-y-2">
-              {formData.terms_conditions.map((term, idx) => (
-                <div
-                  key={term.id}
-                  draggable
-                  onDragStart={() => handleDragStart(idx)}
-                  onDragOver={(e) => handleDragOver(e, idx)}
-                  onDragEnd={handleDragEnd}
-                  className="flex items-start gap-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-3"
-                >
-                  <button
-                    type="button"
-                    className="mt-1 cursor-move text-zinc-400"
-                  >
-                    <GripVertical size={16} />
-                  </button>
-                  <span className="mt-2 text-xs font-medium text-zinc-400">
-                    {idx + 1}.
-                  </span>
-                  <textarea
-                    value={term.text}
-                    onChange={(e) => updateTerm(term.id, e.target.value)}
-                    rows={2}
-                    className="flex-1 resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20"
-                    placeholder="Enter term condition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeTerm(term.id)}
-                    className="mt-1 rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Payment & Delivery Terms */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Payment Terms
-            </label>
-            <input
-              type="text"
-              value={formData.payment_terms}
-              onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Delivery Terms
-            </label>
-            <input
-              type="text"
-              value={formData.delivery_terms}
-              onChange={(e) => setFormData({ ...formData, delivery_terms: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Advance %
-            </label>
-            <input
-              type="number"
-              value={formData.advance_percent}
-              onChange={(e) => setFormData({ ...formData, advance_percent: parseFloat(e.target.value) || 0 })}
-              className={inputClass}
-            />
-            <div className="text-xs text-zinc-500">
-              Advance: ₹{formData.advance_amount.toFixed(2)}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Remarks
-            </label>
-            <textarea
-              value={formData.remarks}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-              rows={3}
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-        </div>
-      </form>
-    </Modal>
   );
 }
 
 // List View Component - Capy Style Table with Filters
 export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { organisation } = useAuth();
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const actionParam = searchParams.get('action');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedWO, setSelectedWO] = useState<any>(null);
 
   // Handle action=create from URL
   useEffect(() => {
-    if (actionParam === 'create' && !isModalOpen) {
-      setIsModalOpen(true);
+    if (actionParam === 'create') {
+      onNavigate?.('/subcontractors/workorders/create');
       
       // Clear action param so it doesn't re-trigger
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('action');
       setSearchParams(newParams, { replace: true });
     }
-  }, [actionParam, isModalOpen]);
+  }, [actionParam]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -858,7 +78,9 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
         .from('subcontractor_work_orders')
         .select(`
           *,
-          subcontractors(id, company_name, sub_number)
+          subcontractors(id, company_name, sub_number),
+          clients(id, name),
+          projects(id, name)
         `)
         .eq('organisation_id', organisation.id)
         .order('created_at', { ascending: false });
@@ -889,6 +111,8 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
         const matchesSearch =
           wo.work_order_no?.toLowerCase().includes(query) ||
           wo.subcontractors?.company_name?.toLowerCase().includes(query) ||
+          wo.clients?.name?.toLowerCase().includes(query) ||
+          wo.projects?.name?.toLowerCase().includes(query) ||
           wo.work_description?.toLowerCase().includes(query) ||
           wo.site_location?.toLowerCase().includes(query);
         if (!matchesSearch) return false;
@@ -918,6 +142,8 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
     doc.text(`WO No: ${wo.work_order_no}`, 20, 35);
     doc.text(`Date: ${wo.issue_date}`, 20, 42);
     doc.text(`Sub-contractor: ${wo.subcontractors?.company_name || '-'}`, 20, 49);
+    doc.text(`Client: ${wo.clients?.name || '-'}`, 20, 56);
+    doc.text(`Project: ${wo.projects?.name || '-'}`, 20, 63);
 
     const lineItems = wo.line_items || [];
     const tableData = lineItems.map((item: any, idx: number) => [
@@ -930,7 +156,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
     ]);
 
     autoTable(doc, {
-      startY: 60,
+      startY: 72,
       head: [['S.No', 'Description', 'Qty', 'Unit', 'Rate', 'Amount']],
       body: tableData,
       theme: 'grid',
@@ -940,8 +166,14 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
     const finalY = (doc as any).lastAutoTable?.finalY || 120;
     doc.setFontSize(10);
     doc.text(`Subtotal: ₹${wo.subtotal?.toFixed(2)}`, 150, finalY + 10);
-    doc.text(`CGST (${wo.cgst_percent}%): ₹${wo.cgst_amount?.toFixed(2)}`, 150, finalY + 17);
-    doc.text(`SGST (${wo.sgst_percent}%): ₹${wo.sgst_amount?.toFixed(2)}`, 150, finalY + 24);
+    
+    if (wo.tax_type === 'GST') {
+      doc.text(`CGST (${wo.cgst_percent}%): ₹${wo.cgst_amount?.toFixed(2)}`, 150, finalY + 17);
+      doc.text(`SGST (${wo.sgst_percent}%): ₹${wo.sgst_amount?.toFixed(2)}`, 150, finalY + 24);
+    } else if (wo.tax_type === 'TDS') {
+      doc.text(`TDS Note (${wo.tds_percent}%): ₹${wo.tds_amount?.toFixed(2)}`, 150, finalY + 17);
+    }
+    
     doc.text(`Total: ₹${wo.total_amount?.toFixed(2)}`, 150, finalY + 31);
 
     doc.save(`Work_Order_${wo.work_order_no}.pdf`);
@@ -973,8 +205,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
             </div>
             <button
               onClick={() => {
-                setSelectedWO(null);
-                setIsModalOpen(true);
+                onNavigate?.('/subcontractors/workorders/create');
               }}
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
@@ -995,7 +226,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search by WO number, subcontractor, or description..."
+                      placeholder="Search by WO number, subcontractor, client, project or description..."
                       className="w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-400/20 transition-all"
                     />
                   </div>
@@ -1046,6 +277,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                       >
                         <option value="all">All Status</option>
                         <option value="Draft">Draft</option>
+                        <option value="PENDING_APPROVAL">Pending Approval</option>
                         <option value="Issued">Issued</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Completed">Completed</option>
@@ -1113,8 +345,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
             </div>
           </div>
 
-          {/* Results Count */}
-          <div className="mt-4 flex items-center justify-between">
+          <div className="mt-6 flex items-center justify-between px-1">
             <p className="text-sm text-zinc-500">
               Showing <span className="font-semibold text-zinc-900">{filteredWorkOrders.length}</span> of{' '}
               <span className="font-semibold text-zinc-900">{workOrders.length}</span> work orders
@@ -1143,8 +374,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                 {!hasActiveFilters && (
                   <button
                     onClick={() => {
-                      setSelectedWO(null);
-                      setIsModalOpen(true);
+                      onNavigate?.('/subcontractors/workorders/create');
                     }}
                     className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-200"
                   >
@@ -1166,6 +396,11 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                       <th className="px-4 py-3 text-left">
                         <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           Subcontractor
+                        </span>
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                          Client / Project
                         </span>
                       </th>
                       <th className="px-4 py-3 text-left">
@@ -1209,9 +444,15 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="text-sm text-zinc-700">
+                          <span className="text-sm text-zinc-700 font-medium">
                             {wo.subcontractors?.company_name || '-'}
                           </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-zinc-800 font-semibold">{wo.clients?.name || '-'}</span>
+                            <span className="text-xs text-zinc-500">{wo.projects?.name || '-'}</span>
+                          </div>
                         </td>
                         <td className="px-4 py-4">
                           <StatusPill status={wo.status} />
@@ -1249,8 +490,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedWO(wo);
-                                setIsModalOpen(true);
+                                onNavigate?.(`/subcontractors/workorders/create?id=${wo.id}`);
                               }}
                               className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
                               title="Edit"
@@ -1278,22 +518,6 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
           </div>
         </div>
       </div>
-
-      {/* Modal */}
-      <WorkOrderCreateModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedWO(null);
-        }}
-        onSuccess={() => {
-          refetch();
-          setIsModalOpen(false);
-          setSelectedWO(null);
-        }}
-        editMode={!!selectedWO}
-        workOrderData={selectedWO}
-      />
     </div>
   );
 }

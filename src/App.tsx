@@ -126,6 +126,7 @@ const SubcontractorEdit = lazyAny(() => Subcontractors.then(m => ({ default: m.S
 const ManpowerAttendance = lazyAny(() => import('./pages/ManpowerAttendance').then(m => ({ default: m.ManpowerAttendance })));
 const ManpowerAttendanceList = lazyAny(() => import('./pages/ManpowerAttendanceList').then(m => ({ default: m.ManpowerAttendanceList })));
 const SubcontractorWorkOrders = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
+const SubcontractorWorkOrderCreate = lazyAny(() => import('./pages/SubcontractorWorkOrderCreate'));
 const WorkOrderDetailView = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
 const MeasurementSheetWrapper = lazyAny(() => import('./pages/MeasurementSheetWrapper').then(m => ({ default: m.MeasurementSheetWrapper })));
 const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDailyLogs })));
@@ -269,6 +270,7 @@ export default function App() {
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
       case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
       case '/subcontractors/workorders': return <SubcontractorWorkOrders onNavigate={navigate} />;
+      case '/subcontractors/workorders/create': return <SubcontractorWorkOrderCreate onNavigate={navigate} />;
       case '/subcontractors/attendance': return <ManpowerAttendance onNavigate={navigate} />;
       case '/subcontractors/attendance/list': return <ManpowerAttendanceList onNavigate={navigate} />;
       case '/subcontractors/dailylogs': return <ManpowerAttendance onNavigate={navigate} />;

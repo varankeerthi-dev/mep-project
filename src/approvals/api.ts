@@ -366,7 +366,7 @@ export class ApprovalAPI {
           await supabase.from('purchase_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
           break;
         case 'work_orders':
-          await supabase.from('work_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
+          await supabase.from('subcontractor_work_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
           break;
         case 'invoices':
           await supabase.from('invoices').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
@@ -527,7 +527,7 @@ const REFERENCE_DENORM_MAP: Record<
   purchase_payments:      { table: 'purchase_payments',      select: 'client_id, client:clients(name), project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
   subcontractor_payments: { table: 'subcontractor_payments', select: 'client_id, client:clients(name), project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
   purchase_orders:        { table: 'purchase_orders',        select: 'project_id, project:projects(name), po_number',   numberField: 'po_number'   },
-  work_orders:            { table: 'work_orders',            select: 'project_id, project:projects(name), wo_number',   numberField: 'wo_number'   },
+  work_orders:            { table: 'subcontractor_work_orders',            select: 'project_id, project:projects(name), work_order_no',   numberField: 'work_order_no'   },
   invoices:               { table: 'invoices',               select: 'project_id, project:projects(name), invoice_number', numberField: 'invoice_number' },
   quotations:             { table: 'quotations',             select: 'project_id, project:projects(name), quotation_number', numberField: 'quotation_number' },
   material_dispatches:    { table: 'material_dispatches',    select: 'project_id, project:projects(name), dispatch_number', numberField: 'dispatch_number' },

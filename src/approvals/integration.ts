@@ -81,7 +81,7 @@ export class ApprovalIntegration {
 
       if (response.success && response.data) {
         await supabase
-          .from('work_orders')
+          .from('subcontractor_work_orders')
           .update({
             status: 'PENDING_APPROVAL',
             approval_id: response.data.id
@@ -609,7 +609,7 @@ export class ApprovalIntegration {
           break;
 
         case 'work_orders':
-          await this.updateDocumentStatus('work_orders', approval.reference_id, newStatus);
+          await this.updateDocumentStatus('subcontractor_work_orders', approval.reference_id, newStatus);
           if (status === 'APPROVED') {
             await this.triggerPostApprovalActions('WORK_ORDER', approval.reference_id);
           }
