@@ -185,7 +185,7 @@ const Approvals: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'hold' | 'returned' | 'approved' | 'released'>('awaiting');
+  const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'returned' | 'approved' | 'released'>('awaiting');
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRow | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [actionMode, setActionMode] = useState<'none' | 'reject' | 'hold' | 'return' | 'approve'>('none');
@@ -355,7 +355,7 @@ const Approvals: React.FC = () => {
 
     for (const row of payApprovals) {
       const s = row.status;
-      if (s === 'PENDING') {
+      if (s === 'PENDING' || s === 'HOLD') {
         if (row.reviewStatus === 'PENDING') {
           if (row.reviewerId === user?.id) awaiting.push(row);
           else others.push(row);
@@ -364,45 +364,41 @@ const Approvals: React.FC = () => {
         }
       }
       else if (s === 'FORWARDED') others.push(row);
-      else if (s === 'HOLD') hold.push(row);
       else if (s === 'RETURNED') returned.push(row);
       else if (s === 'APPROVED') {
         approved.push(row);
         if (row.releasedAt) released.push(row);
       }
     }
-    return { awaiting, others, hold, returned, approved, released };
+    return { awaiting, others, returned, approved, released };
   }, [payApprovals]);
 
   const awaitingActions = sectionMap.awaiting;
   const approvedActions = sectionMap.approved;
   const releasedActions = sectionMap.released;
   const pendingOthers = sectionMap.others;
-  const holdActions = sectionMap.hold;
   const returnedActions = sectionMap.returned;
 
   const activeList = useMemo(() => {
     switch (activeSection) {
       case 'awaiting': return awaitingActions;
       case 'others': return pendingOthers;
-      case 'hold': return holdActions;
       case 'returned': return returnedActions;
       case 'approved': return approvedActions;
       case 'released':
       default: return releasedActions;
     }
-  }, [activeSection, awaitingActions, pendingOthers, holdActions, returnedActions, approvedActions, releasedActions]);
+  }, [activeSection, awaitingActions, pendingOthers, returnedActions, approvedActions, releasedActions]);
 
   const sectionCounts = useMemo(
     () => ({
       awaiting: awaitingActions.length,
       others: pendingOthers.length,
-      hold: holdActions.length,
       returned: returnedActions.length,
       approved: approvedActions.length,
       released: releasedActions.length,
     }),
-    [awaitingActions, pendingOthers, holdActions, returnedActions, approvedActions, releasedActions]
+    [awaitingActions, pendingOthers, returnedActions, approvedActions, releasedActions]
   );
 
   const stats = useMemo(() => {
@@ -792,13 +788,7 @@ const Approvals: React.FC = () => {
           onClick={() => setActiveSection('others')}
           accent="bg-zinc-400"
         />
-        <Pill
-          label="On Hold"
-          value={sectionCounts.hold}
-          active={activeSection === 'hold'}
-          onClick={() => setActiveSection('hold')}
-          accent="bg-orange-500"
-        />
+
         <Pill
           label="Returned / Queries"
           value={sectionCounts.returned}
@@ -1829,9 +1819,9 @@ const ApprovalTable = ({
                                   <span className="shrink-0 w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center">
                                     <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                                   </span>
-                                ) : isCurrent && row.status === 'PENDING' ? (
+                                ) : isCurrent && (row.status === 'PENDING' || row.status === 'HOLD') ? (
                                   <span className="shrink-0 w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center">
-                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                    <span className={`w-2 h-2 rounded-full ${row.status === 'HOLD' ? 'bg-orange-500' : 'bg-amber-500 animate-pulse'}`} />
                                   </span>
                                 ) : row.status === 'REJECTED' && isCurrent ? (
                                   <span className="shrink-0 w-4 h-4 rounded-full bg-red-100 flex items-center justify-center">
@@ -1845,14 +1835,20 @@ const ApprovalTable = ({
                                 <span className={isCurrent ? 'font-semibold text-zinc-900' : 'text-zinc-500'}>
                                   {name}
                                 </span>
-                                {isCurrent && row.status === 'PENDING' && (
-                                  <span className="text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 font-medium leading-none">
-                                    Now
+                                {isCurrent && (row.status === 'PENDING' || row.status === 'HOLD') && (
+                                  <span className={`text-[9px] px-1 py-0.5 rounded font-medium leading-none ${row.status === 'HOLD' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {row.status === 'HOLD' ? 'On Hold' : 'Now'}
                                   </span>
                                 )}
                               </div>
                             );
                           })}
+                          {row.status === 'HOLD' && row.holdReason && (
+                            <div className="mt-1 p-2 bg-orange-50/50 border border-orange-200/50 rounded-md text-[11px] text-orange-800 break-words max-w-[200px] whitespace-pre-wrap">
+                              <span className="font-semibold block mb-0.5 text-[10px] uppercase tracking-wider text-orange-600/70">Hold Reason</span>
+                              {row.holdReason}
+                            </div>
+                          )}
                           {row.status === 'APPROVED' && (
                             <div className="flex items-center gap-1 mt-0.5">
                               <span className="text-[10px] font-medium text-emerald-600">All approved</span>
