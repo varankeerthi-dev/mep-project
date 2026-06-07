@@ -266,6 +266,8 @@ export const ApprovalSettings: React.FC = () => {
       SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
       PAYMENT_REQUEST: { enabled: false, levels: [] },
       QUOTATION: { enabled: false, levels: [] },
+      WORK_ORDER: { enabled: false, levels: [] },
+      PURCHASE_ORDER: { enabled: false, levels: [] },
     };
 
     // 1. Initialize enabled state from approval_settings
