@@ -295,14 +295,22 @@ export const Payments: React.FC = () => {
       id: 'approval_status',
       header: 'Approval Status',
       cell: ({ row }: any) => {
-        const raw = row.original.approval_status || row.original.workflow_step || row.original.status;
+        const approvalInfo = row.original.approval_info;
+        const raw = approvalInfo?.status || row.original.approval_status || row.original.workflow_step || row.original.status;
+        const holdReason = approvalInfo?.hold_reason;
+        
         const colors: Record<string, string> = {
           pending_approval: 'bg-amber-50 text-amber-700 border-amber-200',
           PENDING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
+          PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
           approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           rejected: 'bg-red-50 text-red-700 border-red-200',
           Rejected: 'bg-red-50 text-red-700 border-red-200',
+          REJECTED: 'bg-red-50 text-red-700 border-red-200',
+          HOLD: 'bg-orange-50 text-orange-700 border-orange-200',
+          hold: 'bg-orange-50 text-orange-700 border-orange-200',
           released: 'bg-blue-100 text-blue-700 border-blue-200',
           Released: 'bg-blue-100 text-blue-700 border-blue-200',
           Paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -310,9 +318,16 @@ export const Payments: React.FC = () => {
         };
         const label = typeof raw === 'string' ? raw.replace(/_/g, ' ') : '-';
         return (
-          <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${colors[raw] || 'bg-zinc-50 text-zinc-500 border-zinc-200'}`}>
-            {label}
-          </span>
+          <div className="flex flex-col items-start gap-1">
+            <span className={`inline-flex text-[10px] font-bold px-2 py-1 rounded-full border ${colors[raw] || 'bg-zinc-50 text-zinc-500 border-zinc-200'}`}>
+              {label === 'HOLD' ? 'ON HOLD' : label}
+            </span>
+            {(raw === 'HOLD' || raw === 'hold') && holdReason && (
+              <span className="text-[10px] text-orange-700 italic max-w-[200px] break-words whitespace-normal border-l border-orange-300 pl-1.5 mt-0.5">
+                {holdReason}
+              </span>
+            )}
+          </div>
         );
       },
     },

@@ -57,7 +57,7 @@ export function DialogContent({ className, children, ...props }: DialogContentPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[15vh]"
+      className="fixed inset-0 z-[2000] flex items-start justify-center bg-black/40 p-4 pt-[15vh]"
       onClick={() => ctx.setOpen(false)}
     >
       <div

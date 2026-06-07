@@ -752,18 +752,30 @@ export const usePaymentRequests = (organisationId: string | undefined) => {
       
       const requests = data || [];
       const userIds = [...new Set(requests.flatMap(r => [r.requested_by, r.approved_by]).filter(Boolean))];
+      const requestIds = requests.map(r => r.id);
       
+      let profileMap: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase.from('user_profiles').select('user_id, full_name').in('user_id', userIds);
-        const profileMap = Object.fromEntries((profiles || []).map(p => [p.user_id, p.full_name]));
-        return requests.map(r => ({
-          ...r,
-          requester_name: profileMap[r.requested_by] || null,
-          approver_name: profileMap[r.approved_by] || null,
-        }));
+        profileMap = Object.fromEntries((profiles || []).map(p => [p.user_id, p.full_name]));
       }
 
-      return requests;
+      let approvalsMap: Record<string, any> = {};
+      if (requestIds.length > 0) {
+        const { data: approvalsList } = await supabase
+          .from('approvals')
+          .select('*')
+          .in('reference_id', requestIds)
+          .eq('reference_type', 'payment_requests');
+        approvalsMap = Object.fromEntries((approvalsList || []).map(a => [a.reference_id, a]));
+      }
+
+      return requests.map(r => ({
+        ...r,
+        requester_name: profileMap[r.requested_by] || null,
+        approver_name: profileMap[r.approved_by] || null,
+        approval_info: approvalsMap[r.id] || null,
+      }));
     }),
     enabled: !!organisationId,
   });

@@ -283,18 +283,18 @@ export default function InvoiceView() {
                   className={`px-4 cursor-pointer transition-colors hover:bg-sky-50/30 ${
                     invoiceId === inv.id ? 'bg-sky-100' : 'bg-white'
                   }`}
-                  style={{ paddingTop: '14px', paddingBottom: '14px' }}
+                  style={{ paddingTop: '18px', paddingBottom: '18px' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] font-bold text-zinc-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+                    <span className="text-sm font-bold text-zinc-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {inv.client?.name || 'Unknown Client'}
                     </span>
-                    <span className="text-[12px] font-bold text-zinc-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+                    <span className="text-xs font-bold text-zinc-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {formatCurrency(inv.total)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-1 gap-4">
-                    <div className="text-[11px] font-inter flex items-center" style={{ paddingLeft: '10px', paddingRight: '10px', marginLeft: '1px', gap: '5px' }}>
+                    <div className="text-xs font-inter flex items-center" style={{ paddingLeft: '10px', paddingRight: '10px', marginLeft: '1px', gap: '5px' }}>
                       <span className="text-zinc-700 font-medium">{inv.invoice_no}</span>
                       <span className="text-zinc-300">•</span>
                       <span className="text-blue-500">{formatDate(inv.created_at)}</span>
@@ -306,19 +306,19 @@ export default function InvoiceView() {
                         if (paid <= 0 || total <= 0) return null;
                         if (paid >= total) {
                           return (
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: '#d1fae5', color: '#047857' }}>
+                            <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: '#d1fae5', color: '#047857' }}>
                               Paid
                             </span>
                           );
                         }
                         return (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: '#fef3c7', color: '#b45309' }}>
+                          <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: '#fef3c7', color: '#b45309' }}>
                             Partially Paid
                           </span>
                         );
                       })()}
                       <span
-                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                        className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded"
                         style={{
                           paddingLeft: '10px',
                           paddingRight: '10px',
@@ -354,7 +354,7 @@ export default function InvoiceView() {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none"
+                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-xs font-bold shadow-none border-none"
                     onClick={() => handlePrintAction('download')}
                     disabled={printLoading}
                   >
@@ -367,7 +367,7 @@ export default function InvoiceView() {
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-[20px] mb-6 px-8 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
                 <button
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
                   onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
                 >
                   <Edit className="w-[14px] h-[14px]" />
@@ -375,7 +375,7 @@ export default function InvoiceView() {
                 </button>
 
                 <button
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
                   onClick={handleDuplicate}
                 >
                   <Copy className="w-[14px] h-[14px]" />
@@ -384,7 +384,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-all text-sm font-semibold"
                     onClick={() => {
                       setShowPaymentMenu(!showPaymentMenu);
                     }}
@@ -419,7 +419,7 @@ export default function InvoiceView() {
                         <FileText className="w-4 h-4 text-sky-500" />
                         Payment History
                         {paymentsQuery.data && paymentsQuery.data.length > 0 && (
-                          <span className="ml-auto text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">
+                          <span className="ml-auto text-xs bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">
                             {paymentsQuery.data.filter(p => p.status === 'paid').length}
                           </span>
                         )}
@@ -430,7 +430,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
                     onClick={() => {
                       setShowConvertMenu(!showConvertMenu);
                       setShowPrintMenu(false);
@@ -466,7 +466,7 @@ export default function InvoiceView() {
 
                 <div className="relative">
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
                     onClick={() => {
                       setShowPrintMenu(!showPrintMenu);
                       setShowConvertMenu(false);
@@ -533,7 +533,7 @@ export default function InvoiceView() {
                             >
                               <ChevronLeft className="w-4 h-4 text-zinc-500" />
                             </button>
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
+                            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
                           </div>
                           <div className="max-h-[300px] overflow-y-auto">
                             {templates.length === 0 ? (
@@ -564,7 +564,7 @@ export default function InvoiceView() {
 
                 {selectedInvoice.status === 'draft' && (
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-[13px] font-semibold"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-sm font-semibold"
                     onClick={handleDelete}
                   >
                     <Trash2 className="w-[14px] h-[14px]" />
@@ -575,7 +575,7 @@ export default function InvoiceView() {
 
               {/* Creator & Approver */}
               <div 
-                className="flex justify-between items-center text-[13px] text-zinc-500 px-8 border-y border-zinc-200"
+                className="flex justify-between items-center text-sm text-zinc-500 px-8 border-y border-zinc-200"
                 style={{ paddingTop: '14px', paddingBottom: '14px', marginBottom: '14px' }}
               >
                 <div>
@@ -601,29 +601,29 @@ export default function InvoiceView() {
                   {/* General Information Card */}
                   <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
                     <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
-                      <h3 className="text-[13px] font-bold text-zinc-700 uppercase tracking-widest">General Information</h3>
+                      <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-widest">General Information</h3>
                     </div>
                     <div className="py-10 px-12 flex-1" style={{ paddingLeft: '40px', paddingRight: '40px' }}>
                       <dl className="space-y-6">
                         <div className="flex justify-between items-center border-b border-zinc-50 pb-4">
-                          <dt className="text-[13px] text-zinc-500 font-medium">Invoice No</dt>
-                          <dd className="text-[13px] font-bold text-zinc-900">{selectedInvoice.invoice_no || '-'}</dd>
+                          <dt className="text-sm text-zinc-500 font-medium">Invoice No</dt>
+                          <dd className="text-sm font-bold text-zinc-900">{selectedInvoice.invoice_no || '-'}</dd>
                         </div>
                         <div className="flex justify-between items-center border-b border-zinc-50 pb-4">
-                          <dt className="text-[13px] text-zinc-500 font-medium">Invoice Date</dt>
-                          <dd className="text-[13px] font-bold text-zinc-900">{formatDate(selectedInvoice.created_at)}</dd>
+                          <dt className="text-sm text-zinc-500 font-medium">Invoice Date</dt>
+                          <dd className="text-sm font-bold text-zinc-900">{formatDate(selectedInvoice.created_at)}</dd>
                         </div>
                         <div className="flex justify-between items-center border-b border-zinc-50 pb-4">
-                          <dt className="text-[13px] text-zinc-500 font-medium">PO No</dt>
-                          <dd className="text-[13px] font-bold text-zinc-900">{selectedInvoice.po_number || '-'}</dd>
+                          <dt className="text-sm text-zinc-500 font-medium">PO No</dt>
+                          <dd className="text-sm font-bold text-zinc-900">{selectedInvoice.po_number || '-'}</dd>
                         </div>
                         <div className="flex justify-between items-center border-b border-zinc-50 pb-4">
-                          <dt className="text-[13px] text-zinc-500 font-medium">PO Date</dt>
-                          <dd className="text-[13px] font-bold text-zinc-900">{selectedInvoice.po_date ? formatDate(selectedInvoice.po_date) : '-'}</dd>
+                          <dt className="text-sm text-zinc-500 font-medium">PO Date</dt>
+                          <dd className="text-sm font-bold text-zinc-900">{selectedInvoice.po_date ? formatDate(selectedInvoice.po_date) : '-'}</dd>
                         </div>
                         <div className="flex justify-between items-start pt-2">
-                          <dt className="text-[13px] text-zinc-500 font-medium">Remarks</dt>
-                          <dd className="text-[13px] font-semibold text-zinc-900 text-right max-w-[200px] leading-relaxed" title={selectedInvoice.remarks}>{selectedInvoice.remarks || '-'}</dd>
+                          <dt className="text-sm text-zinc-500 font-medium">Remarks</dt>
+                          <dd className="text-sm font-semibold text-zinc-900 text-right max-w-[200px] leading-relaxed" title={selectedInvoice.remarks}>{selectedInvoice.remarks || '-'}</dd>
                         </div>
                       </dl>
                     </div>
@@ -632,26 +632,26 @@ export default function InvoiceView() {
                   {/* Bill To Card */}
                   <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
                     <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
-                      <h3 className="text-[13px] font-bold text-zinc-700 uppercase tracking-widest">Billing Details</h3>
+                      <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Billing Details</h3>
                     </div>
                     <div className="py-10 px-12 flex-1" style={{ paddingLeft: '40px', paddingRight: '40px' }}>
                       <div className="space-y-8">
                         <div>
-                          <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Client Entity</dt>
+                          <dt className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Client Entity</dt>
                           <dd className="text-base font-bold text-zinc-900">{selectedInvoice.client?.name || selectedInvoice.client?.client_name || 'Unknown'}</dd>
                         </div>
                         
                         <div className="grid grid-cols-1 gap-6">
                           {(selectedInvoice.client as any)?.gstin && (
                             <div>
-                              <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">GSTIN</dt>
-                              <dd className="text-[13px] font-semibold text-zinc-700">{(selectedInvoice.client as any).gstin}</dd>
+                              <dt className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">GSTIN</dt>
+                              <dd className="text-sm font-semibold text-zinc-700">{(selectedInvoice.client as any).gstin}</dd>
                             </div>
                           )}
                           {(selectedInvoice.billing_address || (selectedInvoice.client as any)?.address || (selectedInvoice.client as any)?.billing_address) && (
                             <div>
-                              <dt className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Billing Address</dt>
-                              <dd className="text-[13px] text-zinc-600 leading-relaxed whitespace-pre-line pr-4">{selectedInvoice.billing_address || (selectedInvoice.client as any)?.address || (selectedInvoice.client as any)?.billing_address}</dd>
+                              <dt className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Billing Address</dt>
+                              <dd className="text-sm text-zinc-600 leading-relaxed whitespace-pre-line pr-4">{selectedInvoice.billing_address || (selectedInvoice.client as any)?.address || (selectedInvoice.client as any)?.billing_address}</dd>
                             </div>
                           )}
                         </div>
@@ -663,8 +663,8 @@ export default function InvoiceView() {
                 {/* Items Table Card */}
                 <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-100 flex justify-between items-center">
-                    <h3 className="text-[13px] font-bold text-zinc-700 uppercase tracking-widest">Line Items</h3>
-                    <span className="text-[11px] font-bold text-zinc-400 px-3 py-1 bg-white border border-zinc-100 rounded-full">
+                    <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Line Items</h3>
+                    <span className="text-xs font-bold text-zinc-400 px-3 py-1 bg-white border border-zinc-100 rounded-full">
                       {selectedInvoice.items?.length || 0} items
                     </span>
                   </div>
@@ -688,31 +688,31 @@ export default function InvoiceView() {
                                 return (
                                   <>
                                     {optCols.sno !== false && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left w-12">#</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left w-12">#</th>
                                     )}
                                     {hasHSN && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">HSN/SAC</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left">HSN/SAC</th>
                                     )}
                                     {hasItemCode && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Part No</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left">Part No</th>
                                     )}
                                     {hasMake && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Make</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left">Make</th>
                                     )}
-                                    <th className="px-8 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Description</th>
+                                    <th className="px-8 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left">Description</th>
                                     {hasVariant && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left">Variant</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left">Variant</th>
                                     )}
-                                    <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Qty</th>
-                                    <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-left w-20">Unit</th>
-                                    <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-40">Rate</th>
+                                    <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Qty</th>
+                                    <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-left w-20">Unit</th>
+                                    <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-right w-40">Rate</th>
                                     {hasDiscount && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Disc %</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Disc %</th>
                                     )}
                                     {hasTax && (
-                                      <th className="px-6 py-4 border-r border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Tax %</th>
+                                      <th className="px-6 py-4 border-r border-zinc-200 text-xs font-bold text-zinc-400 uppercase tracking-widest text-right w-24">Tax %</th>
                                     )}
-                                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right w-48">Amount</th>
+                                    <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-widest text-right w-48">Amount</th>
                                   </>
                                 );
                               })()}
@@ -735,36 +735,36 @@ export default function InvoiceView() {
                                   className={`transition-colors align-top ${index % 2 === 1 ? 'bg-zinc-100/30' : 'bg-white'} hover:bg-sky-50/40`}
                                 >
                                   {optCols.sno !== false && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[12px] text-zinc-400 font-medium text-left">{String(index + 1).padStart(2, '0')}</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-xs text-zinc-400 font-medium text-left">{String(index + 1).padStart(2, '0')}</td>
                                   )}
                                   {hasHSN && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 font-inter text-left">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-xs text-zinc-500 font-inter text-left">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>
                                   )}
                                   {hasItemCode && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 text-left">{item.item?.item_code || item.item_code || '-'}</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-xs text-zinc-500 text-left">{item.item?.item_code || item.item_code || '-'}</td>
                                   )}
                                   {hasMake && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 text-left">{item.make || '-'}</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-xs text-zinc-500 text-left">{item.make || '-'}</td>
                                   )}
                                   <td className="px-8 py-4 border-r border-zinc-100 text-left">
-                                    <div className="text-[13px] font-bold text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || item.description || '-'}</div>
+                                    <div className="text-sm font-bold text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || item.description || '-'}</div>
                                     {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
-                                      <div className="text-[12px] text-zinc-500 leading-relaxed mt-1.5">{item.description}</div>
+                                      <div className="text-xs text-zinc-500 leading-relaxed mt-1.5">{item.description}</div>
                                     )}
                                   </td>
                                   {hasVariant && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-500 text-left">{item.variant_name || item.variant?.variant_name || '-'}</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-xs text-zinc-500 text-left">{item.variant_name || item.variant?.variant_name || '-'}</td>
                                   )}
-                                  <td className="px-6 py-4 border-r border-zinc-100 text-[14px] text-zinc-900 text-right font-bold">{item.qty}</td>
-                                  <td className="px-6 py-4 border-r border-zinc-100 text-[11px] text-zinc-400 uppercase font-medium text-left">{item.uom || item.unit || 'Nos'}</td>
-                                  <td className="px-6 py-4 border-r border-zinc-100 text-[13px] text-zinc-900 text-right font-medium">{formatCurrency(item.rate)}</td>
+                                  <td className="px-6 py-4 border-r border-zinc-100 text-sm text-zinc-900 text-right font-bold">{item.qty}</td>
+                                  <td className="px-6 py-4 border-r border-zinc-100 text-xs text-zinc-400 uppercase font-medium text-left">{item.uom || item.unit || 'Nos'}</td>
+                                  <td className="px-6 py-4 border-r border-zinc-100 text-sm text-zinc-900 text-right font-medium">{formatCurrency(item.rate)}</td>
                                   {hasDiscount && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[13px] text-red-500 text-right font-medium">{item.discount_percent}%</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-sm text-red-500 text-right font-medium">{item.discount_percent}%</td>
                                   )}
                                   {hasTax && (
-                                    <td className="px-6 py-4 border-r border-zinc-100 text-[13px] text-zinc-600 text-right font-medium">{item.tax_percent}%</td>
+                                    <td className="px-6 py-4 border-r border-zinc-100 text-sm text-zinc-600 text-right font-medium">{item.tax_percent}%</td>
                                   )}
-                                  <td className="px-8 py-4 bg-zinc-50/10 text-[14px] font-bold text-zinc-900 text-right">{formatCurrency(item.amount || item.line_total)}</td>
+                                  <td className="px-8 py-4 bg-zinc-50/10 text-sm font-bold text-zinc-900 text-right">{formatCurrency(item.amount || item.line_total)}</td>
                                 </tr>
                                );
                             })}
@@ -782,24 +782,24 @@ export default function InvoiceView() {
                   <div className="bg-zinc-50/50 p-10 border-t border-zinc-100">
                     <div className="flex flex-col items-end space-y-4">
                       <div className="w-full max-w-[320px]">
-                        <div className="flex justify-between py-2.5 text-[14px] border-b border-zinc-100">
+                        <div className="flex justify-between py-2.5 text-sm border-b border-zinc-100">
                           <span className="text-zinc-500 font-medium">Sub-total</span>
                           <span className="font-bold text-zinc-900">{formatCurrency(selectedInvoice.subtotal)}</span>
                         </div>
                         {selectedInvoice.cgst > 0 && (
-                          <div className="flex justify-between py-2.5 text-[14px] border-b border-zinc-100">
+                          <div className="flex justify-between py-2.5 text-sm border-b border-zinc-100">
                             <span className="text-zinc-500 font-medium">CGST</span>
                             <span className="font-medium text-zinc-700">{formatCurrency(selectedInvoice.cgst)}</span>
                           </div>
                         )}
                         {selectedInvoice.sgst > 0 && (
-                          <div className="flex justify-between py-2.5 text-[14px] border-b border-zinc-100">
+                          <div className="flex justify-between py-2.5 text-sm border-b border-zinc-100">
                             <span className="text-zinc-500 font-medium">SGST</span>
                             <span className="font-medium text-zinc-700">{formatCurrency(selectedInvoice.sgst)}</span>
                           </div>
                         )}
                         {selectedInvoice.igst > 0 && (
-                          <div className="flex justify-between py-2.5 text-[14px] border-b border-zinc-100">
+                          <div className="flex justify-between py-2.5 text-sm border-b border-zinc-100">
                             <span className="text-zinc-500 font-medium">IGST</span>
                             <span className="font-medium text-zinc-700">{formatCurrency(selectedInvoice.igst)}</span>
                           </div>
@@ -821,7 +821,7 @@ export default function InvoiceView() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                   {/* Submission Status Column */}
                   <div className="space-y-4">
-                    <h4 className="text-[13px] font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Submission Tracking</h4>
+                    <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Submission Tracking</h4>
                     {selectedInvoice.submitted_date ? (
                       <div className="bg-white border border-zinc-100 py-5 px-[30px] rounded-xl shadow-sm space-y-3 relative group">
                         <button 
@@ -838,7 +838,7 @@ export default function InvoiceView() {
                           <CheckCircle2 size={18} className="text-emerald-500" />
                           <span className="text-sm font-semibold">Submitted to Client</span>
                         </div>
-                        <div className="text-[13px] text-zinc-500 pl-7 leading-relaxed">
+                        <div className="text-sm text-zinc-500 pl-7 leading-relaxed">
                           By <span className="font-medium text-zinc-800">{selectedInvoice.submitted_by}</span> on {formatDate(selectedInvoice.submitted_date)}
                         </div>
                         {selectedInvoice.submitted_file_url && (
@@ -856,7 +856,7 @@ export default function InvoiceView() {
                       </div>
                     ) : (
                       <div className="bg-zinc-50 border border-dashed border-zinc-200 p-5 rounded-xl text-center">
-                        <div className="text-[13px] text-zinc-400 mb-3" style={{ paddingTop: '10px', paddingBottom: '10px' }}>No submission record found</div>
+                        <div className="text-sm text-zinc-400 mb-3" style={{ paddingTop: '10px', paddingBottom: '10px' }}>No submission record found</div>
                         <button 
                           onClick={() => {
                             setSelectedInvoiceForSubmission(selectedInvoice);
@@ -873,17 +873,17 @@ export default function InvoiceView() {
 
                   {/* Payment Progress Column */}
                   <div className="space-y-4" style={{ marginLeft: '6px' }}>
-                    <h4 className="text-[13px] font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Payment Settlement</h4>
+                    <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Payment Settlement</h4>
                     
                     <div className="bg-white border border-zinc-100 py-6 px-[44px] rounded-xl shadow-sm">
                       {/* Financial Bar */}
                       <div className="flex justify-between items-end mb-4">
                         <div>
-                          <div className="text-[11px] text-zinc-400 uppercase font-bold tracking-tight" style={{ paddingTop: '10px', paddingBottom: '10px', marginLeft: '10px' }}>Settled Amount</div>
+                          <div className="text-xs text-zinc-400 uppercase font-bold tracking-tight" style={{ paddingTop: '10px', paddingBottom: '10px', marginLeft: '10px' }}>Settled Amount</div>
                           <div className="text-xl font-bold text-zinc-900">{formatCurrency(totalPaid)}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-[11px] text-zinc-400 uppercase font-bold tracking-tight" style={{ paddingTop: '10px', paddingBottom: '10px', marginLeft: '10px' }}>Outstanding Balance</div>
+                          <div className="text-xs text-zinc-400 uppercase font-bold tracking-tight" style={{ paddingTop: '10px', paddingBottom: '10px', marginLeft: '10px' }}>Outstanding Balance</div>
                           <div className={`text-xl font-bold ${balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                             {formatCurrency(balanceDue)}
                           </div>
@@ -903,13 +903,13 @@ export default function InvoiceView() {
                         <div className="space-y-3">
                           <div className="text-xs font-bold text-zinc-500" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Recent Receipts</div>
                           {paymentsQuery.data.slice(0, 3).map((p: any) => (
-                            <div key={p.id} className="flex justify-between items-center py-2 px-3 bg-zinc-50 rounded-lg text-[13px]">
+                            <div key={p.id} className="flex justify-between items-center py-2 px-3 bg-zinc-50 rounded-lg text-sm">
                               <div className="flex items-center gap-3">
                                 <span className="font-medium text-zinc-700">{p.receipt_no}</span>
                                 <span className="text-zinc-300">|</span>
                                 <span className="text-zinc-500">{formatDate(p.receipt_date)}</span>
                                 {p.payment_mode && (
-                                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-zinc-200 text-zinc-600 rounded">
+                                  <span className="text-xs uppercase font-bold px-1.5 py-0.5 bg-zinc-200 text-zinc-600 rounded">
                                     {p.payment_mode.replace('_', ' ')}
                                   </span>
                                 )}
@@ -926,7 +926,7 @@ export default function InvoiceView() {
                         </div>
                       ) : (
                         <div className="flex flex-col items-center py-4">
-                          <div className="text-[13px] text-zinc-500 mb-4">No payments have been recorded for this invoice yet.</div>
+                          <div className="text-sm text-zinc-500 mb-4">No payments have been recorded for this invoice yet.</div>
                           <button 
                             onClick={() => setRecordPaymentOpen(true)}
                             className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-emerald-700 transition-all shadow-sm active:scale-[0.95]"

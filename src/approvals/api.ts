@@ -359,9 +359,23 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
+      // Fetch approver names from user_profiles
+      const approverIds = [...new Set((actions || []).map(a => a.approver_id).filter(Boolean))];
+      const { data: profiles } = approverIds.length > 0
+        ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', approverIds)
+        : { data: [] };
+
+      const actionsWithApprovers = (actions || []).map(action => {
+        const profile = profiles?.find(p => p.user_id === action.approver_id);
+        return {
+          ...action,
+          approver: profile ? { name: profile.full_name } : undefined
+        };
+      });
+
       return {
         success: true,
-        data: actions || [],
+        data: actionsWithApprovers,
         meta: { timestamp: new Date().toISOString() }
       };
 

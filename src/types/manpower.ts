@@ -2,7 +2,9 @@
 // MANPOWER-BASED SUBCONTRACTOR SYSTEM TYPES
 // ============================================
 
-export type WorkUnitType = 'PROJECT' | 'ALTERATION' | 'AMC' | 'WORK_ORDER';
+export type WorkUnitType = 'PROJECT' | 'ALTERATION' | 'AMC' | 'WORK_ORDER' | 'GENERAL';
+
+export type AttendanceSource = 'direct' | 'site_report';
 
 export type RateUnit = 'day' | 'hour' | 'piece';
 
@@ -40,102 +42,6 @@ export interface LabourCategory {
   updated_at: string;
 }
 
-export interface CreateLabourCategoryInput {
-  organisation_id: string;
-  name: string;
-  code?: string;
-  description?: string;
-  base_rate: number;
-  unit?: RateUnit;
-}
-
-export interface UpdateLabourCategoryInput {
-  id: string;
-  name?: string;
-  code?: string;
-  description?: string;
-  base_rate?: number;
-  unit?: RateUnit;
-  is_active?: boolean;
-}
-
-// ============================================
-// RATE CARD
-// ============================================
-export interface RateCard {
-  id: string;
-  organisation_id: string;
-  subcontractor_id: string;
-  work_unit_id: string | null;
-  labour_category_id: string;
-  base_rate: number;
-  negotiated_rate: number;
-  effective_from: string;
-  effective_to: string | null;
-  is_active: boolean;
-  remarks: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateRateCardInput {
-  organisation_id: string;
-  subcontractor_id: string;
-  work_unit_id?: string;
-  labour_category_id: string;
-  base_rate: number;
-  negotiated_rate: number;
-  effective_from: string;
-  effective_to?: string;
-  remarks?: string;
-}
-
-export interface UpdateRateCardInput {
-  id: string;
-  negotiated_rate?: number;
-  effective_to?: string;
-  is_active?: boolean;
-  remarks?: string;
-}
-
-// ============================================
-// CONTEXT MODIFIER
-// ============================================
-export interface ContextModifier {
-  id: string;
-  organisation_id: string;
-  name: string;
-  code: string | null;
-  modifier_type: ModifierType;
-  multiplier: number;
-  is_percentage: boolean;
-  description: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateContextModifierInput {
-  organisation_id: string;
-  name: string;
-  code?: string;
-  modifier_type: ModifierType;
-  multiplier: number;
-  is_percentage?: boolean;
-  description?: string;
-}
-
-export interface UpdateContextModifierInput {
-  id: string;
-  name?: string;
-  code?: string;
-  modifier_type?: ModifierType;
-  multiplier?: number;
-  is_percentage?: boolean;
-  description?: string;
-  is_active?: boolean;
-}
-
 // ============================================
 // MANPOWER ATTENDANCE
 // ============================================
@@ -159,6 +65,8 @@ export interface ManpowerAttendance {
   approved_by: string | null;
   approved_at: string | null;
   status: AttendanceStatus;
+  source: AttendanceSource | null;
+  source_report_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -179,6 +87,8 @@ export interface CreateManpowerAttendanceInput {
   original_amount: number;
   adjusted_amount: number;
   remarks?: string;
+  source?: AttendanceSource;
+  source_report_id?: string;
 }
 
 export interface UpdateManpowerAttendanceInput {
