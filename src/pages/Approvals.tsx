@@ -220,6 +220,63 @@ const Approvals: React.FC = () => {
     return () => clearInterval(interval);
   }, [orgId, queryClient]);
 
+  useEffect(() => {
+    if (!orgId) return;
+
+    let timerApprovals: NodeJS.Timeout;
+    let timerPayments: NodeJS.Timeout;
+
+    const invalidateApprovals = () => {
+      clearTimeout(timerApprovals);
+      timerApprovals = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['approvals', 'list', orgId] });
+        setLastRefresh(new Date());
+      }, 500);
+    };
+
+    const invalidatePayments = () => {
+      clearTimeout(timerPayments);
+      timerPayments = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'approval', 'pending', orgId] });
+        setLastRefresh(new Date());
+      }, 500);
+    };
+
+    const channel = supabase
+      .channel(`approvals-realtime-${orgId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'approvals',
+          filter: `organisation_id=eq.${orgId}`,
+        },
+        () => {
+          invalidateApprovals();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'purchase_payments',
+          filter: `organisation_id=eq.${orgId}`,
+        },
+        () => {
+          invalidatePayments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearTimeout(timerApprovals);
+      clearTimeout(timerPayments);
+    };
+  }, [orgId, queryClient]);
+
   const fetchApprovalHistory = async (approval: Approval) => {
     try {
       setHistoryLoading(true);
