@@ -351,10 +351,7 @@ export class ApprovalAPI {
     try {
       const { data: actions, error } = await supabase
         .from('approval_actions')
-        .select(`
-          *,
-          approver:users(name, email)
-        `)
+        .select(`*`)
         .eq('approval_id', approvalId)
         .order('action_at', { ascending: true });
 
