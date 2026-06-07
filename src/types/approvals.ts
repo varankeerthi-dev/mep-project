@@ -17,7 +17,8 @@ export type ApprovalStatus =
   | 'APPROVED'
   | 'REJECTED'
   | 'HOLD'
-  | 'FORWARDED';
+  | 'FORWARDED'
+  | 'RETURNED';
 
 export type ApprovalPriority = 
   | 'LOW'
@@ -30,7 +31,9 @@ export type ApprovalAction =
   | 'REJECTED'
   | 'HOLD'
   | 'FORWARDED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'RETURNED'
+  | 'RESUBMITTED';
 
 export type NotificationType = 
   | 'EMAIL'
@@ -269,7 +272,8 @@ export const APPROVAL_STATUS_CONFIG = {
   APPROVED: { label: 'Approved', color: '#10B981', bgColor: '#D1FAE5' },
   REJECTED: { label: 'Rejected', color: '#EF4444', bgColor: '#FEE2E2' },
   HOLD: { label: 'On Hold', color: '#F59E0B', bgColor: '#FEF3C7' },
-  FORWARDED: { label: 'Forwarded', color: '#8B5CF6', bgColor: '#EDE9FE' }
+  FORWARDED: { label: 'Forwarded', color: '#8B5CF6', bgColor: '#EDE9FE' },
+  RETURNED: { label: 'Returned', color: '#F97316', bgColor: '#FFEDD5' }
 };
 
 export const APPROVAL_PRIORITY_CONFIG = {

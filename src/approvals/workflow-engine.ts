@@ -86,6 +86,10 @@ export class ApprovalWorkflowEngine {
           }
           break;
 
+        case 'RETURNED':
+          newStatus = 'RETURNED';
+          break;
+
         default:
           return { success: false, message: 'Invalid action' };
       }

@@ -131,6 +131,47 @@ export class ApprovalNotificationService {
   }
 
   /**
+   * Send return notification to the original requester (E4)
+   */
+  static async sendReturnNotification(
+    approvalId: string,
+    returnReason?: string
+  ): Promise<void> {
+    try {
+      const { data: approval } = await supabase
+        .from('approvals')
+        .select(`
+          *,
+          requester:users(name, email)
+        `)
+        .eq('id', approvalId)
+        .single();
+
+      if (!approval || !approval.requester) return;
+
+      await this.createNotification(approvalId, approval.requested_by, 'IN_APP');
+
+      const emailData = {
+        to: approval.requester.email,
+        subject: `Returned: ${approval.title}`,
+        template: 'approval-returned',
+        data: {
+          requesterName: approval.requester.name,
+          approvalTitle: approval.title,
+          approvalType: approval.approval_type,
+          amount: approval.amount,
+          reason: returnReason || 'Changes requested by approver',
+          approvalUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/approvals?id=${approval.id}`
+        }
+      };
+
+      console.log('Return notification sent:', emailData);
+    } catch (error) {
+      console.error('Error sending return notification:', error);
+    }
+  }
+
+  /**
    * Send approval status change notifications
    */
   static async sendStatusChangeNotification(

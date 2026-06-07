@@ -1,4 +1,5 @@
 import { supabase, currentOrgId } from '../lib/supabase';
+import { ApprovalNotificationService } from './notifications';
 import {
   Approval,
   ApprovalRequest,
@@ -301,6 +302,10 @@ export class ApprovalAPI {
 
       if (newStatus === 'APPROVED') {
         await this.triggerPostApprovalActions(approval, action.amount_approved);
+      }
+
+      if (action.action === 'RETURNED') {
+        await ApprovalNotificationService.sendReturnNotification(approvalId, action.comments);
       }
 
       // Log to follow_up_activity_log

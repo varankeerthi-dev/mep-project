@@ -1,9 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { X, CheckCircle2, XCircle } from 'lucide-react';
+import { X, CheckCircle2, XCircle, ArrowLeft, MessageSquare } from 'lucide-react';
 import { ApprovalRow, ApprovalActionLog } from '../types/approvals';
+
+const RETURN_REASONS = [
+  { value: 'fix_amount', label: 'Fix amount' },
+  { value: 'missing_attachment', label: 'Missing attachment' },
+  { value: 'wrong_project', label: 'Wrong project/client' },
+  { value: 'incomplete_details', label: 'Incomplete details' },
+  { value: 'other', label: 'Other' },
+];
 
 interface ApprovalDetailsSidebarProps {
   showDetails: boolean;
@@ -25,7 +33,9 @@ interface ApprovalDetailsSidebarProps {
   setAmountApproved: (amount: number | '') => void;
   handleProcessAction: (action: string, amount?: number) => void;
   handleProcessReviewAction: (action: string) => void;
+  handleResubmitApproval?: () => void;
   user: any;
+  isRequester?: boolean;
   SCORE_COLORS: Record<string, string>;
   TYPE_COLORS: Record<string, string>;
   TYPE_LABEL: Record<string, string>;
@@ -79,7 +89,9 @@ export function ApprovalDetailsSidebar({
   setAmountApproved,
   handleProcessAction,
   handleProcessReviewAction,
+  handleResubmitApproval,
   user,
+  isRequester,
   SCORE_COLORS,
   TYPE_COLORS,
   TYPE_LABEL,
@@ -87,6 +99,8 @@ export function ApprovalDetailsSidebar({
   formatAmount,
   formatDate,
 }: ApprovalDetailsSidebarProps) {
+  const [returnReasons, setReturnReasons] = useState<string[]>([]);
+  const [returnOtherText, setReturnOtherText] = useState('');
   if (!selectedApproval) return null;
 
   return (
@@ -146,6 +160,21 @@ export function ApprovalDetailsSidebar({
                 <Detail label="Project" value={selectedApproval.projectName || '-'} />
                 <Detail label="Reference" value={selectedApproval.referenceNumber || '-'} />
               </div>
+
+              {/* Return reason banner (E1) */}
+              {selectedApproval.status === 'RETURNED' && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex gap-3 items-start">
+                  <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <MessageSquare className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-orange-800">Returned for changes</p>
+                    <p className="text-sm text-orange-700 mt-1">
+                      This request was returned by the approver with a request for changes. Review the comments in the History tab, make your edits, then resubmit.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Financial breakdown */}
               {detailsMap[selectedApproval.id] && (
@@ -269,17 +298,51 @@ export function ApprovalDetailsSidebar({
                 <p className="text-xs font-medium text-zinc-600">
                   {actionMode === 'reject' ? 'State the reason so the requester can fix and resubmit.' : 
                    actionMode === 'hold' ? 'Provide a reason for putting this on hold.' : 
-                   'Enter your query/reason for returning this request.'}
+                   'Select reason(s) for returning this request.'}
                 </p>
-                <div className="flex items-center gap-3">
+
+                {/* E3: Structured return reasons */}
+                {actionMode === 'return' ? (
+                  <div className="space-y-2">
+                    {RETURN_REASONS.map((r) => (
+                      <label key={r.value} className="flex items-center gap-2.5 py-1.5 px-3 rounded-lg border border-zinc-200 cursor-pointer hover:bg-zinc-50 transition-colors has-[:checked]:bg-orange-50 has-[:checked]:border-orange-300">
+                        <input
+                          type="checkbox"
+                          checked={returnReasons.includes(r.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReturnReasons([...returnReasons, r.value]);
+                            } else {
+                              setReturnReasons(returnReasons.filter((v) => v !== r.value));
+                            }
+                          }}
+                          className="accent-orange-600 w-4 h-4"
+                        />
+                        <span className="text-sm text-zinc-700">{r.label}</span>
+                      </label>
+                    ))}
+                    {returnReasons.includes('other') && (
+                      <Input
+                        autoFocus
+                        value={returnOtherText}
+                        onChange={(e) => setReturnOtherText(e.target.value)}
+                        placeholder="Describe the changes needed..."
+                        className="h-10 text-sm"
+                      />
+                    )}
+                  </div>
+                ) : (
                   <Input
                     autoFocus
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
-                    placeholder={`Reason for ${actionMode === 'reject' ? 'rejection' : actionMode === 'hold' ? 'hold' : 'return'}`}
+                    placeholder={`Reason for ${actionMode}`}
                     className="h-10 text-sm flex-1"
                   />
-                  <Button variant="outline" onClick={() => { setActionMode('none'); setActionReason(''); }}>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={() => { setActionMode('none'); setActionReason(''); setReturnReasons([]); setReturnOtherText(''); }}>
                     Cancel
                   </Button>
                   <Button
@@ -290,10 +353,13 @@ export function ApprovalDetailsSidebar({
                       } else if (actionMode === 'hold') {
                         handleProcessAction('HOLD');
                       } else if (actionMode === 'return') {
+                        const reasonParts = [...returnReasons.filter((v) => v !== 'other')];
+                        if (returnOtherText.trim()) reasonParts.push(returnOtherText.trim());
+                        setActionReason(reasonParts.join(', '));
                         handleProcessAction('RETURNED');
                       }
                     }}
-                    disabled={!actionReason.trim()}
+                    disabled={actionMode === 'return' ? returnReasons.length === 0 : !actionReason.trim()}
                   >
                     Confirm
                   </Button>
@@ -379,6 +445,32 @@ export function ApprovalDetailsSidebar({
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Phase 2: Edit & Resubmit footer for returned items where user is the creator */}
+        {selectedApproval.status === 'RETURNED' && isRequester && (
+          <div className="border-t border-zinc-200 bg-white p-5 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-zinc-600">
+                The approver has requested changes. After editing the original document, resubmit for approval.
+              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => window.open(`/${selectedApproval.referenceType}/${selectedApproval.referenceId}`, '_blank')}
+                >
+                  Edit Document
+                </Button>
+                <Button
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-medium"
+                  onClick={() => handleResubmitApproval?.()}
+                >
+                  Resubmit
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </DialogContent>

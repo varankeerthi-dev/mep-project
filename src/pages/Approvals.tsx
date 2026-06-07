@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrgApprovalSettings, useOrgApprovalWorkflows, useApprovalsForUser } from '@/hooks/useApprovals';
 import { usePaymentsForApproval, useApprovePayment } from '../modules/Purchase/hooks/usePurchaseQueries';
-import { ApprovalAPI } from '@/approvals/api';
+import { ApprovalAPI, ApprovalExtensions } from '@/approvals/api';
 import { toast } from '@/lib/logger';
 import { APPROVAL_TYPES } from '@/types/approvals';
 import { useQueryClient } from '@tanstack/react-query';
@@ -34,6 +34,7 @@ type ApprovalRow = {
   status: string;
   priority?: string;
   requestedAt: string;
+  requestedBy?: string;
   nextStep?: string;
   requesterName?: string | null;
   requesterRole?: string | null;
@@ -63,6 +64,7 @@ const SCORE_COLORS: Record<string, string> = {
   REJECTED: 'bg-red-100 text-red-700 border-red-200',
   HOLD: 'bg-orange-100 text-orange-700 border-orange-200',
   FORWARDED: 'bg-purple-100 text-purple-700 border-purple-200',
+  RETURNED: 'bg-orange-100 text-orange-700 border-orange-200',
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -608,6 +610,23 @@ const Approvals: React.FC = () => {
     }
   };
 
+  const handleResubmitApproval = async () => {
+    if (!selectedApproval) return;
+    try {
+      const res = await ApprovalExtensions.resubmitApproval(selectedApproval.id);
+      if (!res.success) {
+        toast.error(res.error?.message ?? 'Resubmission failed');
+        return;
+      }
+      toast.success('Resubmitted for approval');
+      setRemovedIds(prev => new Set(prev).add(selectedApproval.id));
+      setShowDetails(false);
+      queryClient.invalidateQueries({ queryKey: ['approvals', 'list'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Resubmission failed');
+    }
+  };
+
   // —————— Quick actions (inline) ——————
 
   const [selectedRows, setSelectedRows] = useState<ApprovalRow[]>([]);
@@ -1002,7 +1021,9 @@ const Approvals: React.FC = () => {
         setAmountApproved={setAmountApproved}
         handleProcessAction={handleProcessAction}
         handleProcessReviewAction={handleProcessReviewAction}
+        handleResubmitApproval={handleResubmitApproval}
         user={user}
+        isRequester={selectedApproval?.requestedBy === user?.id}
         SCORE_COLORS={SCORE_COLORS}
         TYPE_COLORS={TYPE_COLORS}
         TYPE_LABEL={TYPE_LABEL}
@@ -1136,6 +1157,7 @@ function normalize(items: any[]): ApprovalRow[] {
       status: item.status || 'PENDING',
       priority: item.priority || 'NORMAL',
       requestedAt: item.requestedAt || item.requested_at || item.created_at,
+      requestedBy: item.requestedBy ?? item.requested_by ?? null,
       requesterName: item.requesterName ?? item.requester_name ?? null,
       requesterRole: item.requesterRole ?? item.requester_role ?? null,
       projectName: item.projectName ?? item.project_name ?? null,
@@ -1167,6 +1189,7 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     status: item.status || 'PENDING',
     priority: item.priority || 'NORMAL',
     requestedAt: item.requested_at || item.created_at,
+    requestedBy: item.requested_by ?? null,
     requesterName: item.requester_name ?? null,
     requesterRole: item.requester_role ?? null,
     projectName: item.project_name ?? null,
