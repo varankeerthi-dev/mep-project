@@ -540,19 +540,45 @@ export class ApprovalIntegration {
       const organisationId = await currentOrgId(user.id);
       if (!organisationId) return false;
 
-      const typesToCheck = [approvalType];
+      // 1. Check if the setting is explicitly configured in approval_settings table
+      const { data: setting } = await supabase
+        .from('approval_settings')
+        .select('setting_value')
+        .eq('setting_key', approvalType)
+        .eq('organisation_id', organisationId)
+        .maybeSingle();
 
+      // If settings are configured and it is explicitly disabled, no approval is required
+      if (setting && setting.setting_value === 'false') {
+        return false;
+      }
+
+      // 2. Fetch active workflows for this approval type
       const { data: workflows } = await supabase
         .from('approval_workflows')
-        .select('id')
-        .in('approval_type', typesToCheck)
-        .lte('min_amount', amount)
-        .or(`max_amount.is.null,max_amount.gte.${amount}`)
+        .select('id, min_amount, max_amount')
+        .eq('approval_type', approvalType)
         .eq('is_active', true)
-        .eq('organisation_id', organisationId)
-        .limit(1);
+        .eq('organisation_id', organisationId);
 
-      return workflows && workflows.length > 0;
+      // If the setting is explicitly enabled, but no workflows exist,
+      // require approval by default (do not auto-approve).
+      if (setting && setting.setting_value === 'true' && (!workflows || workflows.length === 0)) {
+        return true;
+      }
+
+      // If workflows exist, check if the amount falls into any workflow range
+      if (workflows && workflows.length > 0) {
+        const hasMatching = workflows.some(w => {
+          const min = w.min_amount ?? 0;
+          const max = w.max_amount;
+          return amount >= min && (max === null || max === undefined || amount <= max);
+        });
+        return hasMatching;
+      }
+
+      // Fallback (legacy/default): If setting is not present, require approval if workflows exist and match the amount.
+      return false;
     } catch (error) {
       console.error('Error checking approval needed:', error);
       return false;
