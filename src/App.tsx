@@ -118,6 +118,7 @@ const ClientRequests = lazyAny(() => import('./pages/ClientRequests'));
 const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ default: m.SiteVisits })));
 const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
 const DailyReportWorkItemsPreview = lazyAny(() => import('./modules/DailyReport/pages/DailyReportWorkItemsPreview').then(m => ({ default: m.default })));
+const ProjectReportsRollup = lazyAny(() => import('./modules/DailyReport/pages/ProjectReportsRollup').then(m => ({ default: m.ProjectReportsRollup })));
 const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
 const Subcontractors = import('./pages/Subcontractors');
 const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDashboard })));
@@ -139,6 +140,7 @@ const StockBalance = lazyAny(() => Reports.then(m => ({ default: m.StockBalance 
 const StockReport = lazyAny(() => Reports.then(m => ({ default: m.StockReport })));
 const PurchaseReport = lazyAny(() => Reports.then(m => ({ default: m.PurchaseReport })));
 const SalesReport = lazyAny(() => Reports.then(m => ({ default: m.SalesReport })));
+const DailyReportSoak = lazyAny(() => Reports.then(m => ({ default: m.DailyReportSoak })));
 const ReportsDashboard = lazyAny(() => import('./pages/reports/ReportsDashboard'));
 const FinancialReports = lazyAny(() => import('./pages/reports/FinancialReports'));
 const ProjectReports = lazyAny(() => import('./pages/reports/ProjectReports'));
@@ -327,6 +329,7 @@ export default function App() {
       case '/quick-stock-check': return <QuickStockCheck />;
       // Reports
       case '/reports': return <ReportsDashboard />;
+      case '/reports/daily-report-soak': return <DailyReportSoak />;
       case '/reports/financial': return <FinancialReports />;
       case '/reports/projects': return <ProjectReports />;
       case '/reports/inventory': return <InventoryReports />;
@@ -394,6 +397,10 @@ export default function App() {
         if (pathKey.startsWith('/meetings/edit/')) {
           const meetingId = pathKey.split('/meetings/edit/')[1];
           return <CreateMeeting meetingId={meetingId} />;
+        }
+        if (pathKey.startsWith('/projects/') && pathKey.endsWith('/reports/rollup')) {
+          const projectId = pathKey.split('/projects/')[1].split('/reports/rollup')[0];
+          return <ProjectReportsRollup projectId={projectId} onBack={() => navigate(`/projects-overview?focus=${projectId}`)} />;
         }
         return <Dashboard onNavigate={navigate} />;
     }

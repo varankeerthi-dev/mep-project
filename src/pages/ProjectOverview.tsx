@@ -866,6 +866,18 @@ function ProjectCard({
         <ArrowTrendingUpIcon className="w-3 h-3" />
         {deadline.label}
       </div>
+
+      {/* Phase 4.2 — secondary "View rollup" link. Stops propagation
+          so it doesn't trigger the parent card's onClick (which
+          navigates to project edit). */}
+      <a
+        href={`/projects/${project.id}/reports/rollup`}
+        onClick={(e) => e.stopPropagation()}
+        className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 hover:underline"
+      >
+        <DocumentTextIcon className="h-3 w-3" />
+        Weekly rollup
+      </a>
     </button>
   );
 }
