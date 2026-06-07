@@ -20,7 +20,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION';
+type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'WORK_ORDER' | 'PURCHASE_ORDER';
 
 type WorkflowLevel = {
   id: string;
@@ -50,6 +50,14 @@ const MODULE_META: Record<ModuleKey, { label: string; description: string }> = {
   QUOTATION: {
     label: 'Quotations',
     description: 'Client quotations requiring approval',
+  },
+  WORK_ORDER: {
+    label: 'Work Orders',
+    description: 'Subcontractor work orders requiring approval',
+  },
+  PURCHASE_ORDER: {
+    label: 'Purchase Orders',
+    description: 'Purchase orders issued to vendors',
   },
 };
 
@@ -211,6 +219,8 @@ export const ApprovalSettings: React.FC = () => {
     SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
     PAYMENT_REQUEST: { enabled: false, levels: [] },
     QUOTATION: { enabled: false, levels: [] },
+    WORK_ORDER: { enabled: false, levels: [] },
+    PURCHASE_ORDER: { enabled: false, levels: [] },
   }));
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});

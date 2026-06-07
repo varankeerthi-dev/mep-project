@@ -37,7 +37,7 @@ export function useOrgApprovalWorkflows(orgId: string | undefined) {
 }
 
 type ApprovalSettingsForOrg = Record<
-  'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION',
+  'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'WORK_ORDER' | 'PURCHASE_ORDER',
   boolean
 >;
 
@@ -47,6 +47,8 @@ export function useOrgApprovalSettings(orgId: string | undefined) {
     SUBCONTRACTOR_PAYMENT: false,
     PAYMENT_REQUEST: false,
     QUOTATION: false,
+    WORK_ORDER: false,
+    PURCHASE_ORDER: false,
   });
   const [loading, setLoading] = useState(false);
 
@@ -77,6 +79,8 @@ export function useOrgApprovalSettings(orgId: string | undefined) {
         SUBCONTRACTOR_PAYMENT: false,
         PAYMENT_REQUEST: false,
         QUOTATION: false,
+        WORK_ORDER: false,
+        PURCHASE_ORDER: false,
       };
 
       const settingsRows = Array.isArray(rows) ? rows : [];
