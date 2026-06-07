@@ -599,7 +599,9 @@ const Approvals: React.FC = () => {
       }
 
       toast.success(`Action completed: ${action}`);
-      if (selectedApproval) setRemovedIds(prev => new Set(prev).add(selectedApproval.id));
+      if (selectedApproval && action !== 'RETURNED') {
+        setRemovedIds(prev => new Set(prev).add(selectedApproval.id));
+      }
       setShowDetails(false);
       setActionMode('none');
       setActionReason('');
