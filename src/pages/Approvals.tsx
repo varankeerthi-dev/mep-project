@@ -43,6 +43,10 @@ type ApprovalRow = {
   reviewStatus?: string | null;
   reviewedAt?: string | null;
   clientName?: string | null;
+  requiredDate?: string | null;
+  isResubmitted?: boolean;
+  resubmissionNotes?: string | null;
+  holdReason?: string | null;
 };
 
 type PaymentDetail = {
@@ -66,8 +70,8 @@ const TYPE_LABEL: Record<string, string> = {
   QUOTATION: 'Quotation',
   INVOICE: 'Invoice',
   PROFORMA_INVOICE: 'Proforma Invoice',
-  PAYMENT_REQUEST: 'Payment Request',
-  PURCHASE_PAYMENT: 'Vendor Payment',
+  PAYMENT_REQUEST: 'Vendor/Supplier payment',
+  PURCHASE_PAYMENT: 'Vendor/Supplier payment',
   SUBCONTRACTOR_PAYMENT: 'Subcontractor Payment',
   MATERIAL_DISPATCH: 'Material Dispatch',
   SITE_VISIT: 'Site Visit',
@@ -102,6 +106,18 @@ const EMPTY_STATES = {
     bg: '#fef3c7',
     title: 'Nothing pending',
     subtitle: 'No approvals pending from others right now.',
+  },
+  hold: {
+    icon: '✋',
+    bg: '#fee2e2',
+    title: 'Nothing on hold',
+    subtitle: 'No approvals are currently on hold.',
+  },
+  returned: {
+    icon: '↩',
+    bg: '#ffedd5',
+    title: 'No returned requests',
+    subtitle: 'No requests have been returned with queries.',
   },
   approved: {
     icon: '✓',
@@ -169,11 +185,12 @@ const Approvals: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'approved' | 'released'>('awaiting');
+  const [activeSection, setActiveSection] = useState<'awaiting' | 'others' | 'hold' | 'returned' | 'approved' | 'released'>('awaiting');
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRow | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [actionMode, setActionMode] = useState<'none' | 'reject'>('none');
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [actionMode, setActionMode] = useState<'none' | 'reject' | 'hold' | 'return' | 'approve'>('none');
+  const [actionReason, setActionReason] = useState('');
+  const [amountApproved, setAmountApproved] = useState<number | ''>('');
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<ApprovalActionLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -331,47 +348,61 @@ const Approvals: React.FC = () => {
   const sectionMap = useMemo(() => {
     const awaiting: ApprovalRow[] = [];
     const others: ApprovalRow[] = [];
+    const hold: ApprovalRow[] = [];
+    const returned: ApprovalRow[] = [];
     const approved: ApprovalRow[] = [];
     const released: ApprovalRow[] = [];
+
     for (const row of payApprovals) {
       const s = row.status;
-      if (s === 'PENDING') awaiting.push(row);
-      else if (s === 'FORWARDED' || s === 'HOLD') others.push(row);
+      if (s === 'PENDING') {
+        if (row.reviewStatus === 'PENDING') {
+          if (row.reviewerId === user?.id) awaiting.push(row);
+          else others.push(row);
+        } else {
+          awaiting.push(row);
+        }
+      }
+      else if (s === 'FORWARDED') others.push(row);
+      else if (s === 'HOLD') hold.push(row);
+      else if (s === 'RETURNED') returned.push(row);
       else if (s === 'APPROVED') {
         approved.push(row);
         if (row.releasedAt) released.push(row);
       }
     }
-    return { awaiting, others, approved, released };
+    return { awaiting, others, hold, returned, approved, released };
   }, [payApprovals]);
 
   const awaitingActions = sectionMap.awaiting;
   const approvedActions = sectionMap.approved;
   const releasedActions = sectionMap.released;
   const pendingOthers = sectionMap.others;
+  const holdActions = sectionMap.hold;
+  const returnedActions = sectionMap.returned;
 
   const activeList = useMemo(() => {
     switch (activeSection) {
-      case 'awaiting':
-        return awaitingActions;
-      case 'others':
-        return pendingOthers;
-      case 'approved':
-        return approvedActions;
+      case 'awaiting': return awaitingActions;
+      case 'others': return pendingOthers;
+      case 'hold': return holdActions;
+      case 'returned': return returnedActions;
+      case 'approved': return approvedActions;
       case 'released':
-      default:
-        return releasedActions;
+      default: return releasedActions;
     }
-  }, [activeSection, awaitingActions, pendingOthers, approvedActions, releasedActions]);
+  }, [activeSection, awaitingActions, pendingOthers, holdActions, returnedActions, approvedActions, releasedActions]);
 
   const sectionCounts = useMemo(
     () => ({
       awaiting: awaitingActions.length,
       others: pendingOthers.length,
+      hold: holdActions.length,
+      returned: returnedActions.length,
       approved: approvedActions.length,
       released: releasedActions.length,
     }),
-    [awaitingActions, pendingOthers, approvedActions, releasedActions]
+    [awaitingActions, pendingOthers, holdActions, returnedActions, approvedActions, releasedActions]
   );
 
   const stats = useMemo(() => {
@@ -451,7 +482,8 @@ const Approvals: React.FC = () => {
     setSelectedApproval(row);
     setShowDetails(true);
     setActionMode('none');
-    setRejectionReason('');
+    setActionReason('');
+    setHoldReason('');
     if (!detailsMap[row.id]) {
       await loadDetailsFor(row);
     }
@@ -501,7 +533,7 @@ const Approvals: React.FC = () => {
   const handleProcessReviewAction = async (action: 'REVIEWED' | 'REJECTED') => {
     if (!selectedApproval) return;
 
-    if (action === 'REJECTED' && !rejectionReason.trim()) {
+    if (action === 'REJECTED' && !actionReason.trim()) {
       toast.error('Rejection reason is required');
       return;
     }
@@ -510,7 +542,7 @@ const Approvals: React.FC = () => {
       const res = await ApprovalAPI.submitReviewAction(
         selectedApproval.id,
         action,
-        action === 'REJECTED' ? rejectionReason.trim() : undefined
+        action === 'REJECTED' ? actionReason.trim() : undefined
       );
       if (!res.success) {
         toast.error(res.error?.message ?? 'Review action failed');
@@ -524,11 +556,15 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const handleProcessAction = async (action: ApprovalAction) => {
+  const handleProcessAction = async (action: ApprovalAction | 'HOLD' | 'RETURNED', amount?: number) => {
     if (!selectedApproval) return;
 
-    if (action === 'REJECTED' && !rejectionReason.trim()) {
+    if (action === 'REJECTED' && !actionReason.trim()) {
       toast.error('Rejection reason is required');
+      return;
+    }
+    if ((action === 'HOLD' || action === 'RETURNED') && !actionReason.trim()) {
+      toast.error('A reason/comment is required for this action');
       return;
     }
 
@@ -536,10 +572,11 @@ const Approvals: React.FC = () => {
       const base = {
         approvalId: selectedApproval.id,
         action: action as any,
-        comments: action === 'REJECTED' ? rejectionReason.trim() : undefined,
+        comments: actionReason.trim() || undefined,
+        amount_approved: amount,
       } as any;
 
-      const res = await ApprovalAPI.processApproval(selectedApproval.id, base as any);
+      const res = await ApprovalAPI.processApproval(selectedApproval.id, base);
       if (!res.success) {
         toast.error(res.error?.message ?? 'Action failed');
         return;
@@ -558,9 +595,15 @@ const Approvals: React.FC = () => {
           .eq('id', selectedApproval.referenceId);
       }
 
-      toast.success('Action completed');
+      toast.success(`Action completed: ${action}`);
       if (selectedApproval) setRemovedIds(prev => new Set(prev).add(selectedApproval.id));
       setShowDetails(false);
+      setActionMode('none');
+      setActionReason('');
+      setAmountApproved('');
+      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
     } catch (e: any) {
       toast.error(e?.message ?? 'Action failed');
     }
@@ -730,6 +773,20 @@ const Approvals: React.FC = () => {
           active={activeSection === 'others'}
           onClick={() => setActiveSection('others')}
           accent="bg-zinc-400"
+        />
+        <Pill
+          label="On Hold"
+          value={sectionCounts.hold}
+          active={activeSection === 'hold'}
+          onClick={() => setActiveSection('hold')}
+          accent="bg-orange-500"
+        />
+        <Pill
+          label="Returned / Queries"
+          value={sectionCounts.returned}
+          active={activeSection === 'returned'}
+          onClick={() => setActiveSection('returned')}
+          accent="bg-red-500"
         />
         <Pill
           label="Approved by me"
@@ -1042,29 +1099,66 @@ const Approvals: React.FC = () => {
             {/* Footer actions */}
             {selectedApproval.status === 'PENDING' && (
               <div className="border-t border-zinc-200 px-6 py-4">
-                {actionMode === 'reject' ? (
+                {actionMode === 'reject' || actionMode === 'hold' || actionMode === 'return' ? (
                   <div className="space-y-2">
                     <p className="text-[11px] text-zinc-600">
-                      State the reason so the requester can fix and resubmit.
+                      {actionMode === 'reject' ? 'State the reason so the requester can fix and resubmit.' : 
+                       actionMode === 'hold' ? 'Provide a reason for putting this on hold.' : 
+                       'Enter your query/reason for returning this request.'}
                     </p>
                     <div className="flex items-center gap-2">
                       <Input
                         autoFocus
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="Reason for rejection"
+                        value={actionReason}
+                        onChange={(e) => setActionReason(e.target.value)}
+                        placeholder={`Reason for ${actionMode === 'reject' ? 'rejection' : actionMode === 'hold' ? 'hold' : 'return'}`}
                         className="h-9 text-xs"
                       />
-                      <Button variant="secondary" size="sm" onClick={() => { setActionMode('none'); setRejectionReason(''); }}>
+                      <Button variant="secondary" size="sm" onClick={() => { setActionMode('none'); setActionReason(''); }}>
                         Cancel
                       </Button>
                       <Button
                         size="sm"
-                        className="bg-red-600 hover:bg-red-700"
-                        onClick={() => selectedApproval.reviewStatus === 'PENDING' ? handleProcessReviewAction('REJECTED') : handleProcessAction('REJECTED')}
-                        disabled={!rejectionReason.trim()}
+                        className={actionMode === 'reject' || actionMode === 'return' ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"}
+                        onClick={() => {
+                          if (actionMode === 'reject') {
+                            selectedApproval.reviewStatus === 'PENDING' ? handleProcessReviewAction('REJECTED') : handleProcessAction('REJECTED');
+                          } else if (actionMode === 'hold') {
+                            handleProcessAction('HOLD');
+                          } else if (actionMode === 'return') {
+                            handleProcessAction('RETURNED');
+                          }
+                        }}
+                        disabled={!actionReason.trim()}
                       >
                         Confirm
+                      </Button>
+                    </div>
+                  </div>
+                ) : actionMode === 'approve' ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-zinc-600">
+                      You can approve the full amount or a partial amount.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        autoFocus
+                        type="number"
+                        value={amountApproved}
+                        onChange={(e) => setAmountApproved(e.target.value ? Number(e.target.value) : '')}
+                        placeholder={`Amount (max ${selectedApproval.amount})`}
+                        max={selectedApproval.amount}
+                        className="h-9 text-xs"
+                      />
+                      <Button variant="secondary" size="sm" onClick={() => { setActionMode('none'); setAmountApproved(''); }}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => handleProcessAction('APPROVED', amountApproved !== '' ? Number(amountApproved) : undefined)}
+                      >
+                        Confirm Approve
                       </Button>
                     </div>
                   </div>
@@ -1097,12 +1191,27 @@ const Approvals: React.FC = () => {
                         <Button
                           variant="secondary"
                           size="sm"
-                          className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                          onClick={() => handleProcessAction('HOLD')}
+                          className="text-amber-700 hover:bg-amber-50"
+                          onClick={() => setActionMode('hold')}
                         >
                           Hold
                         </Button>
-                        <Button size="sm" onClick={() => handleProcessAction('APPROVED')}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-orange-600 hover:bg-orange-50"
+                          onClick={() => setActionMode('return')}
+                        >
+                          Return (Query)
+                        </Button>
+                        <Button size="sm" onClick={() => {
+                          if (selectedApproval.referenceType === 'payment_requests' || selectedApproval.referenceType === 'purchase_payments' || selectedApproval.referenceType === 'subcontractor_payments') {
+                            setAmountApproved(selectedApproval.amount);
+                            setActionMode('approve');
+                          } else {
+                            handleProcessAction('APPROVED');
+                          }
+                        }}>
                           Approve
                         </Button>
                       </>
@@ -1244,12 +1353,16 @@ function normalize(items: any[]): ApprovalRow[] {
       requesterRole: item.requesterRole ?? item.requester_role ?? null,
       projectName: item.projectName ?? item.project_name ?? null,
       clientName: item.clientName ?? item.client_name ?? null,
+      requiredDate: item.requiredDate ?? item.required_date ?? null,
       referenceNumber:
         item.referenceNumber ?? item.reference_number ?? item.voucher_no ?? null,
       releasedAt: item.releasedAt ?? item.released_at ?? null,
       reviewerId: item.reviewerId ?? item.reviewer_id ?? null,
       reviewStatus: item.reviewStatus ?? item.review_status ?? null,
       reviewedAt: item.reviewedAt ?? item.reviewed_at ?? null,
+      isResubmitted: item.isResubmitted ?? item.is_resubmitted ?? false,
+      resubmissionNotes: item.resubmissionNotes ?? item.resubmission_notes ?? null,
+      holdReason: item.holdReason ?? item.hold_reason ?? null,
     };
   });
 }
@@ -1271,11 +1384,15 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     requesterRole: item.requester_role ?? null,
     projectName: item.project_name ?? null,
     clientName: item.client_name ?? null,
+    requiredDate: item.required_date ?? null,
     referenceNumber: item.reference_number ?? null,
     releasedAt: item.released_at ?? null,
     reviewerId: item.reviewer_id ?? null,
     reviewStatus: item.review_status ?? null,
     reviewedAt: item.reviewed_at ?? null,
+    isResubmitted: item.is_resubmitted ?? false,
+    resubmissionNotes: item.resubmission_notes ?? null,
+    holdReason: item.hold_reason ?? null,
   }));
 }
 
@@ -1560,8 +1677,9 @@ const ApprovalTable = ({
                       <div>
                         {t === 'QUOTATION' ? (
                           <>
-                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">
-                              {row.clientName || row.projectName || row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '')}
+                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px] flex items-center gap-2">
+                              <span>{row.clientName || row.projectName || row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '') || 'Unknown Party'}</span>
+                              {row.isResubmitted && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold uppercase tracking-wider">Resubmitted</span>}
                             </div>
                             <div className="text-[11px] text-zinc-500 flex items-center justify-start gap-1.5 mt-0.5">
                               {row.referenceNumber && <span>{row.referenceNumber}</span>}
@@ -1576,9 +1694,36 @@ const ApprovalTable = ({
                               )}
                             </div>
                           </>
+                        ) : t === 'PAYMENT_REQUEST' || t === 'PURCHASE_PAYMENT' ? (
+                          <>
+                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px] flex items-center gap-2">
+                              <span>{row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '') || 'Unknown Party'}</span>
+                              {row.isResubmitted && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold uppercase tracking-wider">Resubmitted</span>}
+                            </div>
+                            <div className="text-[11px] text-zinc-500 flex flex-col justify-start gap-0.5 mt-0.5">
+                              <div className="flex items-center gap-1.5">
+                              <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
+                                {age.text}
+                              </span>
+                              {age.overdue && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
+                                  Overdue
+                                </span>
+                              )}
+                              </div>
+                              {row.requiredDate && (
+                                <div className="text-orange-600 font-medium">
+                                  Wanted by: {new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(row.requiredDate))}
+                                </div>
+                              )}
+                            </div>
+                          </>
                         ) : (
                           <>
-                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">{row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '')}</div>
+                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px] flex items-center gap-2">
+                              <span>{row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '') || 'Unknown Party'}</span>
+                              {row.isResubmitted && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold uppercase tracking-wider">Resubmitted</span>}
+                            </div>
                             <div className="text-[11px] text-zinc-500 flex items-center justify-start gap-1.5 mt-0.5">
                               <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
                                 {age.text}
@@ -1827,6 +1972,7 @@ const ActionCell = ({
   const menuOpen = openMenuId === row.original.id;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [changesOpen, setChangesOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
 
@@ -1854,7 +2000,7 @@ const ActionCell = ({
       {isPending && onQuickApprove && !rejectOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); onQuickApprove(row.original); }}
-          className="px-2.5 py-1 rounded border border-emerald-200 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors opacity-0 group-hover:opacity-100"
+          className="px-2.5 py-1 rounded border border-emerald-200 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
           title="Quick approve"
         >
           Approve
@@ -1886,7 +2032,7 @@ const ActionCell = ({
       {isPending && onQuickReject && !rejectOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); setRejectOpen(true); }}
-          className="px-2.5 py-1 rounded border border-red-200 text-[11px] font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
+          className="px-2.5 py-1 rounded border border-red-200 text-[11px] font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
           title="Quick reject"
         >
           Reject
@@ -1899,6 +2045,54 @@ const ActionCell = ({
       >
         View
       </button>
+
+      {row.original.isResubmitted && (
+        <button
+          onClick={() => setChangesOpen(true)}
+          className="text-[11px] text-amber-600 hover:underline font-medium ml-1 flex items-center gap-1 border border-amber-200 bg-amber-50 px-2 py-0.5 rounded"
+        >
+          <Activity size={10} /> Changes
+        </button>
+      )}
+
+      {/* Changes Dialog */}
+      {changesOpen && (
+        <Dialog open={changesOpen} onOpenChange={setChangesOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Activity size={18} className="text-amber-600" />
+                What Changed (Resubmitted)
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>AI Diff Analysis:</strong> Currently, AI automated change detection is being configured for this document type. Please review the updated document carefully.
+                </p>
+              </div>
+              {row.original.resubmissionNotes ? (
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-zinc-500 mb-1">Requester Notes</h4>
+                  <p className="text-sm text-zinc-800 p-3 bg-zinc-50 border border-zinc-200 rounded">
+                    {row.original.resubmissionNotes}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500 italic">No manual resubmission notes provided.</p>
+              )}
+            </div>
+            <div className="flex justify-end pt-2 border-t border-zinc-100">
+              <button
+                onClick={() => setChangesOpen(false)}
+                className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-sm font-medium rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <div>
         <button

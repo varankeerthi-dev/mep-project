@@ -4,6 +4,7 @@ import { withSessionCheck } from '../../../queryClient';
 import { createPurchaseRequisition, deletePurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, updatePurchaseRequisition, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
 import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, listRequisitionLinesForSourcing, fulfillFromStoreLine, sendToPurchaseLine, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 import { ApprovalIntegration } from '../../../approvals/integration';
+import { ApprovalAPI } from '../../../approvals/api';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -241,6 +242,17 @@ export const useVerifyPurchaseBill3Way = () => {
 };
 
 // ============== VENDOR QUERIES ==============
+
+export const useVendorHolds = (organisationId: string | undefined, vendorId: string | undefined) => {
+  return useQuery({
+    queryKey: ['vendor-holds', organisationId, vendorId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId || !vendorId) return [];
+      return ApprovalAPI.getVendorHolds(organisationId, vendorId);
+    }),
+    enabled: !!organisationId && !!vendorId,
+  });
+};
 
 export const useVendors = (organisationId: string | undefined) => {
   return useQuery({

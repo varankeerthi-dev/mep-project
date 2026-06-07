@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle, Trash2, GripVertical, Settings } from 'lucide-react';
+import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle, Trash2, GripVertical, Settings, AlertTriangle } from 'lucide-react';
 import { useClients } from '../hooks/useClients';
 import { useProjects } from '../hooks/useProjects';
 import { useVariants } from '../hooks/useVariants';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog';
 import { useAuth } from '../contexts/AuthContext';
+import { useVendorHolds } from '../modules/Purchase/hooks/usePurchaseQueries';
 
 type POFormData = {
   vendor_id: string
@@ -88,6 +89,7 @@ export default function CreatePO() {
     enabled: !!organisation?.id
   });
   const { data: allProjects = [] } = useProjects();
+  const { data: vendorHolds = [] } = useVendorHolds(organisation?.id, formData?.vendor_id || undefined);
   
   // Load materials for inventory selection
   const { data: materials = [] } = useQuery({
@@ -1138,6 +1140,24 @@ export default function CreatePO() {
                 <option key={v.id} value={v.id}>{v.company_name}</option>
               ))}
             </select>
+            {vendorHolds.length > 0 && (
+              <div style={{
+                marginTop: '8px',
+                padding: '10px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '6px'
+              }}>
+                <h4 style={{ color: '#991b1b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AlertTriangle size={12} /> Vendor on Hold
+                </h4>
+                <ul style={{ margin: 0, paddingLeft: '16px', color: '#b91c1c', fontSize: '11px' }}>
+                  {vendorHolds.map((h: any, i: number) => (
+                    <li key={i}>{h.hold_reason || 'Administrative hold'}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Client */}

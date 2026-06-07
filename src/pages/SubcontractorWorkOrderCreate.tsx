@@ -16,6 +16,7 @@ import {
 import { ApprovalIntegration } from '../approvals/integration';
 import { toast } from '@/lib/logger';
 import { useUnits } from '../hooks/useUnits';
+import { useVendorHolds } from '../modules/Purchase/hooks/usePurchaseQueries';
 
 /* ─── Design tokens: Grey + Blue only ───────────────────────────────────────── */
 const T = {
@@ -203,6 +204,9 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
 
   // Fetch org units
   const { data: orgUnits = [] } = useUnits();
+
+  // Vendor Holds
+  const { data: vendorHolds = [] } = useVendorHolds(organisation?.id, formData?.subcontractor_id || undefined);
 
   // Fetch subcontractors
   const { data: subcontractors = [] } = useQuery({
@@ -686,6 +690,24 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                       <option key={sub.id} value={sub.id}>{sub.company_name}</option>
                     ))}
                   </select>
+                  {vendorHolds.length > 0 && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '10px',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '6px'
+                    }}>
+                      <h4 style={{ color: '#991b1b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertTriangle size={12} /> Subcontractor on Hold
+                      </h4>
+                      <ul style={{ margin: 0, paddingLeft: '16px', color: '#b91c1c', fontSize: '11px' }}>
+                        {vendorHolds.map((h: any, i: number) => (
+                          <li key={i}>{h.hold_reason || 'Administrative hold'}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {selectedSubcontractor && (
                     <div style={{ marginTop: '5px', fontSize: '11px', color: T.textMuted, padding: '3px 8px', background: T.blueLight, borderRadius: '4px', display: 'inline-block' }}>
                       {selectedSubcontractor.gstin ? `GSTIN: ${selectedSubcontractor.gstin}` : `PAN: ${selectedSubcontractor.pan_number || 'N/A'}`}

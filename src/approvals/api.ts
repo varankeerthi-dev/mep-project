@@ -217,7 +217,7 @@ export class ApprovalAPI {
     }
   }
 
-  static async processApproval(approvalId: string, action: ApprovalActionRequest): Promise<ApiResponse<void>> {
+  static async processApproval(approvalId: string, action: ApprovalActionPayload): Promise<ApiResponse<void>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -249,8 +249,6 @@ export class ApprovalAPI {
           action: action.action,
           approver_id: user.id,
           comments: action.comments,
-          ip_address: '127.0.0.1',
-          user_agent: navigator.userAgent,
           organisation_id: approval.organisation_id
         });
 
@@ -272,27 +270,65 @@ export class ApprovalAPI {
         newStatus = 'REJECTED';
       } else if (action.action === 'HOLD') {
         newStatus = 'HOLD';
+      } else if (action.action === 'RETURNED') {
+        newStatus = 'RETURNED';
       } else if (action.action === 'FORWARDED') {
         newStatus = 'FORWARDED';
       }
 
+      const updateData: any = {
+        status: newStatus,
+        current_level: newLevel,
+        updated_at: new Date().toISOString()
+      };
+      
+      if (action.action === 'HOLD' && action.comments) {
+        updateData.hold_reason = action.comments;
+      } else if (action.action !== 'HOLD') {
+        updateData.hold_reason = null; // Clear hold reason if moved out of hold
+      }
+
       const { data: updated, error: updateError } = await supabase
         .from('approvals')
-        .update({
-          status: newStatus,
-          current_level: newLevel,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', approvalId)
         .select()
         .maybeSingle();
 
       if (updateError || !updated) {
-        return { success: false, error: { code: 'DB_ERROR', message: updateError?.message || 'Approval update blocked by RLS — run migration 069' } };
+        return { success: false, error: { code: 'DB_ERROR', message: updateError?.message || 'Approval update failed' } };
       }
 
       if (newStatus === 'APPROVED') {
-        await this.triggerPostApprovalActions(approval);
+        await this.triggerPostApprovalActions(approval, action.amount_approved);
+      }
+
+      // Log to follow_up_activity_log
+      try {
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('emp_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const actorName = userProfile?.emp_name || 'System';
+
+        await supabase.from('follow_up_activity_log').insert({
+          organisation_id: approval.organisation_id,
+          reference_id: approval.reference_id,
+          reference_label: approval.reference_type,
+          event_type: 'approval_status_changed',
+          title: `Approval ${action.action}`,
+          description: action.comments || `Document was marked as ${action.action}`,
+          actor_name: actorName,
+          metadata: {
+            approval_id: approval.id,
+            action: action.action,
+            amount_approved: action.amount_approved
+          }
+        });
+      } catch (logError) {
+        console.error('Failed to log approval activity', logError);
       }
 
       return {
@@ -420,7 +456,7 @@ export class ApprovalAPI {
     }
   }
 
-  private static async triggerPostApprovalActions(approval: Approval) {
+  private static async triggerPostApprovalActions(approval: Approval, amountApproved?: number) {
     try {
       switch (approval.reference_type) {
         case 'purchase_orders':
@@ -439,6 +475,7 @@ export class ApprovalAPI {
           await supabase.from('payment_requests').update({
             status: 'Approved',
             approved_at: new Date().toISOString(),
+            ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
           }).eq('id', approval.reference_id);
           break;
         case 'purchase_payments':
@@ -446,6 +483,7 @@ export class ApprovalAPI {
             workflow_step: 'approved',
             approval_status: 'Approved',
             approved_at: new Date().toISOString(),
+            ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
           }).eq('id', approval.reference_id);
           break;
         case 'subcontractor_payments':
@@ -453,6 +491,7 @@ export class ApprovalAPI {
             workflow_step: 'approved',
             approval_status: 'Approved',
             approved_at: new Date().toISOString(),
+            ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
           }).eq('id', approval.reference_id);
           break;
       }
@@ -527,6 +566,7 @@ export class ApprovalAPI {
     project_name?: string | null;
     client_name?: string | null;
     reference_number?: string | null;
+    required_date?: string | null;
   }> {
     try {
       const [profileRes, memberRes] = await Promise.all([
@@ -551,6 +591,7 @@ export class ApprovalAPI {
       let projectName: string | null = null;
       let clientName: string | null = null;
       let referenceNumber: string | null = null;
+      let requiredDate: string | null = null;
 
       if (refSpec && referenceId) {
         const { data: refRow } = await supabase
@@ -571,6 +612,8 @@ export class ApprovalAPI {
           referenceNumber = refSpec.numberField
             ? (refRow as any)[refSpec.numberField] ?? null
             : null;
+            
+          requiredDate = (refRow as any).due_date ?? (refRow as any).request_date ?? null;
         }
       }
 
@@ -581,6 +624,7 @@ export class ApprovalAPI {
         project_name: projectName,
         client_name: clientName,
         reference_number: referenceNumber,
+        required_date: requiredDate,
       };
     } catch (e) {
       console.error('enrichApprovalMetadata failed', e);
@@ -593,7 +637,7 @@ const REFERENCE_DENORM_MAP: Record<
   string,
   { table: string; select: string; numberField: string | null }
 > = {
-  payment_requests:       { table: 'payment_requests',       select: 'client_id, client:clients(name), project_id, project:projects(name), request_no', numberField: 'request_no' },
+  payment_requests:       { table: 'payment_requests',       select: 'client_id, client:clients(name), project_id, project:projects(name), request_no, request_date, due_date', numberField: 'request_no' },
   purchase_payments:      { table: 'purchase_payments',      select: 'client_id, client:clients(name), project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
   subcontractor_payments: { table: 'subcontractor_payments', select: 'client_id, client:clients(name), project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
   purchase_orders:        { table: 'purchase_orders',        select: 'project_id, project:projects(name), po_number',   numberField: 'po_number'   },
@@ -602,3 +646,64 @@ const REFERENCE_DENORM_MAP: Record<
   quotations:             { table: 'quotation_header',       select: 'client_id, client:clients(client_name), project_id, project:projects(name), quotation_no', numberField: 'quotation_no' },
   material_dispatches:    { table: 'material_dispatches',    select: 'project_id, project:projects(name), dispatch_number', numberField: 'dispatch_number' },
 };
+
+export class ApprovalExtensions {
+  static async resubmitApproval(approvalId: string, notes?: string): Promise<ApiResponse<void>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
+      
+      const { data: approval } = await supabase
+        .from('approvals')
+        .select('*')
+        .eq('id', approvalId)
+        .single();
+        
+      if (!approval) return { success: false, error: { code: 'NOT_FOUND', message: 'Approval not found' } };
+
+      const { error: updateError } = await supabase
+        .from('approvals')
+        .update({
+          status: 'PENDING',
+          is_resubmitted: true,
+          resubmission_notes: notes,
+          current_level: 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', approvalId);
+
+      if (updateError) throw updateError;
+
+      await supabase.from('approval_actions').insert({
+        approval_id: approvalId,
+        action: 'RESUBMITTED',
+        approver_id: user.id,
+        comments: notes,
+        organisation_id: approval.organisation_id
+      });
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } };
+    }
+  }
+
+  static async getVendorHolds(vendorId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } };
+      
+      const { data: holds, error } = await supabase
+        .from('payment_requests')
+        .select('id, request_no, approvals!inner(id, status, hold_reason)')
+        .eq('vendor_id', vendorId)
+        .eq('approvals.status', 'HOLD');
+
+      if (error) throw error;
+
+      return { success: true, data: holds || [] };
+    } catch (error) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } };
+    }
+  }
+}

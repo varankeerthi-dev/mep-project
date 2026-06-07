@@ -9,7 +9,8 @@ import {
   Plus,
   PlusCircle,
   Search,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { Smile } from 'lucide-react';
 import { Input } from '../../../components/ui/input';
@@ -38,7 +39,7 @@ import { cn } from '../../../lib/utils';
 import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useOrgApprovalSettings } from '@/hooks/useApprovals';
-import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests, useDeletePaymentRequest, useResendPaymentRequest, useUpdatePaymentRequest } from '../hooks/usePurchaseQueries';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests, useDeletePaymentRequest, useResendPaymentRequest, useUpdatePaymentRequest, useVendorHolds } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
@@ -86,6 +87,8 @@ export const Payments: React.FC = () => {
   const selectedBills = vendorBills.filter((bill: any) => selectedBillIds.includes(String(bill.id)));
   const isLastStep = isAdvance ? activeStep === 1 : activeStep === 2;
   const paymentApprovalEnabled = approvalSettings?.PURCHASE_PAYMENT ?? false;
+  const { data: recordHolds = [] } = useVendorHolds(organisation?.id, openDialog ? vendorId : undefined);
+  const { data: requestHolds = [] } = useVendorHolds(organisation?.id, openRequestDialog ? requestVendorId : undefined);
 
   const handleAddPayment = () => {
     setOpenDialog(true);
@@ -641,6 +644,18 @@ export const Payments: React.FC = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {recordHolds.length > 0 && (
+                      <div className="mt-3 p-3.5 bg-red-50 border border-red-200 rounded-lg shadow-sm">
+                        <h4 className="text-red-800 font-bold text-[11px] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4" /> Vendor on Hold
+                        </h4>
+                        <ul className="list-disc list-inside text-xs text-red-700 space-y-1">
+                          {recordHolds.map((h: any, i: number) => (
+                            <li key={i}>{h.hold_reason || 'Administrative hold'}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
@@ -885,6 +900,18 @@ export const Payments: React.FC = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {requestHolds.length > 0 && (
+                  <div className="mt-3 p-3.5 bg-red-50 border border-red-200 rounded-lg shadow-sm">
+                    <h4 className="text-red-800 font-bold text-[11px] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4" /> Vendor on Hold
+                    </h4>
+                    <ul className="list-disc list-inside text-xs text-red-700 space-y-1">
+                      {requestHolds.map((h: any, i: number) => (
+                        <li key={i}>{h.hold_reason || 'Administrative hold'}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="space-y-3">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Priority</Label>
