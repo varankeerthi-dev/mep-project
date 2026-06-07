@@ -34,6 +34,7 @@ interface ApprovalDetailsSidebarProps {
   handleProcessAction: (action: string, amount?: number) => void;
   handleProcessReviewAction: (action: string) => void;
   handleResubmitApproval?: () => void;
+  onOpenOriginal?: (row: ApprovalRow) => void;
   user: any;
   isRequester?: boolean;
   SCORE_COLORS: Record<string, string>;
@@ -90,6 +91,7 @@ export function ApprovalDetailsSidebar({
   handleProcessAction,
   handleProcessReviewAction,
   handleResubmitApproval,
+  onOpenOriginal,
   user,
   isRequester,
   SCORE_COLORS,
@@ -189,6 +191,17 @@ export function ApprovalDetailsSidebar({
                     <SectionRow label="Remaining balance" value={<span className="text-emerald-600">{formatAmount(detailsMap[selectedApproval.id].balance)}</span>} />
                   </div>
                 </div>
+              )}
+
+              {/* View original document */}
+              {onOpenOriginal && (
+                <button
+                  onClick={() => onOpenOriginal(selectedApproval)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
+                >
+                  <span className="text-lg">📄</span>
+                  View full {TYPE_LABEL[selectedApproval.approvalType] ?? 'document'} details
+                </button>
               )}
 
               {/* Vendor / Party info */}

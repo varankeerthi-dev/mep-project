@@ -1024,6 +1024,7 @@ const Approvals: React.FC = () => {
         handleProcessAction={handleProcessAction}
         handleProcessReviewAction={handleProcessReviewAction}
         handleResubmitApproval={handleResubmitApproval}
+        onOpenOriginal={handleOpenOriginal}
         user={user}
         isRequester={selectedApproval?.requestedBy === user?.id}
         SCORE_COLORS={SCORE_COLORS}
