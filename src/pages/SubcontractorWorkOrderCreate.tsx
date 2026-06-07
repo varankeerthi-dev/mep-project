@@ -795,7 +795,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                   <p style={{ fontSize: '13px', margin: 0 }}>No work items yet. Click "Add Item" to start.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {/* Column headers */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 110px 110px 40px', gap: '12px', padding: '0 12px' }}>
                     {['Description', 'Qty', 'Unit', 'Rate (₹)', 'Amount (₹)', ''].map((h, i) => (
@@ -810,7 +810,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                         display: 'grid',
                         gridTemplateColumns: '1fr 80px 120px 110px 110px 40px',
                         gap: '12px',
-                        padding: '14px 12px',
+                        padding: '8px 12px',
                         background: T.surfaceSubtle,
                         border: `1px solid ${T.border}`,
                         borderRadius: '8px',
@@ -877,8 +877,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                     >
                       <input type="radio" name="tax_type" checked={formData.tax_type === type}
                         onChange={() => {
-                          if (type === 'GST') handleSubcontractorChange(formData.subcontractor_id);
-                          else setFormData(prev => ({ ...prev, tax_type: type }));
+                          setFormData(prev => ({ ...prev, tax_type: type }));
                         }}
                         style={{ accentColor: T.blue }}
                       />
@@ -1060,7 +1059,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
               </button>
             </div>
             <div style={cardBody}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {formData.terms_conditions.map((term, idx) => (
                   <div
                     key={term.id}
@@ -1069,9 +1068,8 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                     onDragOver={(e) => handleDragOver(e, idx)}
                     onDragEnd={handleDragEnd}
                     style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '10px',
-                      padding: '12px 14px', background: T.surfaceSubtle,
-                      border: `1px solid ${T.border}`, borderRadius: '8px',
+                      display: 'flex', alignItems: 'flex-start', gap: '6px',
+                      padding: '8px 0', borderBottom: `1px solid ${T.border}`,
                     }}
                   >
                     <button type="button" style={{ cursor: 'grab', color: T.textMuted, background: 'none', border: 'none', padding: '2px', marginTop: '2px' }}>
