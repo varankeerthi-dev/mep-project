@@ -2,7 +2,7 @@
 // MANPOWER ATTENDANCE PAGE
 // ============================================
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
@@ -17,7 +17,145 @@ import {
 } from '../types/manpower';
 import { EnhancedDataTable } from '../components/ui/table/index';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search, Filter } from 'lucide-react';
+import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search, Filter, RefreshCcw, BarChart3 } from 'lucide-react';
+
+const RECORDS_CSS = `
+.records-section {
+  padding: 32px 32px 48px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+.records-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+.records-eyebrow {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: #000;
+  color: #fff;
+  margin-bottom: 10px;
+}
+.records-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0c0c0c;
+  margin: 0;
+}
+.records-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  border: none;
+  background: #0c0c0c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.records-refresh-btn:hover { transform: scale(1.03); background: #1a1a1a; }
+.records-refresh-btn:active { transform: scale(0.97); }
+@media (max-width: 900px) {
+  .records-section { padding: 24px 16px 40px; }
+  .records-top { flex-direction: column; align-items: flex-start; gap: 16px; }
+}
+.filter-doppel-outer {
+  padding: 2px;
+  border-radius: 22px;
+  background: rgba(0,0,0,0.04);
+  margin-bottom: 16px;
+}
+.filter-doppel-inner {
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.8);
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1100px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px) { .filter-grid { grid-template-columns: repeat(2, 1fr); } }
+.filter-field { display: flex; flex-direction: column; gap: 4px; }
+.filter-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a1a1aa;
+}
+.filter-input-wrap { position: relative; display: flex; align-items: center; }
+.filter-input-icon { position: absolute; left: 12px; color: #d4d4d8; pointer-events: none; }
+.filter-input, .filter-select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+  font-size: 13px;
+  font-weight: 500;
+  color: #18181b;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.filter-input:focus, .filter-select:focus {
+  border-color: #18181b;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(12,12,12,0.08);
+}
+.filter-input-icon + .filter-input { padding-left: 34px; }
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #f4f4f5;
+  margin-top: 8px;
+}
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  border: none;
+  background: #0c0c0c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.download-btn:hover { transform: scale(1.03); background: #1a1a1a; }
+.download-btn:active { transform: scale(0.97); }
+.table-doppel-outer {
+  padding: 2px;
+  border-radius: 22px;
+  background: rgba(0,0,0,0.04);
+}
+.table-doppel-inner {
+  border-radius: 20px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.8);
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+`;
 
 interface ManpowerAttendanceProps {
   onNavigate?: (path: string) => void;
@@ -322,6 +460,58 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
       },
     },
   ], []);
+
+  const downloadPDF = useCallback(async () => {
+    const jsPDF = (await import('jspdf')).default;
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const rows = filteredRecords.map((r: any) => [
+      r.attendance_date || '—',
+      r.subcontractors?.company_name || '—',
+      r.work_unit_type || '—',
+      String(r.workers_count),
+      r.status || '—',
+      r.supervisor_name || '—',
+      r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+    ]);
+
+    autoTable(doc, {
+      head: [['Date', 'Name', 'Work Type', 'Employees', 'Status', 'Site Engineer', 'Entered On']],
+      body: rows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [12, 12, 12],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7,
+        halign: 'center',
+      },
+      bodyStyles: {
+        fontSize: 7,
+        cellPadding: 2.5,
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 248],
+      },
+      styles: {
+        lineColor: [220, 220, 220],
+        lineWidth: 0.3,
+      },
+      columnStyles: {
+        0: { cellWidth: 22, halign: 'center' },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 16, halign: 'center' },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 28 },
+        6: { cellWidth: 22, halign: 'center' },
+      },
+      margin: { top: 15, right: 10, bottom: 10, left: 10 },
+    });
+
+    doc.save(`attendance-records-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }, [filteredRecords]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
@@ -902,141 +1092,88 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
       )}
 
       {activeSubTab === 'records' && (
-        <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-          {/* Records Filters */}
-          <div style={{
-            background: '#fff',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0',
-            padding: '16px',
-            marginBottom: '16px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(6, 1fr)',
-            gap: '12px',
-          }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
-                Search
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input
-                  type="text"
-                  value={recSearch}
-                  onChange={(e) => setRecSearch(e.target.value)}
-                  placeholder="Name or engineer..."
-                  style={{
-                    width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px',
-                    border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none',
-                  }}
-                />
+        <div className="records-section">
+          <style>{RECORDS_CSS}</style>
+          {/* Double-Bezel Filter Card */}
+          <div className="filter-doppel-outer">
+            <div className="filter-doppel-inner">
+              <div className="filter-grid">
+                <div className="filter-field">
+                  <label className="filter-label">Search</label>
+                  <div className="filter-input-wrap">
+                    <Search size={13} className="filter-input-icon" />
+                    <input
+                      type="text"
+                      value={recSearch}
+                      onChange={(e) => setRecSearch(e.target.value)}
+                      placeholder="Name or engineer..."
+                      className="filter-input"
+                    />
+                  </div>
+                </div>
+                <div className="filter-field">
+                  <label className="filter-label">Subcontractor</label>
+                  <select value={recSubcontractor} onChange={(e) => setRecSubcontractor(e.target.value)} className="filter-select">
+                    <option value="">All</option>
+                    {subcontractors?.map((sub: any) => (
+                      <option key={sub.id} value={sub.id}>{sub.company_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-field">
+                  <label className="filter-label">Work Type</label>
+                  <select value={recWorkType} onChange={(e) => setRecWorkType(e.target.value)} className="filter-select">
+                    <option value="">All</option>
+                    <option value="PROJECT">Project</option>
+                    <option value="ALTERATION">Alteration</option>
+                    <option value="AMC">AMC</option>
+                    <option value="WORK_ORDER">Work Order</option>
+                    <option value="GENERAL">General</option>
+                  </select>
+                </div>
+                <div className="filter-field">
+                  <label className="filter-label">Status</label>
+                  <select value={recStatus} onChange={(e) => setRecStatus(e.target.value)} className="filter-select">
+                    <option value="">All</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
+                </div>
+                <div className="filter-field">
+                  <label className="filter-label">From</label>
+                  <input type="date" value={recDateFrom} onChange={(e) => setRecDateFrom(e.target.value)} className="filter-input" />
+                </div>
+                <div className="filter-field">
+                  <label className="filter-label">To</label>
+                  <input type="date" value={recDateTo} onChange={(e) => setRecDateTo(e.target.value)} className="filter-input" />
+                </div>
               </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
-                Subcontractor
-              </label>
-              <select
-                value={recSubcontractor}
-                onChange={(e) => setRecSubcontractor(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', background: '#fff',
-                }}
-              >
-                <option value="">All</option>
-                {subcontractors?.map((sub: any) => (
-                  <option key={sub.id} value={sub.id}>{sub.company_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
-                Work Type
-              </label>
-              <select
-                value={recWorkType}
-                onChange={(e) => setRecWorkType(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', background: '#fff',
-                }}
-              >
-                <option value="">All</option>
-                <option value="PROJECT">Project</option>
-                <option value="ALTERATION">Alteration</option>
-                <option value="AMC">AMC</option>
-                <option value="WORK_ORDER">Work Order</option>
-                <option value="GENERAL">General</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
-                Status
-              </label>
-              <select
-                value={recStatus}
-                onChange={(e) => setRecStatus(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', background: '#fff',
-                }}
-              >
-                <option value="">All</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SUBMITTED">Submitted</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
-                From
-              </label>
-              <input
-                type="date"
-                value={recDateFrom}
-                onChange={(e) => setRecDateFrom(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none',
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
-                To
-              </label>
-              <input
-                type="date"
-                value={recDateTo}
-                onChange={(e) => setRecDateTo(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: '8px',
-                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none',
-                }}
-              />
+              <div className="filter-actions">
+                <button className="download-btn" onClick={downloadPDF}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download PDF
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Records Table */}
-          <div style={{
-            background: '#fff',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-          }}>
-            <EnhancedDataTable
-              data={filteredRecords}
-              columns={attendanceColumns}
-              enableSearch={false}
-              enableSorting={true}
-              enablePagination={true}
-              defaultPageSize={15}
-              emptyMessage="No attendance records found matching your filters"
-              loading={loadingRecords}
-              onRefresh={() => refetchRecords()}
-            />
+          {/* Double-Bezel Table Card */}
+          <div className="table-doppel-outer">
+            <div className="table-doppel-inner">
+              <EnhancedDataTable
+                data={filteredRecords}
+                columns={attendanceColumns}
+                enableSearch={false}
+                enableSorting={true}
+                enablePagination={true}
+                defaultPageSize={15}
+                emptyMessage="No attendance records found matching your filters"
+                loading={loadingRecords}
+                onRefresh={() => refetchRecords()}
+              />
+            </div>
           </div>
         </div>
       )}
