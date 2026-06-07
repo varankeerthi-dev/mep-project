@@ -2950,6 +2950,8 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [transactionTypeFilter, setTransactionTypeFilter] = useState('all');
+  const [clients, setClients] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     subcontractor_id: '',
@@ -2983,6 +2985,8 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const [requestPaymentMode, setRequestPaymentMode] = useState('Bank Transfer');
   const [requestBankAccount, setRequestBankAccount] = useState('');
   const [requestReason, setRequestReason] = useState('');
+  const [requestClientId, setRequestClientId] = useState('');
+  const [requestProjectId, setRequestProjectId] = useState('');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('all');
 
   const { data: allPaymentRequests = [], isLoading: paymentRequestsLoading } = usePaymentRequests(orgId);
@@ -3012,12 +3016,23 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
         supabase
           .from('subcontractor_work_orders')
           .select('*')
+          .eq('organisation_id', organisation.id),
+        supabase
+          .from('clients')
+          .select('id, name')
+          .eq('organisation_id', organisation.id),
+        supabase
+          .from('projects')
+          .select('id, name, client_id')
           .eq('organisation_id', organisation.id)
-      ]).then(([paymentsRes, invoicesRes, subsRes, woRes]) => {
+      ]).then(([paymentsRes, invoicesRes, subsRes, woRes, clientsRes, projectsRes]) => {
         console.log('Payments raw:', paymentsRes.data);
         console.log('Invoices raw:', invoicesRes.data);
         console.log('Subcontractors:', subsRes.data);
         console.log('Work Orders:', woRes.data);
+        
+        setClients(clientsRes.data || []);
+        setProjects(projectsRes.data || []);
         
         // Filter payments by organisation_id after fetching
         const filteredPayments = (paymentsRes.data || []).filter(p => 
@@ -3455,7 +3470,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               )}
               {activeTab === 'requests' && (
                 <button
-                  onClick={() => { setRequestSubcontractorId(''); setRequestAmount(''); setRequestPriority('Normal'); setRequestDueDate(''); setRequestPaymentMode('Bank Transfer'); setRequestBankAccount(''); setRequestReason(''); setShowRequestDialog(true); }}
+                  onClick={() => { setRequestSubcontractorId(''); setRequestAmount(''); setRequestPriority('Normal'); setRequestDueDate(''); setRequestPaymentMode('Bank Transfer'); setRequestBankAccount(''); setRequestReason(''); setRequestClientId(''); setRequestProjectId(''); setShowRequestDialog(true); }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -4631,6 +4646,8 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   reason: requestReason,
                   status: 'Pending',
                   requested_by: user?.id || null,
+                  client_id: requestClientId || null,
+                  project_id: requestProjectId || null,
                 });
                 setShowRequestDialog(false);
                 toast.success('Payment request submitted for approval.');
@@ -4649,6 +4666,24 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Amount Requested *</label>
                   <input type="number" value={requestAmount} onChange={(e) => setRequestAmount(e.target.value)} placeholder="0.00" required min="0" step="0.01" style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Client (Optional)</label>
+                    <select value={requestClientId} onChange={(e) => { setRequestClientId(e.target.value); setRequestProjectId(''); }} style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }}>
+                      <option value="">Select client...</option>
+                      {clients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#64748b' }}>Project (Optional)</label>
+                    <select value={requestProjectId} onChange={(e) => setRequestProjectId(e.target.value)} style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '14px', outline: 'none' }} disabled={!requestClientId && projects.length > 0}>
+                      <option value="">Select project...</option>
+                      {projects
+                        .filter(p => !requestClientId || p.client_id === requestClientId)
+                        .map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>

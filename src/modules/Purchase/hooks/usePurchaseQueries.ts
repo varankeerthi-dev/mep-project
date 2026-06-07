@@ -750,10 +750,14 @@ export const useCreatePaymentRequest = () => {
     mutationFn: withSessionCheck(async (requestData: any) => {
       const payload = { ...requestData };
 
-      for (const key of ['organisation_id', 'vendor_id', 'subcontractor_id', 'requested_by', 'bank_account_id']) {
-        if (payload[key] === undefined || payload[key] === 'undefined') {
+      for (const key of ['organisation_id', 'vendor_id', 'subcontractor_id', 'requested_by', 'bank_account_id', 'client_id', 'project_id']) {
+        if (!payload[key] || payload[key] === 'undefined' || payload[key] === 'null') {
           payload[key] = null;
         }
+      }
+
+      if (!payload.due_date || payload.due_date === '') {
+        payload.due_date = null;
       }
 
       if (!payload.request_date) {
@@ -803,10 +807,11 @@ export const useCreatePaymentRequest = () => {
           priorityMap[payload.priority] || 'NORMAL',
           isSubcontractor ? 'SUBCONTRACTOR_PAYMENT' : 'PAYMENT_REQUEST'
         );
-        if (!approvalResult.success && approvalResult.error === 'No approval required for this amount') {
+        if (approvalResult.success && approvalResult.error === 'No approval required for this amount') {
           await supabase.from('payment_requests').update({ status: 'Approved', approved_at: new Date().toISOString() }).eq('id', data.id);
         } else if (!approvalResult.success) {
           console.error('Approval creation failed:', approvalResult.error);
+          toast.error('Approval flow failed: ' + JSON.stringify(approvalResult.error));
         }
       } catch (approvalErr) {
         console.error('Failed to create approval entry for payment request', approvalErr);

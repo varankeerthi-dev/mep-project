@@ -498,7 +498,7 @@ export class ApprovalAPI {
 
         if (refRow) {
           projectId = (refRow as any).project_id ?? null;
-          projectName = (refRow as any).project?.name ?? null;
+          projectName = (refRow as any).project?.name ?? (refRow as any).client?.name ?? null;
           referenceNumber = refSpec.numberField
             ? (refRow as any)[refSpec.numberField] ?? null
             : null;
@@ -523,9 +523,9 @@ const REFERENCE_DENORM_MAP: Record<
   string,
   { table: string; select: string; numberField: string | null }
 > = {
-  payment_requests:       { table: 'payment_requests',       select: 'project_id, project:projects(name), request_no', numberField: 'request_no' },
-  purchase_payments:      { table: 'purchase_payments',      select: 'project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
-  subcontractor_payments: { table: 'subcontractor_payments', select: 'project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
+  payment_requests:       { table: 'payment_requests',       select: 'client_id, client:clients(name), project_id, project:projects(name), request_no', numberField: 'request_no' },
+  purchase_payments:      { table: 'purchase_payments',      select: 'client_id, client:clients(name), project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
+  subcontractor_payments: { table: 'subcontractor_payments', select: 'client_id, client:clients(name), project_id, project:projects(name), voucher_no',  numberField: 'voucher_no'  },
   purchase_orders:        { table: 'purchase_orders',        select: 'project_id, project:projects(name), po_number',   numberField: 'po_number'   },
   work_orders:            { table: 'work_orders',            select: 'project_id, project:projects(name), wo_number',   numberField: 'wo_number'   },
   invoices:               { table: 'invoices',               select: 'project_id, project:projects(name), invoice_number', numberField: 'invoice_number' },

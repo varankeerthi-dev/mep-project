@@ -540,10 +540,7 @@ export class ApprovalIntegration {
       const organisationId = await currentOrgId(user.id);
       if (!organisationId) return false;
 
-      const typesToCheck =
-        approvalType === 'PAYMENT_REQUEST' || approvalType === 'SUBCONTRACTOR_PAYMENT'
-          ? ['PAYMENT_REQUEST', 'PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT']
-          : [approvalType];
+      const typesToCheck = [approvalType];
 
       const { data: workflows } = await supabase
         .from('approval_workflows')
