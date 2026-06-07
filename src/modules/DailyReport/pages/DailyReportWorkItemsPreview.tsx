@@ -1,5 +1,5 @@
 // ============================================
-// DailyReportWorkItemsPreview — Phase 1f
+// DailyReportWorkItemsPreview — Phase 1f + 5.2 (T9) + 5.3 (T10)
 // ============================================
 // Standalone test page for Phase 1. Lets you verify the typeahead +
 // work-item row components in isolation, against real Supabase data,
@@ -7,15 +7,24 @@
 //
 // Mounted at /__preview/daily-report-work-items (see App.tsx change
 // in this same commit). The route is gated by VITE_DAILY_REPORTS_V2.
+//
+// Phase 5.2 (T9) — keyboard nav grid (role="grid", arrow keys).
+// Phase 5.3 (T10) — offline draft auto-save + restore with conflict.
 // ============================================
 
-import { useState } from 'react';
-import { Plus, RefreshCw, Database, ListChecks } from 'lucide-react';
-import { WorkItemRow } from '../components/WorkItemRow';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, RefreshCw, Database, ListChecks, WifiOff, AlertTriangle, X } from 'lucide-react';
+import { WorkItemRow, WORK_ITEM_ROW_COL_COUNT } from '../components/WorkItemRow';
+import { TaskMiniDrawer } from '../components/TaskMiniDrawer';
 import { useAuth } from '@/App';
 import { useDailyReportWorkItems } from '@/hooks/useDailyReportWorkItems';
 import type { DailyReportWorkItem } from '@/hooks/useDailyReportWorkItems';
+import type { ProjectTaskSlim } from '@/hooks/useTasksForProject';
+import type { TaskDiscipline } from '@/components/tasks/types';
 import { IS_DAILY_REPORTS_V2 } from '../feature-flag';
+import { useGridNavigation } from '@/hooks/useGridNavigation';
+import { useOfflineDraft, buildSiteReportDraftKey } from '@/hooks/useOfflineDraft';
+import { toast } from '@/lib/logger';
 
 function makeFakeItem(
   organisationId: string,
@@ -60,6 +69,79 @@ export default function DailyReportWorkItemsPreview() {
   );
   const [items, setItems] = useState<DailyReportWorkItem[]>([]);
   const [locked, setLocked] = useState(false);
+  const [createTaskFor, setCreateTaskFor] = useState<
+    | { itemId: string; initialTitle: string }
+    | null
+  >(null);
+
+  // ============================================
+  // T9 — Keyboard nav grid (Phase 5.2)
+  // ============================================
+  // The parent owns the active cell state so Up/Down can move
+  // between rows. Roving tabindex is enabled (alwaysTabStop=false)
+  // so the grid is a single tab stop. This is the WAI-ARIA
+  // Authoring Practices grid pattern.
+  const grid = useGridNavigation({
+    rowCount: items.length,
+    colCount: WORK_ITEM_ROW_COL_COUNT,
+    initial: { row: 0, col: 0 },
+    alwaysTabStop: false,
+  });
+
+  // ============================================
+  // T10 — Offline draft (Phase 5.3)
+  // ============================================
+  // The structured daily-report work-items list survives an
+  // app reload via localStorage. FR-13:
+  //   key  = site-report-draft:{projectId}:{date}:{userId}
+  //   ttl  = 24h
+  //   debounce = 1.5s
+  //   conflict = server.updated_at newer than draft.savedAt
+  // The preview page can use the fake `projectId` (or a real
+  // one if the engineer pasted it) to demonstrate the loop.
+  const reportDate = useMemo(
+    () => new Date().toISOString().split('T')[0],
+    []
+  );
+  const draftKey = useMemo(
+    () =>
+      buildSiteReportDraftKey({
+        projectId: projectId || null,
+        date: reportDate,
+        userId: user?.id ?? null,
+      }),
+    [projectId, reportDate, user?.id]
+  );
+  const draft = useOfflineDraft<DailyReportWorkItem[]>({
+    storageKey: draftKey,
+    data: items,
+    // For the preview, we have no server updated_at — skip
+    // conflict detection. The real SiteReport.tsx will pass
+    // the report's `updated_at` as a number.
+    serverTimestamp: null,
+  });
+
+  // If a draft is restored, swap it in. We keep the items
+  // state authoritative; the user clicks "Restore" explicitly.
+  const [pendingDraft, setPendingDraft] = useState<DailyReportWorkItem[] | null>(null);
+  useEffect(() => {
+    if (draft.hasDraft && draft.draft && items.length === 0) {
+      // Defer the prompt to the next paint so the user sees the
+      // page first, then the "Restore draft?" banner.
+      setPendingDraft(draft.draft);
+    }
+  }, [draft.hasDraft, draft.draft, items.length]);
+
+  const handleRestoreDraft = () => {
+    if (!pendingDraft) return;
+    setItems(pendingDraft);
+    setPendingDraft(null);
+    toast.success('Draft restored.');
+  };
+  const handleDiscardDraft = () => {
+    draft.discard();
+    setPendingDraft(null);
+  };
 
   // Optional: try to load a real project's tasks (skips the query if no
   // project is chosen — the work-item row still renders for inspection)
@@ -189,12 +271,93 @@ export default function DailyReportWorkItemsPreview() {
             />
             <span>Simulate locked report (post-approval)</span>
           </label>
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-zinc-400">
-            <Database className="h-3 w-3" />
-            {items.length} row{items.length === 1 ? '' : 's'}
-          </span>
+          {/* T10 — offline draft saving indicator */}
+          {draftKey && (
+            <span
+              className="ml-auto inline-flex items-center gap-2 text-[10px] text-zinc-400"
+              data-testid="offline-draft-status"
+              aria-live="polite"
+            >
+              <Database className="h-3 w-3" />
+              <span>{items.length} row{items.length === 1 ? '' : 's'}</span>
+              <span aria-hidden="true">·</span>
+              <span>
+                {draft.isPending
+                  ? 'Saving draft…'
+                  : draft.savedAt
+                  ? `Draft ${formatRelative(draft.savedAt)}`
+                  : 'No draft yet'}
+              </span>
+            </span>
+          )}
+          {!draftKey && (
+            <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-zinc-400">
+              <Database className="h-3 w-3" />
+              {items.length} row{items.length === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
       </section>
+
+      {/* T10 — Restore draft banner (Phase 5.3). Shown when a
+          non-stale draft is detected in localStorage on mount.
+          Replaced by the conflict UI when the server's
+          updated_at is newer than the draft's savedAt. */}
+      {pendingDraft && (
+        <section
+          data-testid="offline-draft-banner"
+          role={draft.hasConflict ? 'alert' : 'status'}
+          className={
+            draft.hasConflict
+              ? 'flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900'
+              : 'flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700'
+          }
+        >
+          {draft.hasConflict ? (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+          ) : (
+            <WifiOff className="h-4 w-4 shrink-0 text-zinc-500" />
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="font-medium">
+              {draft.hasConflict
+                ? 'Server has newer changes'
+                : `Restore ${pendingDraft.length} unsaved item${pendingDraft.length === 1 ? '' : 's'}?`}
+            </div>
+            <div className="text-xs opacity-80">
+              {draft.hasConflict
+                ? 'Your local draft is older than the server. Keep yours or replace with server data.'
+                : draft.savedAt
+                ? `Draft saved ${formatRelative(draft.savedAt)} to this device.`
+                : 'A draft was found on this device.'}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="inline-flex h-9 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-800 hover:bg-blue-100"
+            >
+              Restore
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="inline-flex h-9 items-center rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              {draft.hasConflict ? 'Use server' : 'Discard'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingDraft(null)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Add buttons */}
       <section className="flex flex-wrap gap-2">
@@ -234,27 +397,37 @@ export default function DailyReportWorkItemsPreview() {
         )}
       </section>
 
-      {/* Rows */}
-      <section className="space-y-2">
+      {/* Rows — T9: role="grid" wraps the row list, each WorkItemRow
+          is role="row" with arrow-key nav via useGridNavigation. */}
+      <section
+        className="space-y-2"
+        role="grid"
+        aria-label="Daily report work items"
+        aria-rowcount={items.length === 0 ? 0 : items.length}
+        aria-colcount={WORK_ITEM_ROW_COL_COUNT}
+        onKeyDown={grid.onRowKeyDown}
+      >
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500">
             No work items yet. Click one of the buttons above to add a row.
           </div>
         ) : (
-          items.map((item) => (
+          items.map((item, idx) => (
             <WorkItemRow
               key={item.id}
               item={item}
               organisationId={organisation?.id ?? null}
               projectId={projectId || null}
               locked={locked}
+              rowIndex={idx}
+              grid={grid}
               onChange={(patch) => updateItem(item.id, patch)}
               onDelete={() => deleteItem(item.id)}
               onRequestCreateTask={(initial) => {
-                // Phase 1: surface the request in the console
-                // Phase 2: opens TaskMiniDrawer
-                // eslint-disable-next-line no-console
-                console.log('[preview] Request create task:', initial);
+                setCreateTaskFor({
+                  itemId: item.id,
+                  initialTitle: initial ?? '',
+                });
               }}
             />
           ))
@@ -268,13 +441,58 @@ export default function DailyReportWorkItemsPreview() {
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Click any cell — it should turn into an input.</li>
-          <li>Drag the progress slider — it should debounce-save (console warning in Phase 1).</li>
+          <li>Drag the progress slider — it should debounce-save (optimistic in Phase 2).</li>
           <li>Click the task picker on a linked item — typeahead opens, recency-ranks open tasks.</li>
+          <li>Click the <span className="font-mono">→</span> icon next to a task chip — TaskDetailDrawer opens.</li>
+          <li>Click <span className="font-mono">+ New task</span> in the typeahead — TaskMiniDrawer opens with the search string pre-filled.</li>
           <li>If a real project UUID is in the input, the typeahead queries Supabase.</li>
           <li>Press <kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">Enter</kbd> to save, <kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">Esc</kbd> to cancel.</li>
-          <li>Toggle "Simulate locked report" — all cells become read-only, lock icon appears.</li>
+          <li>Toggle "Simulate locked report" — all cells become read-only.</li>
+          <li>
+            Items are debounce-saved (1.5s) to{' '}
+            <code className="font-mono">localStorage</code> under{' '}
+            <code className="font-mono">site-report-draft:&#123;projectId&#125;:&#123;date&#125;:&#123;userId&#125;</code>{' '}
+            (T10). Reload the page to see the "Restore draft?" prompt.
+          </li>
+          <li>Press <kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">Tab</kbd> to step through cells, <kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">←</kbd>/<kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">→</kbd> to move within a row, <kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">↑</kbd>/<kbd className="rounded border border-zinc-300 bg-white px-1 font-mono">↓</kbd> between rows (T9).</li>
         </ul>
       </footer>
+
+      {/* TaskMiniDrawer (Phase 2.3) — opens from the typeahead's
+          "+ New task" footer. On create, snaps the row to in_progress
+          at 30% and links the new task_id. */}
+      {createTaskFor && (
+        <TaskMiniDrawer
+          projectId={projectId || null}
+          initialTitle={createTaskFor.initialTitle}
+          preferredDiscipline={
+            (items.find((it) => it.id === createTaskFor.itemId)
+              ?.ad_hoc_discipline as TaskDiscipline | null) ?? null
+          }
+          onCreated={(task: ProjectTaskSlim) => {
+            updateItem(createTaskFor.itemId, {
+              task_id: task.id,
+              status_after: 'in_progress',
+              progress_after: 30,
+            });
+            setCreateTaskFor(null);
+          }}
+          onClose={() => setCreateTaskFor(null)}
+        />
+      )}
     </div>
   );
+}
+
+// ============================================
+// SMALL HELPERS
+// ============================================
+
+/** Human-friendly "saved 3m ago" formatter for the offline draft banner. */
+function formatRelative(savedAt: number): string {
+  const diff = Date.now() - savedAt;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
 }

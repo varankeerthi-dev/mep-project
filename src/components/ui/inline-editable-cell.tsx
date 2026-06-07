@@ -27,9 +27,18 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
 } from 'react';
 import { Check, Loader2, AlertCircle, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ============================================
+// T9 — DESIGN.md focus ring (Phase 5.2)
+// ============================================
+// DESIGN.md §2 / §4: focus ring 2px Executive Blue (#2563EB, blue-600)
+// on keyboard focus only (focus-visible). Mouse clicks stay clean.
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-executive focus-visible:ring-offset-1 focus-visible:ring-offset-pure';
 
 // ============================================
 // TYPES
@@ -77,6 +86,24 @@ export interface InlineEditableCellProps<T = string | number | null> {
   showEditIcon?: boolean;
   /** Aria label for the cell */
   ariaLabel?: string;
+  // ============================================
+  // T9 — Keyboard nav grid (Phase 5.2)
+  // ============================================
+  /** Roving tabindex. 0 = currently in tab order, -1 = reachable via arrow keys. */
+  tabIndex?: number;
+  /** 1-indexed column position inside the row. */
+  ariaColIndex?: number;
+  /** Called when the user presses arrow keys (Left/Right/Up/Down/Home/End)
+   *  on the display layer. The row's keyboard nav decides what to do. */
+  onGridKeyDown?: (e: React.KeyboardEvent<HTMLSpanElement>) => void;
+  /** Enter/Space on the focused display layer activates editing. Defaults to true. */
+  activateOnEnter?: boolean;
+  /**
+   * Optional ref to the focusable display layer span. Lets the parent
+   * grid focus the cell imperatively (arrow-key nav). Accepts both
+   * a RefObject and a callback ref.
+   */
+  cellRef?: Ref<HTMLSpanElement>;
 }
 
 // ============================================
@@ -122,6 +149,12 @@ export function InlineEditableCell<T extends string | number | null>({
   className,
   showEditIcon = true,
   ariaLabel,
+  // T9 — grid nav
+  tabIndex = 0,
+  ariaColIndex,
+  onGridKeyDown,
+  activateOnEnter = true,
+  cellRef,
 }: InlineEditableCellProps<T>) {
   const [state, setState] = useState<InlineCellState>('idle');
   const [draft, setDraft] = useState<T>(value);
@@ -233,14 +266,14 @@ export function InlineEditableCell<T extends string | number | null>({
   const stateBadge = (() => {
     if (state === 'saving') {
       return (
-        <span aria-hidden="true" className="ml-1 inline-flex text-zinc-400">
+        <span aria-hidden="true" className="ml-1 inline-flex text-steel">
           <Loader2 className="h-3 w-3 animate-spin" />
         </span>
       );
     }
     if (state === 'saved') {
       return (
-        <span aria-hidden="true" className="ml-1 inline-flex text-emerald-600">
+        <span aria-hidden="true" className="ml-1 inline-flex text-success">
           <Check className="h-3 w-3" />
         </span>
       );
@@ -249,7 +282,7 @@ export function InlineEditableCell<T extends string | number | null>({
       return (
         <span
           aria-hidden="true"
-          className="ml-1 inline-flex text-red-600"
+          className="ml-1 inline-flex text-critical"
           title={errorMsg || 'Save failed'}
         >
           <AlertCircle className="h-3 w-3" />
@@ -263,6 +296,7 @@ export function InlineEditableCell<T extends string | number | null>({
     <span
       role="gridcell"
       aria-label={ariaLabel}
+      aria-colindex={ariaColIndex}
       aria-busy={state === 'saving'}
       aria-invalid={state === 'error'}
       className={cn(
@@ -274,10 +308,31 @@ export function InlineEditableCell<T extends string | number | null>({
     >
       {/* Display layer (idle / saved) */}
       <span
+        // T9 — display layer is now focusable via roving tabindex.
+        // The focus ring (2px Executive Blue) only appears on
+        // keyboard focus, not on click. Enter/Space activates
+        // edit mode; arrow keys bubble to the row for grid nav.
+        ref={cellRef}
+        tabIndex={disabled ? -1 : tabIndex}
+        onKeyDown={(e) => {
+          if (onGridKeyDown) onGridKeyDown(e);
+          if (e.defaultPrevented) return;
+          if (
+            activateOnEnter &&
+            isInteractive &&
+            mode !== 'custom' &&
+            (e.key === 'Enter' || e.key === ' ')
+          ) {
+            e.preventDefault();
+            setState('editing');
+            requestAnimationFrame(() => inputRef.current?.focus());
+          }
+        }}
         className={cn(
-          'flex min-h-[24px] w-full items-center gap-1 rounded px-1.5 py-0.5 text-sm transition-colors',
-          isInteractive && 'hover:bg-zinc-100/80',
-          state === 'editing' && 'hidden'
+          'flex min-h-[44px] w-full items-center gap-1 rounded px-1.5 py-1 text-sm transition-colors',
+          isInteractive && 'hover:bg-canvas/80',
+          state === 'editing' && 'hidden',
+          FOCUS_RING
         )}
         onClick={() => {
           if (!isInteractive) return;
@@ -290,7 +345,7 @@ export function InlineEditableCell<T extends string | number | null>({
         {render ? (
           render(displayValue)
         ) : isEmpty ? (
-          <span className="text-zinc-400">{placeholder || '—'}</span>
+          <span className="text-steel">{placeholder || '—'}</span>
         ) : mode === 'select' && options ? (
           <span className="inline-flex items-center gap-1.5">
             {(() => {
@@ -315,7 +370,7 @@ export function InlineEditableCell<T extends string | number | null>({
         {showEditIcon && isInteractive && state === 'idle' && (
           <Pencil
             aria-hidden="true"
-            className="ml-1 h-3 w-3 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100"
+            className="ml-1 h-3 w-3 text-ink/30 opacity-0 transition-opacity group-hover:opacity-100"
           />
         )}
       </span>
@@ -325,7 +380,7 @@ export function InlineEditableCell<T extends string | number | null>({
         <span className="block w-full">
           {mode === 'textarea' ? (
             <textarea
-              ref={(el) => (inputRef.current = el)}
+              ref={(el) => { inputRef.current = el; }}
               value={(draft as string | number | null) ?? ''}
               onChange={handleChange}
               onBlur={handleBlur}
@@ -334,22 +389,22 @@ export function InlineEditableCell<T extends string | number | null>({
               placeholder={placeholder}
               disabled={disabled}
               className={cn(
-                'w-full resize-none rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-sm text-zinc-900 outline-none',
-                'focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                'w-full resize-none rounded border border-ink/15 bg-pure px-2 py-1.5 text-sm text-ink outline-none',
+                FOCUS_RING
               )}
               autoFocus
             />
           ) : mode === 'select' ? (
             <select
-              ref={(el) => (inputRef.current = el)}
+              ref={(el) => { inputRef.current = el; }}
               value={(draft as string | number | null) ?? ''}
               onChange={handleChange}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               disabled={disabled}
               className={cn(
-                'w-full rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-sm text-zinc-900 outline-none',
-                'focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                'w-full min-h-[44px] rounded border border-ink/15 bg-pure px-2 py-1.5 text-sm text-ink outline-none',
+                FOCUS_RING
               )}
               autoFocus
             >
@@ -360,9 +415,9 @@ export function InlineEditableCell<T extends string | number | null>({
               ))}
             </select>
           ) : mode === 'slider' ? (
-            <span className="flex w-full items-center gap-2">
+            <span className="flex w-full min-h-[44px] items-center gap-2">
               <input
-                ref={(el) => (inputRef.current = el)}
+                ref={(el) => { inputRef.current = el; }}
                 type="range"
                 value={(draft as number | null) ?? 0}
                 min={min ?? 0}
@@ -372,16 +427,16 @@ export function InlineEditableCell<T extends string | number | null>({
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
-                className="flex-1 accent-blue-600"
+                className="h-6 flex-1 accent-executive"
                 autoFocus
               />
-              <span className="w-9 text-right text-xs font-medium tabular-nums text-zinc-700">
+              <span className="w-9 text-right text-xs font-medium tabular-nums text-ink">
                 {String(draft ?? 0)}%
               </span>
             </span>
           ) : (
             <input
-              ref={(el) => (inputRef.current = el)}
+              ref={(el) => { inputRef.current = el; }}
               type={mode === 'number' ? 'number' : 'text'}
               value={(draft as string | number | null) ?? ''}
               onChange={handleChange}
@@ -393,14 +448,14 @@ export function InlineEditableCell<T extends string | number | null>({
               placeholder={placeholder}
               disabled={disabled}
               className={cn(
-                'w-full rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-sm text-zinc-900 outline-none',
-                'focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                'w-full min-h-[44px] rounded border border-ink/15 bg-pure px-2 py-1.5 text-sm text-ink outline-none',
+                FOCUS_RING
               )}
               autoFocus
             />
           )}
           {state === 'error' && errorMsg && (
-            <span className="mt-0.5 block text-[10px] text-red-600">{errorMsg}</span>
+            <span className="mt-0.5 block text-[10px] text-critical">{errorMsg}</span>
           )}
         </span>
       ) : null}

@@ -1,17 +1,19 @@
 // ============================================
-// useDailyReportWorkItems — Phase 0 hook skeleton
+// useDailyReportWorkItems — Phase 0/1/2 hooks
 // ============================================
 // Hooks for the daily_report_work_items table introduced by
 // src/database-daily-report-tasks.sql.
 //
-// Phase 0 ships READ-ONLY + create + delete hooks.
-// Phase 2 will add useUpdateWorkItem (optimistic inline edit)
-// and usePromoteAdHocToTask.
+// Phase 0: read + create + delete stubs.
+// Phase 1: read is production-grade, hooks shape final.
+// Phase 2: useUpdateWorkItem ships with optimistic update + rollback,
+//          useDeleteWorkItem uses optimistic onMutate to hide the row
+//          immediately, usePromoteAdHocToTask converts ad-hoc → task-linked.
 //
 // Pattern mirrors src/components/tasks/hooks.ts:
 //   - React Query v5
 //   - Query key factory
-//   - Optimistic updates with rollback (added in Phase 2)
+//   - Optimistic updates with rollback
 // ============================================
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -145,96 +147,161 @@ export function useAddWorkItem() {
 }
 
 // ============================================
-// DELETE (soft): useDeleteWorkItem
-// ============================================
-
-export function useDeleteWorkItem() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, reportId }: { id: string; reportId: string }) => {
-      const { error } = await supabase
-        .from('daily_report_work_items')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
-      return { id, reportId };
-    },
-    onSuccess: ({ reportId }) => {
-      queryClient.invalidateQueries({
-        queryKey: drwiKeys.byReport(reportId),
-      });
-    },
-  });
-}
-
-// ============================================
-// Phase 2 placeholders (not implemented yet)
+// UPDATE (Phase 2): useUpdateWorkItem — optimistic
 // ============================================
 
 /**
- * Phase 2: optimistic inline edit (mirrors useUpdateTask.onMutate).
- * Stub now so call-sites can compile.
+ * Optimistic inline-edit for a single work item. Mirrors `useUpdateTask`:
+ *  - onMutate: snapshot the list, apply the patch optimistically.
+ *  - onError: roll back to the snapshot.
+ *  - onSettled: invalidate to re-sync with the DB (and run the trigger).
  */
 export function useUpdateWorkItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: DailyReportWorkItemUpdate & { id: string }) => {
-      throw new Error('useUpdateWorkItem ships in Phase 2');
+      const { id, ...patch } = input;
+      const { data, error } = await supabase
+        .from('daily_report_work_items')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as DailyReportWorkItem;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: drwiKeys.all });
+    onMutate: async (input) => {
+      // Find the report id from the cache so we know which list to update.
+      const lists = queryClient.getQueriesData<DailyReportWorkItem[]>({
+        queryKey: drwiKeys.lists(),
+      });
+      let reportId: string | null = null;
+      for (const [, list] of lists) {
+        if (Array.isArray(list) && list.some((it) => it.id === input.id)) {
+          reportId = list[0]?.daily_report_id ?? null;
+          break;
+        }
+      }
+      if (!reportId) return { reportId: null, snapshot: null };
+
+      const key = drwiKeys.byReport(reportId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const snapshot = queryClient.getQueryData<DailyReportWorkItem[]>(key);
+      queryClient.setQueryData<DailyReportWorkItem[]>(key, (prev) => {
+        if (!prev) return prev;
+        return prev.map((it) =>
+          it.id === input.id ? { ...it, ...input } : it
+        );
+      });
+      return { reportId, snapshot };
+    },
+    onError: (_err, _input, ctx) => {
+      if (ctx?.reportId && ctx.snapshot) {
+        queryClient.setQueryData(
+          drwiKeys.byReport(ctx.reportId),
+          ctx.snapshot
+        );
+      }
+    },
+    onSettled: (_data, _err, _input, ctx) => {
+      if (ctx?.reportId) {
+        queryClient.invalidateQueries({
+          queryKey: drwiKeys.byReport(ctx.reportId),
+        });
+      }
     },
   });
 }
 
+// ============================================
+// DELETE (soft, Phase 2): useDeleteWorkItem — optimistic
+// ============================================
+
+export function useDeleteWorkItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; reportId: string }) => {
+      const { error } = await supabase
+        .from('daily_report_work_items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      return { id };
+    },
+    onMutate: async ({ id, reportId }) => {
+      const key = drwiKeys.byReport(reportId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const snapshot = queryClient.getQueryData<DailyReportWorkItem[]>(key);
+      queryClient.setQueryData<DailyReportWorkItem[]>(key, (prev) => {
+        if (!prev) return prev;
+        return prev.filter((it) => it.id !== id);
+      });
+      return { reportId, snapshot };
+    },
+    onError: (_err, _input, ctx) => {
+      if (ctx?.reportId && ctx.snapshot) {
+        queryClient.setQueryData(
+          drwiKeys.byReport(ctx.reportId),
+          ctx.snapshot
+        );
+      }
+    },
+    onSettled: (_data, _err, _input, ctx) => {
+      if (ctx?.reportId) {
+        queryClient.invalidateQueries({
+          queryKey: drwiKeys.byReport(ctx.reportId),
+        });
+      }
+    },
+  });
+}
+
+// ============================================
+// PROMOTE AD-HOC (Phase 2): usePromoteAdHocToTask
+// ============================================
+
 /**
- * Phase 2: convert an ad-hoc row to a task-linked row.
- * Stub now so call-sites can compile.
+ * Convert an ad-hoc work-item row into a task-linked one. Used by the
+ * "Promote to task" affordance on ad-hoc rows (R7 mitigation, D7 follow-up).
  */
 export function usePromoteAdHocToTask() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { workItemId: string; taskId: string }) => {
-      throw new Error('usePromoteAdHocToTask ships in Phase 2');
+    mutationFn: async ({
+      workItemId,
+      taskId,
+    }: {
+      workItemId: string;
+      taskId: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('daily_report_work_items')
+        .update({ task_id: taskId, ad_hoc_title: null, ad_hoc_discipline: null })
+        .eq('id', workItemId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as DailyReportWorkItem;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: drwiKeys.all });
+    onSuccess: (row) => {
+      queryClient.invalidateQueries({
+        queryKey: drwiKeys.byReport(row.daily_report_id),
+      });
     },
   });
 }
 
-/**
- * Phase 3: photo upload that calls fn_link_daily_report_photo RPC.
- * Stub now so call-sites can compile.
- */
-export function useDailyReportPhotoUpload() {
-  return useMutation({
-    mutationFn: async (input: {
-      reportId: string;
-      workItemId: string | null;
-      taskId: string | null;
-      fileName: string;
-      storagePath: string;
-      thumbnailPath?: string;
-      fileSize?: number;
-      mimeType?: string;
-      caption?: string;
-      userId: string;
-    }) => {
-      const { data, error } = await supabase.rpc('fn_link_daily_report_photo', {
-        p_report_id: input.reportId,
-        p_work_item: input.workItemId,
-        p_task_id: input.taskId,
-        p_file_name: input.fileName,
-        p_storage: input.storagePath,
-        p_thumb: input.thumbnailPath ?? null,
-        p_size: input.fileSize ?? null,
-        p_mime: input.mimeType ?? null,
-        p_caption: input.caption ?? null,
-        p_user_id: input.userId,
-      });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
+// ============================================
+// PHOTO UPLOAD (Phase 3): re-export
+// ============================================
+// The dedicated photo-upload hook lives in
+// src/hooks/useDailyReportPhotoUpload.ts — it includes the
+// retry queue (1s, 3s, 9s) and offline short-circuit. We
+// re-export here for backwards compatibility with existing
+// import sites.
+
+export {
+  useDailyReportPhotoUpload,
+  type DailyReportPhotoInput,
+  type DailyReportPhotoResult,
+} from './useDailyReportPhotoUpload';

@@ -29,6 +29,17 @@ export interface TaskTypeaheadProps {
   compact?: boolean;
   /** Phase 2 wires this to TaskMiniDrawer; Phase 1 shows a placeholder */
   onRequestCreate?: (initialTitle?: string) => void;
+  // ============================================
+  // T9 — Keyboard nav grid (Phase 5.2)
+  // ============================================
+  /** Roving tabindex for the trigger button. */
+  tabIndex?: number;
+  /** 1-indexed column position inside the row. */
+  ariaColIndex?: number;
+  /** Ref forwarded to the trigger button for imperative focus. */
+  triggerRef?: React.Ref<HTMLButtonElement>;
+  /** Arrow keys bubble to the row's grid nav. */
+  onGridKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
 }
 
 // Map the task module's STATUS_CONFIG dot colors to a small palette
@@ -67,6 +78,11 @@ export function TaskTypeahead({
   disabled = false,
   compact = false,
   onRequestCreate,
+  // T9 — grid nav
+  tabIndex,
+  ariaColIndex,
+  triggerRef,
+  onGridKeyDown,
 }: TaskTypeaheadProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -74,7 +90,7 @@ export function TaskTypeahead({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: tasks = [], isLoading } = useTasksForProject({
+  const { data: tasks = [], isLoading, isError, refetch } = useTasksForProject({
     organisationId,
     projectId,
     preferredDiscipline,
@@ -182,13 +198,29 @@ export function TaskTypeahead({
       {/* Display / trigger */}
       <button
         type="button"
+        // T9 — trigger is a grid cell. tabIndex is roving (0/-1).
+        // Arrow keys bubble to the row's onCellKeyDown for grid nav.
+        ref={triggerRef}
+        tabIndex={tabIndex}
+        aria-colindex={ariaColIndex}
+        onKeyDown={(e) => {
+          if (onGridKeyDown) onGridKeyDown(e);
+          if (e.defaultPrevented) return;
+          // Enter/Space opens the popover
+          if (!open && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            handleOpen();
+          }
+        }}
         onClick={handleOpen}
         disabled={disabled}
         className={cn(
           'flex w-full items-center gap-1.5 rounded border border-zinc-200 bg-white px-2 py-1 text-left text-sm transition-colors',
           !disabled && 'hover:border-zinc-300 hover:bg-zinc-50/80',
           disabled && 'cursor-not-allowed opacity-60',
-          open && 'border-blue-500 ring-1 ring-blue-500'
+          open && 'border-blue-500 ring-1 ring-blue-500',
+          // T9 — focus ring 2px Executive Blue, keyboard only
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 focus-visible:ring-offset-white'
         )}
       >
         {selected ? (
@@ -247,7 +279,19 @@ export function TaskTypeahead({
             {isLoading && (
               <div className="px-3 py-2 text-xs text-zinc-400">Loading…</div>
             )}
-            {!isLoading && tasks.length === 0 && (
+            {isError && !isLoading && (
+              <div className="flex flex-col items-center gap-1.5 px-3 py-4 text-center text-xs text-zinc-500">
+                <span className="text-zinc-600">Couldn't load tasks.</span>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="inline-flex h-8 items-center rounded border border-zinc-200 bg-white px-2 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {!isLoading && !isError && tasks.length === 0 && (
               <div className="px-3 py-4 text-center text-xs text-zinc-500">
                 No matching tasks in this project.
               </div>
@@ -340,8 +384,13 @@ export function TaskTypeahead({
               })}
           </div>
 
-          {/* Footer: create new task */}
-          {onRequestCreate && (
+          {/* Footer: create new task
+              FR-2.2 — hide the "+ New task" footer when the user is
+              browsing (results present, no search). Show it when the
+              user has typed something (so they can force-create even
+              if a match exists) or when the list is empty. The Retry
+              footer on error also shows a creation option. */}
+          {onRequestCreate && (search.trim().length > 0 || tasks.length === 0) && !isError && (
             <div className="border-t border-zinc-100 p-1">
               <button
                 type="button"

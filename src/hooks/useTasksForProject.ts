@@ -49,6 +49,62 @@ interface UseTasksForProjectArgs {
 const DEFAULT_LIMIT = 50;
 const DEFAULT_SORT: ProjectTaskSort = 'open_first';
 
+// SessionStorage cache for the FR-2.1 typeahead performance
+// improvement. Keyed by org + project; only the unfiltered (or
+// short-search) results are cached, since those are the ones the
+// typeahead shows on first open. TTL 5 min — long enough to cover
+// a typical report-writing session, short enough to pick up new
+// tasks created elsewhere.
+const TYPEAHEAD_CACHE_TTL_MS = 1000 * 60 * 5;
+
+function typeaheadCacheKey(
+  orgId: string | null | undefined,
+  projectId: string | null | undefined
+): string {
+  return `dr:typeahead:${orgId ?? 'none'}:${projectId ?? 'none'}`;
+}
+
+interface CachedTypeahead {
+  rows: ProjectTaskSlim[];
+  cachedAt: number;
+}
+
+function readTypeaheadCache(
+  orgId: string | null | undefined,
+  projectId: string | null | undefined
+): ProjectTaskSlim[] | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(typeaheadCacheKey(orgId, projectId));
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as CachedTypeahead;
+    if (Date.now() - parsed.cachedAt > TYPEAHEAD_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(typeaheadCacheKey(orgId, projectId));
+      return undefined;
+    }
+    return parsed.rows;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeTypeaheadCache(
+  orgId: string | null | undefined,
+  projectId: string | null | undefined,
+  rows: ProjectTaskSlim[]
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload: CachedTypeahead = { rows, cachedAt: Date.now() };
+    window.sessionStorage.setItem(
+      typeaheadCacheKey(orgId, projectId),
+      JSON.stringify(payload)
+    );
+  } catch {
+    // quota exceeded or storage disabled — silently skip
+  }
+}
+
 export const projectTaskKeys = {
   all: ['project-tasks-slim'] as const,
   byProject: (
@@ -72,9 +128,20 @@ export function useTasksForProject({
   search = '',
   enabled = true,
 }: UseTasksForProjectArgs) {
+  // FR-2.1: hydrate the unfiltered browse-list from sessionStorage
+  // so the typeahead shows results on first open without a network
+  // round-trip. We only hydrate the empty/short-search case;
+  // typed-search queries always go to the network.
+  const trimmedSearch = search.trim();
+  const canHydrate = trimmedSearch.length === 0;
+
   return useQuery({
     queryKey: projectTaskKeys.byProject(organisationId, projectId, sort, search),
     enabled: !!organisationId && !!projectId && enabled,
+    initialData: () =>
+      canHydrate
+        ? readTypeaheadCache(organisationId, projectId)
+        : undefined,
     queryFn: async () => {
       // Build the base query — only the columns the typeahead renders
       let query = supabase
@@ -132,6 +199,11 @@ export function useTasksForProject({
           // tiebreak: keep relative order from the query
           return 0;
         });
+      }
+
+      // FR-2.1: write-through cache for the unfiltered list
+      if (canHydrate) {
+        writeTypeaheadCache(organisationId, projectId, rows);
       }
 
       return rows;
