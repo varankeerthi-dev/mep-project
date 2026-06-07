@@ -2922,7 +2922,7 @@ export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) { return <S
 import { toast } from '@/lib/logger';
 import { useOrgApprovalSettings, useSubcontractorPaymentsForAccountant, useReleaseSubcontractorPayment } from '@/hooks/useApprovals';
 import { ApprovalIntegration } from '../approvals/integration';
-import { usePaymentRequests, useCreatePaymentRequest, useDeletePaymentRequest } from '../modules/Purchase/hooks/usePurchaseQueries';
+import { usePaymentRequests, useCreatePaymentRequest, useDeletePaymentRequest, useUpdatePaymentRequest, useResendPaymentRequest } from '../modules/Purchase/hooks/usePurchaseQueries';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -2989,10 +2989,13 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const [requestProjectId, setRequestProjectId] = useState('');
   const [requestWorkOrderId, setRequestWorkOrderId] = useState('');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
 
   const { data: allPaymentRequests = [], isLoading: paymentRequestsLoading } = usePaymentRequests(orgId);
   const createPaymentRequest = useCreatePaymentRequest();
   const deletePaymentRequest = useDeletePaymentRequest();
+  const updatePaymentRequest = useUpdatePaymentRequest();
+  const resubmitPaymentRequest = useResendPaymentRequest();
 
   const accountantQuery = useSubcontractorPaymentsForAccountant(orgId);
   const releasePayment = useReleaseSubcontractorPayment();
@@ -3426,13 +3429,13 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ fontFamily: 'Courier New, monospace' }}>Loading payments...</div>
+        <div style={{ fontFamily: "'Inter', sans-serif" }}>Loading payments...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Courier New, monospace' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
       <div style={{ padding: '24px 24px 0', background: '#f8fafc' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -3447,27 +3450,50 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               {activeTab === 'payments' && (
-                <button
-                  onClick={() => { resetForm(); setEditingPayment(null); setShowModal(true); }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    borderRadius: '8px',
-                    background: '#0f172a',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#fff',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.background = '#1e293b'}
-                  onMouseOut={(e) => e.currentTarget.style.background = '#0f172a'}
-                >
-                  <span style={{ fontSize: '16px' }}>+</span> New Payment
-                </button>
+                <>
+                  <button
+                    onClick={() => { setEditingRequestId(null); setRequestSubcontractorId(''); setRequestAmount(''); setRequestPriority('Normal'); setRequestDueDate(''); setRequestPaymentMode('Bank Transfer'); setRequestBankAccount(''); setRequestReason(''); setRequestClientId(''); setRequestProjectId(''); setRequestWorkOrderId(''); setShowRequestDialog(true); }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      borderRadius: '8px',
+                      background: '#fff',
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#0f172a',
+                      border: '1px solid #e2e8f0',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseOut={(e) => e.currentTarget.style.background = '#fff'}
+                  >
+                    Payment Request
+                  </button>
+                  <button
+                    onClick={() => { resetForm(); setEditingPayment(null); setShowModal(true); }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      borderRadius: '8px',
+                      background: '#0f172a',
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = '#1e293b'}
+                    onMouseOut={(e) => e.currentTarget.style.background = '#0f172a'}
+                  >
+                    <span style={{ fontSize: '16px' }}>+</span> New Payment
+                  </button>
+                </>
               )}
               {activeTab === 'requests' && (
                 <button
@@ -3897,7 +3923,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                        {['Date', 'Subcontractor', 'Amount', 'Priority', 'Status', 'Approval', 'Due By', 'Reason', 'Actions'].map((header) => (
+                        {['Date', 'Subcontractor', 'Amount', 'Requested By', 'Priority', 'Status', 'Approval', 'Due By', 'Reason', 'Actions'].map((header) => (
                           <th key={header} style={{
                             padding: '12px 16px',
                             textAlign: 'left',
@@ -3924,6 +3950,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                             <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a' }}>{req.request_date}</td>
                             <td style={{ padding: '16px', fontSize: '14px', color: '#334155', fontWeight: '500' }}>{req.subcontractor?.company_name || '-'}</td>
                             <td style={{ padding: '16px', fontSize: '14px', color: '#16a34a', fontWeight: '600' }}>₹{Number(req.amount_requested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td style={{ padding: '16px', fontSize: '13px', color: '#475569' }}>{req.requester_name || '-'}</td>
                             <td style={{ padding: '16px' }}>
                               <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }} className={priorityColors[prio] || 'bg-zinc-100 text-zinc-700'}>
                                 {req.priority}
@@ -3936,25 +3963,63 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
                             </td>
                             <td style={{ padding: '16px' }}>
                               <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: statusColors[req.status] || '#f1f5f9', color: statusTextColors[req.status] || '#64748b' }}>
-                                {req.status === 'Approved' ? 'Approved' : req.status === 'Rejected' ? 'Rejected' : req.status === 'Paid' ? 'Paid' : 'Pending'}
+                                {req.status === 'Approved' ? `Approved${req.approver_name ? ` (${req.approver_name})` : ''}` : req.status === 'Rejected' ? `Rejected${req.approver_name ? ` (${req.approver_name})` : ''}` : req.status === 'Paid' ? `Paid${req.approver_name ? ` (${req.approver_name})` : ''}` : 'Pending'}
                               </span>
                             </td>
                             <td style={{ padding: '16px', fontSize: '14px', color: '#64748b' }}>{req.due_date || '-'}</td>
                             <td style={{ padding: '16px', fontSize: '13px', color: '#0f172a' }}>{req.reason || '-'}</td>
                             <td style={{ padding: '16px' }}>
-                              <button
-                                onClick={() => {
-                                  if (confirm('Delete this payment request?')) {
-                                    deletePaymentRequest.mutate(
-                                      { requestId: req.id, organisationId: req.organisation_id },
-                                      { onSuccess: () => {} }
-                                    );
-                                  }
-                                }}
-                                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: '#fef2f2', color: '#dc2626', border: 'none', cursor: 'pointer' }}
-                              >
-                                Delete
-                              </button>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                {req.status === 'Pending' && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingRequestId(req.id);
+                                      setRequestSubcontractorId(req.subcontractor_id || '');
+                                      setRequestAmount(req.amount_requested?.toString() || '');
+                                      setRequestPriority(req.priority || 'Normal');
+                                      setRequestDueDate(req.due_date || '');
+                                      setRequestPaymentMode(req.payment_mode || 'Bank Transfer');
+                                      setRequestBankAccount(req.bank_account_id || '');
+                                      setRequestReason(req.reason || '');
+                                      setRequestClientId(req.client_id || '');
+                                      setRequestProjectId(req.project_id || '');
+                                      setRequestWorkOrderId(req.work_order_id || '');
+                                      setShowRequestDialog(true);
+                                    }}
+                                    style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: '#f1f5f9', color: '#475569', border: 'none', cursor: 'pointer' }}
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                {(req.status === 'Rejected' || req.status === 'Cancelled' || req.status === 'Pending') && req.status !== 'Approved' && !isPaid && (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Resubmit this payment request for approval?')) {
+                                        resubmitPaymentRequest.mutate(
+                                          { requestId: req.id, organisationId: req.organisation_id },
+                                          { onSuccess: () => toast.success('Payment request resubmitted.') }
+                                        );
+                                      }
+                                    }}
+                                    style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: '#e0e7ff', color: '#4f46e5', border: 'none', cursor: 'pointer' }}
+                                  >
+                                    Resubmit
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Delete this payment request?')) {
+                                      deletePaymentRequest.mutate(
+                                        { requestId: req.id, organisationId: req.organisation_id },
+                                        { onSuccess: () => {} }
+                                      );
+                                    }
+                                  }}
+                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', background: '#fef2f2', color: '#dc2626', border: 'none', cursor: 'pointer' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -4662,7 +4727,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
         }}>
           <div style={{ background: '#fff', borderRadius: '8px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e5e5e5' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>New Payment Request</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>{editingRequestId ? 'Edit Payment Request' : 'New Payment Request'}</h3>
               <button onClick={() => setShowRequestDialog(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
             <form onSubmit={async (e) => {
@@ -4671,25 +4736,43 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               if (!requestSubcontractorId) { toast.error('Please select a subcontractor.'); return; }
               if (!requestAmount || Number(requestAmount) <= 0) { toast.error('Please enter a valid amount.'); return; }
               try {
-                await createPaymentRequest.mutateAsync({
-                  organisation_id: organisation.id,
-                  subcontractor_id: requestSubcontractorId,
-                  amount_requested: Number(requestAmount),
-                  priority: requestPriority,
-                  due_date: requestDueDate,
-                  payment_mode: requestPaymentMode,
-                  bank_account_id: requestBankAccount || null,
-                  reason: requestReason,
-                  status: 'Pending',
-                  requested_by: user?.id || null,
-                  client_id: requestClientId || null,
-                  project_id: requestProjectId || null,
-                  work_order_id: requestWorkOrderId || null,
-                });
+                if (editingRequestId) {
+                  await updatePaymentRequest.mutateAsync({
+                    id: editingRequestId,
+                    organisation_id: organisation.id,
+                    subcontractor_id: requestSubcontractorId,
+                    amount_requested: Number(requestAmount),
+                    priority: requestPriority,
+                    due_date: requestDueDate,
+                    payment_mode: requestPaymentMode,
+                    bank_account_id: requestBankAccount || null,
+                    reason: requestReason,
+                    client_id: requestClientId || null,
+                    project_id: requestProjectId || null,
+                    work_order_id: requestWorkOrderId || null,
+                  });
+                  toast.success('Payment request updated successfully.');
+                } else {
+                  await createPaymentRequest.mutateAsync({
+                    organisation_id: organisation.id,
+                    subcontractor_id: requestSubcontractorId,
+                    amount_requested: Number(requestAmount),
+                    priority: requestPriority,
+                    due_date: requestDueDate,
+                    payment_mode: requestPaymentMode,
+                    bank_account_id: requestBankAccount || null,
+                    reason: requestReason,
+                    status: 'Pending',
+                    requested_by: user?.id || null,
+                    client_id: requestClientId || null,
+                    project_id: requestProjectId || null,
+                    work_order_id: requestWorkOrderId || null,
+                  });
+                  toast.success('Payment request submitted for approval.');
+                }
                 setShowRequestDialog(false);
-                toast.success('Payment request submitted for approval.');
               } catch (err: any) {
-                toast.error(err?.message ?? 'Failed to submit request.');
+                toast.error(err?.message ?? 'Failed to save request.');
               }
             }} style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gap: '16px' }}>

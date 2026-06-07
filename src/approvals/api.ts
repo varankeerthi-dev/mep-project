@@ -136,13 +136,13 @@ export class ApprovalAPI {
 
       const userIds = [...new Set((approvals || []).map((a: any) => a.requested_by).filter(Boolean))];
       const { data: profiles } = userIds.length > 0
-        ? await supabase.from('user_profiles').select('id, full_name').in('id', userIds)
+        ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', userIds)
         : { data: [] };
-      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.full_name]));
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name]));
 
       const enriched = (approvals || []).map((a: any) => ({
         ...a,
-        requester_name: profileMap[a.requested_by] || null,
+        requester_name: profileMap[a.requested_by] || a.requester_name || null,
       }));
 
       return {

@@ -728,7 +728,7 @@ const Approvals: React.FC = () => {
           value={sectionCounts.others}
           active={activeSection === 'others'}
           onClick={() => setActiveSection('others')}
-          accent="bg-zinc-800"
+          accent="bg-zinc-400"
         />
         <Pill
           label="Approved by me"
@@ -844,7 +844,7 @@ const Approvals: React.FC = () => {
       )}
       </AnimatePresence>
 
-      <div className="bg-white border border-zinc-200 rounded-none overflow-x-auto relative">
+      <div className="bg-white rounded-none overflow-x-auto relative">
         <ApprovalTable
           rows={filteredList}
           onView={handleOpenDetails}
@@ -1125,16 +1125,15 @@ type PillProps = {
   accent: string;
 };
 
-const Pill = ({ label, value, active, onClick, accent }: PillProps) => (
+const Pill = ({ label, value, active, onClick }: PillProps) => (
   <button
     onClick={onClick}
-    className={`inline-flex items-center gap-2.5 rounded-full border px-6 py-[10px] text-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
-      active ? 'border-zinc-900 text-zinc-900' : 'border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+    className={`inline-flex h-[40px] items-center gap-[6px] rounded-full px-5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
+      active ? 'bg-blue-600 text-white' : 'bg-white text-zinc-700 hover:bg-zinc-100'
     }`}
   >
-    <span className={`h-2.5 w-2.5 rounded-full transition-transform ${active ? accent : 'bg-zinc-300'}`} />
-    <span>{label}</span>
-    <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700'}`}>
+    <span className="px-[10px]">{label}</span>
+    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-700'}`}>
       {value}
     </span>
   </button>
@@ -1375,7 +1374,7 @@ const ApprovalTable = ({
 }: ApprovalTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -1458,8 +1457,8 @@ const ApprovalTable = ({
   }
 
   return (
-    <div>
-      <div>
+    <div className="flex flex-col min-h-[calc(100vh-220px)]">
+      <div className="flex-1">
         <table className="w-full border-separate border-spacing-0">
           <thead>
             <tr>
@@ -1533,7 +1532,7 @@ const ApprovalTable = ({
                     }}
                   >
                     {enableRowSelection && (
-                      <td className="px-4 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      <td className="px-4 py-3 align-middle text-center border-t border-zinc-200/70">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1543,7 +1542,7 @@ const ApprovalTable = ({
                         />
                       </td>
                     )}
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       <span
                         className={
                           'inline-flex items-center text-[10px] font-semibold ' +
@@ -1553,7 +1552,7 @@ const ApprovalTable = ({
                         {TYPE_LABEL[t] ?? t}
                       </span>
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       <div>
                         <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px] mx-auto">{row.title.replace(/ ?- ?Payment Request|Payment Request ?- ?|^Payment Request$/i, '')}</div>
                         <div className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5 mt-0.5">
@@ -1568,7 +1567,7 @@ const ApprovalTable = ({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       {row.projectName ? (
                         <span className="inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700 max-w-[150px] truncate mx-auto">
                           {row.projectName}
@@ -1577,12 +1576,9 @@ const ApprovalTable = ({
                         <span className="text-zinc-300 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       {requesterName ? (
                         <div className="flex items-center justify-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-700 flex items-center justify-center text-[10px] font-semibold shrink-0">
-                            {initials}
-                          </div>
                           <div className="min-w-0 text-left">
                             <div className="text-[12px] font-medium text-zinc-900 truncate max-w-[120px]">{requesterName}</div>
                             {requesterRole && <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{requesterRole}</div>}
@@ -1592,7 +1588,7 @@ const ApprovalTable = ({
                         <span className="text-zinc-300 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       <div className="flex items-center justify-center gap-2">
                         <div className="text-sm font-semibold text-zinc-900 tabular-nums">
                           {row.amount ? `₹${row.amount.toLocaleString('en-IN')}` : '—'}
@@ -1606,7 +1602,7 @@ const ApprovalTable = ({
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       {row.reviewStatus && row.reviewStatus !== 'NOT_REQUIRED' ? (
                         <div className="flex flex-col items-center gap-1">
                           {row.reviewStatus === 'PENDING' && (
@@ -1627,7 +1623,7 @@ const ApprovalTable = ({
                         <span className="text-[11px] text-zinc-400">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
                       {chain.length ? (
                         <div className="flex flex-col items-start gap-1">
                           {chain.map((w, i) => {
@@ -1701,7 +1697,7 @@ const ApprovalTable = ({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+      <div className="mt-auto flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
         <div className="text-sm font-medium text-zinc-600">
           Showing {rows.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, rows.length)} of {rows.length}
         </div>

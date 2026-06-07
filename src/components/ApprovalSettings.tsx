@@ -660,12 +660,12 @@ export const ApprovalSettings: React.FC = () => {
               key={module}
               className="border border-zinc-200 rounded-lg bg-white divide-y divide-zinc-100"
             >
-              <div className="px-5 py-4 flex items-center justify-between gap-4">
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="text-sm font-semibold text-zinc-900">
+                  <div className="text-base font-semibold text-zinc-900">
                     {meta.label}
                   </div>
-                  <div className="text-xs text-zinc-500 mt-0.5">
+                  <div className="text-sm text-zinc-500 mt-1">
                     {meta.description}
                   </div>
                 </div>
@@ -685,15 +685,15 @@ export const ApprovalSettings: React.FC = () => {
               </div>
 
               {config.enabled && (
-                <div className="px-5 py-4 space-y-5">
+                <div className="p-6 space-y-6 bg-zinc-50/50">
                   
                   {/* Review Configuration */}
                   {['QUOTATION', 'WORK_ORDER', 'INVOICE'].includes(module) && (
-                    <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-200 space-y-4">
+                    <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <h4 className="text-sm font-medium text-zinc-900">Require Review Step</h4>
-                          <p className="text-xs text-zinc-500">Require a designated person to review before it goes to the approvers.</p>
+                          <p className="text-xs text-zinc-500 mt-0.5">Require a designated person to review before it goes to the approvers.</p>
                         </div>
                         <Switch
                           checked={config.requiresReview || false}
@@ -732,24 +732,26 @@ export const ApprovalSettings: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-12 gap-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    <div className="col-span-3">Level</div>
-                    <div className="col-span-4">Approver</div>
-                    <div className="col-span-2">Min (₹)</div>
-                    <div className="col-span-2">Max (₹)</div>
-                    <div className="col-span-1"></div>
-                  </div>
-                  {config.levels.length === 0 && (
-                  <p className="text-[10px] text-zinc-500 pl-1">
-                    Add at least one level.
-                  </p>
-                  )}
-                  {config.levels.map((level, index) => (
-                    <div
-                      key={level.id}
-                      className="grid grid-cols-12 gap-3 items-center"
-                    >
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-12 gap-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pb-2 border-b border-zinc-100">
+                      <div className="col-span-3">Level</div>
+                      <div className="col-span-4">Approver</div>
+                      <div className="col-span-2">Min (₹)</div>
+                      <div className="col-span-2">Max (₹)</div>
+                      <div className="col-span-1"></div>
+                    </div>
+                    
+                    <div className="pl-4 border-l-2 border-zinc-100 space-y-4">
+                      {config.levels.length === 0 && (
+                        <p className="text-sm text-zinc-500 py-4 italic">
+                          No approval levels added yet. Add at least one level below.
+                        </p>
+                      )}
+                      {config.levels.map((level, index) => (
+                        <div
+                          key={level.id}
+                          className="grid grid-cols-12 gap-4 items-start py-2"
+                        >
                       <div className="col-span-3">
                         <Input
                           readOnly
@@ -814,21 +816,22 @@ export const ApprovalSettings: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => addLevel(module)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add level
-                  </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => addLevel(module)}
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Add Approval Level
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        );
+              )}
+            </div>
+          );
         })}
       </div>
     </div>
