@@ -1,4 +1,4 @@
-// src/App.tsx
+﻿// src/App.tsx
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -117,6 +117,7 @@ const MeetingMinutesView = lazyAny(() => import('./meetings/pages/MeetingMinutes
 const ClientRequests = lazyAny(() => import('./pages/ClientRequests'));
 const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ default: m.SiteVisits })));
 const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
+const DailyReportWorkItemsPreview = lazyAny(() => import('./modules/DailyReport/pages/DailyReportWorkItemsPreview').then(m => ({ default: m.default })));
 const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
 const Subcontractors = import('./pages/Subcontractors');
 const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDashboard })));
@@ -261,6 +262,7 @@ export default function App() {
       case '/meetings/edit': return <CreateMeeting />;
       case '/site-visits': return <SiteVisits />;
       case '/site-reports': return <SiteReport />;
+      case '/__preview/daily-report-work-items': return <DailyReportWorkItemsPreview />;
       case '/handover': return <HandoverList />;
       case '/projects-overview': return <ProjectOverview />;
       case '/client-communication': return <ClientCommunication />;
@@ -536,16 +538,16 @@ export default function App() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
 
-    // Auth state change listener — only re-fetch on TOKEN_REFRESHED (NOT INITIAL_SESSION)
+    // Auth state change listener â€” only re-fetch on TOKEN_REFRESHED (NOT INITIAL_SESSION)
     // INITIAL_SESSION fires on every page load and causes unnecessary query storm
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔄 Auth state changed:', event);
+      console.log('ðŸ”„ Auth state changed:', event);
       
       // Only refetch when an existing token is silently refreshed
       if (event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           setTimeout(() => {
-            console.log('🔄 Token refreshed - invalidating stale queries...');
+            console.log('ðŸ”„ Token refreshed - invalidating stale queries...');
             markActiveQueriesStale();
           }, 300);
         }
@@ -555,7 +557,7 @@ export default function App() {
     // Periodic session refresh check (every 5 minutes)
     // This handles the case where user stays on the same tab for long periods
     const sessionCheckInterval = setInterval(async () => {
-      console.log('🔄 Periodic session check...');
+      console.log('ðŸ”„ Periodic session check...');
       const sessionValid = await refreshSessionIfNeeded({ strict: false, timeoutMs: 7000 });
       
       if (!sessionValid) {
