@@ -928,6 +928,7 @@ const Approvals: React.FC = () => {
           workflows={workflows}
           onQuickApprove={handleQuickApprove}
           onQuickReject={handleQuickReject}
+          onQuickHold={handleQuickHold}
           onOpenOriginal={handleOpenOriginal}
           enableRowSelection
           onSelectionChange={setSelectedRows}
@@ -1488,6 +1489,7 @@ type ApprovalTableProps = {
   workflows?: ApprovalWorkflow[];
   onQuickApprove?: (row: ApprovalRow) => void;
   onQuickReject?: (row: ApprovalRow, reason: string) => void;
+  onQuickHold?: (row: ApprovalRow, reason: string) => void;
   onOpenOriginal?: (row: ApprovalRow) => void;
   enableRowSelection?: boolean;
   selectedRows?: ApprovalRow[];
@@ -1503,6 +1505,7 @@ const ApprovalTable = ({
   workflows = [],
   onQuickApprove,
   onQuickReject,
+  onQuickHold,
   onOpenOriginal,
   enableRowSelection,
   onSelectionChange,
@@ -1871,7 +1874,7 @@ const ApprovalTable = ({
                         onView={onView}
                         onQuickApprove={onQuickApprove}
                         onQuickReject={onQuickReject}
-                        onQuickHold={handleQuickHold}
+                        onQuickHold={onQuickHold}
                         onOpenOriginal={onOpenOriginal}
                         onFetchHistory={onFetchHistory}
                         openMenuId={openMenuId}
