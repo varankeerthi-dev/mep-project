@@ -355,8 +355,9 @@ export function ApprovalDetailsSidebar({
                       } else if (actionMode === 'return') {
                         const reasonParts = [...returnReasons.filter((v) => v !== 'other')];
                         if (returnOtherText.trim()) reasonParts.push(returnOtherText.trim());
-                        setActionReason(reasonParts.join(', '));
-                        handleProcessAction('RETURNED');
+                        const reasonStr = reasonParts.join(', ');
+                        setActionReason(reasonStr);
+                        handleProcessAction('RETURNED', undefined, reasonStr);
                       }
                     }}
                     disabled={actionMode === 'return' ? returnReasons.length === 0 : !actionReason.trim()}

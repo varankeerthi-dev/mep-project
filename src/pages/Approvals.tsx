@@ -557,14 +557,16 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const handleProcessAction = async (action: ApprovalAction | 'HOLD' | 'RETURNED', amount?: number) => {
+  const handleProcessAction = async (action: ApprovalAction | 'HOLD' | 'RETURNED', amount?: number, customReason?: string) => {
     if (!selectedApproval) return;
 
-    if (action === 'REJECTED' && !actionReason.trim()) {
+    const reason = customReason ?? actionReason;
+
+    if (action === 'REJECTED' && !reason.trim()) {
       toast.error('Rejection reason is required');
       return;
     }
-    if ((action === 'HOLD' || action === 'RETURNED') && !actionReason.trim()) {
+    if ((action === 'HOLD' || action === 'RETURNED') && !reason.trim()) {
       toast.error('A reason/comment is required for this action');
       return;
     }
@@ -573,7 +575,7 @@ const Approvals: React.FC = () => {
       const base = {
         approvalId: selectedApproval.id,
         action: action as any,
-        comments: actionReason.trim() || undefined,
+        comments: reason.trim() || undefined,
         amount_approved: amount,
       } as any;
 
