@@ -1,4 +1,35 @@
 /** @type {import('tailwindcss').Config} */
+// ============================================
+// DESIGN.md compliance — Phase 5.4 (T11)
+// ============================================
+// Tailwind v4 reads design tokens from `@theme inline` in
+// src/index.css. This file is kept for shadcn compatibility
+// (the shadcn components consume CSS variables declared here).
+//
+// We mirror the DESIGN.md tokens below so the v3 tooling and
+// IDE autocompletion stay useful. The single source of truth
+// is the @theme block in index.css.
+//
+// Palette mapping (DESIGN.md §2):
+//   canvas     #F9FAFB   background surface
+//   pure       #FFFFFF   card / container
+//   ink        #18181B   primary text (zinc-950 equivalent)
+//   steel      #71717A   secondary text (zinc-500 equivalent)
+//   whisper    rgba(226,232,240,0.5)  card border
+//   executive  #2563EB   accent CTA / focus ring
+//   success    #059669   positive
+//   warning    #D97706   caution
+//   critical   #DC2626   error / overdue
+//
+// Typography (DESIGN.md §3):
+//   display  Geist (loaded via @fontsource-variable/geist)
+//   body     Satoshi — NOT INSTALLED. Falls back to Inter.
+//   mono     JetBrains Mono (loaded for code/numerics)
+//
+// Satoshi gap: add `@fontsource-variable/satoshi` to
+// package.json and update --font-body in index.css to
+// switch the body font. Out of scope for v1.
+// ============================================
 module.exports = {
   darkMode: ["class"],
   content: [
@@ -16,7 +47,12 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        inter: ['Inter', 'system-ui', 'sans-serif']
+        // Legacy shadcn inter token — kept for shadcn primitives.
+        inter: ['Inter', 'system-ui', 'sans-serif'],
+        // DESIGN.md §3 — display / body / mono tokens.
+        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
+        body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -24,6 +60,17 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        // DESIGN.md §2 — palette tokens (mirror of @theme inline in index.css).
+        canvas: "var(--color-canvas)",
+        pure: "var(--color-pure)",
+        ink: "var(--color-ink)",
+        steel: "var(--color-steel)",
+        whisper: "var(--color-whisper)",
+        executive: "var(--color-executive)",
+        success: "var(--color-success)",
+        warning: "var(--color-warning)",
+        critical: "var(--color-critical)",
+        // shadcn / existing — kept for compatibility.
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

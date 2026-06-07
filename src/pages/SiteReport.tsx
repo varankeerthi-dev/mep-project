@@ -36,15 +36,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  Upload, 
-  Camera, 
-  FileText, 
+  Plus,
+  Trash2,
+  Save,
+  Upload,
+  Camera,
+  FileText,
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  Lock,
   HardHat,
   Users,
   Wrench,
@@ -90,6 +91,7 @@ import {
   type BlockingParty,
   type WorkStoppage,
 } from '@/types/siteReportStoppage';
+import { IS_DR_V2_LOCK_BANNER, shouldRenderStructuredWorkItems } from '@/modules/DailyReport/feature-flag';
 
 // Removed Material-UI imports
 
@@ -1923,7 +1925,49 @@ export function SiteReport() {
                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Carried Out & Milestones</div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.workMilestones && 'rotate-90')} />
                 </button>
-                {openSections.workMilestones && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {openSections.workMilestones && (
+                  <>
+                    {/* Phase 5.1 (T8) — section-level lock banner. Replaces
+                        the per-row lock indicator. Shows once at the top
+                        of the section so the engineer knows the report
+                        is read-only. Reads the lock state from the form
+                        (reporting.pmStatus) — the same value the row
+                        lock icon used to read from `report.pm_status`.
+                        Phase 6.1: gated by IS_DR_V2_LOCK_BANNER so the
+                        legacy `work_carried_out` row flow is unchanged
+                        when the flag is off. */}
+                    {IS_DR_V2_LOCK_BANNER &&
+                      (form.watch('reporting.pmStatus') === 'Approved' ||
+                        form.watch('reporting.pmStatus') === 'Reported' ||
+                        form.watch('reporting.pmStatus') === 'Pending Approval') && (
+                        <div
+                          data-testid="section-lock-banner"
+                          className="mb-3 flex items-center gap-2 rounded-md border border-zinc-200/60 bg-zinc-50/60 px-3 py-2 text-xs text-zinc-600"
+                          role="status"
+                        >
+                          <Lock className="h-3.5 w-3.5 text-zinc-500" />
+                          <span>
+                            This report is locked after approval. The work items below are read-only.
+                          </span>
+                        </div>
+                      )}
+
+                    {/* Phase 6.1 seam — when shouldRenderStructuredWorkItems()
+                        is true, the legacy `work_carried_out` text rows below
+                        will be replaced by <WorkItemRow /> components fed
+                        from useDailyReportWorkItems(reportId). For now the
+                        seam is a no-op (legacy rows render as before). The
+                        flag is consulted here so the work can be flipped
+                        on without a code change. */}
+                    {shouldRenderStructuredWorkItems() && (
+                      <div className="mb-3 rounded-md border border-dashed border-blue-200 bg-blue-50/40 px-3 py-2 text-[11px] text-blue-800">
+                        Structured work-items preview: see <code>src/pages/SiteReport.tsx</code> workMilestones for the
+                        integration seam. The WorkItemRow + useDailyReportWorkItems pipeline is in place at{' '}
+                        <code>src/modules/DailyReport/</code> and the preview page at{' '}
+                        <code>/__preview/daily-report-work-items</code>.
+                      </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Done Today *</label>
@@ -1971,14 +2015,14 @@ export function SiteReport() {
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {milestoneFields.map((field, index) => (
+                     {milestoneFields.map((field, index) => (
                       <div key={field.id} className="flex gap-2 items-start group">
                         <Input className="h-9 text-sm bg-white flex-1" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone description..." />
                         {view !== 'view' && (
-                          <ShadcnButton 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                          <ShadcnButton
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             className="h-9 w-9 text-zinc-300 hover:text-red-500"
                             onClick={() => removeMilestone(index)}
                           >
@@ -1989,7 +2033,9 @@ export function SiteReport() {
                     ))}
                   </div>
                 </div>
-              </div>}
+                </div>
+                </>
+              )}
               </div>
 
               {/* 4. Progress, Equipment, Safety & Quality */}
