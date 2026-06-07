@@ -650,6 +650,24 @@ const Approvals: React.FC = () => {
     }
   };
 
+  const handleQuickHold = async (row: ApprovalRow, reason: string) => {
+    try {
+      const res = await ApprovalAPI.processApproval(row.id, {
+        action: 'HOLD',
+        comments: reason,
+      });
+      if (!res.success) {
+        toast.error(res.error?.message ?? 'Hold failed');
+        return;
+      }
+      toast.success(`Placed on Hold: ${row.title}`);
+      // Don't remove ID, it stays in the list but status becomes HOLD
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Hold failed');
+    }
+  };
+
   const handleOpenOriginal = (row: ApprovalRow) => {
     const routes: Record<string, string> = {
       payment_requests: '/purchase/payments',
@@ -1853,6 +1871,7 @@ const ApprovalTable = ({
                         onView={onView}
                         onQuickApprove={onQuickApprove}
                         onQuickReject={onQuickReject}
+                        onQuickHold={handleQuickHold}
                         onOpenOriginal={onOpenOriginal}
                         onFetchHistory={onFetchHistory}
                         openMenuId={openMenuId}
@@ -1955,6 +1974,7 @@ const ActionCell = ({
   onView,
   onQuickApprove,
   onQuickReject,
+  onQuickHold,
   onOpenOriginal,
   onFetchHistory,
   openMenuId,
@@ -1964,6 +1984,7 @@ const ActionCell = ({
   onView: (row: ApprovalRow) => void;
   onQuickApprove?: (row: ApprovalRow) => void;
   onQuickReject?: (row: ApprovalRow, reason: string) => void;
+  onQuickHold?: (row: ApprovalRow, reason: string) => void;
   onOpenOriginal?: (row: ApprovalRow) => void;
   onFetchHistory?: (approval: Approval) => void;
   openMenuId?: string | null;
@@ -1972,6 +1993,8 @@ const ActionCell = ({
   const menuOpen = openMenuId === row.original.id;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState('');
   const [changesOpen, setChangesOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -1993,6 +2016,13 @@ const ActionCell = ({
     onQuickReject(row.original, rejectReason.trim());
     setRejectOpen(false);
     setRejectReason('');
+  };
+
+  const handleHoldSubmit = () => {
+    if (!holdReason.trim() || !onQuickHold) return;
+    onQuickHold(row.original, holdReason.trim());
+    setHoldOpen(false);
+    setHoldReason('');
   };
 
   return (
@@ -2029,13 +2059,45 @@ const ActionCell = ({
         </div>
       )}
 
-      {isPending && onQuickReject && !rejectOpen && (
+      {isPending && onQuickReject && !rejectOpen && !holdOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); setRejectOpen(true); }}
           className="px-2.5 py-1 rounded border border-red-200 text-[11px] font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
           title="Quick reject"
         >
           Reject
+        </button>
+      )}
+
+      {isPending && holdOpen && (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            value={holdReason}
+            onChange={(e) => setHoldReason(e.target.value)}
+            placeholder="Hold Reason…"
+            className="w-28 h-6 text-[10px] px-1.5 border border-zinc-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-400"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleHoldSubmit();
+              if (e.key === 'Escape') { setHoldOpen(false); setHoldReason(''); }
+            }}
+          />
+          <button onClick={handleHoldSubmit} className="text-[10px] text-amber-600 font-medium hover:underline">
+            Submit
+          </button>
+          <button onClick={() => { setHoldOpen(false); setHoldReason(''); }} className="text-[10px] text-zinc-400 hover:underline">
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {isPending && onQuickHold && !rejectOpen && !holdOpen && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setHoldOpen(true); }}
+          className="px-2.5 py-1 rounded border border-amber-200 text-[11px] font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+          title="Place on Hold"
+        >
+          Hold
         </button>
       )}
 
