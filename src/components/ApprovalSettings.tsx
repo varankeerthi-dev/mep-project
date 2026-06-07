@@ -190,7 +190,21 @@ const EmployeeSelect = ({ members, value, search, onSearchChange, onChange }: Em
 export const ApprovalSettings: React.FC = () => {
   const { organisation, user } = useAuth();
   const orgId = organisation?.id as string | undefined;
-  const { data: workflows = [], refetch } = useOrgApprovalWorkflows(orgId);
+  const { data: workflows = [], loading: loadingWorkflows, refetch } = useOrgApprovalWorkflows(orgId);
+
+  const { data: settingsRows = [], isLoading: loadingSettings, refetch: refetchSettings } = useQuery({
+    queryKey: ['approval-settings', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from('approval_settings')
+        .select('*')
+        .eq('organisation_id', orgId);
+      if (error && error.code !== 'PGRST205') throw error;
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
 
   const [modules, setModules] = useState<Record<ModuleKey, ModuleConfig>>(() => ({
     PURCHASE_PAYMENT: { enabled: false, levels: [] },
@@ -228,14 +242,14 @@ export const ApprovalSettings: React.FC = () => {
 
   const [saving, setSaving] = useState(false);
 
+  const [hasInitialized, setHasInitialized] = useState(false);
+
   useEffect(() => {
-    if (!workflows || workflows.length === 0) return;
+    setHasInitialized(false);
+  }, [orgId]);
 
-    const isFresh = Object.values(modules).some(
-      (m) => m.enabled || m.levels.length > 0
-    );
-
-    if (isFresh) return;
+  useEffect(() => {
+    if (hasInitialized || loadingWorkflows || loadingSettings || !orgId) return;
 
     const next: Record<ModuleKey, ModuleConfig> = {
       PURCHASE_PAYMENT: { enabled: false, levels: [] },
@@ -244,25 +258,40 @@ export const ApprovalSettings: React.FC = () => {
       QUOTATION: { enabled: false, levels: [] },
     };
 
-    workflows.forEach((w: any) => {
-      const moduleKey = w.approval_type as ModuleKey;
-      if (!next[moduleKey]) return;
-      next[moduleKey] = {
-        enabled: true,
-        levels: [
-          ...next[moduleKey].levels,
-          {
-            id: String(w.id),
-            approverId: String(w.approver_id ?? ''),
-            minAmount: w.min_amount != null ? String(w.min_amount) : '',
-            maxAmount: w.max_amount != null ? String(w.max_amount) : '',
-          },
-        ],
-      };
-    });
+    // 1. Initialize enabled state from approval_settings
+    if (Array.isArray(settingsRows)) {
+      settingsRows.forEach((row: any) => {
+        const key = row.setting_key as ModuleKey;
+        if (next[key]) {
+          next[key].enabled = row.setting_value === 'true';
+        }
+      });
+    }
+
+    // 2. Initialize levels from workflows
+    if (Array.isArray(workflows)) {
+      workflows.forEach((w: any) => {
+        const moduleKey = w.approval_type as ModuleKey;
+        if (!next[moduleKey]) return;
+
+        next[moduleKey].levels.push({
+          id: String(w.id),
+          approverId: String(w.approver_id ?? ''),
+          minAmount: w.min_amount != null ? String(w.min_amount) : '',
+          maxAmount: w.max_amount != null ? String(w.max_amount) : '',
+        });
+
+        // Fallback: If no setting row is found for this module, enable it if it has an active workflow
+        const hasSetting = settingsRows.some((row: any) => row.setting_key === moduleKey);
+        if (!hasSetting && w.is_active) {
+          next[moduleKey].enabled = true;
+        }
+      });
+    }
 
     setModules(next);
-  }, [workflows, modules]);
+    setHasInitialized(true);
+  }, [workflows, settingsRows, loadingWorkflows, loadingSettings, orgId, hasInitialized]);
 
   const addLevel = (module: ModuleKey) => {
     setModules((prev) => ({
@@ -515,8 +544,26 @@ export const ApprovalSettings: React.FC = () => {
         if (insertError) throw insertError;
       }
 
+      // Upsert toggle states into approval_settings table
+      const settingsUpserts = (Object.keys(modules) as ModuleKey[]).map((module) => {
+        const config = modules[module];
+        return {
+          organisation_id: orgId,
+          setting_key: module,
+          setting_value: config.enabled ? 'true' : 'false',
+          updated_at: new Date().toISOString(),
+        };
+      });
+
+      const { error: settingsError = null } = await supabase
+        .from('approval_settings')
+        .upsert(settingsUpserts, { onConflict: 'organisation_id,setting_key' });
+
+      if (settingsError && settingsError.code !== 'PGRST205') throw settingsError;
+
       toast.success('Approval settings saved');
-      refetch();
+      setHasInitialized(false);
+      await Promise.all([refetch(), refetchSettings()]);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save approval settings');
     } finally {
