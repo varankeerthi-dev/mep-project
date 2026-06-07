@@ -1462,7 +1462,11 @@ const ApprovalTable = ({
                     }`}
                     onClick={() => {
                       if (enableRowSelection && !openMenuId) {
-                        toggleSelect(row);
+                        if (selectedSet.has(row.id)) {
+                          toggleSelect(row);
+                        } else {
+                          onView(row);
+                        }
                       }
                     }}
                   >
