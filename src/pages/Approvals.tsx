@@ -39,6 +39,9 @@ type ApprovalRow = {
   projectName?: string | null;
   referenceNumber?: string | null;
   releasedAt?: string | null;
+  reviewerId?: string | null;
+  reviewStatus?: string | null;
+  reviewedAt?: string | null;
 };
 
 type PaymentDetail = {
@@ -157,7 +160,7 @@ function formatDate(iso?: string | null): string {
 }
 
 const Approvals: React.FC = () => {
-  const { organisation } = useAuth();
+  const { user, organisation } = useAuth();
   const orgId = organisation?.id as string | undefined;
   const { settings } = useOrgApprovalSettings(orgId);
   const [searchTerm, setSearchTerm] = useState('');
@@ -493,6 +496,32 @@ const Approvals: React.FC = () => {
       cancelled = true;
     };
   }, [showDetails, selectedApproval]);
+
+  const handleProcessReviewAction = async (action: 'REVIEWED' | 'REJECTED') => {
+    if (!selectedApproval) return;
+
+    if (action === 'REJECTED' && !rejectionReason.trim()) {
+      toast.error('Rejection reason is required');
+      return;
+    }
+
+    try {
+      const res = await ApprovalAPI.submitReviewAction(
+        selectedApproval.id,
+        action,
+        action === 'REJECTED' ? rejectionReason.trim() : undefined
+      );
+      if (!res.success) {
+        toast.error(res.error?.message ?? 'Review action failed');
+        return;
+      }
+      toast.success('Review completed');
+      if (selectedApproval) setRemovedIds(prev => new Set(prev).add(selectedApproval.id));
+      setShowDetails(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Review action failed');
+    }
+  };
 
   const handleProcessAction = async (action: ApprovalAction) => {
     if (!selectedApproval) return;
@@ -1031,7 +1060,7 @@ const Approvals: React.FC = () => {
                       <Button
                         size="sm"
                         className="bg-red-600 hover:bg-red-700"
-                        onClick={() => handleProcessAction('REJECTED')}
+                        onClick={() => selectedApproval.reviewStatus === 'PENDING' ? handleProcessReviewAction('REJECTED') : handleProcessAction('REJECTED')}
                         disabled={!rejectionReason.trim()}
                       >
                         Confirm
@@ -1040,25 +1069,43 @@ const Approvals: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:bg-red-50"
-                      onClick={() => setActionMode('reject')}
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                      onClick={() => handleProcessAction('HOLD')}
-                    >
-                      Hold
-                    </Button>
-                    <Button size="sm" onClick={() => handleProcessAction('APPROVED')}>
-                      Approve
-                    </Button>
+                    {selectedApproval.reviewStatus === 'PENDING' ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50"
+                          onClick={() => setActionMode('reject')}
+                        >
+                          Reject Review
+                        </Button>
+                        <Button size="sm" onClick={() => handleProcessReviewAction('REVIEWED')} disabled={selectedApproval.reviewerId !== user?.id}>
+                          Review & Forward
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50"
+                          onClick={() => setActionMode('reject')}
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                          onClick={() => handleProcessAction('HOLD')}
+                        >
+                          Hold
+                        </Button>
+                        <Button size="sm" onClick={() => handleProcessAction('APPROVED')}>
+                          Approve
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1199,6 +1246,9 @@ function normalize(items: any[]): ApprovalRow[] {
       referenceNumber:
         item.referenceNumber ?? item.reference_number ?? item.voucher_no ?? null,
       releasedAt: item.releasedAt ?? item.released_at ?? null,
+      reviewerId: item.reviewerId ?? item.reviewer_id ?? null,
+      reviewStatus: item.reviewStatus ?? item.review_status ?? null,
+      reviewedAt: item.reviewedAt ?? item.reviewed_at ?? null,
     };
   });
 }
@@ -1221,6 +1271,9 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     projectName: item.project_name ?? null,
     referenceNumber: item.reference_number ?? null,
     releasedAt: item.released_at ?? null,
+    reviewerId: item.reviewer_id ?? null,
+    reviewStatus: item.review_status ?? null,
+    reviewedAt: item.reviewed_at ?? null,
   }));
 }
 
@@ -1367,6 +1420,7 @@ const ApprovalTable = ({
             <th className="h-[36px] px-6 pl-1 w-[160px] bg-white border-b border-zinc-200" />
             <th className="h-[36px] px-6 pl-1 w-[180px] bg-white border-b border-zinc-200" />
             <th className="h-[36px] px-6 pl-1 w-[160px] bg-white border-b border-zinc-200" />
+            <th className="h-[36px] px-6 pl-1 w-[120px] bg-white border-b border-zinc-200" />
             <th className="h-[36px] px-6 pl-1 w-[220px] bg-white border-b border-zinc-200" />
             <th className="h-[36px] px-6 pl-1 w-[140px] bg-white border-b border-zinc-200" />
           </tr>
@@ -1380,6 +1434,7 @@ const ApprovalTable = ({
               <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded mx-auto" /></td>
               <td className="px-6 py-[75px]"><div className="h-4 w-24 bg-zinc-200 rounded mx-auto" /></td>
               <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded mx-auto" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-16 bg-zinc-200 rounded mx-auto" /></td>
               <td className="px-6 py-[75px]"><div className="h-4 w-28 bg-zinc-200 rounded mx-auto" /></td>
               <td className="px-6 py-[75px]"><div className="h-4 w-12 bg-zinc-200 rounded mx-auto" /></td>
             </tr>
@@ -1432,6 +1487,9 @@ const ApprovalTable = ({
               </th>
               <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[160px]">
                 Amount
+              </th>
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[120px]">
+                Review
               </th>
               <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[220px]">
                 Approval flow
@@ -1547,6 +1605,27 @@ const ApprovalTable = ({
                           title={`Priority: ${row.priority ?? 'NORMAL'}`}
                         />
                       </div>
+                    </td>
+                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                      {row.reviewStatus && row.reviewStatus !== 'NOT_REQUIRED' ? (
+                        <div className="flex flex-col items-center gap-1">
+                          {row.reviewStatus === 'PENDING' && (
+                            <span className="text-[10px] px-2 py-1 bg-amber-100 text-amber-700 rounded font-medium">Pending Review</span>
+                          )}
+                          {row.reviewStatus === 'REVIEWED' && (
+                            <span className="text-[10px] px-2 py-1 bg-blue-100 text-blue-700 rounded font-medium flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Reviewed
+                            </span>
+                          )}
+                          {row.reviewStatus === 'REJECTED' && (
+                            <span className="text-[10px] px-2 py-1 bg-red-100 text-red-700 rounded font-medium flex items-center gap-1">
+                              <XCircle className="w-3 h-3" /> Rejected
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
                       {chain.length ? (

@@ -31,6 +31,8 @@ type WorkflowLevel = {
 
 type ModuleConfig = {
   enabled: boolean;
+  requiresReview?: boolean;
+  reviewerId?: string | null;
   levels: WorkflowLevel[];
 };
 
@@ -215,12 +217,12 @@ export const ApprovalSettings: React.FC = () => {
   });
 
   const [modules, setModules] = useState<Record<ModuleKey, ModuleConfig>>(() => ({
-    PURCHASE_PAYMENT: { enabled: false, levels: [] },
-    SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
-    PAYMENT_REQUEST: { enabled: false, levels: [] },
-    QUOTATION: { enabled: false, levels: [] },
-    WORK_ORDER: { enabled: false, levels: [] },
-    PURCHASE_ORDER: { enabled: false, levels: [] },
+    PURCHASE_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    SUBCONTRACTOR_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    PAYMENT_REQUEST: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    QUOTATION: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    WORK_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    PURCHASE_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
   }));
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
@@ -262,20 +264,32 @@ export const ApprovalSettings: React.FC = () => {
     if (hasInitialized || loadingWorkflows || loadingSettings || !orgId) return;
 
     const next: Record<ModuleKey, ModuleConfig> = {
-      PURCHASE_PAYMENT: { enabled: false, levels: [] },
-      SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
-      PAYMENT_REQUEST: { enabled: false, levels: [] },
-      QUOTATION: { enabled: false, levels: [] },
-      WORK_ORDER: { enabled: false, levels: [] },
-      PURCHASE_ORDER: { enabled: false, levels: [] },
+      PURCHASE_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      SUBCONTRACTOR_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      PAYMENT_REQUEST: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      QUOTATION: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      WORK_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      PURCHASE_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     };
 
     // 1. Initialize enabled state from approval_settings
     if (Array.isArray(settingsRows)) {
       settingsRows.forEach((row: any) => {
-        const key = row.setting_key as ModuleKey;
-        if (next[key]) {
-          next[key].enabled = row.setting_value === 'true';
+        const key = row.setting_key as string;
+        const val = row.setting_value;
+
+        // Base module enable check
+        if (next[key as ModuleKey]) {
+          next[key as ModuleKey].enabled = val === 'true';
+        }
+
+        // Reviewer settings check
+        if (key.endsWith('_REQUIRES_REVIEW')) {
+          const modKey = key.replace('_REQUIRES_REVIEW', '') as ModuleKey;
+          if (next[modKey]) next[modKey].requiresReview = val === 'true';
+        } else if (key.endsWith('_REVIEWER_ID')) {
+          const modKey = key.replace('_REVIEWER_ID', '') as ModuleKey;
+          if (next[modKey]) next[modKey].reviewerId = val;
         }
       });
     }
@@ -557,14 +571,34 @@ export const ApprovalSettings: React.FC = () => {
       }
 
       // Upsert toggle states into approval_settings table
-      const settingsUpserts = (Object.keys(modules) as ModuleKey[]).map((module) => {
+      const settingsUpserts: any[] = [];
+      (Object.keys(modules) as ModuleKey[]).forEach((module) => {
         const config = modules[module];
-        return {
+        settingsUpserts.push({
           organisation_id: orgId,
           setting_key: module,
           setting_value: config.enabled ? 'true' : 'false',
           updated_at: new Date().toISOString(),
-        };
+        });
+
+        // Save reviewer settings if applicable (Quotation, Work Order, Invoice)
+        if (['QUOTATION', 'WORK_ORDER', 'INVOICE'].includes(module)) {
+          settingsUpserts.push({
+            organisation_id: orgId,
+            setting_key: `${module}_REQUIRES_REVIEW`,
+            setting_value: config.requiresReview ? 'true' : 'false',
+            updated_at: new Date().toISOString(),
+          });
+          
+          if (config.reviewerId) {
+            settingsUpserts.push({
+              organisation_id: orgId,
+              setting_key: `${module}_REVIEWER_ID`,
+              setting_value: config.reviewerId,
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
       });
 
       const { error: settingsError = null } = await supabase
@@ -584,13 +618,12 @@ export const ApprovalSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Approval Settings</h2>
           <p className="text-sm text-zinc-500">
-            Configure approval workflows for payment types. Changes apply to new
-            requests only.
+            Configure approval workflows for different modules.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -608,6 +641,13 @@ export const ApprovalSettings: React.FC = () => {
           <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save settings'}
           </Button>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+        <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="text-sm text-amber-800">
+          <strong>Important Note:</strong> Changes made here will only apply to <strong>new</strong> requests created after saving. Previous or ongoing documents will retain their current workflow and state.
         </div>
       </div>
 
@@ -639,13 +679,61 @@ export const ApprovalSettings: React.FC = () => {
                         [module]: { ...prev[module], enabled: !!checked },
                       }))
                     }
+                    className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-zinc-200 rounded-full"
                   />
                 </div>
               </div>
 
               {config.enabled && (
-                <div className="px-5 py-4 space-y-3">
-                  <div className="grid grid-cols-12 gap-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                <div className="px-5 py-4 space-y-5">
+                  
+                  {/* Review Configuration */}
+                  {['QUOTATION', 'WORK_ORDER', 'INVOICE'].includes(module) && (
+                    <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-200 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-medium text-zinc-900">Require Review Step</h4>
+                          <p className="text-xs text-zinc-500">Require a designated person to review before it goes to the approvers.</p>
+                        </div>
+                        <Switch
+                          checked={config.requiresReview || false}
+                          onCheckedChange={(checked) =>
+                            setModules((prev) => ({
+                              ...prev,
+                              [module]: { ...prev[module], requiresReview: !!checked },
+                            }))
+                          }
+                          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-zinc-300 rounded-full"
+                        />
+                      </div>
+                      
+                      {config.requiresReview && (
+                        <div className="pt-2">
+                          <Label className="text-xs mb-1.5 block">Select Reviewer</Label>
+                          <EmployeeSelect
+                            members={allMembers}
+                            value={config.reviewerId || ''}
+                            search={memberSearch[`${module}_reviewer`] || ''}
+                            onSearchChange={(text) =>
+                              setMemberSearch((prev) => ({
+                                ...prev,
+                                [`${module}_reviewer`]: text,
+                              }))
+                            }
+                            onChange={(userId) =>
+                              setModules((prev) => ({
+                                ...prev,
+                                [module]: { ...prev[module], reviewerId: userId },
+                              }))
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-12 gap-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                     <div className="col-span-3">Level</div>
                     <div className="col-span-4">Approver</div>
                     <div className="col-span-2">Min (₹)</div>
@@ -737,9 +825,10 @@ export const ApprovalSettings: React.FC = () => {
                     Add level
                   </Button>
                 </div>
-              )}
-            </div>
-          );
+              </div>
+            )}
+          </div>
+        );
         })}
       </div>
     </div>

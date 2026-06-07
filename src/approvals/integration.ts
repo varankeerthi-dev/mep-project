@@ -10,8 +10,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('PURCHASE_ORDER', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('PURCHASE_ORDER', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -22,7 +22,9 @@ export class ApprovalIntegration {
         title: `Purchase Order - ${vendorName}`,
         description: `Purchase order for ${vendorName} with total amount of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -62,8 +64,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('WORK_ORDER', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('WORK_ORDER', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -114,8 +116,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('INVOICE', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('INVOICE', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -166,8 +168,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('QUOTATION', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('QUOTATION', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -178,7 +180,9 @@ export class ApprovalIntegration {
         title: `Quotation - ${quotationNumber}`,
         description: `Quotation ${quotationNumber} for ${clientName} with total amount of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -219,8 +223,8 @@ export class ApprovalIntegration {
     approvalType: 'PAYMENT_REQUEST' | 'SUBCONTRACTOR_PAYMENT' = 'PAYMENT_REQUEST'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded(approvalType, totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded(approvalType, totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -231,7 +235,9 @@ export class ApprovalIntegration {
         title: `Payment Request - ${payeeName}`,
         description: `Payment request for ${payeeName} (${paymentType}) with amount of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -356,8 +362,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('MATERIAL_DISPATCH', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('MATERIAL_DISPATCH', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -368,7 +374,9 @@ export class ApprovalIntegration {
         title: `Material Dispatch - ${projectName}`,
         description: `Material dispatch for ${projectName}: ${materialDescription} with value of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -408,8 +416,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('PROFORMA_INVOICE', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('PROFORMA_INVOICE', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -420,7 +428,9 @@ export class ApprovalIntegration {
         title: `Proforma Invoice - ${proformaNumber}`,
         description: `Proforma invoice ${proformaNumber} for ${clientName} with total amount of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -451,8 +461,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('SITE_VISIT', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('SITE_VISIT', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -494,8 +504,8 @@ export class ApprovalIntegration {
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const approvalNeeded = await this.checkApprovalNeeded('EXPENSE_CLAIM', totalAmount);
-      if (!approvalNeeded) {
+      const check = await this.checkApprovalNeeded('EXPENSE_CLAIM', totalAmount);
+      if (!check.needed) {
         return { success: true, error: 'No approval required for this amount' };
       }
 
@@ -506,7 +516,9 @@ export class ApprovalIntegration {
         title: `Expense Claim - ${claimantName}`,
         description: `Expense claim by ${claimantName}: ${description} with amount of ₹${totalAmount.toLocaleString()}`,
         amount: totalAmount,
-        priority
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -532,25 +544,31 @@ export class ApprovalIntegration {
   private static async checkApprovalNeeded(
     approvalType: string,
     amount: number
-  ): Promise<boolean> {
+  ): Promise<{ needed: boolean; requiresReview: boolean; reviewerId: string | null }> {
+    const defaultResult = { needed: false, requiresReview: false, reviewerId: null };
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
+      if (!user) return defaultResult;
 
       const organisationId = await currentOrgId(user.id);
-      if (!organisationId) return false;
+      if (!organisationId) return defaultResult;
 
       // 1. Check if the setting is explicitly configured in approval_settings table
-      const { data: setting } = await supabase
+      const { data: settings } = await supabase
         .from('approval_settings')
-        .select('setting_value')
-        .eq('setting_key', approvalType)
-        .eq('organisation_id', organisationId)
-        .maybeSingle();
+        .select('setting_key, setting_value')
+        .in('setting_key', [approvalType, `${approvalType}_REQUIRES_REVIEW`, `${approvalType}_REVIEWER_ID`])
+        .eq('organisation_id', organisationId);
+
+      const isEnabled = settings?.find(s => s.setting_key === approvalType)?.setting_value === 'true';
+      const requiresReview = settings?.find(s => s.setting_key === `${approvalType}_REQUIRES_REVIEW`)?.setting_value === 'true';
+      const reviewerId = settings?.find(s => s.setting_key === `${approvalType}_REVIEWER_ID`)?.setting_value || null;
+
+      const result = { needed: false, requiresReview, reviewerId };
 
       // If settings are configured and it is explicitly disabled, no approval is required
-      if (setting && setting.setting_value === 'false') {
-        return false;
+      if (settings?.some(s => s.setting_key === approvalType) && !isEnabled) {
+        return result;
       }
 
       // 2. Fetch active workflows for this approval type
@@ -563,8 +581,8 @@ export class ApprovalIntegration {
 
       // If the setting is explicitly enabled, but no workflows exist,
       // require approval by default (do not auto-approve).
-      if (setting && setting.setting_value === 'true' && (!workflows || workflows.length === 0)) {
-        return true;
+      if (isEnabled && (!workflows || workflows.length === 0)) {
+        return { ...result, needed: true };
       }
 
       // If workflows exist, check if the amount falls into any workflow range
@@ -574,14 +592,14 @@ export class ApprovalIntegration {
           const max = w.max_amount;
           return amount >= min && (max === null || max === undefined || amount <= max);
         });
-        return hasMatching;
+        return { ...result, needed: hasMatching };
       }
 
       // Fallback (legacy/default): If setting is not present, require approval if workflows exist and match the amount.
-      return false;
+      return result;
     } catch (error) {
       console.error('Error checking approval needed:', error);
-      return false;
+      return defaultResult;
     }
   }
 

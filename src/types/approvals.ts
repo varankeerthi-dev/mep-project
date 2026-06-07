@@ -62,6 +62,9 @@ export interface Approval {
   project_name?: string | null;
   reference_number?: string | null;
   released_at?: string | null;
+  reviewer_id?: string | null;
+  review_status?: 'NOT_REQUIRED' | 'PENDING' | 'REVIEWED' | 'REJECTED';
+  reviewed_at?: string | null;
 }
 
 export interface ApprovalWorkflow {
@@ -117,6 +120,8 @@ export interface ApprovalRequest {
   project_id?: string;
   project_name?: string;
   reference_number?: string;
+  reviewer_id?: string | null;
+  review_status?: 'NOT_REQUIRED' | 'PENDING' | 'REVIEWED' | 'REJECTED';
 }
 
 export interface ApprovalActionRequest {

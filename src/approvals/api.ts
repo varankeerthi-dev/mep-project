@@ -57,6 +57,8 @@ export class ApprovalAPI {
           project_id: data.project_id ?? denorm.project_id ?? null,
           project_name: data.project_name ?? denorm.project_name ?? null,
           reference_number: data.reference_number ?? denorm.reference_number ?? null,
+          reviewer_id: data.reviewer_id ?? null,
+          review_status: data.review_status ?? 'NOT_REQUIRED',
         })
         .select()
         .single();
@@ -160,6 +162,61 @@ export class ApprovalAPI {
     }
   }
 
+  static async submitReviewAction(approvalId: string, action: 'REVIEWED' | 'REJECTED', comments?: string): Promise<ApiResponse<void>> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } };
+
+      const { data: approval, error: approvalError } = await supabase
+        .from('approvals')
+        .select('*')
+        .eq('id', approvalId)
+        .single();
+
+      if (approvalError || !approval) return { success: false, error: { code: 'NOT_FOUND', message: 'Approval not found' } };
+      
+      if (approval.review_status !== 'PENDING') {
+        return { success: false, error: { code: 'INVALID_STATE', message: 'Approval is not pending review' } };
+      }
+
+      if (approval.reviewer_id && approval.reviewer_id !== user.id) {
+        return { success: false, error: { code: 'UNAUTHORIZED', message: 'You are not the designated reviewer' } };
+      }
+
+      const { error: actionError } = await supabase
+        .from('approval_actions')
+        .insert({
+          approval_id: approvalId,
+          action: action === 'REVIEWED' ? 'FORWARDED' : 'REJECTED', // Log review as a forwarded/rejected action
+          approver_id: user.id,
+          comments: comments || `Marked as ${action}`,
+          organisation_id: approval.organisation_id
+        });
+
+      if (actionError) return { success: false, error: { code: 'DB_ERROR', message: actionError.message } };
+
+      const updates: any = {
+        review_status: action,
+        reviewed_at: new Date().toISOString()
+      };
+
+      if (action === 'REJECTED') {
+        updates.status = 'REJECTED'; // Rejecting review rejects the whole document
+      }
+
+      const { error: updateError } = await supabase
+        .from('approvals')
+        .update(updates)
+        .eq('id', approvalId);
+
+      if (updateError) return { success: false, error: { code: 'DB_ERROR', message: updateError.message } };
+
+      return { success: true, meta: { timestamp: new Date().toISOString() } };
+    } catch (error) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } };
+    }
+  }
+
   static async processApproval(approvalId: string, action: ApprovalActionRequest): Promise<ApiResponse<void>> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -179,6 +236,10 @@ export class ApprovalAPI {
 
       if (approval.status !== 'PENDING') {
         return { success: false, error: { code: 'INVALID_STATE', message: 'Approval is not in pending state' } };
+      }
+
+      if (approval.review_status === 'PENDING') {
+        return { success: false, error: { code: 'REVIEW_PENDING', message: 'This document is pending review and cannot be approved yet.' } };
       }
 
       const { error: actionError } = await supabase
