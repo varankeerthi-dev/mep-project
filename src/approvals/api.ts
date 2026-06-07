@@ -306,6 +306,7 @@ export class ApprovalAPI {
 
       if (action.action === 'RETURNED') {
         await ApprovalNotificationService.sendReturnNotification(approvalId, action.comments);
+        await this.markSourceDocumentAsReturned(approval, action.comments);
       }
 
       // Log to follow_up_activity_log
@@ -698,9 +699,75 @@ export class ApprovalExtensions {
         organisation_id: approval.organisation_id
       });
 
+      await this.markSourceDocumentAsPending(approval);
+
       return { success: true };
     } catch (error) {
       return { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } };
+    }
+  }
+
+  private static async markSourceDocumentAsReturned(approval: any, reason?: string): Promise<void> {
+    try {
+      const updateData: Record<string, any> = { approval_status: 'Revision Requested' };
+
+      switch (approval.reference_type) {
+        case 'quotations':
+          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_orders':
+          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'work_orders':
+          await supabase.from('subcontractor_work_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'invoices':
+          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'payment_requests':
+          await supabase.from('payment_requests').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_payments':
+          await supabase.from('purchase_payments').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'subcontractor_payments':
+          await supabase.from('subcontractor_payments').update(updateData).eq('id', approval.reference_id);
+          break;
+      }
+    } catch (error) {
+      console.error('Error marking source document as returned:', error);
+    }
+  }
+
+  private static async markSourceDocumentAsPending(approval: any): Promise<void> {
+    try {
+      const updateData: Record<string, any> = { approval_status: 'Pending' };
+
+      switch (approval.reference_type) {
+        case 'quotations':
+          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_orders':
+          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'work_orders':
+          await supabase.from('subcontractor_work_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'invoices':
+          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'payment_requests':
+          await supabase.from('payment_requests').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_payments':
+          await supabase.from('purchase_payments').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'subcontractor_payments':
+          await supabase.from('subcontractor_payments').update(updateData).eq('id', approval.reference_id);
+          break;
+      }
+    } catch (error) {
+      console.error('Error marking source document as pending:', error);
     }
   }
 
