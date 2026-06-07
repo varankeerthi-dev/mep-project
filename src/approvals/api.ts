@@ -239,7 +239,7 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'INVALID_STATE', message: 'Approval is not in pending state' } };
       }
 
-      if (approval.review_status === 'PENDING') {
+      if (approval.review_status === 'PENDING' && action.action !== 'RETURNED' && action.action !== 'REJECTED') {
         return { success: false, error: { code: 'REVIEW_PENDING', message: 'This document is pending review and cannot be approved yet.' } };
       }
 

@@ -406,6 +406,13 @@ export function ApprovalDetailsSidebar({
                     >
                       Reject Review
                     </Button>
+                    <Button
+                      variant="outline"
+                      className="text-blue-700 border-blue-200 hover:bg-blue-50 font-medium"
+                      onClick={() => setActionMode('return')}
+                    >
+                      Return / Query
+                    </Button>
                     <Button onClick={() => handleProcessReviewAction('REVIEWED')} disabled={selectedApproval.reviewerId !== user?.id} className="font-medium">
                       Review & Forward
                     </Button>
