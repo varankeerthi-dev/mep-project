@@ -1937,7 +1937,8 @@ export function SiteReport() {
                                 <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter name..." style={{ flex: 1, minWidth: 0 }} />
                                 {view !== 'view' && (
                                   <select
-                                    style={{ fontSize: '10px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', maxWidth: '100px' }}
+                                    style={{ fontSize: '11px', padding: '4px 6px', borderRadius: '4px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', minWidth: '140px' }}
+                                    value={form.watch(`manpower.subContractors.${index}.subcontractor_id`) || ''}
                                     onChange={(e) => {
                                       if (!e.target.value) return;
                                       const sub = subcontractors?.find((s: any) => s.id === e.target.value);
@@ -1946,7 +1947,6 @@ export function SiteReport() {
                                         form.setValue(`manpower.subContractors.${index}.subcontractor_id`, sub.id);
                                       }
                                     }}
-                                    value=""
                                   >
                                     <option value="">Pick sub</option>
                                     {subcontractors?.map((s: any) => (

@@ -2,7 +2,7 @@
 // MANPOWER ATTENDANCE PAGE
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
@@ -15,7 +15,9 @@ import {
   ContextModifier,
   RateUnit,
 } from '../types/manpower';
-import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown } from 'lucide-react';
+import { EnhancedDataTable } from '../components/ui/table/index';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search, Filter } from 'lucide-react';
 
 interface ManpowerAttendanceProps {
   onNavigate?: (path: string) => void;
@@ -23,6 +25,7 @@ interface ManpowerAttendanceProps {
 
 export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   const { organisation } = useAuth();
+  const [activeSubTab, setActiveSubTab] = useState<'add' | 'records'>('add');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [selectedWorkUnit, setSelectedWorkUnit] = useState('');
@@ -30,6 +33,33 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   const [supervisor, setSupervisor] = useState('');
   const [remarks, setRemarks] = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  // Records tab filters
+  const [recSearch, setRecSearch] = useState('');
+  const [recSubcontractor, setRecSubcontractor] = useState('');
+  const [recWorkType, setRecWorkType] = useState('');
+  const [recStatus, setRecStatus] = useState('');
+  const [recDateFrom, setRecDateFrom] = useState('');
+  const [recDateTo, setRecDateTo] = useState('');
+
+  const { data: allAttendance, isLoading: loadingRecords, refetch: refetchRecords } = useQuery({
+    queryKey: ['all-manpower-attendance', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('manpower_attendance')
+        .select(`
+          *,
+          labour_categories(id, name, code, unit),
+          subcontractors(id, company_name)
+        `)
+        .eq('organisation_id', organisation.id)
+        .order('attendance_date', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!organisation?.id,
+  });
 
   // Attendance entries for the day
   const [attendanceEntries, setAttendanceEntries] = useState<{
@@ -173,6 +203,126 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   const totalDifference = totalAdjustedAmount - totalOriginalAmount;
   const totalWorkers = attendanceEntries.reduce((sum, entry) => sum + entry.workers_count, 0);
 
+  const filteredRecords = useMemo(() => {
+    return (allAttendance || []).filter((r: any) => {
+      if (recSubcontractor && r.subcontractor_id !== recSubcontractor) return false;
+      if (recWorkType && r.work_unit_type !== recWorkType) return false;
+      if (recStatus && r.status !== recStatus) return false;
+      if (recDateFrom && r.attendance_date < recDateFrom) return false;
+      if (recDateTo && r.attendance_date > recDateTo) return false;
+      if (recSearch) {
+        const q = recSearch.toLowerCase();
+        const name = r.subcontractors?.company_name || '';
+        const supv = r.supervisor_name || '';
+        if (!name.toLowerCase().includes(q) && !supv.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [allAttendance, recSubcontractor, recWorkType, recStatus, recDateFrom, recDateTo, recSearch]);
+
+  const attendanceColumns: ColumnDef<any>[] = useMemo(() => [
+    {
+      id: 'subcontractor',
+      header: 'Name',
+      accessorKey: 'subcontractors.company_name',
+      cell: (info: any) => (
+        <span className="font-semibold text-zinc-900">{info.getValue() || '—'}</span>
+      ),
+    },
+    {
+      id: 'project',
+      header: 'Project',
+      accessorKey: 'work_unit_id',
+      cell: (info: any) => {
+        const row = info.row.original;
+        return (
+          <span className="text-sm text-zinc-600">
+            {row.work_unit_type === 'PROJECT' && row.work_unit_id
+              ? row.work_unit_id.slice(0, 8) + '...'
+              : row.work_unit_type === 'GENERAL'
+                ? 'General / Non-Project'
+                : row.work_unit_id
+                  ? row.work_unit_id.slice(0, 8) + '...'
+                  : '—'}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'work_type',
+      header: 'Work Type',
+      accessorKey: 'work_unit_type',
+      cell: (info: any) => (
+        <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+          {info.getValue() || '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'workers_count',
+      header: 'No. of Employees',
+      accessorKey: 'workers_count',
+      cell: (info: any) => (
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 font-bold text-white text-[11px]">
+          {info.getValue()}
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Payment Status',
+      accessorKey: 'status',
+      cell: (info: any) => {
+        const status = info.getValue() as string;
+        const colors: Record<string, { bg: string; text: string }> = {
+          DRAFT: { bg: '#f1f5f9', text: '#64748b' },
+          SUBMITTED: { bg: '#fef9c3', text: '#ca8a04' },
+          APPROVED: { bg: '#dcfce7', text: '#16a34a' },
+          REJECTED: { bg: '#fef2f2', text: '#dc2626' },
+        };
+        const c = colors[status] || colors.DRAFT;
+        return (
+          <span style={{
+            padding: '3px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: 700,
+            background: c.bg, color: c.text,
+          }}>
+            {status}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'supervisor_name',
+      header: 'Site Engineer Name',
+      accessorKey: 'supervisor_name',
+      cell: (info: any) => (
+        <span className="text-sm font-medium text-zinc-700">{info.getValue() || '—'}</span>
+      ),
+    },
+    {
+      id: 'entered_by',
+      header: 'Entered By',
+      accessorKey: 'created_at',
+      cell: (info: any) => {
+        const val = info.getValue() as string;
+        if (!val) return <span className="text-sm text-zinc-400">—</span>;
+        const d = new Date(val);
+        const now = new Date();
+        const diffMs = now.getTime() - d.getTime();
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        let relative: string;
+        if (diffMins < 1) relative = 'Just now';
+        else if (diffMins < 60) relative = `${diffMins}m ago`;
+        else if (diffHrs < 24) relative = `${diffHrs}h ago`;
+        else relative = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        return (
+          <span className="text-sm text-zinc-500">{relative}</span>
+        );
+      },
+    },
+  ], []);
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
       {/* Header */}
@@ -197,25 +347,6 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => onNavigate?.('/subcontractors/attendance/list')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              background: '#f1f5f9',
-              color: '#0f172a',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: '500',
-            }}
-          >
-            <Users size={16} />
-            View Logs
-          </button>
-          <button
             onClick={() => onNavigate?.('/subcontractors')}
             style={{
               display: 'flex',
@@ -237,6 +368,44 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
         </div>
       </div>
 
+      {/* Sub-tab Navigation */}
+      <div style={{
+        background: '#fff',
+        borderBottom: '1px solid #e2e8f0',
+        padding: '0 24px',
+        display: 'flex',
+        gap: '4px',
+      }}>
+        {[
+          { id: 'add' as const, label: 'Add Attendance', icon: Plus },
+          { id: 'records' as const, label: 'Attendance Records', icon: Calendar },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSubTab(tab.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 20px',
+              border: 'none',
+              background: 'transparent',
+              color: activeSubTab === tab.id ? '#0f172a' : '#94a3b8',
+              fontSize: '13px',
+              fontWeight: activeSubTab === tab.id ? 600 : 500,
+              cursor: 'pointer',
+              borderBottom: activeSubTab === tab.id ? '2px solid #0f172a' : '2px solid transparent',
+              marginBottom: '-1px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <tab.icon size={16} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeSubTab === 'add' && (
       <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
         {/* Filters */}
         <div style={{
@@ -730,6 +899,147 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
           </div>
         )}
       </div>
+      )}
+
+      {activeSubTab === 'records' && (
+        <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+          {/* Records Filters */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            padding: '16px',
+            marginBottom: '16px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, 1fr)',
+            gap: '12px',
+          }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                Search
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  value={recSearch}
+                  onChange={(e) => setRecSearch(e.target.value)}
+                  placeholder="Name or engineer..."
+                  style={{
+                    width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px',
+                    border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                Subcontractor
+              </label>
+              <select
+                value={recSubcontractor}
+                onChange={(e) => setRecSubcontractor(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '8px',
+                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', background: '#fff',
+                }}
+              >
+                <option value="">All</option>
+                {subcontractors?.map((sub: any) => (
+                  <option key={sub.id} value={sub.id}>{sub.company_name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                Work Type
+              </label>
+              <select
+                value={recWorkType}
+                onChange={(e) => setRecWorkType(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '8px',
+                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', background: '#fff',
+                }}
+              >
+                <option value="">All</option>
+                <option value="PROJECT">Project</option>
+                <option value="ALTERATION">Alteration</option>
+                <option value="AMC">AMC</option>
+                <option value="WORK_ORDER">Work Order</option>
+                <option value="GENERAL">General</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                Status
+              </label>
+              <select
+                value={recStatus}
+                onChange={(e) => setRecStatus(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '8px',
+                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none', background: '#fff',
+                }}
+              >
+                <option value="">All</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                From
+              </label>
+              <input
+                type="date"
+                value={recDateFrom}
+                onChange={(e) => setRecDateFrom(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '8px',
+                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                To
+              </label>
+              <input
+                type="date"
+                value={recDateTo}
+                onChange={(e) => setRecDateTo(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '8px',
+                  border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Records Table */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+          }}>
+            <EnhancedDataTable
+              data={filteredRecords}
+              columns={attendanceColumns}
+              enableSearch={false}
+              enableSorting={true}
+              enablePagination={true}
+              defaultPageSize={15}
+              emptyMessage="No attendance records found matching your filters"
+              loading={loadingRecords}
+              onRefresh={() => refetchRecords()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

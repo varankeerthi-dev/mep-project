@@ -165,6 +165,7 @@ const Documents = lazyAny(() => ProjectManagementInternal.then(m => ({ default: 
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
 const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
+const HelpPage = lazyAny(() => import('./pages/HelpPage'));
 const ApprovalSettings = lazyAny(() => import('./components/ApprovalSettings'));
 const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/PaymentsHub'));
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
@@ -231,8 +232,8 @@ export default function App() {
   }, [navigate]);
 
   const handleHelp = useCallback(() => {
-    alert('Help is on the way!');
-  }, []);
+    navigate('/help');
+  }, [navigate]);
 
   const renderedPage = useMemo(() => {
     const pathKey = (currentPath || '/').split('?')[0];
@@ -344,6 +345,7 @@ export default function App() {
       case '/nb-dc/list': return <NonBillableDCList />;
       case '/nb-dc/create': return <CreateNonBillableDC onCancel={() => navigate('/nb-dc/list')} />;
       // Settings
+      case '/help': return <HelpPage onNavigate={navigate} />;
       case '/settings': return <SettingsPage />;
       case '/settings/print': return <PrintSettings />;
       case '/settings/template': return <TemplateSettings />;
