@@ -525,6 +525,7 @@ export class ApprovalAPI {
     requester_role?: string | null;
     project_id?: string | null;
     project_name?: string | null;
+    client_name?: string | null;
     reference_number?: string | null;
   }> {
     try {
@@ -548,6 +549,7 @@ export class ApprovalAPI {
       const refSpec = REFERENCE_DENORM_MAP[referenceType];
       let projectId: string | null = null;
       let projectName: string | null = null;
+      let clientName: string | null = null;
       let referenceNumber: string | null = null;
 
       if (refSpec && referenceId) {
@@ -559,7 +561,13 @@ export class ApprovalAPI {
 
         if (refRow) {
           projectId = (refRow as any).project_id ?? null;
-          projectName = (refRow as any).project?.name ?? (refRow as any).client?.name ?? null;
+          projectName = (refRow as any).project?.name ?? (refRow as any).project?.project_name ?? null;
+          clientName = (refRow as any).client?.name ?? (refRow as any).client?.client_name ?? null;
+          
+          if (!projectName) {
+              projectName = clientName;
+          }
+          
           referenceNumber = refSpec.numberField
             ? (refRow as any)[refSpec.numberField] ?? null
             : null;
@@ -571,6 +579,7 @@ export class ApprovalAPI {
         requester_role: requesterRole,
         project_id: projectId,
         project_name: projectName,
+        client_name: clientName,
         reference_number: referenceNumber,
       };
     } catch (e) {
@@ -590,6 +599,6 @@ const REFERENCE_DENORM_MAP: Record<
   purchase_orders:        { table: 'purchase_orders',        select: 'project_id, project:projects(name), po_number',   numberField: 'po_number'   },
   work_orders:            { table: 'subcontractor_work_orders',            select: 'project_id, project:projects(name), work_order_no',   numberField: 'work_order_no'   },
   invoices:               { table: 'invoices',               select: 'project_id, project:projects(name), invoice_number', numberField: 'invoice_number' },
-  quotations:             { table: 'quotations',             select: 'project_id, project:projects(name), quotation_number', numberField: 'quotation_number' },
+  quotations:             { table: 'quotation_header',       select: 'client_id, client:clients(client_name), project_id, project:projects(name), quotation_no', numberField: 'quotation_no' },
   material_dispatches:    { table: 'material_dispatches',    select: 'project_id, project:projects(name), dispatch_number', numberField: 'dispatch_number' },
 };

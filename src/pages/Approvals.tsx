@@ -42,6 +42,7 @@ type ApprovalRow = {
   reviewerId?: string | null;
   reviewStatus?: string | null;
   reviewedAt?: string | null;
+  clientName?: string | null;
 };
 
 type PaymentDetail = {
@@ -1128,12 +1129,12 @@ type PillProps = {
 const Pill = ({ label, value, active, onClick }: PillProps) => (
   <button
     onClick={onClick}
-    className={`inline-flex h-[40px] items-center gap-[6px] rounded-full px-5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
+    className={`inline-flex h-[40px] items-center gap-[8px] rounded-full px-8 text-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
       active ? 'bg-blue-600 text-white' : 'bg-white text-zinc-700 hover:bg-zinc-100'
     }`}
   >
-    <span className="px-[10px]">{label}</span>
-    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-700'}`}>
+    <span className="px-2">{label}</span>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${active ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-700'}`}>
       {value}
     </span>
   </button>
@@ -1242,6 +1243,7 @@ function normalize(items: any[]): ApprovalRow[] {
       requesterName: item.requesterName ?? item.requester_name ?? null,
       requesterRole: item.requesterRole ?? item.requester_role ?? null,
       projectName: item.projectName ?? item.project_name ?? null,
+      clientName: item.clientName ?? item.client_name ?? null,
       referenceNumber:
         item.referenceNumber ?? item.reference_number ?? item.voucher_no ?? null,
       releasedAt: item.releasedAt ?? item.released_at ?? null,
@@ -1268,6 +1270,7 @@ function normalizeUnified(items: any[]): ApprovalRow[] {
     requesterName: item.requester_name ?? null,
     requesterRole: item.requester_role ?? null,
     projectName: item.project_name ?? null,
+    clientName: item.client_name ?? null,
     referenceNumber: item.reference_number ?? null,
     releasedAt: item.released_at ?? null,
     reviewerId: item.reviewer_id ?? null,
@@ -1427,15 +1430,15 @@ const ApprovalTable = ({
         <tbody>
           {[1, 2, 3, 4, 5].map((i) => (
             <tr key={i} className="animate-pulse border-t border-zinc-200/70">
-              {enableRowSelection && <td className="px-4 py-[75px] text-center"><div className="h-4 w-4 mx-auto bg-zinc-200 rounded" /></td>}
-              <td className="px-6 py-[75px]"><div className="h-4 w-16 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-48 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-24 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-16 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-28 bg-zinc-200 rounded mx-auto" /></td>
-              <td className="px-6 py-[75px]"><div className="h-4 w-12 bg-zinc-200 rounded mx-auto" /></td>
+              {enableRowSelection && <td className="px-4 py-[75px] text-left"><div className="h-4 w-4 bg-zinc-200 rounded" /></td>}
+              <td className="px-6 py-[75px]"><div className="h-4 w-16 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-48 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-24 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-20 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-16 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-28 bg-zinc-200 rounded" /></td>
+              <td className="px-6 py-[75px]"><div className="h-4 w-12 bg-zinc-200 rounded" /></td>
             </tr>
           ))}
         </tbody>
@@ -1463,7 +1466,7 @@ const ApprovalTable = ({
           <thead>
             <tr>
               {enableRowSelection && (
-                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
+                <th className="sticky top-0 z-10 h-[36px] px-4 text-left align-middle w-[50px] bg-white border-b border-zinc-200">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -1472,28 +1475,29 @@ const ApprovalTable = ({
                   />
                 </th>
               )}
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[150px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[150px]">
                 Type
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
                 Party name
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[160px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[160px]">
                 Project
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[180px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[180px]">
                 Requester
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[160px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[160px]">
                 Amount
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[120px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[120px]">
                 Review
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[220px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[220px]">
                 Approval flow
               </th>
-              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-center w-[140px]">
+              <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left w-[140px]">
+                Action
               </th>
             </tr>
           </thead>
@@ -1532,7 +1536,7 @@ const ApprovalTable = ({
                     }}
                   >
                     {enableRowSelection && (
-                      <td className="px-4 py-3 align-middle text-center border-t border-zinc-200/70">
+                      <td className="px-4 py-3 align-middle text-left border-t border-zinc-200/70">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1542,7 +1546,7 @@ const ApprovalTable = ({
                         />
                       </td>
                     )}
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                       <span
                         className={
                           'inline-flex items-center text-[10px] font-semibold ' +
@@ -1552,33 +1556,55 @@ const ApprovalTable = ({
                         {TYPE_LABEL[t] ?? t}
                       </span>
                     </td>
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                       <div>
-                        <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px] mx-auto">{row.title.replace(/ ?- ?Payment Request|Payment Request ?- ?|^Payment Request$/i, '')}</div>
-                        <div className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5 mt-0.5">
-                          <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
-                            {age.text}
-                          </span>
-                          {age.overdue && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
-                              Overdue
-                            </span>
-                          )}
-                        </div>
+                        {t === 'QUOTATION' ? (
+                          <>
+                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">
+                              {row.clientName || row.projectName || row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '')}
+                            </div>
+                            <div className="text-[11px] text-zinc-500 flex items-center justify-start gap-1.5 mt-0.5">
+                              {row.referenceNumber && <span>{row.referenceNumber}</span>}
+                              {row.referenceNumber && age.text && <span>•</span>}
+                              <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
+                                {age.text}
+                              </span>
+                              {age.overdue && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
+                                  Overdue
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm font-medium text-zinc-900 truncate max-w-[320px]">{row.title.replace(/^(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)\s*-\s*/i, '').replace(/\s*-\s*(Quotation|Quote|Work Order|Vendor Payment|Payment Request|Subcontractor Payment)$/i, '')}</div>
+                            <div className="text-[11px] text-zinc-500 flex items-center justify-start gap-1.5 mt-0.5">
+                              <span className={age.overdue ? 'text-red-600 font-semibold' : ''}>
+                                {age.text}
+                              </span>
+                              {age.overdue && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold leading-none">
+                                  Overdue
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                       {row.projectName ? (
-                        <span className="inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700 max-w-[150px] truncate mx-auto">
+                        <span className="inline-flex items-center text-[11px] px-2 py-1 rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700 max-w-[150px] truncate">
                           {row.projectName}
                         </span>
                       ) : (
                         <span className="text-zinc-300 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                       {requesterName ? (
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <div className="min-w-0 text-left">
                             <div className="text-[12px] font-medium text-zinc-900 truncate max-w-[120px]">{requesterName}</div>
                             {requesterRole && <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">{requesterRole}</div>}
@@ -1588,8 +1614,8 @@ const ApprovalTable = ({
                         <span className="text-zinc-300 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
+                      <div className="flex items-center justify-start gap-2">
                         <div className="text-sm font-semibold text-zinc-900 tabular-nums">
                           {row.amount ? `₹${row.amount.toLocaleString('en-IN')}` : '—'}
                         </div>
@@ -1602,7 +1628,7 @@ const ApprovalTable = ({
                         />
                       </div>
                     </td>
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                       {row.reviewStatus && row.reviewStatus !== 'NOT_REQUIRED' ? (
                         <div className="flex flex-col items-center gap-1">
                           {row.reviewStatus === 'PENDING' && (
@@ -1623,7 +1649,7 @@ const ApprovalTable = ({
                         <span className="text-[11px] text-zinc-400">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-3 align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                       {chain.length ? (
                         <div className="flex flex-col items-start gap-1">
                           {chain.map((w, i) => {
@@ -1676,7 +1702,7 @@ const ApprovalTable = ({
                         <span className="text-[11px] text-zinc-400">No workflow</span>
                       )}
                     </td>
-                    <td className="px-6 py-[75px] align-middle text-center border-t border-zinc-200/70">
+                    <td className="px-6 py-[75px] align-middle text-left border-t border-zinc-200/70">
                       <ActionCell
                         row={{ original: row, id: row.id }}
                         onView={onView}
@@ -1824,14 +1850,14 @@ const ActionCell = ({
   };
 
   return (
-    <div className="flex items-center justify-center gap-1">
+    <div className="flex items-center justify-start gap-2">
       {isPending && onQuickApprove && !rejectOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); onQuickApprove(row.original); }}
-          className="p-1 rounded-md text-zinc-300 hover:text-emerald-600 hover:bg-emerald-50 transition-colors opacity-0 group-hover:opacity-100"
+          className="px-2.5 py-1 rounded border border-emerald-200 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors opacity-0 group-hover:opacity-100"
           title="Quick approve"
         >
-          <CheckCircle2 className="w-4 h-4" />
+          Approve
         </button>
       )}
 
@@ -1860,10 +1886,10 @@ const ActionCell = ({
       {isPending && onQuickReject && !rejectOpen && (
         <button
           onClick={(e) => { e.stopPropagation(); setRejectOpen(true); }}
-          className="p-1 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+          className="px-2.5 py-1 rounded border border-red-200 text-[11px] font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
           title="Quick reject"
         >
-          <XCircle className="w-4 h-4" />
+          Reject
         </button>
       )}
 
