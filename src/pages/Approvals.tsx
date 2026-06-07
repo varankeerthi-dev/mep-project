@@ -479,7 +479,6 @@ const Approvals: React.FC = () => {
     setShowDetails(true);
     setActionMode('none');
     setActionReason('');
-    setHoldReason('');
     if (!detailsMap[row.id]) {
       await loadDetailsFor(row);
     }
