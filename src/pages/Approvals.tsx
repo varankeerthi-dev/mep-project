@@ -696,12 +696,13 @@ const Approvals: React.FC = () => {
       purchase_orders: '/purchase/orders',
       work_orders: '/subcontractors/workorders',
       invoices: '/invoices',
-      quotations: '/quotation',
+      quotations: '/quotation/view',
+      quotation_header: '/quotation/view',
       material_dispatches: '/store/materials',
     };
     const path = routes[row.referenceType] || '#';
     if (path !== '#') {
-      window.open(path, '_blank');
+      window.open(`${path}?id=${row.referenceId}`, '_blank');
     } else {
       toast.info(`Source tab: ${row.referenceType}`);
     }
