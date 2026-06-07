@@ -311,6 +311,7 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
               <option value="ALTERATION">Alteration</option>
               <option value="AMC">AMC</option>
               <option value="WORK_ORDER">Work Order</option>
+              <option value="GENERAL">General / Non-Project</option>
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>

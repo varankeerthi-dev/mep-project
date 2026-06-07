@@ -478,6 +478,9 @@ export function ManpowerAttendanceList({ onNavigate }: ManpowerAttendanceListPro
                       <th style={{ padding: '8px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>
                         Status
                       </th>
+                      <th style={{ padding: '8px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>
+                        Source
+                      </th>
                       <th style={{ padding: '8px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>
                         Actions
                       </th>
@@ -524,6 +527,19 @@ export function ManpowerAttendanceList({ onNavigate }: ManpowerAttendanceListPro
                           }}>
                             {getStatusIcon(entry.status)}
                             {entry.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px' }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            background: entry.source === 'site_report' ? '#eff6ff' : '#f1f5f9',
+                            color: entry.source === 'site_report' ? '#2563eb' : '#64748b',
+                          }}>
+                            {entry.source === 'site_report' ? 'Site Report' : entry.source === 'direct' ? 'Direct' : '—'}
                           </span>
                         </td>
                         <td style={{ padding: '8px', textAlign: 'right' }}>

@@ -976,39 +976,54 @@ export const PurchaseOrders: React.FC = () => {
 
   if (isFormPage) {
     return (
-      <div className="flex flex-col h-full bg-white">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+      <div className="flex flex-col h-full bg-zinc-50">
+        {/* Top nav bar */}
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-zinc-200 bg-white shadow-sm sticky top-0 z-20">
           <div className="flex items-center gap-3">
-            <button onClick={handleBack} className="text-sm text-zinc-500 hover:text-zinc-800 mr-2">&larr; Back</button>
-            <h1 className="text-base font-medium text-zinc-900">{selectedPO?.id ? 'Edit Purchase Order' : 'Create Purchase Order'}</h1>
+            <button
+              onClick={handleBack}
+              className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 font-medium transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back
+            </button>
+            <div className="h-5 w-px bg-zinc-200" />
+            <h1 className="text-sm font-semibold text-zinc-900">
+              {selectedPO?.id ? 'Edit Purchase Order' : 'New Purchase Order'}
+            </h1>
+            {isDirty && (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                Unsaved changes
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6 max-w-[1400px] mx-auto w-full space-y-10">
+        <div className="flex-1 overflow-auto px-6 py-8 max-w-[1400px] mx-auto w-full space-y-8">
           {/* Section 0: Header / Letterhead */}
           {organisation && (
-            <div className="border border-zinc-200 rounded-xl p-6 bg-white">
+            <div className="border border-zinc-200 rounded-xl p-5 bg-white shadow-sm">
               <div className="flex items-start gap-5">
                 {(organisation as any).logo_url && (
-                  <img src={(organisation as any).logo_url} alt="Logo" className="w-16 h-16 rounded-lg object-contain border border-zinc-100" />
+                  <img src={(organisation as any).logo_url} alt="Logo" className="w-14 h-14 rounded-xl object-contain border border-zinc-100 bg-zinc-50" />
                 )}
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-zinc-900">{(organisation as any).name || 'Organisation'}</h2>
+                  <h2 className="text-base font-bold text-zinc-900 tracking-tight">{(organisation as any).name || 'Organisation'}</h2>
                   {(organisation as any).address && (
-                    <p className="text-sm text-zinc-500 mt-1 flex items-start gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <p className="text-xs text-zinc-500 mt-1 flex items-start gap-1.5">
+                      <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
                       {(organisation as any).address}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-zinc-500">
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-zinc-400">
                     {(organisation as any).email && (
-                      <span className="flex items-center gap-1.5"><MailIcon className="w-3.5 h-3.5" />{(organisation as any).email}</span>
+                      <span className="flex items-center gap-1"><MailIcon className="w-3 h-3" />{(organisation as any).email}</span>
                     )}
                     {(organisation as any).phone && (
-                      <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{(organisation as any).phone}</span>
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{(organisation as any).phone}</span>
                     )}
                     {(organisation as any).gst_no && (
-                      <span className="text-zinc-400">GST: {(organisation as any).gst_no}</span>
+                      <span className="font-medium text-zinc-500">GSTIN: {(organisation as any).gst_no}</span>
                     )}
                   </div>
                 </div>
@@ -1016,265 +1031,381 @@ export const PurchaseOrders: React.FC = () => {
             </div>
           )}
 
-          {/* Section 1: Details */}
-          <div>
-            <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight mb-4">Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">PO Number</Label>
-                  <Input value={poNumber} readOnly className="bg-zinc-50 border-zinc-200" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">Vendor <span className="text-rose-500">*</span></Label>
-                  <Select value={vendorId} onValueChange={(val) => { setVendorId(val); markDirty(); setFormErrors(prev => { const next = { ...prev }; delete next.vendor_id; return next; }); }}>
-                    <SelectTrigger className={cn("border-zinc-200", formErrors.vendor_id && "border-rose-400")}>
-                      <SelectValue placeholder="Select a vendor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vendors.map((v: any) => (
-                        <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.vendor_id && <span className="text-[11px] text-rose-500">{formErrors.vendor_id}</span>}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">PO Date</Label>
-                  <Input type="date" value={poDate} onChange={(e) => { setPoDate(e.target.value); markDirty(); }} className={cn("border-zinc-200", formErrors.po_date && "border-rose-400")} />
-                  {formErrors.po_date && <span className="text-[11px] text-rose-500">{formErrors.po_date}</span>}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">Reference / RFQ</Label>
-                  <Input value={referenceNo} onChange={(e) => { setReferenceNo(e.target.value); markDirty(); }} placeholder="e.g. RFQ-001, PR-2024-001" className="border-zinc-200" />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">Delivery Date</Label>
-                  <Input type="date" value={deliveryDate} onChange={(e) => { setDeliveryDate(e.target.value); markDirty(); }} className="border-zinc-200" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-1.5">
-                    <Label className="text-sm font-semibold">Currency</Label>
-                    <Select value={currency} onValueChange={(val) => { setCurrency(val); markDirty(); }}>
-                      <SelectTrigger className="border-zinc-200">
-                        <SelectValue />
+          {/* Section 1: PO Details */}
+          <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
+            {/* Section header */}
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-zinc-100 bg-zinc-50/60">
+              <div className="w-1 h-5 bg-indigo-600 rounded-full" />
+              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Purchase Order Details</h3>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+                {/* Left column */}
+                <div className="space-y-5">
+                  {/* PO Number */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">PO Number</Label>
+                    <Input
+                      value={poNumber}
+                      readOnly
+                      className="bg-zinc-50 border-zinc-200 text-zinc-600 font-mono text-sm cursor-default"
+                    />
+                  </div>
+
+                  {/* Vendor */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                      Vendor <span className="text-rose-500 normal-case tracking-normal">*</span>
+                    </Label>
+                    <Select value={vendorId} onValueChange={(val) => { setVendorId(val); markDirty(); setFormErrors(prev => { const next = { ...prev }; delete next.vendor_id; return next; }); }}>
+                      <SelectTrigger className={cn("border-zinc-200 hover:border-zinc-400 transition-colors focus:ring-2 focus:ring-indigo-400", formErrors.vendor_id && "border-rose-400 focus:ring-rose-300")}>
+                        <SelectValue placeholder="Select vendor" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CURRENCIES.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>
+                        {vendors.map((v: any) => (
+                          <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {formErrors.vendor_id && <p className="text-[11px] text-rose-500 mt-0.5">{formErrors.vendor_id}</p>}
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-sm font-semibold">Exchange Rate</Label>
-                    <Input type="number" value={exchangeRate} onChange={(e) => { setExchangeRate(Number(e.target.value)); markDirty(); }} disabled={currency === 'INR'} className="border-zinc-200" />
+
+                  {/* PO Date */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">PO Date</Label>
+                    <Input
+                      type="date"
+                      value={poDate}
+                      onChange={(e) => { setPoDate(e.target.value); markDirty(); }}
+                      className={cn("border-zinc-200 hover:border-zinc-400 transition-colors focus:ring-2 focus:ring-indigo-400", formErrors.po_date && "border-rose-400")}
+                    />
+                    {formErrors.po_date && <p className="text-[11px] text-rose-500 mt-0.5">{formErrors.po_date}</p>}
+                  </div>
+
+                  {/* Reference */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Reference / RFQ</Label>
+                    <Input
+                      value={referenceNo}
+                      onChange={(e) => { setReferenceNo(e.target.value); markDirty(); }}
+                      placeholder="e.g. RFQ-001, PR-2024-001"
+                      className="border-zinc-200 hover:border-zinc-400 transition-colors focus:ring-2 focus:ring-indigo-400"
+                    />
                   </div>
                 </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">Payment Terms</Label>
-                  <Input value={terms} onChange={(e) => { setTerms(e.target.value); markDirty(); }} placeholder="e.g. Net 30" className="border-zinc-200" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">Delivery Address</Label>
-                  <textarea
-                    value={deliveryLocation}
-                    onChange={(e) => { setDeliveryLocation(e.target.value); markDirty(); }}
-                    placeholder="Shipping address, delivery instructions, or site location..."
-                    rows={3}
-                    className="w-full px-4 py-3 text-sm border border-zinc-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-sm font-semibold">Authorized Signatory</Label>
-                  <Select value={authorizedSignatoryId} onValueChange={(val) => { setAuthorizedSignatoryId(val); markDirty(); }}>
-                    <SelectTrigger className="border-zinc-200">
-                      <SelectValue placeholder="Select signatory..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {((organisation as any)?.signatures || []).length > 0 ? (
-                        ((organisation as any)?.signatures || []).map((sig: any) => (
-                          <SelectItem key={String(sig.id)} value={String(sig.id)}>{sig.name}</SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="__no_sigs__">No signatures — Add in Settings → Organisation</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {authorizedSignatoryId && (
-                    <div className="mt-2 border border-zinc-200 rounded-lg p-3 bg-zinc-50">
-                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Signature Preview</p>
-                      <div className="h-12 flex items-center">
-                        {(() => {
-                          const sigId = String(authorizedSignatoryId);
-                          const selectedSig = ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === sigId);
-                          if (selectedSig?.url) {
-                            return <img src={selectedSig.url} alt={selectedSig.name} className="max-h-10 max-w-[160px] object-contain" />;
-                          }
-                          return <span className="text-xs text-zinc-400">No signature image</span>;
-                        })()}
-                      </div>
+
+                {/* Right column */}
+                <div className="space-y-5">
+                  {/* Delivery Date */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Delivery Date</Label>
+                    <Input
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => { setDeliveryDate(e.target.value); markDirty(); }}
+                      className="border-zinc-200 hover:border-zinc-400 transition-colors focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  {/* Currency + Exchange Rate */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Currency</Label>
+                      <Select value={currency} onValueChange={(val) => { setCurrency(val); markDirty(); }}>
+                        <SelectTrigger className="border-zinc-200 hover:border-zinc-400 transition-colors">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Exchange Rate</Label>
+                      <Input
+                        type="number"
+                        value={exchangeRate}
+                        onChange={(e) => { setExchangeRate(Number(e.target.value)); markDirty(); }}
+                        disabled={currency === 'INR'}
+                        className="border-zinc-200 hover:border-zinc-400 transition-colors disabled:bg-zinc-50 disabled:text-zinc-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment Terms */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Payment Terms</Label>
+                    <Input
+                      value={terms}
+                      onChange={(e) => { setTerms(e.target.value); markDirty(); }}
+                      placeholder="e.g. Net 30"
+                      className="border-zinc-200 hover:border-zinc-400 transition-colors focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  {/* Delivery Address */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Delivery Address</Label>
+                    <textarea
+                      value={deliveryLocation}
+                      onChange={(e) => { setDeliveryLocation(e.target.value); markDirty(); }}
+                      placeholder="Shipping address, delivery instructions, or site location..."
+                      rows={3}
+                      className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-lg resize-none hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors"
+                    />
+                  </div>
+
+                  {/* Authorized Signatory */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Authorized Signatory</Label>
+                    <Select value={authorizedSignatoryId} onValueChange={(val) => { setAuthorizedSignatoryId(val); markDirty(); }}>
+                      <SelectTrigger className="border-zinc-200 hover:border-zinc-400 transition-colors">
+                        <SelectValue placeholder="Select signatory..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {((organisation as any)?.signatures || []).length > 0 ? (
+                          ((organisation as any)?.signatures || []).map((sig: any) => (
+                            <SelectItem key={String(sig.id)} value={String(sig.id)}>{sig.name}</SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="__no_sigs__">No signatures — Add in Settings → Organisation</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {authorizedSignatoryId && (() => {
+                      const sigId = String(authorizedSignatoryId);
+                      const selectedSig = ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === sigId);
+                      return selectedSig?.url ? (
+                        <div className="mt-2 border border-zinc-100 rounded-lg p-3 bg-zinc-50 flex items-center gap-3">
+                          <img src={selectedSig.url} alt={selectedSig.name} className="max-h-9 max-w-[120px] object-contain" />
+                          <span className="text-xs text-zinc-500">{selectedSig.name}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Section 2: Items */}
+          {/* Section 2: Line Items */}
           <div className="flex gap-6 items-start">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-tight">Order Items</h3>
-              <div className="flex items-center gap-2">
-                <div className="relative" ref={itemColMenuRef}>
-                  <button
-                    onClick={() => setItemColMenuOpen(!itemColMenuOpen)}
-                    className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100"
-                    style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
-                  >
-                    <Columns className="w-4 h-4 mr-1.5" /> Columns
-                  </button>
-                  {itemColMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5">
-                      {ITEM_COLUMNS.map(col => (
-                        <label
-                          key={col.key}
-                          className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-zinc-50 cursor-pointer"
-                          style={{ padding: '6px' }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={itemCols.has(col.key)}
-                            onChange={() => {
-                              setItemCols(prev => {
-                                const next = new Set(prev);
-                                if (next.has(col.key)) next.delete(col.key);
-                                else next.add(col.key);
-                                return next;
-                              });
-                            }}
-                            className="w-3.5 h-3.5 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
-                          />
-                          {col.label}
-                        </label>
-                      ))}
-                    </div>
-                  )}
+
+            {/* Line items card — styled like CreateQuotation */}
+            <div className="bg-white rounded-none border border-zinc-200 shadow-sm">
+              {/* Toolbar header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-6 bg-indigo-600 rounded-none" />
+                  <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
+                  <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
+                    {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
+                  </span>
                 </div>
-                <button onClick={openItemPicker} className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-                  <Plus className="w-4 h-4 mr-1.5" /> Add Multiple Items
-                </button>
-                <button onClick={addItem} className="inline-flex items-center justify-center text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-                  <Plus className="w-4 h-4 mr-1.5" /> Add Item
-                </button>
+
+                <div className="flex items-center gap-2">
+                  {/* Columns toggle */}
+                  <div className="relative" ref={itemColMenuRef}>
+                    <button
+                      onClick={() => setItemColMenuOpen(!itemColMenuOpen)}
+                      className="h-9 px-3 text-xs font-semibold text-zinc-600 hover:text-indigo-600 transition-all flex items-center gap-1.5"
+                    >
+                      <Columns className="w-3.5 h-3.5" />
+                      Columns
+                    </button>
+                    {itemColMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5">
+                        {ITEM_COLUMNS.map(col => (
+                          <label
+                            key={col.key}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={itemCols.has(col.key)}
+                              onChange={() => {
+                                setItemCols(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(col.key)) next.delete(col.key);
+                                  else next.add(col.key);
+                                  return next;
+                                });
+                              }}
+                              className="w-3.5 h-3.5 rounded border-zinc-300 text-indigo-600 accent-indigo-600"
+                            />
+                            {col.label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-px h-6 bg-zinc-200 mx-1" />
+
+                  {/* Add Item row */}
+                  <button
+                    onClick={addItem}
+                    className="h-9 px-3 text-xs font-semibold text-zinc-600 hover:text-indigo-600 transition-all"
+                  >
+                    + Add Row
+                  </button>
+
+                  <div className="w-px h-6 bg-zinc-200 mx-1" />
+
+                  {/* Add Multiple */}
+                  <button
+                    onClick={openItemPicker}
+                    className="h-9 min-w-[120px] px-3 text-xs font-bold text-zinc-600 hover:text-indigo-600 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    Multiple Items
+                  </button>
+                </div>
               </div>
-            </div>
-            {formErrors.items && <p className="text-[11px] text-rose-500 mb-2">{formErrors.items}</p>}
-            <div className="border border-zinc-200 rounded-lg overflow-hidden bg-white shadow-sm">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600">
+
+              {formErrors.items && <p className="text-[11px] text-rose-500 px-6 pt-2 pb-0">{formErrors.items}</p>}
+              <div className="grid-table-container" style={{ overflowX: 'auto' }}>
+              <table className="w-full text-left" style={{ fontSize: '12px', borderCollapse: 'collapse' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
-                    <th className="px-1 py-2.5 font-bold w-8"></th>
-                    <th className="px-3 py-2.5 font-bold w-10">#</th>
-                    {itemCols.has('section') && <th className="px-3 py-2.5 font-bold w-24">Section</th>}
-                    {itemCols.has('item_name') && <th className="px-3 py-2.5 font-bold">Item & Description</th>}
-                    {itemCols.has('variant') && <th className="px-3 py-2.5 font-bold w-20">Variant</th>}
-                    {itemCols.has('make') && <th className="px-3 py-2.5 font-bold w-20">Make</th>}
-                    {itemCols.has('quantity') && <th className="px-3 py-2.5 font-bold w-20 text-center">Qty</th>}
-                    {itemCols.has('unit') && <th className="px-3 py-2.5 font-bold w-16">Unit</th>}
-                    {itemCols.has('rate') && <th className="px-3 py-2.5 font-bold w-24">Rate</th>}
-                    {itemCols.has('discount') && <th className="px-3 py-2.5 font-bold w-16 text-center">Disc%</th>}
-                    {itemCols.has('gst') && <th className="px-3 py-2.5 font-bold w-16 text-center">GST%</th>}
-                    {itemCols.has('total') && <th className="px-3 py-2.5 font-bold w-28 text-right">Total</th>}
-                    <th className="px-3 py-2.5 font-bold w-10"></th>
+                    <th style={{ padding: '10px 6px', fontWeight: 700, color: '#64748b', width: 32, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}></th>
+                    <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 40, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>#</th>
+                    {itemCols.has('section') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 96, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Section</th>}
+                    {itemCols.has('item_name') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Item & Description</th>}
+                    {itemCols.has('variant') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 80, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Variant</th>}
+                    {itemCols.has('make') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 80, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Make</th>}
+                    {itemCols.has('quantity') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 80, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px', textAlign: 'center' }}>Qty</th>}
+                    {itemCols.has('unit') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 64, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Unit</th>}
+                    {itemCols.has('rate') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 96, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Rate</th>}
+                    {itemCols.has('discount') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 64, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px', textAlign: 'center' }}>Disc%</th>}
+                    {itemCols.has('gst') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 64, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px', textAlign: 'center' }}>GST%</th>}
+                    {itemCols.has('total') && <th style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b', width: 112, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px', textAlign: 'right' }}>Amount</th>}
+                    <th style={{ padding: '10px 12px', width: 40 }}></th>
                   </tr>
                 </thead>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={items.map((_, i) => `item-${i}`)} strategy={verticalListSortingStrategy}>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody style={{ borderTop: '1px solid #f1f5f9' }}>
                   {items.map((item, index) => (
                     <SortableRow key={`item-${index}`} id={`item-${index}`}>
                       <DragHandle />
-                      <td className="px-3 py-2 text-zinc-400 font-medium">{item.sr}</td>
-                      {itemCols.has('section') && <td className="px-3 py-2"><Input placeholder="Section" value={item.section || ''} onChange={(e) => updateItem(index, 'section', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
-                      {itemCols.has('item_name') && (
-                        <td className="px-3 py-2">
-                          <div className="space-y-1.5">
-                            <Select value={item.item_id || ""} onValueChange={async (val) => {
-                              const material = materials.find((m: any) => m.id === val);
-                              if (material) {
-                                updateItem(index, 'item_name', material.display_name || material.name);
-                                updateItem(index, 'item_id', material.id);
-                                updateItem(index, 'hsn_code', material.hsn_code || '');
-                                updateItem(index, 'unit', material.unit || 'Nos');
-                                let rate = material.purchase_price || material.sale_price || 0;
-                                let make = material.make || '';
-                                let variant = '';
-                                let discount = 0;
-                                if (vendorId) {
-                                  const { data: pricingData } = await supabase
-                                    .from('vendor_material_pricing')
-                                    .select('*')
-                                    .eq('material_id', material.id)
-                                    .eq('vendor_id', vendorId)
-                                    .order('is_preferred', { ascending: false })
-                                    .limit(1)
-                                    .single();
-                                  if (pricingData) {
-                                    rate = pricingData.base_rate || rate;
-                                    make = pricingData.make || make;
-                                    discount = pricingData.discount_percent || discount;
-                                    if (pricingData.variant_id) {
-                                      const foundVariant = variants.find(v => v.id === pricingData.variant_id);
-                                      if (foundVariant) variant = foundVariant.variant_name;
-                                    }
-                                  }
-                                }
-                                updateItem(index, 'rate', rate);
-                                updateItem(index, 'make', make);
-                                updateItem(index, 'variant', variant);
-                                updateItem(index, 'discount_percent', discount);
-                                if (material.gst_rate) {
-                                  const gst = material.gst_rate;
-                                  updateItem(index, 'cgst_percent', gst / 2);
-                                  updateItem(index, 'sgst_percent', gst / 2);
-                                  updateItem(index, 'igst_percent', gst);
-                                }
-                              }
-                            }}>
-                              <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0">
-                                <SelectValue placeholder="Select item" />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-60">
-                                {materials.map((m: any) => (
-                                  <SelectItem key={m.id} value={m.id} className="text-xs">{m.display_name || m.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {formErrors[`items.${index}.item_name`] && (
-                              <span className="text-[11px] text-rose-500 block">{formErrors[`items.${index}.item_name`]}</span>
-                            )}
-                          </div>
+                      <td style={{ padding: '8px 12px', color: '#94a3b8', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{item.sr}</td>
+                      {itemCols.has('section') && (
+                        <td style={{ padding: '6px 12px' }}>
+                          <input
+                            placeholder="Section"
+                            value={item.section || ''}
+                            onChange={(e) => updateItem(index, 'section', e.target.value)}
+                            style={{ width: '100%', fontSize: 12, padding: '4px 6px', border: 'none', background: 'transparent', outline: 'none', color: '#374151' }}
+                          />
                         </td>
                       )}
-                      {itemCols.has('variant') && <td className="px-3 py-2"><Input placeholder="Variant" value={item.variant} onChange={(e) => updateItem(index, 'variant', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
-                      {itemCols.has('make') && <td className="px-3 py-2"><Input placeholder="Make" value={item.make} onChange={(e) => updateItem(index, 'make', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
-                      {itemCols.has('quantity') && <td className="px-3 py-2"><Input type="number" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))} className={cn("h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0", formErrors[`items.${index}.quantity`] && "border-rose-400")} /></td>}
-                      {itemCols.has('unit') && <td className="px-3 py-2"><Input value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
-                      {itemCols.has('rate') && <td className="px-3 py-2"><Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', Number(e.target.value))} className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
-                      {itemCols.has('discount') && <td className="px-3 py-2"><Input type="number" value={item.discount_percent} onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))} className="h-8 text-xs text-center border-zinc-100 bg-transparent shadow-none focus:ring-0" /></td>}
+                      {itemCols.has('item_name') && (
+                        <td style={{ padding: '6px 12px', minWidth: 200 }}>
+                          <Select value={item.item_id || ""} onValueChange={async (val) => {
+                            const material = materials.find((m: any) => m.id === val);
+                            if (material) {
+                              updateItem(index, 'item_name', material.display_name || material.name);
+                              updateItem(index, 'item_id', material.id);
+                              updateItem(index, 'hsn_code', material.hsn_code || '');
+                              updateItem(index, 'unit', material.unit || 'Nos');
+                              let rate = material.purchase_price || material.sale_price || 0;
+                              let make = material.make || '';
+                              let variant = '';
+                              let discount = 0;
+                              if (vendorId) {
+                                const { data: pricingData } = await supabase
+                                  .from('vendor_material_pricing')
+                                  .select('*')
+                                  .eq('material_id', material.id)
+                                  .eq('vendor_id', vendorId)
+                                  .order('is_preferred', { ascending: false })
+                                  .limit(1)
+                                  .single();
+                                if (pricingData) {
+                                  rate = pricingData.base_rate || rate;
+                                  make = pricingData.make || make;
+                                  discount = pricingData.discount_percent || discount;
+                                  if (pricingData.variant_id) {
+                                    const foundVariant = variants.find(v => v.id === pricingData.variant_id);
+                                    if (foundVariant) variant = foundVariant.variant_name;
+                                  }
+                                }
+                              }
+                              updateItem(index, 'rate', rate);
+                              updateItem(index, 'make', make);
+                              updateItem(index, 'variant', variant);
+                              updateItem(index, 'discount_percent', discount);
+                              if (material.gst_rate) {
+                                const gst = material.gst_rate;
+                                updateItem(index, 'cgst_percent', gst / 2);
+                                updateItem(index, 'sgst_percent', gst / 2);
+                                updateItem(index, 'igst_percent', gst);
+                              }
+                            }
+                          }}>
+                            <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none focus:ring-indigo-300">
+                              <SelectValue placeholder="Select item" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60">
+                              {materials.map((m: any) => (
+                                <SelectItem key={m.id} value={m.id} className="text-xs">{m.display_name || m.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {formErrors[`items.${index}.item_name`] && (
+                            <span className="text-[10px] text-rose-500 block mt-0.5">{formErrors[`items.${index}.item_name`]}</span>
+                          )}
+                        </td>
+                      )}
+                      {itemCols.has('variant') && (
+                        <td style={{ padding: '6px 12px' }}>
+                          <input placeholder="Variant" value={item.variant} onChange={(e) => updateItem(index, 'variant', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '4px 6px', border: 'none', background: 'transparent', outline: 'none', color: '#374151' }} />
+                        </td>
+                      )}
+                      {itemCols.has('make') && (
+                        <td style={{ padding: '6px 12px' }}>
+                          <input placeholder="Make" value={item.make} onChange={(e) => updateItem(index, 'make', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '4px 6px', border: 'none', background: 'transparent', outline: 'none', color: '#374151' }} />
+                        </td>
+                      )}
+                      {itemCols.has('quantity') && (
+                        <td style={{ padding: '6px 12px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                            style={{ width: '100%', fontSize: 12, padding: '4px 6px', textAlign: 'center', border: formErrors[`items.${index}.quantity`] ? '1px solid #f43f5e' : 'none', background: 'transparent', outline: 'none', color: '#374151' }}
+                          />
+                        </td>
+                      )}
+                      {itemCols.has('unit') && (
+                        <td style={{ padding: '6px 12px' }}>
+                          <input value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '4px 6px', border: 'none', background: 'transparent', outline: 'none', color: '#374151' }} />
+                        </td>
+                      )}
+                      {itemCols.has('rate') && (
+                        <td style={{ padding: '6px 12px' }}>
+                          <input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', Number(e.target.value))} style={{ width: '100%', fontSize: 12, padding: '4px 6px', border: 'none', background: 'transparent', outline: 'none', color: '#374151', textAlign: 'right' }} />
+                        </td>
+                      )}
+                      {itemCols.has('discount') && (
+                        <td style={{ padding: '6px 12px', textAlign: 'center' }}>
+                          <input type="number" value={item.discount_percent} onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))} style={{ width: '100%', fontSize: 12, padding: '4px 6px', textAlign: 'center', border: 'none', background: 'transparent', outline: 'none', color: '#374151' }} />
+                        </td>
+                      )}
                       {itemCols.has('gst') && (
-                        <td className="px-3 py-2">
+                        <td style={{ padding: '6px 12px' }}>
                           <Select value={String(item.cgst_percent + item.sgst_percent)} onValueChange={(val) => {
                             const gst = Number(val);
                             updateItem(index, 'cgst_percent', gst / 2);
                             updateItem(index, 'sgst_percent', gst / 2);
                             updateItem(index, 'igst_percent', gst);
                           }}>
-                            <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none text-center focus:ring-0 pr-1">
+                            <SelectTrigger className="h-8 text-xs border-zinc-100 bg-transparent shadow-none text-center focus:ring-indigo-300 pr-1">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1285,9 +1416,15 @@ export const PurchaseOrders: React.FC = () => {
                           </Select>
                         </td>
                       )}
-                      {itemCols.has('total') && <td className="px-3 py-2 text-right font-medium text-zinc-700">{item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>}
-                      <td className="px-3 py-2">
-                        <button onClick={() => removeItem(index)} className="p-1 rounded hover:bg-red-50 text-zinc-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                      {itemCols.has('total') && (
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
+                          ₹{item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      )}
+                      <td style={{ padding: '6px 12px' }}>
+                        <button onClick={() => removeItem(index)} className="p-1 rounded hover:bg-red-50 text-zinc-300 hover:text-red-500 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </td>
                     </SortableRow>
                   ))}
@@ -1308,22 +1445,27 @@ export const PurchaseOrders: React.FC = () => {
                     return groups.filter(g => g.items.length > 1 && g.section).map((g, gi) => {
                       const sub = g.items.reduce((s, i) => s + i.total_amount, 0);
                       return (
-                        <tr key={`sec-sub-${gi}`} className="bg-zinc-100/70">
-                          <td colSpan={1 + itemCols.size + 2} className="px-3 py-2 text-right text-xs font-bold text-zinc-600 uppercase tracking-wider">
+                        <tr key={`sec-sub-${gi}`} style={{ background: '#fef9c3', borderTop: '2px solid #eab308' }}>
+                          <td colSpan={1 + itemCols.size + 2} style={{ padding: '6px 12px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Subtotal — {g.section} &nbsp;
-                            <span className="font-mono text-zinc-800">₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            <span style={{ fontFamily: 'monospace', color: '#92400e' }}>₹{sub.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                           </td>
                         </tr>
                       );
                     });
                   })()}
                   {items.length === 0 && (
-                    <tr><td colSpan={itemCols.size + 3} className="px-3 py-10 text-center text-zinc-400 italic">No items added. Click "Add Item" or "Add Multiple Items" to start.</td></tr>
+                    <tr>
+                      <td colSpan={itemCols.size + 3} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                        No items added yet. Click <strong>+ Add Row</strong> or <strong>Multiple Items</strong> to start.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
                 </SortableContext>
                 </DndContext>
               </table>
+              </div>
             </div>
 
             <div className="flex gap-6 mt-8">
@@ -1700,16 +1842,30 @@ export const PurchaseOrders: React.FC = () => {
           </div>
         )}
 
-        <div className="sticky bottom-0 px-6 py-4 border-t bg-white flex items-center justify-between z-10">
-          <button onClick={handleBack} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
+        {/* Sticky action footer */}
+        <div className="sticky bottom-0 px-6 py-3.5 border-t border-zinc-200 bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.04)] flex items-center justify-between z-20">
+          <button
+            onClick={handleBack}
+            className="h-9 px-4 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+          >
             Cancel
           </button>
-          <div className="flex items-center gap-2">
-            <button onClick={handleSaveDraft} disabled={isSubmitting || items.length === 0 || !vendorId} className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 disabled:opacity-50" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-              <ShoppingCart className="w-4 h-4 mr-1.5" /> {isSubmitting ? 'Saving...' : 'Save as Draft'}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleSaveDraft}
+              disabled={isSubmitting || items.length === 0 || !vendorId}
+              className="h-9 px-4 text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {isSubmitting ? 'Saving...' : 'Save as Draft'}
             </button>
-            <button onClick={handleSubmitApproval} disabled={isSubmitting || items.length === 0 || !vendorId} className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm disabled:opacity-50" style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}>
-              <ShoppingCart className="w-4 h-4 mr-1.5" /> {isSubmitting ? 'Saving...' : 'Submit for Approval'}
+            <button
+              onClick={handleSubmitApproval}
+              disabled={isSubmitting || items.length === 0 || !vendorId}
+              className="h-9 px-4 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
             </button>
           </div>
         </div>

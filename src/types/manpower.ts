@@ -52,7 +52,7 @@ export interface ManpowerAttendance {
   work_unit_id: string | null;
   work_unit_type: WorkUnitType | null;
   attendance_date: string;
-  labour_category_id: string;
+  labour_category_id: string | null;
   workers_count: number;
   hours_worked: number;
   supervisor_name: string | null;
@@ -77,7 +77,7 @@ export interface CreateManpowerAttendanceInput {
   work_unit_id?: string;
   work_unit_type?: WorkUnitType;
   attendance_date: string;
-  labour_category_id: string;
+  labour_category_id?: string;
   workers_count: number;
   hours_worked?: number;
   supervisor_name?: string;

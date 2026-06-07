@@ -112,6 +112,7 @@ const siteReportSchema = z.object({
     startTime: z.string().min(1, "Start time is required"),
     endTime: z.string().min(1, "End time is required"),
     subContractors: z.array(z.object({
+      subcontractor_id: z.string().optional(),
       name: z.string(),
       count: z.string(),
       start: z.string(),
@@ -413,24 +414,29 @@ export function SiteReport() {
 
   // Fetch Projects
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery({
-    queryKey: ['site-report-projects', selectedClientId, organisation?.id],
-    enabled: !!selectedClientId && !!organisation?.id,
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    gcTime: 1000 * 60 * 30,    // Keep in memory for 30 minutes
-    queryFn: async () => {
-      const { data, error } = await supabase
+    queryKey: ['site-report-projects', organisation?.id],
+    enabled: !!organisation?.id,
+    queryFn: () =>
+      supabase
         .from('projects')
-        .select('id, project_name')
-        .eq('client_id', selectedClientId)
-        .eq('organisation_id', organisation?.id) // Use correct column name
-        .order('project_name');
-      
-      if (error) {
-        console.error('Projects fetch error:', error);
-        return []; // Return empty array instead of throwing
-      }
-      return data || [];
-    }
+        .select('id, project_name, project_code')
+        .eq('organisation_id', organisation!.id)
+        .eq('status', 'Active')
+        .order('project_name')
+        .then(({ data }) => data || []),
+  });
+
+  const { data: subcontractors } = useQuery({
+    queryKey: ['site-report-subcontractors', organisation?.id],
+    enabled: !!organisation?.id,
+    queryFn: () =>
+      supabase
+        .from('subcontractors')
+        .select('id, company_name, sub_number')
+        .eq('organisation_id', organisation!.id)
+        .eq('status', 'Active')
+        .order('company_name')
+        .then(({ data }) => data || []),
   });
 
   // Fetch approvable org members (Phase D — for the Submit for Approval picker)
@@ -492,7 +498,7 @@ export function SiteReport() {
       if (reportError) throw reportError;
 
       const [subs, works, milestones, clientReqs, wpnd, si, issues] = await Promise.all([
-        supabase.from('sub_contractors').select('name, count, start_time, end_time').eq('report_id', selectedReportId),
+        supabase.from('sub_contractors').select('name, count, start_time, end_time, subcontractor_id').eq('report_id', selectedReportId),
         supabase.from('work_carried_out').select('description').eq('report_id', selectedReportId),
         supabase.from('milestones_completed').select('description').eq('report_id', selectedReportId),
         supabase.from('site_report_client_requirements').select('description, sort_order').eq('report_id', selectedReportId).order('sort_order'),
@@ -533,10 +539,10 @@ export function SiteReport() {
         startTime: r.start_time || '',
         endTime: r.end_time || '',
         subContractors: (r._subs || []).map((s: any) => ({
-          name: s.name || '', count: s.count || '', start: s.start_time || '', end: s.end_time || ''
+          subcontractor_id: s.subcontractor_id || '', name: s.name || '', count: s.count || '', start: s.start_time || '', end: s.end_time || ''
         })).length > 0
-          ? (r._subs || []).map((s: any) => ({ name: s.name || '', count: s.count || '', start: s.start_time || '', end: s.end_time || '' }))
-          : [{ name: '', count: '', start: '', end: '' }],
+          ? (r._subs || []).map((s: any) => ({ subcontractor_id: s.subcontractor_id || '', name: s.name || '', count: s.count || '', start: s.start_time || '', end: s.end_time || '' }))
+          : [{ subcontractor_id: '', name: '', count: '', start: '', end: '' }],
       },
       workCarriedOut: (r._works || []).map((w: any) => ({ value: w.description || '' })),
       milestonesCompleted: (r._milestones || []).map((m: any) => ({ value: m.description || '' })),
@@ -663,6 +669,7 @@ export function SiteReport() {
           .map(s => ({
             organisation_id: organisation?.id,
             report_id: report.id,
+            subcontractor_id: s.subcontractor_id || null,
             name: s.name,
             count: s.count,
             start_time: s.start || null,
@@ -670,6 +677,28 @@ export function SiteReport() {
           }));
         if (subs.length > 0) {
           relatedInserts.push(supabase.from('sub_contractors').insert(subs));
+        }
+
+        const attendanceRecords = values.manpower.subContractors
+          .filter(s => s.subcontractor_id && s.name && s.count)
+          .map(s => ({
+            organisation_id: organisation?.id,
+            subcontractor_id: s.subcontractor_id,
+            work_unit_type: 'GENERAL' as const,
+            attendance_date: values.date,
+            labour_category_id: null,  // will be set during enrichment
+            workers_count: parseInt(s.count) || 0,
+            hours_worked: 8,
+            base_rate: 0,
+            adjusted_rate: 0,
+            original_amount: 0,
+            adjusted_amount: 0,
+            source: 'site_report' as const,
+            source_report_id: report.id,
+            status: 'DRAFT' as const,
+          }));
+        if (attendanceRecords.length > 0) {
+          relatedInserts.push(supabase.from('manpower_attendance').insert(attendanceRecords));
         }
       }
 
@@ -945,6 +974,7 @@ export function SiteReport() {
       // 2. Replace child rows: delete existing, then insert new (mirrors saveMutation)
       await Promise.allSettled([
         supabase.from('sub_contractors').delete().eq('report_id', reportId),
+        supabase.from('manpower_attendance').delete().eq('source_report_id', reportId).eq('source', 'site_report'),
         supabase.from('work_carried_out').delete().eq('report_id', reportId),
         supabase.from('milestones_completed').delete().eq('report_id', reportId),
         supabase.from('site_report_client_requirements').delete().eq('report_id', reportId),
@@ -958,10 +988,33 @@ export function SiteReport() {
       const subs = (values.manpower.subContractors || []).filter(s => s.name).map(s => ({
         organisation_id: organisation?.id,
         report_id: reportId,
+        subcontractor_id: s.subcontractor_id || null,
         name: s.name, count: s.count,
         start_time: s.start || null, end_time: s.end || null
       }));
       if (subs.length > 0) relatedInserts.push(supabase.from('sub_contractors').insert(subs));
+
+      const attendanceRecords = (values.manpower.subContractors || [])
+        .filter(s => s.subcontractor_id && s.name && s.count)
+        .map(s => ({
+          organisation_id: organisation?.id,
+          subcontractor_id: s.subcontractor_id,
+          work_unit_type: 'GENERAL' as const,
+          attendance_date: values.date,
+          labour_category_id: null,
+          workers_count: parseInt(s.count) || 0,
+          hours_worked: 8,
+          base_rate: 0,
+          adjusted_rate: 0,
+          original_amount: 0,
+          adjusted_amount: 0,
+          source: 'site_report' as const,
+          source_report_id: reportId,
+          status: 'DRAFT' as const,
+        }));
+      if (attendanceRecords.length > 0) {
+        relatedInserts.push(supabase.from('manpower_attendance').insert(attendanceRecords));
+      }
 
       const works = (values.workCarriedOut || []).filter(i => i.value).map(i => ({
         organisation_id: organisation?.id, report_id: reportId, description: i.value
@@ -1196,7 +1249,7 @@ export function SiteReport() {
           organisation_id,
           clients (client_name),
           projects (project_name),
-          sub_contractors (name, count, start_time, end_time),
+          sub_contractors (name, count, start_time, end_time, subcontractor_id),
           work_carried_out (description),
           milestones_completed (description)
         `)
@@ -1856,7 +1909,7 @@ export function SiteReport() {
                     {view !== 'view' && (
                       <button 
                         type="button" 
-                        onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
+                        onClick={() => appendSubContractor({ subcontractor_id: '', name: '', count: '', start: '', end: '' })}
                         style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
                       >
                         + Add Entry
@@ -1879,7 +1932,29 @@ export function SiteReport() {
                         {subContractorFields.map((field, index) => (
                           <TableRow key={field.id} className="bg-white border-b-zinc-50 last:border-0 hover:bg-transparent">
                             <TableCell className="p-1">
-                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter vendor name..." />
+                              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <input type="hidden" {...form.register(`manpower.subContractors.${index}.subcontractor_id`)} />
+                                <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter name..." style={{ flex: 1, minWidth: 0 }} />
+                                {view !== 'view' && (
+                                  <select
+                                    style={{ fontSize: '10px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', maxWidth: '100px' }}
+                                    onChange={(e) => {
+                                      if (!e.target.value) return;
+                                      const sub = subcontractors?.find((s: any) => s.id === e.target.value);
+                                      if (sub) {
+                                        form.setValue(`manpower.subContractors.${index}.name`, sub.company_name);
+                                        form.setValue(`manpower.subContractors.${index}.subcontractor_id`, sub.id);
+                                      }
+                                    }}
+                                    value=""
+                                  >
+                                    <option value="">Pick sub</option>
+                                    {subcontractors?.map((s: any) => (
+                                      <option key={s.id} value={s.id}>{s.company_name}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="p-1">
                               <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.count`)} placeholder="0" />
