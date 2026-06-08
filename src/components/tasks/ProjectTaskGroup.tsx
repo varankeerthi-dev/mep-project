@@ -31,7 +31,7 @@ interface ProjectTaskGroupProps {
   columnWidths: Record<string, string>;
   onTaskClick: (task: ProjectTask) => void;
   onInlineEdit: (taskId: string, newName: string) => void;
-  onAddTask: () => void;
+  onAddTask: (taskName: string) => void;
   onAddSubTask: (parentId: string) => void;
   onToggleCollapse: (id: string, isCollapsed: boolean) => void;
   onDeleteTask: (id: string) => void;
@@ -54,6 +54,8 @@ export default function ProjectTaskGroup({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [inlineNewTask, setInlineNewTask] = useState('');
+  const [showInlineInput, setShowInlineInput] = useState(false);
 
   const handleStartEdit = (task: ProjectTask) => {
     setEditingTaskId(task.id);
@@ -667,31 +669,55 @@ export default function ProjectTaskGroup({
             );
           })}
 
-          {/* Add Task Row */}
-          <tr className="ptl-add-row">
-            <td colSpan={colSpan}>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAddTask(); }}
-                  style={{
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                    fontSize: '0.75rem',
-                    color: '#2563eb',
-                    fontWeight: 500,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '0.25rem 0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                  }}
-                >
-                  <Plus size={12} />
-                  Add Task
-                </button>
-              </div>
-            </td>
+          {/* Inline Add Task Row */}
+          <tr
+            className="ptl-add-row"
+            onMouseEnter={() => setShowInlineInput(true)}
+            onMouseLeave={() => { if (!inlineNewTask.trim()) setShowInlineInput(false); }}
+          >
+            <td style={{ width: '40px' }}></td>
+            {visibleColumns.map(([colKey]) => {
+              if (colKey === 'title') {
+                return (
+                  <td key="inline-title" style={{ width: columnWidths[colKey] || 'auto' }}>
+                    {showInlineInput ? (
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.75rem', gap: '0.5rem' }}>
+                        <Plus size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          value={inlineNewTask}
+                          onChange={(e) => setInlineNewTask(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && inlineNewTask.trim()) {
+                              onAddTask(inlineNewTask.trim());
+                              setInlineNewTask('');
+                            }
+                            if (e.key === 'Escape') {
+                              setInlineNewTask('');
+                              setShowInlineInput(false);
+                            }
+                          }}
+                          placeholder="Task name..."
+                          autoFocus
+                          style={{
+                            flex: 1,
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: '0.8125rem',
+                            fontFamily: "'Inter', system-ui, sans-serif",
+                            color: '#18181b',
+                            background: 'transparent',
+                            padding: '0.25rem 0',
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </td>
+                );
+              }
+              return <td key={colKey} style={{ width: columnWidths[colKey] || 'auto' }}></td>;
+            })}
+            <td style={{ width: '36px' }}></td>
           </tr>
         </>
       )}

@@ -816,10 +816,21 @@ export default function ProjectTaskListView({
     updateTaskMutation.mutate({ id: taskId, updates: { title: newName } });
   };
 
-  // Handle create task
+  // Handle create task (modal)
   const handleCreateTask = (groupId?: string | null) => {
     setCreateForGroupId(groupId || null);
     setShowCreateModal(true);
+  };
+
+  // Handle inline create task
+  const handleInlineCreateTask = (groupId: string | null, taskName: string) => {
+    createTaskMutation.mutate({
+      title: taskName,
+      project_id: projectId,
+      task_group_id: groupId || undefined,
+      status: 'not_started',
+      priority: 'medium',
+    });
   };
 
   // Filter tasks by search and status, then regroup based on groupByField
@@ -1142,13 +1153,15 @@ export default function ProjectTaskListView({
                 </svg>
               </div>
               <p className="ptl-empty-text">No tasks yet. Create your first task to get started.</p>
-              <button
-                className="ptl-empty-cta"
-                onClick={() => handleCreateTask()}
-              >
-                <Plus size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-                Create Task
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="ptl-empty-cta"
+                  onClick={() => handleCreateTask()}
+                >
+                  <Plus size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
+                  Create Task
+                </button>
+              </div>
             </div>
           ) : (
             <table className="ptl-grid">
@@ -1176,7 +1189,7 @@ export default function ProjectTaskListView({
                     columnWidths={columnWidths}
                     onTaskClick={handleTaskClick}
                     onInlineEdit={handleNameInlineEdit}
-                    onAddTask={() => handleCreateTask(group.id === 'ungrouped' ? null : group.id)}
+                    onAddTask={(taskName: string) => handleInlineCreateTask(group.id === 'ungrouped' ? null : group.id, taskName)}
                     onAddSubTask={(parentId: string) => {
                       setCreateForGroupId(group.id === 'ungrouped' ? null : group.id);
                       setParentTaskId(parentId);
