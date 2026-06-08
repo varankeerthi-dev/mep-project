@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
   Search,
   Plus,
@@ -568,6 +570,23 @@ export default function ProjectTaskListView({
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowStatusFilter(false);
+      setShowGroupByDropdown(false);
+      setShowColumnDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch task groups with tasks (including sub-tasks)
   const { data: groups = [], isLoading } = useQuery({
@@ -930,6 +949,72 @@ export default function ProjectTaskListView({
     })).filter(group => group.tasks && group.tasks.length > 0);
   }
 
+  // Handle drag start
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  }, []);
+
+  // Handle drag end
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find the task being dragged and the target task
+    const allTasks = displayGroups.flatMap(g => g.tasks || []);
+    const activeTask = allTasks.find((t: any) => t.id === activeId) as any;
+    const overTask = allTasks.find((t: any) => t.id === overId) as any;
+
+    if (!activeTask) return;
+
+    // Determine the target group and parent
+    let targetGroupId = activeTask.task_group_id;
+    let targetParentId = activeTask.parent_task_id;
+
+    if (overTask) {
+      // If dropping on a sub-task, use its parent as the new parent
+      if (overTask.parent_task_id) {
+        targetParentId = overTask.parent_task_id;
+        targetGroupId = overTask.task_group_id;
+      } else {
+        // Dropping on a parent task - make it a sub-task of that task
+        targetParentId = overTask.id;
+        targetGroupId = overTask.task_group_id;
+      }
+    }
+
+    // Build the updates
+    const updates: any = {};
+
+    // If moving to a different parent or group
+    if (targetParentId !== activeTask.parent_task_id) {
+      updates.parent_task_id = targetParentId;
+    }
+    if (targetGroupId !== activeTask.task_group_id) {
+      updates.task_group_id = targetGroupId;
+    }
+
+    // Apply the update if there are changes
+    if (Object.keys(updates).length > 0) {
+      updateTaskMutation.mutate({ id: activeId, updates });
+    }
+  }, [displayGroups, updateTaskMutation]);
+
+  // Get all sortable IDs for the context
+  const getAllSortableIds = useCallback(() => {
+    return displayGroups.flatMap(g => {
+      const taskIds = (g.tasks || []).map((t: any) => t.id);
+      const subtaskIds = (g.tasks || []).flatMap((t: any) => 
+        (t.subtasks || []).map((st: any) => st.id)
+      );
+      return [...taskIds, ...subtaskIds];
+    });
+  }, [displayGroups]);
+
   const columnWidths: Record<string, string> = {
     task_no: '70px',
     title: 'auto',
@@ -972,11 +1057,11 @@ export default function ProjectTaskListView({
             <>
               <div className="ptl-divider" />
               <div style={{ position: 'relative' }}>
-                <button className="ptl-filter-btn" onClick={(e) => { e.stopPropagation(); setShowStatusFilter(!showStatusFilter); }}>
+                <button className="ptl-filter-btn" onClick={(e) => { e.stopPropagation(); setShowStatusFilter(!showStatusFilter); setShowGroupByDropdown(false); setShowColumnDropdown(false); }}>
                   {statusFilter === 'all' ? 'All Open' : STATUS_LABELS_TABLE[statusFilter] || statusFilter} <ChevronDown size={12} />
                 </button>
                 {showStatusFilter && (
-                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
                     <div
                       className="ptl-col-item"
                       onClick={() => { setStatusFilter('all'); setShowStatusFilter(false); }}
@@ -1002,12 +1087,12 @@ export default function ProjectTaskListView({
                 )}
               </div>
               <div style={{ position: 'relative' }}>
-                <button className="ptl-group-btn" onClick={(e) => { e.stopPropagation(); setShowGroupByDropdown(!showGroupByDropdown); }}>
+                <button className="ptl-group-btn" onClick={(e) => { e.stopPropagation(); setShowGroupByDropdown(!showGroupByDropdown); setShowStatusFilter(false); setShowColumnDropdown(false); }}>
                   <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>Group By:</span>
                   {groupByField === 'task_list' ? 'Task List' : groupByField === 'status' ? 'Status' : groupByField === 'priority' ? 'Priority' : 'None'} <ChevronDown size={12} />
                 </button>
                 {showGroupByDropdown && (
-                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
                     {[
                       { key: 'task_list', label: 'Task List' },
                       { key: 'status', label: 'Status' },
@@ -1053,7 +1138,7 @@ export default function ProjectTaskListView({
               <div style={{ position: 'relative' }}>
                 <button
                   className="ptl-view-btn"
-                  onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                  onClick={(e) => { e.stopPropagation(); setShowColumnDropdown(!showColumnDropdown); setShowStatusFilter(false); setShowGroupByDropdown(false); }}
                 >
                   <Eye size={14} />
                   Columns
@@ -1164,51 +1249,88 @@ export default function ProjectTaskListView({
               </div>
             </div>
           ) : (
-            <table className="ptl-grid">
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}></th>
-                  {Object.entries(viewColumns).filter(([_, v]) => v).map(([key]) => (
-                    <th
-                      key={key}
-                      style={{ width: columnWidths[key] || 'auto' }}
-                      className={key === 'title' ? 'col-left' : undefined}
-                    >
-                      {COLUMN_LABELS[key as keyof TaskColumns]}
-                    </th>
-                  ))}
-                  <th style={{ width: '36px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayGroups.map(group => (
-                  <ProjectTaskGroup
-                    key={group.id}
-                    group={group}
-                    viewColumns={viewColumns}
-                    columnWidths={columnWidths}
-                    onTaskClick={handleTaskClick}
-                    onInlineEdit={handleNameInlineEdit}
-                    onAddTask={(taskName: string) => handleInlineCreateTask(group.id === 'ungrouped' ? null : group.id, taskName)}
-                    onAddSubTask={(parentId: string) => {
-                      setCreateForGroupId(group.id === 'ungrouped' ? null : group.id);
-                      setParentTaskId(parentId);
-                      setShowCreateModal(true);
-                    }}
-                    onToggleCollapse={(id, isCollapsed) => {
-                      if (!id.startsWith('status-') && !id.startsWith('priority-') && id !== 'all') {
-                        updateGroupMutation.mutate({ id, updates: { is_collapsed: isCollapsed } })
-                      } else {
-                        const g = displayGroups.find(g => g.id === id);
-                        if (g) g.is_collapsed = isCollapsed;
-                      }
-                    }}
-                    onDeleteTask={(id) => setDeleteConfirmId(id)}
-                    onUpdateTask={(id, updates) => updateTaskMutation.mutate({ id, updates })}
-                  />
-                ))}
-              </tbody>
-            </table>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={getAllSortableIds()}
+                strategy={verticalListSortingStrategy}
+              >
+                <table className="ptl-grid">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}></th>
+                      {Object.entries(viewColumns).filter(([_, v]) => v).map(([key]) => (
+                        <th
+                          key={key}
+                          style={{ width: columnWidths[key] || 'auto' }}
+                          className={key === 'title' ? 'col-left' : undefined}
+                        >
+                          {COLUMN_LABELS[key as keyof TaskColumns]}
+                        </th>
+                      ))}
+                      <th style={{ width: '36px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayGroups.map(group => (
+                      <ProjectTaskGroup
+                        key={group.id}
+                        group={group}
+                        viewColumns={viewColumns}
+                        columnWidths={columnWidths}
+                        onTaskClick={handleTaskClick}
+                        onInlineEdit={handleNameInlineEdit}
+                        onAddTask={(taskName: string) => handleInlineCreateTask(group.id === 'ungrouped' ? null : group.id, taskName)}
+                        onAddSubTask={(parentId: string) => {
+                          setCreateForGroupId(group.id === 'ungrouped' ? null : group.id);
+                          setParentTaskId(parentId);
+                          setShowCreateModal(true);
+                        }}
+                        onToggleCollapse={(id, isCollapsed) => {
+                          if (!id.startsWith('status-') && !id.startsWith('priority-') && id !== 'all') {
+                            updateGroupMutation.mutate({ id, updates: { is_collapsed: isCollapsed } })
+                          } else {
+                            const g = displayGroups.find(g => g.id === id);
+                            if (g) g.is_collapsed = isCollapsed;
+                          }
+                        }}
+                        onDeleteTask={(id) => setDeleteConfirmId(id)}
+                        onUpdateTask={(id, updates) => updateTaskMutation.mutate({ id, updates })}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </SortableContext>
+              <DragOverlay>
+                {activeDragId ? (
+                  <table className="ptl-grid" style={{ opacity: 0.8, pointerEvents: 'none' }}>
+                    <tbody>
+                      {(() => {
+                        const allTasks = displayGroups.flatMap(g => g.tasks || []);
+                        const activeTask = allTasks.find((t: any) => t.id === activeDragId) as any;
+                        if (activeTask) {
+                          return (
+                            <tr style={{ background: '#eff6ff', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+                              <td style={{ textAlign: 'center', width: '40px' }}>
+                                <GripVertical size={14} style={{ color: '#2563eb' }} />
+                              </td>
+                              <td style={{ fontWeight: 500, color: '#1f2937' }}>
+                                {activeTask.title}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </tbody>
+                  </table>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
         </div>
       )}

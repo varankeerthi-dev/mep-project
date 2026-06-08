@@ -24,6 +24,7 @@ import {
   STATUS_COLORS,
   TaskUpdateInput,
 } from './types';
+import { SortableRow, SortableDragHandle } from './SortableRow';
 
 interface ProjectTaskGroupProps {
   group: TaskGroup;
@@ -158,8 +159,8 @@ export default function ProjectTaskGroup({
 
             return (
               <React.Fragment key={task.id}>
-              <tr
-                key={task.id}
+              <SortableRow
+                id={task.id}
                 className="ptl-task-row"
                 onClick={(e) => {
                   const target = e.target as HTMLElement;
@@ -170,9 +171,7 @@ export default function ProjectTaskGroup({
               >
                 {/* Drag Handle Column */}
                 <td style={{ textAlign: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <GripVertical size={14} style={{ color: '#cbd5e1', cursor: 'grab' }} />
-                  </div>
+                  <SortableDragHandle id={task.id} />
                 </td>
 
                 {/* Dynamic Columns */}
@@ -572,20 +571,19 @@ export default function ProjectTaskGroup({
                     <Trash2 size={13} />
                   </button>
                 </td>
-              </tr>
+              </SortableRow>
 
               {/* Sub-task rows */}
               {(task as any).subtasks && (task as any).subtasks.length > 0 && expandedTasks.has(task.id) && (task as any).subtasks.map((subtask: any) => (
-                <tr
+                <SortableRow
                   key={`sub-${subtask.id}`}
+                  id={subtask.id}
                   className="ptl-subtask-row"
                   onClick={() => onTaskClick(subtask)}
                   style={{ cursor: 'pointer', background: '#fafbfc' }}
                 >
                   <td style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <CornerDownRight size={12} style={{ color: '#94a3b8', marginRight: '0.125rem' }} />
-                    </div>
+                    <SortableDragHandle id={subtask.id} size={12} color="#94a3b8" />
                   </td>
                   {visibleColumns.map(([colKey]) => {
                     const col = colKey as keyof TaskColumns;
@@ -673,7 +671,7 @@ export default function ProjectTaskGroup({
                       <Trash2 size={12} />
                     </button>
                   </td>
-                </tr>
+                </SortableRow>
               ))}
               </React.Fragment>
             );
@@ -757,7 +755,7 @@ export default function ProjectTaskGroup({
         <tr>
           <td colSpan={colSpan} style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.75rem', fontFamily: "'Inter', system-ui, sans-serif" }}>
             <button
-              onClick={onAddTask}
+              onClick={() => setShowInlineInput(true)}
               style={{
                 fontFamily: "'Inter', system-ui, sans-serif",
                 fontSize: '0.75rem',
