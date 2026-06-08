@@ -34,7 +34,7 @@ export function useLabourCategories(organisationId: string | undefined) {
       const { data, error } = await supabase
         .from('labour_categories')
         .select('*')
-        .eq('organisation_id', organisationId)
+        .or(`organisation_id.eq.${organisationId},organisation_id.is.null`)
         .order('name');
       if (error) throw error;
       return data as LabourCategory[];
@@ -192,7 +192,7 @@ export function useContextModifiers(organisationId: string | undefined) {
       const { data, error } = await supabase
         .from('context_modifiers')
         .select('*')
-        .eq('organisation_id', organisationId)
+        .or(`organisation_id.eq.${organisationId},organisation_id.is.null`)
         .eq('is_active', true)
         .order('modifier_type');
       if (error) throw error;

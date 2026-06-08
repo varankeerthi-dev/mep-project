@@ -42,6 +42,15 @@ export interface LabourCategory {
   updated_at: string;
 }
 
+export interface CreateLabourCategoryInput {
+  organisation_id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  base_rate: number;
+  unit: RateUnit;
+}
+
 // ============================================
 // MANPOWER ATTENDANCE
 // ============================================
@@ -49,6 +58,7 @@ export interface ManpowerAttendance {
   id: string;
   organisation_id: string;
   subcontractor_id: string;
+  client_id: string | null;
   work_unit_id: string | null;
   work_unit_type: WorkUnitType | null;
   attendance_date: string;
@@ -74,6 +84,7 @@ export interface ManpowerAttendance {
 export interface CreateManpowerAttendanceInput {
   organisation_id: string;
   subcontractor_id: string;
+  client_id?: string;
   work_unit_id?: string;
   work_unit_type?: WorkUnitType;
   attendance_date: string;

@@ -274,7 +274,6 @@ export default function App() {
       case '/subcontractors/workorders/create': return <SubcontractorWorkOrderCreate onNavigate={navigate} />;
       case '/subcontractors/attendance': return <ManpowerAttendance onNavigate={navigate} />;
       case '/subcontractors/attendance/list': return <ManpowerAttendanceList onNavigate={navigate} />;
-      case '/subcontractors/dailylogs': return <ManpowerAttendance onNavigate={navigate} />;
       case '/subcontractors/payments': return <SubcontractorPayments />;
       case '/subcontractors/invoices': return <SubcontractorInvoices />;
       case '/subcontractors/documents': return <SubcontractorDocuments />;

@@ -85,6 +85,7 @@ ALTER TABLE approval_workflows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for approvals table
+DROP POLICY IF EXISTS "approval_users_view_org_approvals" ON approvals;
 CREATE POLICY "approval_users_view_org_approvals" ON approvals
     FOR SELECT USING (
         organisation_id IN (
@@ -92,6 +93,7 @@ CREATE POLICY "approval_users_view_org_approvals" ON approvals
         )
     );
 
+DROP POLICY IF EXISTS "approval_users_create_org_approvals" ON approvals;
 CREATE POLICY "approval_users_create_org_approvals" ON approvals
     FOR INSERT WITH CHECK (
         organisation_id IN (
@@ -100,6 +102,7 @@ CREATE POLICY "approval_users_create_org_approvals" ON approvals
     );
 
 -- RLS Policies for approval_actions table
+DROP POLICY IF EXISTS "approval_actions_users_view_org_approvals" ON approval_actions;
 CREATE POLICY "approval_actions_users_view_org_approvals" ON approval_actions
     FOR SELECT USING (
         organisation_id IN (
@@ -107,6 +110,7 @@ CREATE POLICY "approval_actions_users_view_org_approvals" ON approval_actions
         )
     );
 
+DROP POLICY IF EXISTS "approval_actions_users_create_org_approvals" ON approval_actions;
 CREATE POLICY "approval_actions_users_create_org_approvals" ON approval_actions
     FOR INSERT WITH CHECK (
         organisation_id IN (
@@ -115,6 +119,7 @@ CREATE POLICY "approval_actions_users_create_org_approvals" ON approval_actions
     );
 
 -- RLS Policies for approval_workflows table
+DROP POLICY IF EXISTS "approval_workflows_users_view_org" ON approval_workflows;
 CREATE POLICY "approval_workflows_users_view_org" ON approval_workflows
     FOR SELECT USING (
         organisation_id IN (
@@ -123,9 +128,11 @@ CREATE POLICY "approval_workflows_users_view_org" ON approval_workflows
     );
 
 -- RLS Policies for approval_notifications table
+DROP POLICY IF EXISTS "approval_notifications_users_own_view" ON approval_notifications;
 CREATE POLICY "approval_notifications_users_own_view" ON approval_notifications
     FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "approval_notifications_users_create_org" ON approval_notifications;
 CREATE POLICY "approval_notifications_users_create_org" ON approval_notifications
     FOR INSERT WITH CHECK (
         organisation_id IN (
@@ -143,9 +150,11 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers for updated_at
+DROP TRIGGER IF EXISTS update_approvals_updated_at ON approvals;
 CREATE TRIGGER update_approvals_updated_at BEFORE UPDATE ON approvals
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_approval_workflows_updated_at ON approval_workflows;
 CREATE TRIGGER update_approval_workflows_updated_at BEFORE UPDATE ON approval_workflows
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -208,6 +217,7 @@ ALTER TABLE approval_approvers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_settings ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for approval_approvers table
+DROP POLICY IF EXISTS "approval_approvers_users_view_org" ON approval_approvers;
 CREATE POLICY "approval_approvers_users_view_org" ON approval_approvers
     FOR SELECT USING (
         organisation_id IN (
@@ -215,6 +225,7 @@ CREATE POLICY "approval_approvers_users_view_org" ON approval_approvers
         )
     );
 
+DROP POLICY IF EXISTS "approval_approvers_admins_manage_org" ON approval_approvers;
 CREATE POLICY "approval_approvers_admins_manage_org" ON approval_approvers
     FOR ALL USING (
         organisation_id IN (
@@ -223,6 +234,7 @@ CREATE POLICY "approval_approvers_admins_manage_org" ON approval_approvers
     );
 
 -- RLS Policies for approval_settings table
+DROP POLICY IF EXISTS "approval_settings_users_view_org" ON approval_settings;
 CREATE POLICY "approval_settings_users_view_org" ON approval_settings
     FOR SELECT USING (
         organisation_id IN (
@@ -230,6 +242,7 @@ CREATE POLICY "approval_settings_users_view_org" ON approval_settings
         )
     );
 
+DROP POLICY IF EXISTS "approval_settings_admins_manage_org" ON approval_settings;
 CREATE POLICY "approval_settings_admins_manage_org" ON approval_settings
     FOR ALL USING (
         organisation_id IN (
@@ -269,9 +282,8 @@ GROUP BY organisation_id;
 CREATE OR REPLACE VIEW approvers_details AS
 SELECT 
     aa.*,
-    u.name as user_name,
-    u.email as user_email,
-    u.avatar_url as user_avatar
+    u.emp_name as user_name,
+    u.email as user_email
 FROM approval_approvers aa
 JOIN users u ON aa.user_id = u.id
 WHERE aa.is_active = true;

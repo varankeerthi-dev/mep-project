@@ -101,7 +101,6 @@ const menuData: MenuSection[] = [
           { id: 'subcontractor-create', label: 'Add New', path: '/subcontractors/new' },
           { id: 'subcontractor-workorders', label: 'Work Orders', path: '/subcontractors/workorders' },
           { id: 'subcontractor-attendance', label: 'Attendance', path: '/subcontractors/attendance' },
-          { id: 'subcontractor-dailylogs', label: 'Daily Logs', path: '/subcontractors/dailylogs' },
           { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors/payments' },
           { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
           { id: 'subcontractor-payment-queue', label: 'Payment Queue', path: '/subcontractors/payments' },

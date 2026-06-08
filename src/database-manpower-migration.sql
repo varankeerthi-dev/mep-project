@@ -309,3 +309,26 @@ INSERT INTO context_modifiers (organisation_id, name, code, modifier_type, multi
   (NULL, 'Overtime', 'OVERTIME', 'SHIFT', 1.5, true, '50% premium for overtime'),
   (NULL, 'Weekend Work', 'WEEKEND', 'SHIFT', 1.5, true, '50% premium for weekend work')
 ON CONFLICT (code) DO NOTHING;
+
+-- ============================================
+-- ADDITIONAL COLUMNS (run separately if already deployed)
+-- ============================================
+ALTER TABLE manpower_attendance ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE SET NULL;
+ALTER TABLE manpower_attendance ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'direct';
+ALTER TABLE manpower_attendance ADD COLUMN IF NOT EXISTS source_report_id UUID;
+
+CREATE INDEX IF NOT EXISTS idx_manpower_attendance_client ON manpower_attendance(client_id);
+CREATE INDEX IF NOT EXISTS idx_manpower_attendance_source ON manpower_attendance(source);
+
+-- ============================================
+-- FIX RLS: Allow NULL org entries for global defaults
+-- ============================================
+DROP POLICY IF EXISTS "Organisations can view their labour categories" ON labour_categories;
+CREATE POLICY "Organisations can view their labour categories" 
+  ON labour_categories FOR SELECT 
+  USING (organisation_id IS NULL OR organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Organisations can view their context modifiers" ON context_modifiers;
+CREATE POLICY "Organisations can view their context modifiers" 
+  ON context_modifiers FOR SELECT 
+  USING (organisation_id IS NULL OR organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()));

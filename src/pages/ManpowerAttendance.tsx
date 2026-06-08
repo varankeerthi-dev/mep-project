@@ -22,7 +22,7 @@ import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search,
 const RECORDS_CSS = `
 .records-section {
   padding: 32px 32px 48px;
-  max-width: 1440px;
+   max-width: 1200px;
   margin: 0 auto;
 }
 .records-top {
@@ -57,15 +57,15 @@ const RECORDS_CSS = `
   padding: 10px 22px;
   border-radius: 9999px;
   border: none;
-  background: #0c0c0c;
+  background: var(--primary, #4f46e5);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1);
 }
-.records-refresh-btn:hover { transform: scale(1.03); background: #1a1a1a; }
-.records-refresh-btn:active { transform: scale(0.97); }
+.records-refresh-btn:hover { transform: scale(1.03); background: var(--primary-dark, #4338ca); }
+.records-refresh-btn:active { transform: scale(0.97); background: #3730a3; }
 @media (max-width: 900px) {
   .records-section { padding: 24px 16px 40px; }
   .records-top { flex-direction: column; align-items: flex-start; gap: 16px; }
@@ -131,7 +131,7 @@ const RECORDS_CSS = `
   padding: 8px 18px;
   border-radius: 9999px;
   border: none;
-  background: #0c0c0c;
+  background: var(--primary, #4f46e5);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -139,8 +139,33 @@ const RECORDS_CSS = `
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
-.download-btn:hover { transform: scale(1.03); background: #1a1a1a; }
-.download-btn:active { transform: scale(0.97); }
+.download-btn:hover { transform: scale(1.03); background: var(--primary-dark, #4338ca); }
+.download-btn:active { transform: scale(0.97); background: #3730a3; }
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--primary, #4f46e5);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: var(--primary-dark, #4338ca);
+}
+.btn-primary:active {
+  background: #3730a3;
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .table-doppel-outer {
   padding: 2px;
   border-radius: 22px;
@@ -166,6 +191,7 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   const [activeSubTab, setActiveSubTab] = useState<'add' | 'records'>('add');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
   const [selectedWorkUnit, setSelectedWorkUnit] = useState('');
   const [workUnitType, setWorkUnitType] = useState<'PROJECT' | 'ALTERATION' | 'AMC' | 'WORK_ORDER'>('PROJECT');
   const [supervisor, setSupervisor] = useState('');
@@ -175,6 +201,7 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   // Records tab filters
   const [recSearch, setRecSearch] = useState('');
   const [recSubcontractor, setRecSubcontractor] = useState('');
+  const [recClient, setRecClient] = useState('');
   const [recWorkType, setRecWorkType] = useState('');
   const [recStatus, setRecStatus] = useState('');
   const [recDateFrom, setRecDateFrom] = useState('');
@@ -189,7 +216,8 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
         .select(`
           *,
           labour_categories(id, name, code, unit),
-          subcontractors(id, company_name)
+          subcontractors(id, company_name),
+          clients(id, client_name)
         `)
         .eq('organisation_id', organisation.id)
         .order('attendance_date', { ascending: false });
@@ -200,16 +228,18 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   });
 
   // Attendance entries for the day
-  const [attendanceEntries, setAttendanceEntries] = useState<{
-    labour_category_id: string;
-    workers_count: number;
-    hours_worked: number;
-    applied_modifiers: string[];
-    base_rate: number;
-    adjusted_rate: number;
-    original_amount: number;
-    adjusted_amount: number;
-  }[]>([]);
+  const defaultEntry = () => ({
+    labour_category_id: '',
+    workers_count: 1,
+    hours_worked: 8,
+    applied_modifiers: [] as string[],
+    base_rate: 0,
+    adjusted_rate: 0,
+    original_amount: 0,
+    adjusted_amount: 0,
+  });
+
+  const [attendanceEntries, setAttendanceEntries] = useState<ReturnType<typeof defaultEntry>[]>([defaultEntry(), defaultEntry()]);
 
   // Fetch data
   const { data: subcontractors } = useQuery({
@@ -226,7 +256,27 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
     enabled: !!organisation?.id,
   });
 
+  const { data: clients } = useQuery({
+    queryKey: ['clients', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data } = await supabase
+        .from('clients')
+        .select('id, client_name')
+        .eq('organisation_id', organisation.id)
+        .order('client_name');
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
   const { data: labourCategories } = useManpower.useLabourCategories(organisation?.id);
+  const createCategory = useManpower.useCreateLabourCategory();
+  const deleteCategory = useManpower.useDeleteLabourCategory();
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatRate, setNewCatRate] = useState(800);
+  const [newCatUnit, setNewCatUnit] = useState<'day' | 'hour' | 'piece'>('day');
   const { data: contextModifiers } = useManpower.useContextModifiers(organisation?.id);
   const { data: rateCards } = useManpower.useRateCards(organisation?.id, selectedSubcontractor);
   const { data: existingAttendance } = useManpower.useManpowerAttendance(
@@ -238,21 +288,36 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
 
   const createAttendance = useManpower.useCreateManpowerAttendance();
 
+  const handleAddCategory = async () => {
+    if (!newCatName.trim() || !organisation?.id) return;
+    try {
+      await createCategory.mutateAsync({
+        organisation_id: organisation.id,
+        name: newCatName.trim(),
+        code: newCatName.trim().toUpperCase().replace(/\s+/g, '_').slice(0, 20),
+        base_rate: newCatRate,
+        unit: newCatUnit,
+      });
+      setNewCatName('');
+      setNewCatRate(800);
+      setNewCatUnit('day');
+    } catch (e) {
+      console.error('Error adding category:', e);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Delete this labour category?')) return;
+    try {
+      await deleteCategory.mutateAsync(id);
+    } catch (e) {
+      console.error('Error deleting category:', e);
+    }
+  };
+
   // Add new attendance entry row
   const addAttendanceEntry = () => {
-    setAttendanceEntries([
-      ...attendanceEntries,
-      {
-        labour_category_id: '',
-        workers_count: 1,
-        hours_worked: 8,
-        applied_modifiers: [],
-        base_rate: 0,
-        adjusted_rate: 0,
-        original_amount: 0,
-        adjusted_amount: 0,
-      },
-    ]);
+    setAttendanceEntries([...attendanceEntries, defaultEntry()]);
   };
 
   // Remove attendance entry row
@@ -266,18 +331,19 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
     updated[index] = { ...updated[index], [field]: value };
 
     // Recalculate rates when labour category or modifiers change
-    if (field === 'labour_category_id' || field === 'applied_modifiers' || field === 'workers_count') {
+    if (field === 'labour_category_id' || field === 'applied_modifiers' || field === 'workers_count' || field === 'base_rate') {
       const category = labourCategories?.find(lc => lc.id === updated[index].labour_category_id);
-      if (category) {
+      const rate = field === 'base_rate' ? value : (category?.base_rate ?? updated[index].base_rate);
+      if (rate > 0) {
         const calculated = calculateAttendanceValues(
-          category.base_rate,
+          rate,
           updated[index].workers_count,
           updated[index].applied_modifiers,
           contextModifiers || []
         );
         updated[index] = {
           ...updated[index],
-          base_rate: category.base_rate,
+          base_rate: rate,
           ...calculated,
         };
       }
@@ -293,18 +359,18 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
       return;
     }
 
-    if (attendanceEntries.length === 0) {
-      alert('Please add at least one attendance entry');
+    const validEntries = attendanceEntries.filter(e => e.labour_category_id && e.workers_count > 0);
+    if (validEntries.length === 0) {
+      alert('Please add at least one attendance entry with a labour category');
       return;
     }
 
     try {
-      for (const entry of attendanceEntries) {
-        if (!entry.labour_category_id || entry.workers_count === 0) continue;
-
+      for (const entry of validEntries) {
         const input: CreateManpowerAttendanceInput = {
           organisation_id: organisation.id,
           subcontractor_id: selectedSubcontractor,
+          client_id: selectedClient || undefined,
           work_unit_id: selectedWorkUnit || undefined,
           work_unit_type: workUnitType,
           attendance_date: selectedDate,
@@ -324,7 +390,8 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
       }
 
       // Reset form
-      setAttendanceEntries([]);
+      setAttendanceEntries([defaultEntry(), defaultEntry()]);
+      setSelectedClient('');
       setSupervisor('');
       setRemarks('');
       setShowForm(false);
@@ -339,11 +406,12 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
   const totalOriginalAmount = attendanceEntries.reduce((sum, entry) => sum + entry.original_amount, 0);
   const totalAdjustedAmount = attendanceEntries.reduce((sum, entry) => sum + entry.adjusted_amount, 0);
   const totalDifference = totalAdjustedAmount - totalOriginalAmount;
-  const totalWorkers = attendanceEntries.reduce((sum, entry) => sum + entry.workers_count, 0);
+  const totalWorkers = attendanceEntries.reduce((sum, entry) => sum + (entry.labour_category_id ? entry.workers_count : 0), 0);
 
   const filteredRecords = useMemo(() => {
     return (allAttendance || []).filter((r: any) => {
       if (recSubcontractor && r.subcontractor_id !== recSubcontractor) return false;
+      if (recClient && r.client_id !== recClient) return false;
       if (recWorkType && r.work_unit_type !== recWorkType) return false;
       if (recStatus && r.status !== recStatus) return false;
       if (recDateFrom && r.attendance_date < recDateFrom) return false;
@@ -356,9 +424,32 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
       }
       return true;
     });
-  }, [allAttendance, recSubcontractor, recWorkType, recStatus, recDateFrom, recDateTo, recSearch]);
+  }, [allAttendance, recSubcontractor, recClient, recWorkType, recStatus, recDateFrom, recDateTo, recSearch]);
 
   const attendanceColumns: ColumnDef<any>[] = useMemo(() => [
+    {
+      id: 'date',
+      header: 'Date',
+      accessorKey: 'attendance_date',
+      cell: (info: any) => {
+        const val = info.getValue() as string;
+        if (!val) return <span className="text-sm text-zinc-400">—</span>;
+        const d = new Date(val + 'T00:00:00');
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const day = d.getDate();
+        const month = months[d.getMonth()];
+        const year = d.getFullYear();
+        return <span className="text-sm font-medium text-zinc-700">{day} {month} {year}</span>;
+      },
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      accessorKey: 'clients.client_name',
+      cell: (info: any) => (
+        <span className="text-sm font-medium text-zinc-700">{info.getValue() || '—'}</span>
+      ),
+    },
     {
       id: 'subcontractor',
       header: 'Name',
@@ -596,7 +687,7 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
       </div>
 
       {activeSubTab === 'add' && (
-      <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
         {/* Filters */}
         <div style={{
           background: '#fff',
@@ -605,7 +696,7 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
           padding: '16px',
           marginBottom: '16px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(5, 1fr)',
           gap: '16px',
         }}>
           <div>
@@ -625,6 +716,29 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
                 outline: 'none',
               }}
             />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+              Client
+            </label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                fontSize: '14px',
+                outline: 'none',
+                background: '#fff',
+              }}
+            >
+              <option value="">Select client</option>
+              {clients?.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.client_name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
@@ -674,27 +788,35 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                background: '#0f172a',
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-              }}
-            >
-              <Plus size={16} />
-              {showForm ? 'Close Form' : 'Add Attendance'}
-            </button>
+            {showForm ? (
+              <button
+                onClick={() => setShowForm(false)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Close form"
+              >
+                <X size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowForm(true)}
+                className="btn-primary"
+                style={{ width: '100%' }}
+              >
+                Add Attendance
+              </button>
+            )}
           </div>
         </div>
 
@@ -762,26 +884,125 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
                 <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a', margin: 0 }}>
                   Labour Categories
                 </h3>
-                <button
-                  onClick={addAttendanceEntry}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    background: '#f1f5f9',
-                    color: '#0f172a',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Plus size={14} />
-                  Add Row
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setShowCategoryManager(!showCategoryManager)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      background: showCategoryManager ? '#0f172a' : '#f1f5f9',
+                      color: showCategoryManager ? '#fff' : '#0f172a',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                    }}
+                  >
+                    Manage
+                  </button>
+                  <button
+                    onClick={addAttendanceEntry}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      background: '#f1f5f9',
+                      color: '#0f172a',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Plus size={14} />
+                    Add Row
+                  </button>
+                </div>
               </div>
+
+              {showCategoryManager && (
+                <div style={{
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  padding: '12px',
+                  marginBottom: '12px',
+                }}>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>
+                    Existing Categories
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                    {labourCategories?.map((lc) => (
+                      <div key={lc.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '4px 10px', borderRadius: '6px',
+                        background: '#fff', border: '1px solid #e2e8f0',
+                        fontSize: '12px',
+                      }}>
+                        <span>{lc.name} (₹{lc.base_rate}/{lc.unit})</span>
+                        <button
+                          onClick={() => handleDeleteCategory(lc.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: '2px', fontSize: '14px', lineHeight: 1 }}
+                          title="Delete category"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>
+                    Add New Category
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      placeholder="Category name"
+                      style={{
+                        flex: 1, padding: '6px 8px', borderRadius: '6px',
+                        border: '1px solid #e2e8f0', fontSize: '12px', outline: 'none',
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={newCatRate}
+                      onChange={(e) => setNewCatRate(parseFloat(e.target.value) || 0)}
+                      style={{
+                        width: '80px', padding: '6px 8px', borderRadius: '6px',
+                        border: '1px solid #e2e8f0', fontSize: '12px', outline: 'none',
+                      }}
+                      placeholder="Rate"
+                    />
+                    <select
+                      value={newCatUnit}
+                      onChange={(e) => setNewCatUnit(e.target.value as any)}
+                      style={{
+                        padding: '6px 8px', borderRadius: '6px',
+                        border: '1px solid #e2e8f0', fontSize: '12px', outline: 'none',
+                        background: '#fff',
+                      }}
+                    >
+                      <option value="day">Day</option>
+                      <option value="hour">Hour</option>
+                      <option value="piece">Piece</option>
+                    </select>
+                    <button
+                      onClick={handleAddCategory}
+                      style={{
+                        padding: '6px 14px', borderRadius: '6px',
+                        background: '#0f172a', color: '#fff', border: 'none',
+                        cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {attendanceEntries.map((entry, index) => (
                 <div
@@ -815,7 +1036,7 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
                       }}
                     >
                       <option value="">Select category</option>
-                      {labourCategories?.filter(lc => lc.is_active).map((lc) => (
+                      {labourCategories?.map((lc) => (
                         <option key={lc.id} value={lc.id}>{lc.name} ({lc.unit})</option>
                       ))}
                     </select>
@@ -892,9 +1113,21 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>
                       Base Rate
                     </label>
-                    <div style={{ padding: '6px 8px', fontSize: '13px', color: '#0f172a' }}>
-                      {entry.base_rate.toFixed(2)}
-                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={entry.base_rate}
+                      onChange={(e) => updateAttendanceEntry(index, 'base_rate', parseFloat(e.target.value) || 0)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '13px',
+                        outline: 'none',
+                      }}
+                    />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>
@@ -969,7 +1202,8 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => {
-                  setAttendanceEntries([]);
+                  setAttendanceEntries([defaultEntry(), defaultEntry()]);
+                  setSelectedClient('');
                   setSupervisor('');
                   setRemarks('');
                   setShowForm(false);
@@ -990,22 +1224,9 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
               <button
                 onClick={handleSave}
                 disabled={attendanceEntries.length === 0 || createAttendance.isPending}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  background: '#0f172a',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: attendanceEntries.length === 0 || createAttendance.isPending ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  opacity: attendanceEntries.length === 0 || createAttendance.isPending ? 0.6 : 1,
-                }}
+                className="btn-primary"
+                style={{ padding: '12px' }}
               >
-                <Save size={16} />
                 {createAttendance.isPending ? 'Saving...' : 'Save Attendance'}
               </button>
             </div>
@@ -1117,6 +1338,15 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
                     <option value="">All</option>
                     {subcontractors?.map((sub: any) => (
                       <option key={sub.id} value={sub.id}>{sub.company_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-field">
+                  <label className="filter-label">Client</label>
+                  <select value={recClient} onChange={(e) => setRecClient(e.target.value)} className="filter-select">
+                    <option value="">All</option>
+                    {clients?.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.client_name}</option>
                     ))}
                   </select>
                 </div>
