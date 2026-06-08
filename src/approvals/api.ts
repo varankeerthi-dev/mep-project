@@ -306,7 +306,7 @@ export class ApprovalAPI {
 
       if (action.action === 'RETURNED') {
         await ApprovalNotificationService.sendReturnNotification(approvalId, action.comments);
-        await this.markSourceDocumentAsReturned(approval, action.comments);
+        await ApprovalAPI.markSourceDocumentAsReturned(approval, action.comments);
       }
 
       // Log to follow_up_activity_log
@@ -699,7 +699,7 @@ export class ApprovalExtensions {
         organisation_id: approval.organisation_id
       });
 
-      await this.markSourceDocumentAsPending(approval);
+      await ApprovalAPI.markSourceDocumentAsPending(approval);
 
       return { success: true };
     } catch (error) {
