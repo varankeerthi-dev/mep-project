@@ -1,13 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Search, Wallet, BadgeAlert, Timer, X, Building2, HardHat } from 'lucide-react';
+import { CheckCircle2, Wallet, BadgeAlert, Timer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppTable } from '@/components/ui/AppTable';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApprovedPaymentsForAccountant, useReleasePayment, useReleaseSubcontractorPayment, useSubcontractorPaymentsForAccountant, useApprovedPaymentRequests } from '../hooks/usePurchaseQueries';
+import { useApprovedPaymentsForAccountant, useReleasePayment, useReleaseSubcontractorPayment, useSubcontractorPaymentsForAccountant, useApprovedPaymentRequests, useReleasedPayments, useReleasedSubcontractorPayments, useRecordPaymentForRequest } from '../hooks/usePurchaseQueries';
 import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 
 type PaymentType = 'vendor' | 'subcontractor';
+type PaymentMode = 'Bank Transfer' | 'GPAY' | 'Cash' | 'Cheque';
 
 type UnifiedRow = {
   id: string;
@@ -33,8 +37,17 @@ const ACCOUNTANT_ROLES = new Set([
 ]);
 
 const TYPE_CONFIG = {
-  vendor: { label: 'V', full: 'Vendor', icon: Building2, color: 'text-blue-600', bg: 'bg-blue-100' },
-  subcontractor: { label: 'S', full: 'Subcontractor', icon: HardHat, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+  vendor: { full: 'Vendor', color: 'text-blue-600' },
+  subcontractor: { full: 'Subcontractor', color: 'text-emerald-600' },
+};
+
+const PAYMENT_MODES: PaymentMode[] = ['Bank Transfer', 'GPAY', 'Cash', 'Cheque'];
+
+const PAYMENT_MODE_CONFIG: Record<PaymentMode, { color: string; activeBg: string }> = {
+  'Bank Transfer': { color: 'text-blue-700', activeBg: 'bg-blue-100 border-blue-300 shadow-sm shadow-blue-100' },
+  'GPAY': { color: 'text-emerald-700', activeBg: 'bg-emerald-100 border-emerald-300 shadow-sm shadow-emerald-100' },
+  'Cash': { color: 'text-amber-700', activeBg: 'bg-amber-100 border-amber-300 shadow-sm shadow-amber-100' },
+  'Cheque': { color: 'text-violet-700', activeBg: 'bg-violet-100 border-violet-300 shadow-sm shadow-violet-100' },
 };
 
 export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' }> = ({ scope = 'all' }) => {
@@ -42,12 +55,25 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const orgId = organisation?.id as string | undefined;
   const [typeFilter, setTypeFilter] = useState<PaymentType | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showRecent, setShowRecent] = useState(false);
+
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<UnifiedRow | null>(null);
+  const [recordPaymentMode, setRecordPaymentMode] = useState<PaymentMode>('Bank Transfer');
+  const [recordPaymentDate, setRecordPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [recordTransactionNo, setRecordTransactionNo] = useState('');
+  const [recordChequeNo, setRecordChequeNo] = useState('');
+  const [recordChequeDate, setRecordChequeDate] = useState('');
+  const [recordIssuedToClient, setRecordIssuedToClient] = useState(false);
 
   const { data: vendorPayments = [], isLoading: vendorLoading } = useApprovedPaymentsForAccountant(orgId);
   const { data: subPayments = [], isLoading: subLoading } = useSubcontractorPaymentsForAccountant(orgId);
   const { data: paymentRequests = [], isLoading: reqLoading } = useApprovedPaymentRequests(orgId);
+  const { data: releasedVendorPayments = [], isLoading: releasedVendorLoading } = useReleasedPayments(orgId);
+  const { data: releasedSubPayments = [], isLoading: releasedSubLoading } = useReleasedSubcontractorPayments(orgId);
   const releaseVendor = useReleasePayment();
   const releaseSub = useReleaseSubcontractorPayment();
+  const recordPayment = useRecordPaymentForRequest();
 
   const role = (organisation?.user?.role as string | undefined) ?? '';
   const canRelease = ACCOUNTANT_ROLES.has(role);
@@ -55,6 +81,40 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const effectiveTypeFilter = scope !== 'all' ? scope : typeFilter;
 
   const unified = useMemo<UnifiedRow[]>(() => {
+    if (showRecent) {
+      const rVendor: UnifiedRow[] = releasedVendorPayments.map((p: any) => ({
+        id: p.id,
+        _type: 'vendor' as PaymentType,
+        voucher_no: p.voucher_no || '',
+        payment_date: p.released_at || p.payment_date,
+        payee_name: p.vendor?.company_name || '-',
+        payee_id: p.vendor_id,
+        amount: Number(p.released_amount ?? p.amount),
+        payment_mode: p.payment_mode,
+        approved_by: p.approved_by,
+        approved_at: p.approved_at,
+        project_name: p.project_name,
+        reference_no: p.reference_no,
+      }));
+      const rSub: UnifiedRow[] = releasedSubPayments.map((p: any) => ({
+        id: p.id,
+        _type: 'subcontractor' as PaymentType,
+        voucher_no: p.voucher_no || '',
+        payment_date: p.released_at || p.payment_date,
+        payee_name: p.subcontractor?.company_name || '-',
+        payee_id: p.subcontractor_id,
+        amount: Number(p.amount),
+        payment_mode: p.payment_mode,
+        approved_by: p.approved_by,
+        approved_at: p.approved_at,
+        project_name: p.project_name,
+        reference_no: p.reference_no,
+      }));
+      const all = [...rVendor, ...rSub];
+      all.sort((a, b) => new Date(b.payment_date || '').getTime() - new Date(a.payment_date || '').getTime());
+      return all;
+    }
+
     const vendor: UnifiedRow[] = vendorPayments.map((p: any) => ({
       id: p.id,
       _type: 'vendor' as PaymentType,
@@ -104,12 +164,20 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     const all = [...vendor, ...sub, ...req];
     all.sort((a, b) => new Date(b.approved_at || b.payment_date).getTime() - new Date(a.approved_at || a.payment_date).getTime());
     return all;
-  }, [vendorPayments, subPayments, paymentRequests]);
+  }, [vendorPayments, subPayments, paymentRequests, releasedVendorPayments, releasedSubPayments, showRecent]);
 
   const filtered = useMemo(() => {
     let list = unified;
     if (effectiveTypeFilter !== 'all') {
       list = list.filter(r => r._type === effectiveTypeFilter);
+    }
+    if (showRecent) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      list = list.filter(r => {
+        const date = r.approved_at ? new Date(r.approved_at) : r.payment_date ? new Date(r.payment_date) : null;
+        return date && date >= sevenDaysAgo;
+      });
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -120,7 +188,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       );
     }
     return list;
-  }, [unified, effectiveTypeFilter, searchTerm]);
+  }, [unified, effectiveTypeFilter, searchTerm, showRecent]);
 
   const totalPayable = useMemo(() => filtered.reduce((s, r) => s + r.amount, 0), [filtered]);
   const vendorCount = filtered.filter(r => r._type === 'vendor').length;
@@ -140,6 +208,51 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     }
   };
 
+  const openRecordModal = (row: UnifiedRow) => {
+    setSelectedRow(row);
+    setRecordPaymentMode(row.payment_mode as PaymentMode || 'Bank Transfer');
+    setRecordPaymentDate(new Date().toISOString().split('T')[0]);
+    setRecordTransactionNo('');
+    setRecordChequeNo('');
+    setRecordChequeDate('');
+    setRecordIssuedToClient(false);
+    setRecordModalOpen(true);
+  };
+
+  const handleRecordPayment = () => {
+    if (!selectedRow) return;
+
+    const refNo = (recordPaymentMode === 'Bank Transfer' || recordPaymentMode === 'GPAY')
+      ? recordTransactionNo || null
+      : recordPaymentMode === 'Cheque'
+        ? recordChequeNo || null
+        : null;
+
+    recordPayment.mutate(
+      {
+        requestId: selectedRow.id,
+        requestType: selectedRow._type,
+        paymentDate: recordPaymentDate,
+        paymentMode: recordPaymentMode,
+        referenceNo: refNo,
+        chequeNo: recordPaymentMode === 'Cheque' ? recordChequeNo : null,
+        chequeDate: recordPaymentMode === 'Cheque' ? recordChequeDate : null,
+        issuedToClient: recordPaymentMode === 'Cheque' ? recordIssuedToClient : false,
+        createdBy: organisation?.user?.id,
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Payment recorded for ${selectedRow.payee_name} — ₹${selectedRow.amount.toLocaleString('en-IN')}`);
+          setRecordModalOpen(false);
+          setSelectedRow(null);
+        },
+        onError: (e: any) => {
+          toast.error(e?.message ?? 'Failed to record payment');
+        },
+      }
+    );
+  };
+
   const summaryCards = [
     { label: 'Pending Release', value: `₹${totalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, icon: Wallet, color: 'text-rose-600', bg: 'bg-rose-50' },
     { label: 'Vendor Payments', value: `${vendorCount} pending`, icon: BadgeAlert, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -153,12 +266,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       cell: ({ row }: any) => {
         const cfg = TYPE_CONFIG[row.original._type as PaymentType];
         return (
-          <div className="flex items-center gap-1.5">
-            <span className={cn('inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold', cfg.bg, cfg.color)}>
-              {cfg.label}
-            </span>
-            <span className="text-xs font-medium text-zinc-700">{cfg.full}</span>
-          </div>
+          <span className={cn('text-xs font-semibold', cfg.color)}>{cfg.full}</span>
         );
       },
     },
@@ -187,7 +295,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     },
     {
       id: 'approved_at',
-      header: 'Approved',
+      header: showRecent ? 'Released' : 'Approved',
       cell: ({ row }: any) => {
         if (!row.original.approved_at) return <span className="text-xs text-zinc-400">—</span>;
         const d = new Date(row.original.approved_at);
@@ -204,7 +312,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       id: 'amount',
       header: 'Amount',
       cell: ({ row }: any) => (
-        <div className="text-right font-semibold text-zinc-900 tabular-nums text-sm">
+        <div className="font-semibold text-zinc-900 tabular-nums text-sm">
           ₹{row.original.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
@@ -222,10 +330,18 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       id: 'actions',
       header: '',
       cell: ({ row }: any) => {
+        if (showRecent) {
+          return <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">Released</span>;
+        }
         const r = row.original;
         if (r.isRequest) {
           return (
-            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 font-medium">Record payment</span>
+            <button
+              onClick={() => openRecordModal(r)}
+              className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5 leading-5 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all active:scale-[0.97] cursor-pointer"
+            >
+              Record payment
+            </button>
           );
         }
         return canRelease ? (
@@ -247,10 +363,10 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     },
   ];
 
-  const isLoading = vendorLoading || subLoading || reqLoading;
+  const isLoading = showRecent ? (releasedVendorLoading || releasedSubLoading) : (vendorLoading || subLoading || reqLoading);
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white max-w-[1000px] mx-auto">
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div>
           <h1 className="text-base font-semibold text-zinc-900">
@@ -299,19 +415,31 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
               {t === 'all' ? `All (${unified.length})` : `${t.charAt(0).toUpperCase() + t.slice(1)} (${unified.filter(r => r._type === t).length})`}
             </button>
           ))}
-          <div className="ml-auto relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <input
-              placeholder="Search payee, voucher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 h-8 w-56 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                <X className="w-3 h-3" />
-              </button>
-            )}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => { setShowRecent(!showRecent); setTypeFilter('all'); }}
+              className={cn(
+                'px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors',
+                showRecent
+                  ? 'bg-zinc-900 text-white border-zinc-900'
+                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+              )}
+            >
+              Recent Payments
+            </button>
+            <div className="relative">
+              <input
+                placeholder="Search payee, voucher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-3 pr-8 h-8 w-56 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -319,33 +447,175 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       {scope !== 'all' && (
         <div className="flex items-center justify-between px-6 pb-3">
           <span className="text-xs text-zinc-500 font-medium">{filtered.length} payment{filtered.length !== 1 ? 's' : ''} awaiting release</span>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <input
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 h-8 w-56 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                <X className="w-3 h-3" />
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowRecent(!showRecent); setTypeFilter('all'); }}
+              className={cn(
+                'px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors',
+                showRecent
+                  ? 'bg-zinc-900 text-white border-zinc-900'
+                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+              )}
+            >
+              Recent Payments
+            </button>
+            <div className="relative">
+              <input
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-3 pr-8 h-8 w-56 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-auto px-1">
+      <div className="flex-1 overflow-auto px-1 min-h-0">
         <AppTable
           data={filtered}
           columns={columns as any}
           loading={isLoading}
           defaultPageSize={25}
-          emptyMessage={scope === 'vendor' ? 'No vendor payments awaiting release' : scope === 'subcontractor' ? 'No subcontractor payments awaiting release' : 'No payments awaiting release. Everything is up to date.'}
+          emptyMessage={showRecent ? 'No recent payments this week' : scope === 'vendor' ? 'No vendor payments awaiting release' : scope === 'subcontractor' ? 'No subcontractor payments awaiting release' : 'No payments awaiting release. Everything is up to date.'}
+          rowPadding="py-[7px]"
           className="border-0 border-t border-zinc-100 rounded-none"
         />
       </div>
+
+      {/* Record Payment Modal */}
+      <Dialog open={recordModalOpen} onOpenChange={(open) => !open && setRecordModalOpen(false)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-amber-50/40">
+            <DialogTitle className="text-base font-bold text-zinc-900">Record Payment</DialogTitle>
+            {selectedRow && (
+              <p className="text-xs text-zinc-500 mt-1">
+                {selectedRow.payee_name} — ₹{selectedRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </p>
+            )}
+          </DialogHeader>
+
+          <div className="p-[50px] space-y-5">
+            {/* Payment Date */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-zinc-600">Payment Date</Label>
+              <Input
+                type="date"
+                value={recordPaymentDate}
+                onChange={(e) => setRecordPaymentDate(e.target.value)}
+                className="h-10 text-sm border-zinc-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Payment Mode Toggle */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-zinc-600">Payment Mode</Label>
+              <div className="grid grid-cols-4 gap-1.5 p-1 bg-zinc-100/80 rounded-xl border border-zinc-200/60">
+                {PAYMENT_MODES.map((mode) => {
+                  const cfg = PAYMENT_MODE_CONFIG[mode];
+                  const isActive = recordPaymentMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setRecordPaymentMode(mode)}
+                      className={cn(
+                        'px-2 py-2 text-[11px] font-semibold rounded-lg border transition-all duration-150',
+                        isActive
+                          ? cn(cfg.activeBg, cfg.color, 'border-current')
+                          : 'bg-white/70 text-zinc-500 border-transparent hover:bg-white hover:text-zinc-700 hover:shadow-sm'
+                      )}
+                    >
+                      {mode}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Conditional Fields */}
+            {(recordPaymentMode === 'Bank Transfer' || recordPaymentMode === 'GPAY') && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-zinc-600">
+                  {recordPaymentMode === 'Bank Transfer' ? 'Transaction / UTR No.' : 'Transaction No.'}
+                </Label>
+                <Input
+                  type="text"
+                  placeholder={recordPaymentMode === 'Bank Transfer' ? 'Enter UTR or transaction reference' : 'Enter GPAY transaction ID'}
+                  value={recordTransactionNo}
+                  onChange={(e) => setRecordTransactionNo(e.target.value)}
+                  className="h-10 text-sm border-zinc-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+              </div>
+            )}
+
+            {recordPaymentMode === 'Cheque' && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-zinc-600">Cheque No.</Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter cheque number"
+                    value={recordChequeNo}
+                    onChange={(e) => setRecordChequeNo(e.target.value)}
+                    className="h-10 text-sm border-zinc-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-zinc-600">Cheque Date</Label>
+                  <Input
+                    type="date"
+                    value={recordChequeDate}
+                    onChange={(e) => setRecordChequeDate(e.target.value)}
+                    className="h-10 text-sm border-zinc-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-center gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setRecordIssuedToClient(!recordIssuedToClient)}
+                    className={cn(
+                      'w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all',
+                      recordIssuedToClient
+                        ? 'bg-amber-500 border-amber-500 text-white'
+                        : 'bg-white border-zinc-300 hover:border-zinc-400'
+                    )}
+                  >
+                    {recordIssuedToClient && <CheckCircle2 className="w-3 h-3" />}
+                  </button>
+                  <Label className="text-xs font-medium text-zinc-600 cursor-pointer" onClick={() => setRecordIssuedToClient(!recordIssuedToClient)}>
+                    Issued to client?
+                  </Label>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50">
+            <Button
+              variant="outline"
+              onClick={() => setRecordModalOpen(false)}
+              className="px-5 h-9 text-xs font-semibold border-zinc-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleRecordPayment}
+              disabled={recordPayment.isPending}
+              className="px-5 h-9 text-xs font-semibold gap-1.5"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {recordPayment.isPending ? 'Recording...' : 'Record Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

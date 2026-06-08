@@ -1310,6 +1310,46 @@ export const useApprovedPaymentsForAccountant = (organisationId: string | undefi
   });
 };
 
+// ============== RELEASED PAYMENTS (for Recent Payments) ==============
+
+export const useReleasedPayments = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['purchase-payments', 'released', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('purchase_payments')
+        .select('*, vendor:purchase_vendors(company_name)')
+        .eq('organisation_id', organisationId)
+        .eq('workflow_step', 'released')
+        .order('released_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+  });
+};
+
+export const useReleasedSubcontractorPayments = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['subcontractor-payments', 'released', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('subcontractor_payments')
+        .select('*, subcontractor:subcontractors(company_name)')
+        .eq('organisation_id', organisationId)
+        .eq('workflow_step', 'released')
+        .order('released_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+  });
+};
+
 export const useCreatePaymentWithApproval = () => {
   const queryClient = useQueryClient();
 
@@ -1492,6 +1532,142 @@ export const useSubcontractorPaymentsForAccountant = (organisationId: string | u
       return data || [];
     }),
     enabled: !!organisationId,
+  });
+};
+
+export const useRecordPaymentForRequest = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({
+      requestId,
+      requestType,
+      paymentDate,
+      paymentMode,
+      referenceNo,
+      chequeNo,
+      chequeDate,
+      issuedToClient,
+      createdBy,
+    }: {
+      requestId: string;
+      requestType: 'vendor' | 'subcontractor';
+      paymentDate: string;
+      paymentMode: string;
+      referenceNo?: string | null;
+      chequeNo?: string | null;
+      chequeDate?: string | null;
+      issuedToClient?: boolean;
+      createdBy?: string | null;
+    }) => {
+      if (requestType === 'vendor') {
+        const { data: request, error: fetchError } = await supabase
+          .from('payment_requests')
+          .select('organisation_id, vendor_id, amount_requested, request_no')
+          .eq('id', requestId)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        const narrationParts: string[] = [];
+        if (paymentMode === 'Cheque' && chequeNo) narrationParts.push(`Chq: ${chequeNo}`);
+        if (paymentMode === 'Cheque' && chequeDate) narrationParts.push(`Dated: ${chequeDate}`);
+        if (paymentMode === 'Cheque' && issuedToClient) narrationParts.push('Issued to client');
+        if ((paymentMode === 'Bank Transfer' || paymentMode === 'GPAY') && referenceNo) narrationParts.push(`Ref: ${referenceNo}`);
+
+        const paymentData = {
+          organisation_id: request.organisation_id,
+          vendor_id: request.vendor_id,
+          amount: request.amount_requested,
+          payment_date: paymentDate,
+          payment_mode: paymentMode,
+          reference_no: referenceNo || request.request_no || null,
+          voucher_no: createPaymentVoucherNo(),
+          net_amount: request.amount_requested,
+          created_by: createdBy,
+          workflow_step: 'released',
+          approval_status: 'Released',
+          approved_at: new Date().toISOString(),
+          released_by: createdBy,
+          released_at: new Date().toISOString(),
+          released_amount: request.amount_requested,
+        };
+
+        const { data: payment, error: paymentError } = await supabase
+          .from('purchase_payments')
+          .insert(paymentData)
+          .select()
+          .single();
+
+        if (paymentError) throw paymentError;
+
+        await supabase
+          .from('payment_requests')
+          .update({ status: 'Paid' })
+          .eq('id', requestId);
+
+        void updateVendorBalance(request.vendor_id, request.organisation_id);
+
+        return payment;
+      } else {
+        const { data: request, error: fetchError } = await supabase
+          .from('payment_requests')
+          .select('organisation_id, subcontractor_id, amount_requested, request_no')
+          .eq('id', requestId)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        const narrationParts: string[] = [];
+        if (paymentMode === 'Cheque' && chequeNo) narrationParts.push(`Chq: ${chequeNo}`);
+        if (paymentMode === 'Cheque' && chequeDate) narrationParts.push(`Dated: ${chequeDate}`);
+        if (paymentMode === 'Cheque' && issuedToClient) narrationParts.push('Issued to client');
+        if ((paymentMode === 'Bank Transfer' || paymentMode === 'GPAY') && referenceNo) narrationParts.push(`Ref: ${referenceNo}`);
+
+        const paymentData = {
+          organisation_id: request.organisation_id,
+          subcontractor_id: request.subcontractor_id,
+          amount: request.amount_requested,
+          payment_date: paymentDate,
+          payment_mode: paymentMode,
+          reference_no: referenceNo || request.request_no || null,
+          created_by: createdBy,
+          workflow_step: 'released',
+          approval_status: 'Released',
+          approved_at: new Date().toISOString(),
+          released_by: createdBy,
+          released_at: new Date().toISOString(),
+        };
+
+        const { data: payment, error: paymentError } = await supabase
+          .from('subcontractor_payments')
+          .insert(paymentData)
+          .select()
+          .single();
+
+        if (paymentError) throw paymentError;
+
+        await supabase
+          .from('payment_requests')
+          .update({ status: 'Paid' })
+          .eq('id', requestId);
+
+        return { ...payment, _subcontractorId: request.subcontractor_id };
+      }
+    }),
+    onSuccess: (data) => {
+      if (!data) return;
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['payment-requests', 'approved', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-ledger', (data as any)._subcontractorId, data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'accountant', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', 'accountant', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'released', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', 'released', data.organisation_id] });
+    },
   });
 };
 

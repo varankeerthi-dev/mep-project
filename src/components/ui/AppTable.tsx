@@ -401,8 +401,8 @@ export function AppTable<T extends Record<string, any>>({
 
   if (loading) {
     return (
-      <div className={cn('bg-white border border-zinc-200 overflow-hidden', className)}>
-        <div className="overflow-x-auto" ref={tableContainerRef}>
+      <div className={cn('bg-white border border-zinc-200 overflow-hidden flex flex-col', className)}>
+        <div className="flex-1 overflow-auto" ref={tableContainerRef}>
           <table className="w-full border-separate border-spacing-0">
             <thead>
               {table.getHeaderGroups().map(renderHeaderRow)}
@@ -425,8 +425,8 @@ export function AppTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className={cn('bg-white border border-zinc-200 overflow-hidden', className)}>
-      {enableColumnFilters && hasColumnFilters && (
+      <div className={cn('bg-white border border-zinc-200 overflow-hidden flex flex-col', className)}>
+        {enableColumnFilters && hasColumnFilters && (
         <div className="px-6 py-3 border-b border-zinc-200 bg-zinc-50/80 flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -491,7 +491,7 @@ export function AppTable<T extends Record<string, any>>({
       )}
 
       {enablePagination && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+        <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50 z-10">
           <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
             <span>
               Page {pagination.pageIndex + 1} of {table.getPageCount()}
