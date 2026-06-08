@@ -966,136 +966,143 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       )}
       
       <form onSubmit={handleSubmit}>
-        {/* 4-Column Compact Header */}
+        {/* 3-Column Header like Quotation */}
         <div style={{ background: '#f8f9fa', padding: '10px', marginBottom: '10px', borderRadius: '6px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px 16px' }}>
-            {/* Row 1 */}
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>DC No:</span>
-              <div style={fieldColStyle}>
-                <input type="text" name="dc_number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px', background: '#f3f4f6' }} value={formData.dc_number} onChange={handleInputChange} placeholder="Auto" disabled={isLocked} />
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Date:</span>
-              <div style={fieldColStyle}>
-                <input type="date" name="dc_date" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.dc_date} onChange={handleInputChange} disabled={isLocked} />
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Client:</span>
-              <div style={fieldColStyle}>
-                <select name="client_name" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.client_name} onChange={(e) => {
-                  const client = clients.find(c => c.client_name === e.target.value);
-                  setFormData(prev => ({
-                    ...prev,
-                    client_name: e.target.value,
-                    ship_to_name: client?.client_name || '',
-                    ship_to_address_line1: client?.address1 || client?.shipping_address || '',
-                    ship_to_address_line2: client?.address2 || '',
-                    ship_to_city: client?.city || '',
-                    ship_to_state: client?.state || '',
-                    ship_to_gstin: client?.gstin || '',
-                    ship_to_contact: client?.contact || ''
-                  }));
-                  if (client) { loadShippingAddresses(client.id); } else { setShippingAddresses([]); setSelectedShippingIndex(-1); }
-                }} disabled={isLocked}>
-                  <option value="">Select</option>
-                  {clients.map(c => (<option key={c.id} value={c.client_name}>{c.client_name}</option>))}
-                </select>
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Project:</span>
-              <div style={fieldColStyle}>
-                <select name="project_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.project_id} onChange={(e) => handleProjectChange(e.target.value)} disabled={isLocked}>
-                  <option value="">Select</option>
-                  {projects.map(p => (<option key={p.id} value={p.id}>{p.project_name || p.name}</option>))}
-                </select>
-              </div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 16px' }}>
             
-            {/* Row 2 */}
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Variant:</span>
-              <div style={fieldColStyle}>
-                <select name="variant_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.variant_id} onChange={(e) => handleHeaderVariantChange(e.target.value)} disabled={isLocked}>
-                  <option value="">Select</option>
-                  {activeVariants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-                </select>
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Source:</span>
-              <div style={fieldColStyle}>
-                <select name="source_type" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.source_type} onChange={(e) => handleSourceTypeChange(e.target.value)} disabled={isLocked}>
-                  <option value="WAREHOUSE">Warehouse</option>
-                  <option value="DIRECT_SUPPLY">Direct</option>
-                </select>
-              </div>
-            </div>
-            {formData.source_type === 'WAREHOUSE' && (
+            {/* Column 1: DOCUMENT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Document</div>
               <div style={headerFieldStyle}>
-                <span style={labelColStyle}>Warehouse:</span>
+                <span style={labelColStyle}>DC No:</span>
                 <div style={fieldColStyle}>
-                  <select name="warehouse_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.warehouse_id} onChange={(e) => handleWarehouseChange(e.target.value)} disabled={isLocked}>
+                  <input type="text" name="dc_number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px', background: '#f3f4f6' }} value={formData.dc_number} onChange={handleInputChange} placeholder="Auto" disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Date:</span>
+                <div style={fieldColStyle}>
+                  <input type="date" name="dc_date" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.dc_date} onChange={handleInputChange} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Variant:</span>
+                <div style={fieldColStyle}>
+                  <select name="variant_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.variant_id} onChange={(e) => handleHeaderVariantChange(e.target.value)} disabled={isLocked}>
                     <option value="">Select</option>
-                    {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>))}
+                    {activeVariants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
                   </select>
                 </div>
               </div>
-            )}
-            {!isMobile && formData.source_type !== 'WAREHOUSE' && <div></div>}
-            
-            {/* Row 3 */}
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Vehicle:</span>
-              <div style={fieldColStyle}>
-                <input type="text" name="vehicle_number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} maxLength={20} value={formData.vehicle_number} onChange={handleInputChange} disabled={isLocked} />
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Source:</span>
+                <div style={fieldColStyle}>
+                  <select name="source_type" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.source_type} onChange={(e) => handleSourceTypeChange(e.target.value)} disabled={isLocked}>
+                    <option value="WAREHOUSE">Warehouse</option>
+                    <option value="DIRECT_SUPPLY">Direct</option>
+                  </select>
+                </div>
+              </div>
+              {formData.source_type === 'WAREHOUSE' && (
+                <div style={headerFieldStyle}>
+                  <span style={labelColStyle}>Warehouse:</span>
+                  <div style={fieldColStyle}>
+                    <select name="warehouse_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.warehouse_id} onChange={(e) => handleWarehouseChange(e.target.value)} disabled={isLocked}>
+                      <option value="">Select</option>
+                      {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Column 2: CLIENT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Client</div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Client:</span>
+                <div style={fieldColStyle}>
+                  <select name="client_name" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.client_name} onChange={(e) => {
+                    const client = clients.find(c => c.client_name === e.target.value);
+                    setFormData(prev => ({
+                      ...prev,
+                      client_name: e.target.value,
+                      ship_to_name: client?.client_name || '',
+                      ship_to_address_line1: client?.address1 || client?.shipping_address || '',
+                      ship_to_address_line2: client?.address2 || '',
+                      ship_to_city: client?.city || '',
+                      ship_to_state: client?.state || '',
+                      ship_to_gstin: client?.gstin || '',
+                      ship_to_contact: client?.contact || ''
+                    }));
+                    if (client) { loadShippingAddresses(client.id); } else { setShippingAddresses([]); setSelectedShippingIndex(-1); }
+                  }} disabled={isLocked}>
+                    <option value="">Select</option>
+                    {clients.map(c => (<option key={c.id} value={c.client_name}>{c.client_name}</option>))}
+                  </select>
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Project:</span>
+                <div style={fieldColStyle}>
+                  <select name="project_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.project_id} onChange={(e) => handleProjectChange(e.target.value)} disabled={isLocked}>
+                    <option value="">Select</option>
+                    {projects.map(p => (<option key={p.id} value={p.id}>{p.project_name || p.name}</option>))}
+                  </select>
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>PO No:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="po_no" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.po_no || ''} onChange={handleInputChange} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>PO Date:</span>
+                <div style={fieldColStyle}>
+                  <input type="date" name="po_date" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.po_date || ''} onChange={handleInputChange} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>E-Way:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="eway_bill_no" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.eway_bill_no || ''} onChange={handleInputChange} disabled={isLocked} placeholder="E-Way Bill No" />
+                </div>
               </div>
             </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Driver:</span>
-              <div style={fieldColStyle}>
-                <input type="text" name="driver_name" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
+
+            {/* Column 3: TRANSPORT & DETAILS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Transport & Details</div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Vehicle:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="vehicle_number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} maxLength={20} value={formData.vehicle_number} onChange={handleInputChange} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Driver:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="driver_name" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Signatory:</span>
+                <div style={fieldColStyle}>
+                  <select name="authorized_signatory_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.authorized_signatory_id || ''} onChange={handleInputChange} disabled={isLocked}>
+                    <option value="">Select</option>
+                    {(organisation?.signatures || []).map(sig => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
+                  </select>
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Remarks:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="remarks" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Remarks" />
+                </div>
               </div>
             </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>PO No:</span>
-              <div style={fieldColStyle}>
-                <input type="text" name="po_no" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.po_no || ''} onChange={handleInputChange} disabled={isLocked} />
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>PO Date:</span>
-              <div style={fieldColStyle}>
-                <input type="date" name="po_date" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.po_date || ''} onChange={handleInputChange} disabled={isLocked} />
-              </div>
-            </div>
-            
-            {/* Row 4 */}
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>E-Way:</span>
-              <div style={fieldColStyle}>
-                <input type="text" name="eway_bill_no" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.eway_bill_no || ''} onChange={handleInputChange} disabled={isLocked} placeholder="E-Way Bill No" />
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Signatory:</span>
-              <div style={fieldColStyle}>
-                <select name="authorized_signatory_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.authorized_signatory_id || ''} onChange={handleInputChange} disabled={isLocked}>
-                  <option value="">Select</option>
-                  {(organisation?.signatures || []).map(sig => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
-                </select>
-              </div>
-            </div>
-            <div style={headerFieldStyle}>
-              <span style={labelColStyle}>Remarks:</span>
-              <div style={fieldColStyle}>
-                <input type="text" name="remarks" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Remarks" />
-              </div>
-            </div>
-            <div></div>
+
           </div>
         </div>
         
