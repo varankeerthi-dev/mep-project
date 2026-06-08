@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { format } from 'date-fns';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,7 @@ import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
 import { updateIntentOnDCCreated } from '../material-intents/api';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
+import ItemCreateDrawer from '../components/ItemCreateDrawer';
 
 type CreateDCProps = {
   onSuccess: () => void
@@ -44,6 +45,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+  const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
+  const queryClient = useQueryClient();
   
   // DC Settings - Allow insufficient stock
   const [allowInsufficientStock, setAllowInsufficientStock] = useState(() => {
@@ -56,7 +59,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     queryFn: async () => {
       const [stockData, variantPricingData, settingsData] = await Promise.all([
         supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
         supabase.from('settings').select('key, value')
       ]);
 
@@ -74,6 +77,30 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         priceMap[s.item_id][s.company_variant_id] = s.current_stock || 0;
       });
 
+      // Build variant pricing map with make for rate lookup
+      const variantPricingWithMake: Record<string, any> = {};
+      (variantPricingData.data || []).forEach(row => {
+        const itemId = row.item_id;
+        const vId = row.company_variant_id || 'no_variant';
+        const mName = row.make || '';
+        if (!variantPricingWithMake[itemId]) variantPricingWithMake[itemId] = {};
+        if (!variantPricingWithMake[itemId][vId]) variantPricingWithMake[itemId][vId] = {};
+        variantPricingWithMake[itemId][vId][mName] = parseFloat(row.sale_price) || 0;
+      });
+
+      // Build itemMakes map
+      const makesMap: Record<string, Set<string>> = {};
+      (variantPricingData.data || []).forEach(row => {
+        if (row.make) {
+          if (!makesMap[row.item_id]) makesMap[row.item_id] = new Set();
+          makesMap[row.item_id].add(row.make);
+        }
+      });
+      const finalMakesMap: Record<string, string[]> = {};
+      for (const id in makesMap) {
+        finalMakesMap[id] = Array.from(makesMap[id]).sort();
+      }
+
       const settings: Record<string, string> = {};
       settingsData.data?.forEach(s => { settings[s.key] = s.value; });
 
@@ -81,6 +108,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         stock: stockRows,
         variantPricingMap: vpm,
         pricing: priceMap,
+        variantPricingWithMake,
+        itemMakes: finalMakesMap,
         dcSettings: {
           prefix: settings.dc_prefix || 'DC',
           suffix: settings.dc_suffix || '',
@@ -94,6 +123,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const stock = dcInitQuery.data?.stock || [];
   const pricing = dcInitQuery.data?.pricing || {};
   const variantPricingMap = dcInitQuery.data?.variantPricingMap || {};
+  const variantPricingWithMake = dcInitQuery.data?.variantPricingWithMake || {};
+  const itemMakes = dcInitQuery.data?.itemMakes || {};
   const dcSettings = dcInitQuery.data?.dcSettings || { prefix: 'DC', suffix: '', padding: '5' };
   
   // Shipping address state
@@ -280,6 +311,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           id: idx + 1,
           material_id: item.material_id,
           variant_id: item.variant_id,
+          make: item.make || '',
           material_name: item.material_name,
           unit: item.unit,
           quantity: item.quantity,
@@ -386,10 +418,30 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return parseFloat(s?.current_stock) || 0;
   };
 
-  const getRate = (itemId, variantId) => {
-    if (variantId && pricing[itemId]?.[variantId]) {
-      return pricing[itemId][variantId];
+  const getRate = (itemId, variantId, make?) => {
+    const vId = variantId || 'no_variant';
+    const mName = make || '';
+    
+    // Try variant + make pricing first
+    if (variantPricingWithMake[itemId]?.[vId]?.[mName] !== undefined) {
+      return variantPricingWithMake[itemId][vId][mName];
     }
+    
+    // Fallback: try any variant with same make
+    if (mName) {
+      const itemPricing = variantPricingWithMake[itemId] || {};
+      for (const v in itemPricing) {
+        if (itemPricing[v][mName] !== undefined) {
+          return itemPricing[v][mName];
+        }
+      }
+    }
+    
+    // Fallback: try variant with no make
+    if (variantPricingWithMake[itemId]?.[vId]?.[''] !== undefined) {
+      return variantPricingWithMake[itemId][vId][''];
+    }
+
     const mat = getMaterial(itemId);
     return mat?.sale_price || 0;
   };
@@ -453,7 +505,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     const newItems = pickerItems.map((p, idx) => {
       const mat = p.material;
       const variantId = p.variant_id || headerVariantId;
-      const rate = getRate(p.item_id, variantId);
+      const make = p.make || '';
+      const rate = getRate(p.item_id, variantId, make);
       const avail = formData.source_type === 'WAREHOUSE' ? getAvailableQty(p.item_id, variantId) : 0;
       const qty = p.qty;
       const amount = qty * rate;
@@ -470,6 +523,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         id: Date.now() + idx,
         material_id: p.item_id,
         variant_id: variantId,
+        make: make,
         material_name: mat?.display_name || mat?.name || '',
         unit: mat?.unit || 'Nos',
         quantity: qty,
@@ -503,8 +557,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         item_id: material.id,
         material: material,
         variant_id: formData.variant_id || '',
+        make: '',
         qty: 1,
-        rate: getRate(material.id, formData.variant_id || '')
+        rate: getRate(material.id, formData.variant_id || '', '')
       }]);
     }
   };
@@ -520,7 +575,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       const mat = materials.find(m => m.id === item.material_id);
       if (!mat) return item;
 
-      const newRate = getRate(item.material_id, variantId);
+      const newRate = getRate(item.material_id, variantId, item.make || '');
       const newAvail = (formData.source_type === 'WAREHOUSE') ? getAvailableQty(item.material_id, variantId) : 0;
       const qty = parseFloat(item.quantity) || 0;
 
@@ -562,11 +617,18 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     }));
   };
 
+  const handleItemCreateSuccess = (newItem: any) => {
+    queryClient.invalidateQueries({ queryKey: ['materials'] });
+    queryClient.invalidateQueries({ queryKey: ['dc-init'] });
+    setShowItemCreateDrawer(false);
+  };
+
   const addItem = () => {
     setItems([...items, { 
       id: items.length + 1, 
       material_id: '', 
       variant_id: formData.variant_id || '', 
+      make: '',
       material_name: '', 
       unit: 'Nos', 
       quantity: '', 
@@ -600,14 +662,19 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         // Default to header variant if item supports variants
         const defaultVarId = updates.uses_variant ? (formData.variant_id || '') : '';
         updates.variant_id = defaultVarId;
-        updates.rate = getRate(value, defaultVarId);
+        updates.make = '';
+        updates.rate = getRate(value, defaultVarId, '');
         
         updates.available_qty = (formData.source_type === 'WAREHOUSE' && mat?.item_type !== 'service') ? getAvailableQty(value, defaultVarId) : 0;
       }
       
       if (field === 'variant_id' && item.material_id) {
-        updates.rate = getRate(item.material_id, value);
+        updates.rate = getRate(item.material_id, value, item.make || '');
         updates.available_qty = (formData.source_type === 'WAREHOUSE' && !item.is_service) ? getAvailableQty(item.material_id, value) : 0;
+      }
+      
+      if (field === 'make' && item.material_id) {
+        updates.rate = getRate(item.material_id, item.variant_id || '', value);
       }
       
       if (field === 'unit' && item.material_id) {
@@ -669,9 +736,21 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return true;
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  const buildDCData = (statusOverride?: string) => ({
+    ...formData,
+    warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null,
+    variant_id: formData.variant_id || null,
+    eway_bill_date: formData.eway_bill_date || null,
+    eway_valid_till: formData.eway_valid_till || null,
+    po_date: formData.po_date || null,
+    project_id: formData.project_id || null,
+    status: statusOverride || 'active',
+    authorized_signatory_id: formData.authorized_signatory_id || null,
+    organisation_id: formData.organisation_id || organisation?.id || null
+  });
+
+  const saveDC = async (statusOverride?: string) => {
+    if (!validateForm()) return false;
     
     setLoading(true);
     
@@ -680,21 +759,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       if (validItems.length === 0) {
         alert('Please add at least one valid item to the Delivery Challan.');
         setLoading(false);
-        return;
+        return false;
       }
       
-      const dcData = {
-        ...formData,
-        warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null,
-        variant_id: formData.variant_id || null,
-        eway_bill_date: formData.eway_bill_date || null,
-        eway_valid_till: formData.eway_valid_till || null,
-        po_date: formData.po_date || null,
-        project_id: formData.project_id || null,
-        status: 'active',
-        authorized_signatory_id: formData.authorized_signatory_id || null,
-        organisation_id: formData.organisation_id || organisation?.id || null
-      };
+      const dcData = buildDCData(statusOverride);
       
       let dcId;
       
@@ -728,6 +796,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         delivery_challan_id: dcId,
         material_id: item.material_id,
         variant_id: item.uses_variant && item.variant_id ? item.variant_id : null,
+        make: item.make || null,
         material_name: item.material_name,
         unit: item.unit,
         quantity: parseFloat(item.quantity),
@@ -773,13 +842,24 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       alert(isEditing ? 'DC Updated!' : 'DC Created!');
       setIsDirty(false);
       if (onSuccess) onSuccess();
+      return true;
       
     } catch (error) {
       console.error('Error:', error);
       alert('Error: ' + error.message);
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e?: FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    await saveDC();
+  };
+
+  const handleSaveAsDraft = async () => {
+    await saveDC('DRAFT');
   };
 
   const isMissingColumnError = (error, columnName) => {
@@ -930,21 +1010,34 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   );
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <h2 className="card-title">{isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}</h2>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
-          <input
-            type="checkbox"
-            checked={allowInsufficientStock}
-            onChange={(e) => {
-              setAllowInsufficientStock(e.target.checked);
-              localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false');
-            }}
-            style={{ width: '16px', height: '16px' }}
-          />
-          Allow DC with insufficient stock
-        </label>
+    <div className="card" style={{ position: 'relative' }}>
+      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', position: 'sticky', top: 0, zIndex: 10, background: 'white', margin: '-20px -20px 16px -20px', padding: '12px 20px', borderBottom: '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h2 className="card-title" style={{ margin: 0 }}>{isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}</h2>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
+            <input
+              type="checkbox"
+              checked={allowInsufficientStock}
+              onChange={(e) => {
+                setAllowInsufficientStock(e.target.checked);
+                localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false');
+              }}
+              style={{ width: '16px', height: '16px' }}
+            />
+            Allow DC with insufficient stock
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={loading}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={handleSaveAsDraft} disabled={loading || isLocked}>
+            {loading ? 'Saving...' : 'Save as Draft'}
+          </button>
+          <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading || isLocked}>
+            {loading ? 'Saving...' : isEditing ? 'Update DC' : 'Save Delivery Challan'}
+          </button>
+        </div>
       </div>
       
       {clientsQuery.isLoading && (
@@ -1251,6 +1344,42 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         )}
         
         <div className="form-group" style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '4px', height: '22px', background: '#2563eb', borderRadius: '2px' }}></div>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#111827' }}>Line Items</h3>
+              <span style={{ marginLeft: '6px', fontSize: '11px', fontWeight: 600, padding: '2px 8px', background: '#f3f4f6', color: '#6b7280', borderRadius: '4px' }}>
+                {items.length} {items.length === 1 ? 'Item' : 'Items'}
+              </span>
+            </div>
+            {!isLocked && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button type="button" onClick={() => setShowItemCreateDrawer(true)} style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '4px' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#2563eb'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+                >
+                  <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                  Add Material
+                </button>
+                <div style={{ width: '1px', height: '20px', background: '#e5e7eb', margin: '0 4px' }}></div>
+                <button type="button" onClick={addItem} style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '4px' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#2563eb'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+                >
+                  <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                  Add Row
+                </button>
+                <div style={{ width: '1px', height: '20px', background: '#e5e7eb', margin: '0 4px' }}></div>
+                <button type="button" onClick={() => setShowItemPicker(true)} style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '4px' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#2563eb'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+                >
+                  <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                  Multiple Items
+                </button>
+              </div>
+            )}
+          </div>
           <div className="grid-table-container">
             <table className="grid-table">
               <thead>
@@ -1258,9 +1387,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                   <th className="col-shrink">#</th>
                   <th className="col-item">ITEM</th>
                   <th className="col-variant">VARIANT</th>
+                  <th className="col-make">MAKE</th>
                   {formData.source_type === 'WAREHOUSE' && <th className="col-avail">AVAIL</th>}
                   <th className="col-qty">QTY</th>
-                  <th className="col-unit">UNIT</th>
                   <th className="col-rate">RATE</th>
                   <th className="col-amount">AMOUNT</th>
                   <th className="col-shrink"></th>
@@ -1324,6 +1453,19 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                         <span className="cell-static text-center" style={{ color: '#94a3b8' }}>N/A</span>
                       )}
                     </td>
+                    <td className="col-shrink">
+                      <select
+                        className="cell-select"
+                        value={item.make || ''}
+                        onChange={(e) => handleItemChange(item.id, 'make', e.target.value)}
+                        disabled={isLocked || !item.material_id}
+                      >
+                        <option value="">No Make</option>
+                        {(itemMakes[item.material_id] || []).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </td>
                     {formData.source_type === 'WAREHOUSE' && (
                       <td className="col-shrink text-right cell-static avail-value">
                         {!item.is_service ? item.available_qty.toFixed(2) : '-'}
@@ -1338,22 +1480,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                         disabled={isLocked}
                         placeholder="0"
                       />
-                    </td>
-                    <td className="col-shrink">
-                      <select 
-                        className="cell-select text-center"
-                        value={item.unit}
-                        onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
-                        disabled={isLocked}
-                      >
-                        <option value="">Unit</option>
-                        {units.map(u => (
-                          <option key={u.id} value={u.unit_code}>{u.unit_name || u.unit_code}</option>
-                        ))}
-                        {!units.some(u => u.unit_code === item.unit) && item.unit && (
-                          <option value={item.unit}>{item.unit}</option>
-                        )}
-                      </select>
                     </td>
                     <td className="col-rate">
                       <input 
@@ -1391,17 +1517,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
               </tbody>
             </table>
           </div>
-          
-          {!isLocked && (
-            <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-              <button type="button" className="btn btn-secondary" onClick={addItem} style={{ borderRadius: '8px', fontWeight: 500 }}>
-                + Add Item
-              </button>
-              <button type="button" className="btn btn-primary" onClick={() => setShowItemPicker(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>
-                + Add Multiple Items
-              </button>
-            </div>
-          )}
         </div>
         
         <div style={{ background: '#f0f7ff', padding: '6px 16px', marginTop: '12px', borderRadius: '6px', display: 'flex', justifyContent: 'flex-end', gap: '30px', fontSize: '11px' }}>
@@ -1413,15 +1528,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
             <span style={{ color: '#666' }}>Total Amount:</span>
             <strong style={{ marginLeft: '6px' }}>₹{totalAmount.toFixed(2)}</strong>
           </div>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={loading || isLocked}>
-            {loading ? 'Saving...' : isEditing ? 'Update DC' : 'Create DC'}
-          </button>
         </div>
       </form>
 
@@ -1494,6 +1600,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           </div>
         </div>
       )}
+
+      <ItemCreateDrawer
+        isOpen={showItemCreateDrawer}
+        onClose={() => setShowItemCreateDrawer(false)}
+        onSuccess={handleItemCreateSuccess}
+      />
     </div>
   );
 }
