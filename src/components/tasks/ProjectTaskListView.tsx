@@ -318,6 +318,22 @@ const styles = `
     text-align: left;
   }
   
+  .ptl-col-resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+  }
+  
+  .ptl-col-resizer:hover,
+  .ptl-col-resizer:active {
+    background: #2563eb;
+  }
+  
   .ptl-grid tbody tr {
     transition: background 0.1s ease;
   }
@@ -469,6 +485,8 @@ const styles = `
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
     z-index: 100;
     min-width: 200px;
+    max-height: 320px;
+    overflow-y: auto;
     padding: 0.5rem;
   }
   
@@ -571,6 +589,24 @@ export default function ProjectTaskListView({
   const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [resizableWidths, setResizableWidths] = useState<Record<string, string>>({
+    task_no: '70px',
+    title: 'auto',
+    assignees: '140px',
+    status: '130px',
+    tags: '120px',
+    start_date: '110px',
+    due_date: '110px',
+    duration_days: '90px',
+    priority: '110px',
+    completion_percentage: '140px',
+    discipline: '110px',
+    location: '110px',
+    drawing_ref: '110px',
+    wbs_code: '90px',
+    estimated_hours: '80px',
+    actual_hours: '80px',
+  });
 
   // DnD sensors
   const sensors = useSensors(
@@ -579,7 +615,14 @@ export default function ProjectTaskListView({
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't close if clicking inside a dropdown or its trigger button
+      if (target.closest('.ptl-col-dropdown') || target.closest('.ptl-col-item') ||
+          target.closest('.ptl-filter-btn') || target.closest('.ptl-group-btn') ||
+          target.closest('.ptl-view-btn')) {
+        return;
+      }
       setShowStatusFilter(false);
       setShowGroupByDropdown(false);
       setShowColumnDropdown(false);
@@ -1015,24 +1058,16 @@ export default function ProjectTaskListView({
     });
   }, [displayGroups]);
 
-  const columnWidths: Record<string, string> = {
-    task_no: '70px',
-    title: 'auto',
-    assignees: '140px',
-    status: '130px',
-    tags: '120px',
-    start_date: '110px',
-    due_date: '110px',
-    duration_days: '90px',
-    priority: '110px',
-    completion_percentage: '140px',
-    discipline: '110px',
-    location: '110px',
-    drawing_ref: '110px',
-    wbs_code: '90px',
-    estimated_hours: '80px',
-    actual_hours: '80px',
-  };
+  const handleColumnResize = useCallback((key: string, deltaX: number) => {
+    setResizableWidths(prev => {
+      const current = prev[key];
+      if (!current || current === 'auto') return prev;
+      const currentPx = parseInt(current, 10);
+      if (isNaN(currentPx)) return prev;
+      const newWidth = Math.max(50, currentPx + deltaX);
+      return { ...prev, [key]: `${newWidth}px` };
+    });
+  }, []);
 
   if (isLoading) {
     return (
@@ -1144,7 +1179,7 @@ export default function ProjectTaskListView({
                   Columns
                 </button>
                 {showColumnDropdown && (
-                  <div className="ptl-col-dropdown">
+                  <div className="ptl-col-dropdown" style={{ maxHeight: '320px', overflowY: 'auto' }}>
                     {Object.keys(COLUMN_LABELS).map(col => (
                       <div
                         key={col}
@@ -1266,10 +1301,29 @@ export default function ProjectTaskListView({
                       {Object.entries(viewColumns).filter(([_, v]) => v).map(([key]) => (
                         <th
                           key={key}
-                          style={{ width: columnWidths[key] || 'auto' }}
+                          style={{ width: resizableWidths[key] || 'auto', position: 'relative' }}
                           className={key === 'title' ? 'col-left' : undefined}
                         >
                           {COLUMN_LABELS[key as keyof TaskColumns]}
+                          <div
+                            className="ptl-col-resizer"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const startX = e.clientX;
+                              const startWidth = (e.target as HTMLElement).parentElement!.getBoundingClientRect().width;
+                              const onMouseMove = (ev: MouseEvent) => {
+                                const delta = ev.clientX - startX;
+                                handleColumnResize(key, delta);
+                              };
+                              const onMouseUp = () => {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                              };
+                              document.addEventListener('mousemove', onMouseMove);
+                              document.addEventListener('mouseup', onMouseUp);
+                            }}
+                          />
                         </th>
                       ))}
                       <th style={{ width: '36px' }}></th>
@@ -1281,7 +1335,7 @@ export default function ProjectTaskListView({
                         key={group.id}
                         group={group}
                         viewColumns={viewColumns}
-                        columnWidths={columnWidths}
+                        columnWidths={resizableWidths}
                         onTaskClick={handleTaskClick}
                         onInlineEdit={handleNameInlineEdit}
                         onAddTask={(taskName: string) => handleInlineCreateTask(group.id === 'ungrouped' ? null : group.id, taskName)}
