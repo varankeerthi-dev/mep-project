@@ -196,6 +196,7 @@ export default function ProjectTaskGroup({
                       <td key={col} className="td-left" style={{ textAlign: 'left' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           {hasSubtasks ? (
+                            <>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -211,6 +212,15 @@ export default function ProjectTaskGroup({
                               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                               <span style={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', marginLeft: '0.125rem' }}>{(task as any).subtasks.length}</span>
                             </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', opacity: 0 }}
+                              className="ptl-subtask-add-btn"
+                              title="Add sub-task"
+                            >
+                              <CornerDownRight size={13} />
+                            </button>
+                            </>
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
@@ -670,48 +680,44 @@ export default function ProjectTaskGroup({
           })}
 
           {/* Inline Add Task Row */}
-          <tr
-            className="ptl-add-row"
-            onMouseEnter={() => setShowInlineInput(true)}
-            onMouseLeave={() => { if (!inlineNewTask.trim()) setShowInlineInput(false); }}
-          >
+          {showInlineInput ? (
+          <tr className="ptl-add-row">
             <td style={{ width: '40px' }}></td>
             {visibleColumns.map(([colKey]) => {
               if (colKey === 'title') {
                 return (
                   <td key="inline-title" style={{ width: columnWidths[colKey] || 'auto' }}>
-                    {showInlineInput ? (
-                      <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.75rem', gap: '0.5rem' }}>
-                        <Plus size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                        <input
-                          type="text"
-                          value={inlineNewTask}
-                          onChange={(e) => setInlineNewTask(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && inlineNewTask.trim()) {
-                              onAddTask(inlineNewTask.trim());
-                              setInlineNewTask('');
-                            }
-                            if (e.key === 'Escape') {
-                              setInlineNewTask('');
-                              setShowInlineInput(false);
-                            }
-                          }}
-                          placeholder="Task name..."
-                          autoFocus
-                          style={{
-                            flex: 1,
-                            border: 'none',
-                            outline: 'none',
-                            fontSize: '0.8125rem',
-                            fontFamily: "'Inter', system-ui, sans-serif",
-                            color: '#18181b',
-                            background: 'transparent',
-                            padding: '0.25rem 0',
-                          }}
-                        />
-                      </div>
-                    ) : null}
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.75rem', gap: '0.5rem' }}>
+                      <Plus size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                      <input
+                        type="text"
+                        value={inlineNewTask}
+                        onChange={(e) => setInlineNewTask(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && inlineNewTask.trim()) {
+                            onAddTask(inlineNewTask.trim());
+                            setInlineNewTask('');
+                          }
+                          if (e.key === 'Escape') {
+                            setInlineNewTask('');
+                            setShowInlineInput(false);
+                          }
+                        }}
+                        onBlur={() => { if (!inlineNewTask.trim()) { setShowInlineInput(false); } }}
+                        placeholder="Task name..."
+                        autoFocus
+                        style={{
+                          flex: 1,
+                          border: 'none',
+                          outline: 'none',
+                          fontSize: '0.8125rem',
+                          fontFamily: "'Inter', system-ui, sans-serif",
+                          color: '#18181b',
+                          background: 'transparent',
+                          padding: '0.25rem 0',
+                        }}
+                      />
+                    </div>
                   </td>
                 );
               }
@@ -719,6 +725,30 @@ export default function ProjectTaskGroup({
             })}
             <td style={{ width: '36px' }}></td>
           </tr>
+          ) : (
+          <tr
+            className="ptl-add-row-trigger"
+            onClick={() => setShowInlineInput(true)}
+            style={{ cursor: 'pointer' }}
+          >
+            <td colSpan={colSpan} style={{ padding: 0 }}>
+              <div style={{
+                padding: '0.5rem 0.75rem 0.5rem 3.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                opacity: 0.5,
+                transition: 'opacity 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.5'; }}
+              >
+                <Plus size={12} style={{ color: '#94a3b8' }} />
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Add task</span>
+              </div>
+            </td>
+          </tr>
+          )}
         </>
       )}
 
