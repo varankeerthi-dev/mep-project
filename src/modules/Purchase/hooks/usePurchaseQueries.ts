@@ -1547,6 +1547,7 @@ export const useRecordPaymentForRequest = () => {
       referenceNo,
       chequeNo,
       chequeDate,
+      chequeDueDate,
       issuedToClient,
       createdBy,
     }: {
@@ -1557,6 +1558,7 @@ export const useRecordPaymentForRequest = () => {
       referenceNo?: string | null;
       chequeNo?: string | null;
       chequeDate?: string | null;
+      chequeDueDate?: string | null;
       issuedToClient?: boolean;
       createdBy?: string | null;
     }) => {
@@ -1591,6 +1593,7 @@ export const useRecordPaymentForRequest = () => {
           released_by: createdBy,
           released_at: new Date().toISOString(),
           released_amount: request.amount_requested,
+          cheque_due_date: chequeDueDate || null,
         };
 
         const { data: payment, error: paymentError } = await supabase
@@ -1637,6 +1640,7 @@ export const useRecordPaymentForRequest = () => {
           approved_at: new Date().toISOString(),
           released_by: createdBy,
           released_at: new Date().toISOString(),
+          cheque_due_date: chequeDueDate || null,
         };
 
         const { data: payment, error: paymentError } = await supabase

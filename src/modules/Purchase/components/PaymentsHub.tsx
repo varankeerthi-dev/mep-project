@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Wallet, BadgeAlert, Timer, X } from 'lucide-react';
+import { CheckCircle2, Wallet, BadgeAlert, Timer, X, ChevronLeft, ChevronRight, CalendarDays, Table2 } from 'lucide-react';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { AppTable } from '@/components/ui/AppTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -13,12 +14,29 @@ import { cn } from '@/lib/utils';
 type PaymentType = 'vendor' | 'subcontractor';
 type PaymentMode = 'Bank Transfer' | 'GPAY' | 'Cash' | 'Cheque';
 
+const recordPaymentSchema = z.object({
+  paymentDate: z.string().min(1, 'Payment date is required'),
+  paymentMode: z.enum(['Bank Transfer', 'GPAY', 'Cash', 'Cheque'], {
+    errorMap: () => ({ message: 'Select a payment mode' }),
+  }),
+  referenceNo: z.string().optional(),
+  chequeNo: z.string().optional(),
+  chequeDate: z.string().optional(),
+  chequeDueDate: z.string().optional(),
+  issuedToClient: z.boolean().optional(),
+  reason: z.string().optional(),
+});
+
+type RecordPaymentValues = z.infer<typeof recordPaymentSchema>;
+
 type UnifiedRow = {
   id: string;
   _type: PaymentType;
   isRequest?: boolean;
   voucher_no: string;
   payment_date: string;
+  due_date?: string | null;
+  cheque_due_date?: string | null;
   payee_name: string;
   payee_id: string;
   amount: number;
@@ -64,7 +82,16 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const [recordTransactionNo, setRecordTransactionNo] = useState('');
   const [recordChequeNo, setRecordChequeNo] = useState('');
   const [recordChequeDate, setRecordChequeDate] = useState('');
+  const [recordChequeDueDate, setRecordChequeDueDate] = useState('');
   const [recordIssuedToClient, setRecordIssuedToClient] = useState(false);
+  const [recordReason, setRecordReason] = useState('');
+  const [recordPaymentErrors, setRecordPaymentErrors] = useState<Record<string, string>>({});
+
+  const [duesView, setDuesView] = useState<'table' | 'calendar'>('table');
+  const [duesMonth, setDuesMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
 
   const { data: vendorPayments = [], isLoading: vendorLoading } = useApprovedPaymentsForAccountant(orgId);
   const { data: subPayments = [], isLoading: subLoading } = useSubcontractorPaymentsForAccountant(orgId);
@@ -87,6 +114,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         _type: 'vendor' as PaymentType,
         voucher_no: p.voucher_no || '',
         payment_date: p.released_at || p.payment_date,
+        cheque_due_date: p.cheque_due_date || null,
         payee_name: p.vendor?.company_name || '-',
         payee_id: p.vendor_id,
         amount: Number(p.released_amount ?? p.amount),
@@ -101,6 +129,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         _type: 'subcontractor' as PaymentType,
         voucher_no: p.voucher_no || '',
         payment_date: p.released_at || p.payment_date,
+        cheque_due_date: p.cheque_due_date || null,
         payee_name: p.subcontractor?.company_name || '-',
         payee_id: p.subcontractor_id,
         amount: Number(p.amount),
@@ -120,6 +149,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       _type: 'vendor' as PaymentType,
       voucher_no: p.voucher_no || '',
       payment_date: p.payment_date,
+      cheque_due_date: p.cheque_due_date || null,
       payee_name: p.vendor?.company_name || '-',
       payee_id: p.vendor_id,
       amount: Number(p.amount),
@@ -135,6 +165,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       _type: 'subcontractor' as PaymentType,
       voucher_no: p.voucher_no || '',
       payment_date: p.payment_date,
+      cheque_due_date: p.cheque_due_date || null,
       payee_name: p.subcontractor?.company_name || '-',
       payee_id: p.subcontractor_id,
       amount: Number(p.amount),
@@ -151,6 +182,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       isRequest: true,
       voucher_no: p.request_no || '',
       payment_date: p.due_date || p.request_date,
+      due_date: p.due_date || null,
       payee_name: p.vendor?.company_name || p.subcontractor?.company_name || '-',
       payee_id: p.vendor_id || p.subcontractor_id,
       amount: Number(p.amount_requested || 0),
@@ -194,6 +226,20 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const vendorCount = filtered.filter(r => r._type === 'vendor').length;
   const subCount = filtered.filter(r => r._type === 'subcontractor').length;
 
+  const dues = useMemo(() => {
+    const allCheques = unified.filter(r => r.payment_mode === 'Cheque' && r.cheque_due_date);
+    const mapped = allCheques.map(r => ({
+      id: r.id,
+      dueDate: r.cheque_due_date as string,
+      type: 'Cheque' as const,
+      amount: r.amount,
+      payeeName: r.payee_name,
+      voucherNo: r.voucher_no,
+    }));
+    mapped.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    return mapped;
+  }, [unified]);
+
   const handleRelease = (row: UnifiedRow) => {
     if (row._type === 'vendor') {
       releaseVendor.mutate(
@@ -215,12 +261,51 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     setRecordTransactionNo('');
     setRecordChequeNo('');
     setRecordChequeDate('');
+    setRecordChequeDueDate('');
     setRecordIssuedToClient(false);
+    setRecordReason('');
+    setRecordPaymentErrors({});
     setRecordModalOpen(true);
   };
 
+  const isDateDifferent = useMemo(() => {
+    if (!selectedRow?.due_date || !recordPaymentDate) return false;
+    const due = new Date(selectedRow.due_date).toISOString().split('T')[0];
+    const actual = new Date(recordPaymentDate).toISOString().split('T')[0];
+    return due !== actual;
+  }, [selectedRow?.due_date, recordPaymentDate]);
+
   const handleRecordPayment = () => {
     if (!selectedRow) return;
+
+    const values: RecordPaymentValues = {
+      paymentDate: recordPaymentDate,
+      paymentMode: recordPaymentMode,
+      referenceNo: recordTransactionNo || undefined,
+      chequeNo: recordChequeNo || undefined,
+      chequeDate: recordChequeDate || undefined,
+      chequeDueDate: recordChequeDueDate || undefined,
+      issuedToClient: recordIssuedToClient || undefined,
+      reason: recordReason || undefined,
+    };
+
+    const result = recordPaymentSchema.safeParse(values);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const key = issue.path[0] as string;
+        fieldErrors[key] = issue.message;
+      });
+      setRecordPaymentErrors(fieldErrors);
+      return;
+    }
+
+    if (isDateDifferent && !recordReason.trim()) {
+      setRecordPaymentErrors({ reason: 'Reason is required when payment date differs from due date' });
+      return;
+    }
+
+    setRecordPaymentErrors({});
 
     const refNo = (recordPaymentMode === 'Bank Transfer' || recordPaymentMode === 'GPAY')
       ? recordTransactionNo || null
@@ -237,6 +322,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         referenceNo: refNo,
         chequeNo: recordPaymentMode === 'Cheque' ? recordChequeNo : null,
         chequeDate: recordPaymentMode === 'Cheque' ? recordChequeDate : null,
+        chequeDueDate: recordPaymentMode === 'Cheque' ? recordChequeDueDate : null,
         issuedToClient: recordPaymentMode === 'Cheque' ? recordIssuedToClient : false,
         createdBy: organisation?.user?.id,
       },
@@ -325,6 +411,37 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
           {row.original.payment_mode}
         </span>
       ),
+    },
+    {
+      id: 'cheque_due_date',
+      header: 'Due',
+      cell: ({ row }: any) => {
+        const r = row.original;
+        if (r.payment_mode !== 'Cheque' || !r.cheque_due_date) return <span className="text-[10px] text-zinc-300">—</span>;
+        const due = new Date(r.cheque_due_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const isOverdue = diffDays < 0;
+        const isToday = diffDays === 0;
+        const isSoon = diffDays > 0 && diffDays <= 7;
+        return (
+          <div className="flex flex-col">
+            <span className={cn(
+              'text-xs font-medium',
+              isOverdue ? 'text-red-600' : isToday ? 'text-amber-600' : isSoon ? 'text-amber-600' : 'text-zinc-700'
+            )}>
+              {due.toLocaleDateString('en-IN')}
+            </span>
+            <span className={cn(
+              'text-[10px]',
+              isOverdue ? 'text-red-500 font-semibold' : isToday ? 'text-amber-600 font-semibold' : isSoon ? 'text-amber-500' : 'text-zinc-400'
+            )}>
+              {isOverdue ? `${Math.abs(diffDays)}d overdue` : isToday ? 'Today' : isSoon ? `${diffDays}d left` : `${diffDays}d`}
+            </span>
+          </div>
+        );
+      },
     },
     {
       id: 'actions',
@@ -488,6 +605,201 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         />
       </div>
 
+      {/* Dues Section */}
+      {scope === 'all' && (
+        <div className="border-t border-zinc-200">
+          <div className="px-6 pt-6 pb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-900">Dues</h2>
+                <p className="text-[11px] text-zinc-400 mt-0.5">{dues.length} upcoming</p>
+              </div>
+              <div className="flex items-center bg-zinc-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setDuesView('table')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md transition-all',
+                    duesView === 'table' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+                  )}
+                >
+                  <Table2 className="w-3.5 h-3.5" />
+                  Table
+                </button>
+                <button
+                  onClick={() => setDuesView('calendar')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md transition-all',
+                    duesView === 'calendar' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+                  )}
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Calendar
+                </button>
+              </div>
+            </div>
+
+            {duesView === 'table' ? (
+              <div className="rounded-xl border border-zinc-200 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-zinc-50/80">
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-400 px-6 py-3">Due Date</th>
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-400 px-6 py-3">Type</th>
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-400 px-6 py-3">Payee</th>
+                      <th className="text-right text-[10px] font-semibold uppercase tracking-wider text-zinc-400 px-6 py-3">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dues.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-10 text-xs text-zinc-400">
+                          No cheque dues tracked yet
+                        </td>
+                      </tr>
+                    ) : (
+                      dues.map((d) => {
+                        const due = new Date(d.dueDate);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        const isOverdue = diffDays < 0;
+                        const isToday = diffDays === 0;
+                        const isSoon = diffDays > 0 && diffDays <= 7;
+                        return (
+                          <tr key={d.id} className="border-t border-zinc-100 hover:bg-zinc-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className={cn(
+                                  'text-sm font-medium',
+                                  isOverdue ? 'text-red-600' : isToday ? 'text-amber-600' : isSoon ? 'text-amber-600' : 'text-zinc-900'
+                                )}>
+                                  {due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                                <span className={cn(
+                                  'text-[11px] mt-0.5',
+                                  isOverdue ? 'text-red-500 font-medium' : isToday ? 'text-amber-600 font-medium' : isSoon ? 'text-amber-500' : 'text-zinc-400'
+                                )}>
+                                  {isOverdue ? `${Math.abs(diffDays)} days overdue` : isToday ? 'Due today' : isSoon ? `${diffDays} days left` : `in ${diffDays} days`}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex text-[11px] font-medium px-2.5 py-1 rounded-md bg-violet-50 text-violet-700 border border-violet-200/60">
+                                {d.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-zinc-900">{d.payeeName}</span>
+                                <span className="text-[11px] text-zinc-400 mt-0.5">{d.voucherNo}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className="text-sm font-semibold text-zinc-900 tabular-nums">
+                                ₹{d.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-zinc-200 overflow-hidden">
+                {/* Calendar Header */}
+                <div className="flex items-center justify-between px-6 py-4 bg-zinc-50/80 border-b border-zinc-200">
+                  <button
+                    onClick={() => setDuesMonth(prev => {
+                      const m = prev.month - 1;
+                      return m < 0 ? { year: prev.year - 1, month: 11 } : { year: prev.year, month: m };
+                    })}
+                    className="p-1.5 rounded-lg hover:bg-zinc-200/60 text-zinc-500 hover:text-zinc-700 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <h3 className="text-sm font-semibold text-zinc-900">
+                    {new Date(duesMonth.year, duesMonth.month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <button
+                    onClick={() => setDuesMonth(prev => {
+                      const m = prev.month + 1;
+                      return m > 11 ? { year: prev.year + 1, month: 0 } : { year: prev.year, month: m };
+                    })}
+                    className="p-1.5 rounded-lg hover:bg-zinc-200/60 text-zinc-500 hover:text-zinc-700 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="p-6">
+                  <div className="grid grid-cols-7 gap-px bg-zinc-200/60 rounded-lg overflow-hidden">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                      <div key={d} className="bg-zinc-50/80 text-center py-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{d}</span>
+                      </div>
+                    ))}
+                    {(() => {
+                      const firstDay = new Date(duesMonth.year, duesMonth.month, 1).getDay();
+                      const daysInMonth = new Date(duesMonth.year, duesMonth.month + 1, 0).getDate();
+                      const cells: React.ReactNode[] = [];
+
+                      for (let i = 0; i < firstDay; i++) {
+                        cells.push(<div key={`empty-${i}`} className="bg-white min-h-[80px]" />);
+                      }
+
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const dateStr = `${duesMonth.year}-${String(duesMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const dayDues = dues.filter(d => d.dueDate === dateStr);
+                        const today = new Date();
+                        const isToday = today.getFullYear() === duesMonth.year && today.getMonth() === duesMonth.month && today.getDate() === day;
+
+                        cells.push(
+                          <div key={day} className={cn(
+                            'bg-white min-h-[80px] px-2 py-1.5 relative',
+                            isToday && 'bg-amber-50/50'
+                          )}>
+                            <span className={cn(
+                              'text-xs font-medium',
+                              isToday ? 'text-amber-700 bg-amber-100 w-6 h-6 rounded-full flex items-center justify-center' : 'text-zinc-700'
+                            )}>
+                              {day}
+                            </span>
+                            {dayDues.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {dayDues.slice(0, 2).map(d => (
+                                  <div key={d.id} className="text-[10px] font-medium text-violet-700 bg-violet-50 border border-violet-200/60 rounded px-1.5 py-0.5 truncate">
+                                    ₹{d.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                  </div>
+                                ))}
+                                {dayDues.length > 2 && (
+                                  <span className="text-[9px] text-zinc-400">+{dayDues.length - 2} more</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      const remaining = 7 - ((firstDay + daysInMonth) % 7);
+                      if (remaining < 7) {
+                        for (let i = 0; i < remaining; i++) {
+                          cells.push(<div key={`end-${i}`} className="bg-white min-h-[80px]" />);
+                        }
+                      }
+
+                      return cells;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Record Payment Modal */}
       <Dialog open={recordModalOpen} onOpenChange={(open) => !open && setRecordModalOpen(false)}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
@@ -575,6 +887,16 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
                     className="h-10 text-sm border-zinc-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-zinc-600">Cheque Due Date <span className="text-zinc-400 font-normal">(PDC)</span></Label>
+                  <Input
+                    type="date"
+                    value={recordChequeDueDate}
+                    onChange={(e) => setRecordChequeDueDate(e.target.value)}
+                    placeholder="When will this cheque be deposited?"
+                    className="h-10 text-sm border-zinc-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                </div>
                 <div className="flex items-center gap-2.5 pt-1">
                   <button
                     type="button"
@@ -593,6 +915,31 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
                   </Label>
                 </div>
               </>
+            )}
+
+            {/* Reason for early/late payment */}
+            {isDateDifferent && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-amber-700">
+                  Reason for early/late payment *
+                </Label>
+                <p className="text-[10px] text-amber-600">
+                  Due date: {selectedRow?.due_date ? new Date(selectedRow.due_date).toLocaleDateString('en-IN') : '—'} but recording for: {recordPaymentDate ? new Date(recordPaymentDate).toLocaleDateString('en-IN') : '—'}
+                </p>
+                <textarea
+                  value={recordReason}
+                  onChange={(e) => { setRecordReason(e.target.value); setRecordPaymentErrors((prev) => ({ ...prev, reason: '' })); }}
+                  placeholder="e.g. Vendor requested early settlement, critical material needed..."
+                  rows={2}
+                  className={cn(
+                    'w-full text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none',
+                    recordPaymentErrors.reason ? 'border-red-300 bg-red-50' : 'border-zinc-200'
+                  )}
+                />
+                {recordPaymentErrors.reason && (
+                  <p className="text-[10px] text-red-500">{recordPaymentErrors.reason}</p>
+                )}
+              </div>
             )}
           </div>
 
