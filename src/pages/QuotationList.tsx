@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { ApprovalAPI } from '../approvals/api';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { generateQuotationTally } from './QuotationTallyTemplate';
@@ -28,6 +29,8 @@ import {
   ArrowDown as ArrowDownIcon,
   Printer as PrinterIcon,
   X as XIcon,
+  MessageSquare,
+  Loader2,
 } from 'lucide-react';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
@@ -43,6 +46,8 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Approved:           { bg: '#d1fae5', color: '#047857' },
   'Approved (Sent)':  { bg: '#bfdbfe', color: '#1e40af' },
   Rejected:           { bg: '#fee2e2', color: '#dc2626' },
+  'Returned/Query':   { bg: '#ffedd5', color: '#c2410c' },
+  'Revision Requested':{ bg: '#ffedd5', color: '#c2410c' },
   Converted:          { bg: '#d1fae5', color: '#065f46' },
   Cancelled:          { bg: '#fee2e2', color: '#991b1b' },
   Expired:            { bg: '#f3f4f6', color: '#9ca3af' },
@@ -62,7 +67,7 @@ const ALL_COLUMNS = [
   { id: 'project', label: 'Project', width: '200px' },
   { id: 'client', label: 'Client', width: '400px' },
   { id: 'prepared_by', label: 'Created By', width: '150px' },
-  { id: 'status', label: 'Status', width: '100px' },
+  { id: 'status', label: 'Status', width: '140px' },
   { id: 'subtotal', label: 'Sub-total', width: '100px' },
   { id: 'total_tax', label: 'Tax Amount', width: '100px' },
   { id: 'grand_total', label: 'Amount', width: '100px' },
@@ -82,6 +87,7 @@ export default function QuotationList() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [returnComment, setReturnComment] = useState<{ open: boolean; quotationId: string | null; comment: string; loading: boolean }>({ open: false, quotationId: null, comment: '', loading: false });
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('quotation_list_columns');
@@ -809,13 +815,63 @@ export default function QuotationList() {
                           </td>
                         );
                         if (col.id === 'status') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                            <span 
-                              className="text-sm font-medium"
-                              style={{ color: getStatusColor(displayStatus(q)).color }}
-                            >
-                              {displayStatus(q)}
-                            </span>
+                          <td key={col.id} className="px-6 py-[18px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
+                            <div className="flex flex-col gap-1">
+                              <span 
+                                className="text-sm font-medium"
+                                style={{ color: getStatusColor(displayStatus(q)).color }}
+                              >
+                                {displayStatus(q)}
+                              </span>
+                              {q.approval_status && q.approval_status !== 'none' && (
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
+                                      q.approval_status === 'Revision Requested'
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : q.approval_status === 'Pending'
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : q.approval_status === 'Approved'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : q.approval_status === 'Rejected'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-zinc-100 text-zinc-600'
+                                    }`}
+                                  >
+                                    {q.approval_status === 'Revision Requested' ? 'Returned/Query' : q.approval_status === 'Pending' ? 'Pending Approval' : q.approval_status}
+                                  </span>
+                                  {q.approval_status === 'Revision Requested' && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setReturnComment({ open: true, quotationId: q.id, comment: '', loading: true });
+                                        try {
+                                          const { data: approvals } = await supabase
+                                            .from('approvals')
+                                            .select('id')
+                                            .eq('reference_id', q.id)
+                                            .eq('reference_type', 'quotations')
+                                            .maybeSingle();
+                                          if (approvals) {
+                                            const res = await ApprovalAPI.getApprovalHistory(approvals.id);
+                                            const returned = (res.data || []).filter((a: any) => a.action === 'RETURNED');
+                                            const comment = returned.length > 0 ? (returned[returned.length - 1].comments || 'No details') : 'No details';
+                                            setReturnComment({ open: true, quotationId: q.id, comment, loading: false });
+                                          } else {
+                                            setReturnComment({ open: true, quotationId: q.id, comment: 'No approval record found', loading: false });
+                                          }
+                                        } catch {
+                                          setReturnComment({ open: true, quotationId: q.id, comment: 'Failed to load', loading: false });
+                                        }
+                                      }}
+                                      className="text-[11px] text-blue-600 hover:underline font-medium"
+                                    >
+                                      View
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         );
                         if (col.id === 'subtotal') return (
@@ -1177,6 +1233,38 @@ export default function QuotationList() {
           </button>
         </div>
       </div>
+
+      {/* Return Comment Dialog */}
+      {returnComment.open && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={() => setReturnComment({ open: false, quotationId: null, comment: '', loading: false })}>
+          <div className="fixed inset-0 bg-black/40" />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="w-4 h-4 text-orange-600" />
+              <h3 className="text-sm font-semibold text-zinc-800">Return Comments</h3>
+            </div>
+            <div className="min-h-[60px]">
+              {returnComment.loading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-700 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  {returnComment.comment}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end mt-3">
+              <button
+                onClick={() => setReturnComment({ open: false, quotationId: null, comment: '', loading: false })}
+                className="px-4 py-1.5 text-sm font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-md"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
