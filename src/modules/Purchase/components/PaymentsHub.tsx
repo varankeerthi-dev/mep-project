@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Search, Wallet, BadgeAlert, Timer, FileText, X, Banknote, Building2, HardHat, Download } from 'lucide-react';
+import { CheckCircle2, Search, Wallet, BadgeAlert, Timer, X, Building2, HardHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppTable } from '@/components/ui/AppTable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,11 +7,12 @@ import { useApprovedPaymentsForAccountant, useReleasePayment, useReleaseSubcontr
 import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 
-type PaymentType = 'vendor' | 'subcontractor' | 'request';
+type PaymentType = 'vendor' | 'subcontractor';
 
 type UnifiedRow = {
   id: string;
   _type: PaymentType;
+  isRequest?: boolean;
   voucher_no: string;
   payment_date: string;
   payee_name: string;
@@ -34,10 +35,9 @@ const ACCOUNTANT_ROLES = new Set([
 const TYPE_CONFIG = {
   vendor: { label: 'V', full: 'Vendor', icon: Building2, color: 'text-blue-600', bg: 'bg-blue-100' },
   subcontractor: { label: 'S', full: 'Subcontractor', icon: HardHat, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-  request: { label: 'R', full: 'Payment Request', icon: FileText, color: 'text-amber-600', bg: 'bg-amber-100' },
 };
 
-export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' | 'request' }> = ({ scope = 'all' }) => {
+export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' }> = ({ scope = 'all' }) => {
   const { organisation } = useAuth();
   const orgId = organisation?.id as string | undefined;
   const [typeFilter, setTypeFilter] = useState<PaymentType | 'all'>('all');
@@ -87,7 +87,8 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
 
     const req: UnifiedRow[] = paymentRequests.map((p: any) => ({
       id: p.id,
-      _type: 'request' as PaymentType,
+      _type: (p.subcontractor_id ? 'subcontractor' : 'vendor') as PaymentType,
+      isRequest: true,
       voucher_no: p.request_no || '',
       payment_date: p.due_date || p.request_date,
       payee_name: p.vendor?.company_name || p.subcontractor?.company_name || '-',
@@ -124,13 +125,8 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const totalPayable = useMemo(() => filtered.reduce((s, r) => s + r.amount, 0), [filtered]);
   const vendorCount = filtered.filter(r => r._type === 'vendor').length;
   const subCount = filtered.filter(r => r._type === 'subcontractor').length;
-  const reqCount = filtered.filter(r => r._type === 'request').length;
 
   const handleRelease = (row: UnifiedRow) => {
-    if (row._type === 'request') {
-      toast.info('Record a payment from Purchase → Payments to release this request.');
-      return;
-    }
     if (row._type === 'vendor') {
       releaseVendor.mutate(
         { paymentId: row.id, releasedBy: organisation?.user?.id },
@@ -148,21 +144,20 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     { label: 'Pending Release', value: `₹${totalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, icon: Wallet, color: 'text-rose-600', bg: 'bg-rose-50' },
     { label: 'Vendor Payments', value: `${vendorCount} pending`, icon: BadgeAlert, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Subcontractor', value: `${subCount} pending`, icon: Timer, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Approved Requests', value: `${reqCount}`, icon: FileText, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
 
   const columns = [
     {
       id: 'type',
-      header: '',
-      size: 48,
+      header: 'Payment Type',
       cell: ({ row }: any) => {
         const cfg = TYPE_CONFIG[row.original._type as PaymentType];
         return (
-          <div className="flex items-center justify-center">
-            <span className={cn('inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-bold', cfg.bg, cfg.color)} title={cfg.full}>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold', cfg.bg, cfg.color)}>
               {cfg.label}
             </span>
+            <span className="text-xs font-medium text-zinc-700">{cfg.full}</span>
           </div>
         );
       },
@@ -228,11 +223,9 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       header: '',
       cell: ({ row }: any) => {
         const r = row.original;
-        if (r._type === 'request') {
+        if (r.isRequest) {
           return (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 font-medium">Record payment</span>
-            </div>
+            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 font-medium">Record payment</span>
           );
         }
         return canRelease ? (
@@ -254,17 +247,17 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     },
   ];
 
-  const isLoading = vendorLoading || subLoading;
+  const isLoading = vendorLoading || subLoading || reqLoading;
 
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div>
           <h1 className="text-base font-semibold text-zinc-900">
-            {scope === 'vendor' ? 'Vendor Payment Queue' : scope === 'subcontractor' ? 'Subcontractor Payment Queue' : scope === 'request' ? 'Approved Payment Requests' : 'Payments Hub'}
+            {scope === 'vendor' ? 'Vendor Payment Queue' : scope === 'subcontractor' ? 'Subcontractor Payment Queue' : 'Payments Hub'}
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {scope === 'request' ? 'Approved requests awaiting payment recording' : scope === 'all' ? 'Treasury — pay vendors, subcontractors & advances' : 'Payments approved and ready for release'}
+            {scope === 'all' ? 'Treasury — pay vendors & subcontractors' : 'Payments approved and ready for release'}
           </p>
         </div>
         {!canRelease && scope === 'all' && (
@@ -274,7 +267,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-6 py-4">
+      <div className="grid grid-cols-3 gap-4 px-6 py-4">
         {summaryCards.map((card, i) => (
           <div key={i} className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
             <div className="p-4 flex items-center justify-between">
@@ -292,7 +285,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
 
       {scope === 'all' && (
         <div className="flex items-center gap-2 px-6 pb-3">
-          {(['all', 'vendor', 'subcontractor', 'request'] as const).map((t) => (
+          {(['all', 'vendor', 'subcontractor'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
