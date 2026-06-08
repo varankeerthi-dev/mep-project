@@ -306,6 +306,7 @@ const styles = `
     top: 0;
     z-index: 5;
     user-select: none;
+    position: relative;
   }
   
   .ptl-grid thead th:first-child {
@@ -592,7 +593,7 @@ export default function ProjectTaskListView({
   const [isResizing, setIsResizing] = useState(false);
   const [resizableWidths, setResizableWidths] = useState<Record<string, string>>({
     task_no: '70px',
-    title: 'auto',
+    title: '300px',
     assignees: '140px',
     status: '130px',
     tags: '120px',
@@ -1302,23 +1303,24 @@ export default function ProjectTaskListView({
                       {Object.entries(viewColumns).filter(([_, v]) => v).map(([key]) => (
                         <th
                           key={key}
-                          style={{ width: resizableWidths[key] || 'auto', position: 'relative' }}
+                          style={{ width: resizableWidths[key] || 'auto' }}
                           className={key === 'title' ? 'col-left' : undefined}
                         >
                           {COLUMN_LABELS[key as keyof TaskColumns]}
                           <div
                             style={{
                               position: 'absolute',
-                              right: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: '4px',
+                              right: '-2px',
+                              top: '-1px',
+                              bottom: '-1px',
+                              width: '5px',
                               cursor: 'col-resize',
                               background: 'transparent',
                               zIndex: 10,
+                              borderRight: '2px solid transparent',
                             }}
-                            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#2563eb'; }}
-                            onMouseLeave={(e) => { if (!isResizing) (e.target as HTMLElement).style.background = 'transparent'; }}
+                            onMouseEnter={(e) => { (e.target as HTMLElement).style.borderRightColor = '#2563eb'; }}
+                            onMouseLeave={(e) => { if (!isResizing) (e.target as HTMLElement).style.borderRightColor = 'transparent'; }}
                             onMouseDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
