@@ -589,6 +589,7 @@ export default function ProjectTaskListView({
   const [showGroupByDropdown, setShowGroupByDropdown] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
   const [resizableWidths, setResizableWidths] = useState<Record<string, string>>({
     task_no: '70px',
     title: 'auto',
@@ -1306,20 +1307,33 @@ export default function ProjectTaskListView({
                         >
                           {COLUMN_LABELS[key as keyof TaskColumns]}
                           <div
-                            className="ptl-col-resizer"
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '4px',
+                              cursor: 'col-resize',
+                              background: 'transparent',
+                              zIndex: 10,
+                            }}
+                            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#2563eb'; }}
+                            onMouseLeave={(e) => { if (!isResizing) (e.target as HTMLElement).style.background = 'transparent'; }}
                             onMouseDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              const startX = e.clientX;
-                              const startWidth = (e.target as HTMLElement).parentElement!.getBoundingClientRect().width;
+                              let lastX = e.clientX;
                               const onMouseMove = (ev: MouseEvent) => {
-                                const delta = ev.clientX - startX;
+                                const delta = ev.clientX - lastX;
+                                lastX = ev.clientX;
                                 handleColumnResize(key, delta);
                               };
                               const onMouseUp = () => {
                                 document.removeEventListener('mousemove', onMouseMove);
                                 document.removeEventListener('mouseup', onMouseUp);
+                                setIsResizing(false);
                               };
+                              setIsResizing(true);
                               document.addEventListener('mousemove', onMouseMove);
                               document.addEventListener('mouseup', onMouseUp);
                             }}
