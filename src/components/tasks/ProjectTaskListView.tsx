@@ -33,10 +33,11 @@ import GroupCreateModal from './GroupCreateModal';
 import { TaskViewType } from './types';
 
 interface ProjectTaskListViewProps {
-  projectId: string;
+  projectId?: string;
   projectName?: string;
   organisationId: string;
   userId: string;
+  globalMode?: boolean;
 }
 
 const styles = `
@@ -555,12 +556,14 @@ export default function ProjectTaskListView({
   projectName = 'Project Tasks',
   organisationId,
   userId,
+  globalMode = false,
 }: ProjectTaskListViewProps) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewColumns, setViewColumns] = useState<Record<string, boolean>>({
     task_no: true,
     title: true,
+    project_name: globalMode,
     assignees: true,
     status: true,
     priority: true,
@@ -594,6 +597,7 @@ export default function ProjectTaskListView({
   const [resizableWidths, setResizableWidths] = useState<Record<string, string>>({
     task_no: '70px',
     title: '300px',
+    project_name: '150px',
     assignees: '140px',
     status: '130px',
     tags: '120px',
@@ -635,23 +639,55 @@ export default function ProjectTaskListView({
 
   // Fetch task groups with tasks (including sub-tasks)
   const { data: groups = [], isLoading } = useQuery({
-    queryKey: ['project-tasks', projectId],
+    queryKey: ['project-tasks', projectId, globalMode, organisationId],
     queryFn: async () => {
-      const { data: taskGroups, error: groupsError } = await supabase
-        .from('task_groups')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('sort_order', { ascending: true });
+      // Fetch project names for global mode
+      let projectNameMap: Record<string, string> = {};
+      if (globalMode) {
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('id, name')
+          .eq('organisation_id', organisationId);
+        if (projects) {
+          projects.forEach((p: any) => { projectNameMap[p.id] = p.name; });
+        }
+      }
 
-      if (groupsError) throw groupsError;
+      let taskGroups: any[] = [];
+      if (globalMode) {
+        // In global mode, fetch all task groups for the organization
+        const { data: allGroups, error: groupsError } = await supabase
+          .from('task_groups')
+          .select('*')
+          .eq('organisation_id', organisationId)
+          .order('sort_order', { ascending: true });
+        if (groupsError) throw groupsError;
+        taskGroups = allGroups || [];
+      } else {
+        // Per-project mode
+        const { data: projectGroups, error: groupsError } = await supabase
+          .from('task_groups')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('sort_order', { ascending: true });
+        if (groupsError) throw groupsError;
+        taskGroups = projectGroups || [];
+      }
 
       // Fetch ALL tasks (parents + sub-tasks)
-      const { data: allTasks, error: tasksError } = await supabase
+      let tasksQuery = supabase
         .from('tasks')
         .select('*')
-        .eq('project_id', projectId)
-        .is('deleted_at', null)
-        .order('task_no', { ascending: true });
+        .is('deleted_at', null);
+      
+      if (globalMode) {
+        tasksQuery = tasksQuery.eq('organisation_id', organisationId);
+      } else {
+        tasksQuery = tasksQuery.eq('project_id', projectId);
+      }
+      
+      tasksQuery = tasksQuery.order('task_no', { ascending: true });
+      const { data: allTasks, error: tasksError } = await tasksQuery;
 
       if (tasksError) throw tasksError;
 
@@ -671,7 +707,7 @@ export default function ProjectTaskListView({
         }
       }
 
-      // Enrich tasks with assignee info and subtasks
+      // Enrich tasks with assignee info, subtasks, and project name
       const enrichedTasks = (allTasks || []).map((t: any) => ({
         ...t,
         assignees: (t.assignee_ids || []).map((uid: string) => ({
@@ -679,6 +715,7 @@ export default function ProjectTaskListView({
           name: profileMap[uid]?.full_name || uid.slice(0, 8),
           email: profileMap[uid]?.email || '',
         })),
+        project_name: globalMode ? (projectNameMap[t.project_id] || 'Unknown') : undefined,
       }));
 
       // Separate parents and children

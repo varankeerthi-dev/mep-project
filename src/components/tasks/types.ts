@@ -551,6 +551,7 @@ export interface TaskUpdateInputLegacy {
 export const COLUMN_LABELS: Record<string, string> = {
   task_no: 'No.',
   title: 'Task Name',
+  project_name: 'Project',
   status: 'Status',
   priority: 'Priority',
   assignees: 'Assignees',

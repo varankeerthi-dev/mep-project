@@ -285,6 +285,14 @@ export default function ProjectTaskGroup({
                     );
                   }
 
+                  if (col === 'project_name') {
+                    return (
+                      <td key={col} style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.75rem', color: '#64748b' }}>
+                        {(task as any).project_name || '—'}
+                      </td>
+                    );
+                  }
+
                   if (col === 'assignees') {
                     return (
                       <td key={col}>
@@ -602,6 +610,13 @@ export default function ProjectTaskGroup({
                           <span style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '0.8125rem', fontWeight: 400, color: '#475569' }}>
                             {subtask.title}
                           </span>
+                        </td>
+                      );
+                    }
+                    if (col === 'project_name') {
+                      return (
+                        <td key={col} style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                          {subtask.project_name || '—'}
                         </td>
                       );
                     }

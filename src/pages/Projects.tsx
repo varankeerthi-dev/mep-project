@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users } from 'lucide-react';
+import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users, CheckSquare } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../App';
@@ -12,6 +12,7 @@ import ProjectMaterialList from './ProjectMaterialList';
 import MaterialUsageTracker from './MaterialUsageTracker';
 import MaterialConsumptionReport from './MaterialConsumptionReport';
 import { getMeetings } from '../meetings/api/meetings';
+import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
 
 const ProjectList = React.lazy(() => import('./ProjectList'));
 const CreateProject = React.lazy(() => import('./CreateProject'));
@@ -20,6 +21,7 @@ const SiteMaterials = React.lazy(() => import('./ProjectManagementInternal').the
 
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, component: null },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
 ];
 
@@ -36,7 +38,7 @@ export default function Projects() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(searchParams.get('projectId'));
   const [projectName, setProjectName] = useState<string>(searchParams.get('projectName') || '');
@@ -170,6 +172,15 @@ export default function Projects() {
                 </div>
               )}
             </div>
+          </div>
+        ) : activeTab === 'tasks' ? (
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            <ProjectTaskListView
+              organisationId={organisationId}
+              userId={user?.id || ''}
+              globalMode={true}
+              projectName="All Tasks"
+            />
           </div>
         ) : (
           <Suspense fallback={<div className="flex h-64 items-center justify-center text-zinc-400">Loading projects...</div>}>
