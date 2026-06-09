@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ArcPricingToggle, ArcPricingStatusBadge, ArcRateBadge, StandardRateBadge } from '../components/ArcPricingToggle';
 import { ArcConfirmationDialog } from '../components/ArcConfirmationDialog';
 import { fetchArcPricingForItems, getArcRateFromMap } from '../lib/arc-pricing';
+import { useLastDocumentRates } from '../hooks/useLastDocumentRates';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -414,6 +415,14 @@ export default function CreateQuotation() {
       setArcPricingMap(arcPricingQuery.data);
     }
   }, [arcPricingQuery.data]);
+
+  // Last document rates query (historical quoted/invoiced rates)
+  const quotationItemIds = useMemo(() => {
+    const ids = items.map((item: any) => item.item_id).filter(Boolean);
+    return Array.from(new Set(ids)) as string[];
+  }, [items]);
+
+  const { data: lastRatesMap = {} } = useLastDocumentRates(formData.client_id, quotationItemIds);
 
   const initializedRef = useRef<string | null>(null);
 
@@ -2961,29 +2970,116 @@ className="text-center cell-static col-shrink row-drag-handle"
                         <input type="text" className="cell-input text-center" value={item.uom} onChange={(e) => updateItem(item.id, 'uom', e.target.value)} />
                       </td>
                       <td className="col-shrink" style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', paddingRight: '4px' }}>
-                          {useArcPricing && item.item_id && (() => {
-                            const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
-                            if (arcRate !== null) {
-                              return <ArcRateBadge arcRate={arcRate} originalRate={item.base_rate_snapshot} />;
-                            }
-                            return <StandardRateBadge />;
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingRight: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                            {useArcPricing && item.item_id && (() => {
+                              const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
+                              if (arcRate !== null) {
+                                return <ArcRateBadge arcRate={arcRate} originalRate={item.base_rate_snapshot} />;
+                              }
+                              return <StandardRateBadge />;
+                            })()}
+                            <input 
+                              type="number" 
+                              className="cell-input text-right" 
+                              value={item.base_rate_snapshot || 0} 
+                              onChange={(e) => {
+                                const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
+                                const disc = item.discount_percent || 0;
+                                const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                                updateItem(item.id, 'base_rate_snapshot', newBaseRate);
+                                updateItem(item.id, 'rate', finalRate);
+                                updateItem(item.id, 'is_override', true);
+                                updateItem(item.id, 'applied_discount_percent', disc);
+                              }}
+                              style={{ flex: 1, minWidth: '60px', background: item.is_override ? '#fef3c7' : '#f8fafc', border: item.is_override ? '1px solid #f59e0b' : '' }}
+                            />
+                            {/* Under-billing warning icon if entered rate < last invoiced rate */}
+                            {(() => {
+                              if (!item.item_id) return null;
+                              const normalizedVariant = item.variant_id && item.variant_id !== '' ? item.variant_id : 'no_variant';
+                              const itemKey = `${item.item_id}_${normalizedVariant}`;
+                              const liRate = lastRatesMap[itemKey]?.lastInvoiced?.baseRate;
+                              if (liRate !== undefined && (parseFloat(item.base_rate_snapshot) || 0) < liRate) {
+                                return (
+                                  <span 
+                                    style={{ color: '#d97706', cursor: 'help', display: 'inline-flex', alignItems: 'center', marginLeft: '2px' }} 
+                                    title={`Warning: Entered rate (₹${parseFloat(item.base_rate_snapshot) || 0}) is lower than the last invoiced rate (₹${liRate}) for this client.`}
+                                  >
+                                    ⚠️
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          
+                          {/* Historical Rate Badges */}
+                          {item.item_id && (() => {
+                            const normalizedVariant = item.variant_id && item.variant_id !== '' ? item.variant_id : 'no_variant';
+                            const itemKey = `${item.item_id}_${normalizedVariant}`;
+                            const rates = lastRatesMap[itemKey];
+                            if (!rates || (!rates.lastQuoted && !rates.lastInvoiced)) return null;
+                            
+                            return (
+                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', fontSize: '9px', fontWeight: 500, marginTop: '2px' }}>
+                                {rates.lastQuoted && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newBaseRate = rates.lastQuoted!.baseRate;
+                                      const disc = item.discount_percent || 0;
+                                      const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                                      updateItem(item.id, 'base_rate_snapshot', newBaseRate);
+                                      updateItem(item.id, 'rate', finalRate);
+                                      updateItem(item.id, 'is_override', true);
+                                      updateItem(item.id, 'applied_discount_percent', disc);
+                                      toast.success(`Applied last quoted rate of ₹${newBaseRate}`);
+                                    }}
+                                    style={{
+                                      padding: '1px 4px',
+                                      borderRadius: '3px',
+                                      background: '#fef3c7',
+                                      color: '#b45309',
+                                      border: '1px solid #fde68a',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title={`Last Quoted: ₹${rates.lastQuoted.baseRate} in Quote ${rates.lastQuoted.docNo} on ${rates.lastQuoted.date}. Click to apply.`}
+                                  >
+                                    LQ: ₹{rates.lastQuoted.baseRate}
+                                  </button>
+                                )}
+                                {rates.lastInvoiced && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newBaseRate = rates.lastInvoiced!.baseRate;
+                                      const disc = item.discount_percent || 0;
+                                      const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                                      updateItem(item.id, 'base_rate_snapshot', newBaseRate);
+                                      updateItem(item.id, 'rate', finalRate);
+                                      updateItem(item.id, 'is_override', true);
+                                      updateItem(item.id, 'applied_discount_percent', disc);
+                                      toast.success(`Applied last invoiced rate of ₹${newBaseRate}`);
+                                    }}
+                                    style={{
+                                      padding: '1px 4px',
+                                      borderRadius: '3px',
+                                      background: '#dbeafe',
+                                      color: '#1d4ed8',
+                                      border: '1px solid #bfdbfe',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title={`Last Invoiced: ₹${rates.lastInvoiced.baseRate} in Invoice ${rates.lastInvoiced.docNo} on ${rates.lastInvoiced.date}. Click to apply.`}
+                                  >
+                                    LI: ₹{rates.lastInvoiced.baseRate}
+                                  </button>
+                                )}
+                              </div>
+                            );
                           })()}
-                          <input 
-                            type="number" 
-                            className="cell-input text-right" 
-                            value={item.base_rate_snapshot || 0} 
-                            onChange={(e) => {
-                              const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
-                              const disc = item.discount_percent || 0;
-                              const finalRate = newBaseRate - (newBaseRate * disc / 100);
-                              updateItem(item.id, 'base_rate_snapshot', newBaseRate);
-                              updateItem(item.id, 'rate', finalRate);
-                              updateItem(item.id, 'is_override', true);
-                              updateItem(item.id, 'applied_discount_percent', disc);
-                            }}
-                            style={{ flex: 1, minWidth: '60px', background: item.is_override ? '#fef3c7' : '#f8fafc', border: item.is_override ? '1px solid #f59e0b' : '' }}
-                          />
                         </div>
                       </td>
                       <td className="col-shrink">
