@@ -27,6 +27,9 @@ import { ErectionSection } from '../components/ErectionSection';
 import { ApprovalIntegration } from '../approvals/integration';
 import { toast } from '../lib/logger';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog';
+import { ArcPricingToggle, ArcPricingStatusBadge, ArcRateBadge, StandardRateBadge } from '../components/ArcPricingToggle';
+import { ArcConfirmationDialog } from '../components/ArcConfirmationDialog';
+import { fetchArcPricingForItems, getArcRateFromMap } from '../lib/arc-pricing';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -90,6 +93,9 @@ export default function CreateQuotation() {
   
   const [headerDiscounts, setHeaderDiscounts] = useState({});
   const [discountPopup, setDiscountPopup] = useState({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
+  const [useArcPricing, setUseArcPricing] = useState(false);
+  const [arcPricingMap, setArcPricingMap] = useState<Record<string, any>>({});
+  const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
   
   const [discountSettings, setDiscountSettings] = useState({});
   const [approvalStatus, setApprovalStatus] = useState({});
@@ -153,7 +159,7 @@ export default function CreateQuotation() {
   }, []);
 
   const [itemSearch, setItemSearch] = useState('');
-  const [pickerItems, setPickerItems] = useState([]);
+  const [pickerItems, setPickerItems] = useState<any[]>([]);
   const [quickQuoteConfig, setQuickQuoteConfig] = useState<QuickQuoteConfig | null>(null);
   const [quickQuoteTemplateId, setQuickQuoteTemplateId] = useState('');
   const [quickQuoteSize, setQuickQuoteSize] = useState('');
@@ -179,7 +185,7 @@ export default function CreateQuotation() {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     id: '',
     quotation_no: '',
     revision_no: 1,
@@ -207,7 +213,7 @@ export default function CreateQuotation() {
     include_erection_charges: true
   });
 
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<any[]>([]);
   const itemsTableRef = useRef(null);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [isDirty, setIsDirty] = useState(false);
@@ -387,6 +393,27 @@ export default function CreateQuotation() {
 
   // Conversion query
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
+
+  // ARC pricing query
+  const arcItemIds = useMemo(() => {
+    return items.map((item: any) => item.item_id).filter(Boolean);
+  }, [items]);
+
+  const arcPricingQuery = useQuery({
+    queryKey: ['arc-pricing', 'items', formData.client_id, arcItemIds],
+    queryFn: async () => {
+      if (!useArcPricing || !formData.client_id || arcItemIds.length === 0) return {};
+      return fetchArcPricingForItems(formData.client_id, arcItemIds);
+    },
+    enabled: useArcPricing && Boolean(formData.client_id) && arcItemIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (arcPricingQuery.data) {
+      setArcPricingMap(arcPricingQuery.data);
+    }
+  }, [arcPricingQuery.data]);
 
   const initializedRef = useRef<string | null>(null);
 
@@ -1152,6 +1179,9 @@ const loadQuoteNoPreview = useCallback(async () => {
   );
 
   const handleClientChange = async (clientId) => {
+    setUseArcPricing(false);
+    setArcPricingMap({});
+
     if (!clientId) {
       setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '', client_contact: '' });
       setHeaderDiscounts({});
@@ -1201,6 +1231,15 @@ const loadQuoteNoPreview = useCallback(async () => {
 
   const getRateForMaterialVariant = (material, variantId, make) => {
     if (!material) return 0;
+
+    // Check if ARC pricing is active and exists for this client + material
+    if (useArcPricing && arcPricingMap[material.id]) {
+      const arcRate = getArcRateFromMap(arcPricingMap, material.id, variantId);
+      if (arcRate !== null) {
+        return arcRate;
+      }
+    }
+
     const vId = variantId || 'no_variant';
     const mName = make || '';
     
@@ -2456,6 +2495,54 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   )}
                 </div>
               </div>
+              {formData.client_id && (
+                <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+                  <span style={labelColStyle}>Pricing:</span>
+                  <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ArcPricingToggle
+                        clientId={formData.client_id}
+                        enabled={useArcPricing}
+                        onChange={(enabled) => {
+                          if (enabled && items.filter(i => !i.is_header && !i.is_subtotal).length > 0) {
+                            setArcPricingConfirmOpen(true);
+                          } else {
+                            setUseArcPricing(enabled);
+                            if (!enabled) {
+                              setArcPricingMap({});
+                              // Revert all rates to standard rates
+                              setItems(prev => prev.map(item => {
+                                if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                                if (!item.item_id) return item;
+                                const mat = materials.find(m => m.id === item.item_id);
+                                if (!mat) return item;
+                                const stdRate = getRateForMaterialVariant(mat, item.variant_id, item.make);
+                                const discountPercent = parseFloat(item.discount_percent) || 0;
+                                const finalRate = stdRate - (stdRate * discountPercent / 100);
+                                return {
+                                  ...item,
+                                  base_rate_snapshot: stdRate,
+                                  rate: finalRate,
+                                  final_rate_snapshot: finalRate,
+                                  applied_discount_percent: discountPercent
+                                };
+                              }));
+                            }
+                          }
+                        }}
+                      />
+                      <ArcPricingStatusBadge
+                        totalItems={items.filter(i => !i.is_header && !i.is_subtotal).length}
+                        itemsWithArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && arcPricingMap[i.item_id]?.length > 0).length}
+                        itemsWithoutArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && (!arcPricingMap[i.item_id] || arcPricingMap[i.item_id].length === 0)).length}
+                      />
+                    </div>
+                    {useArcPricing && arcPricingQuery.isLoading && (
+                      <span style={{ fontSize: '11px', color: '#737373', display: 'block' }}>Loading ARC rates...</span>
+                    )}
+                  </div>
+                </div>
+              )}
               {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
               {renderHeaderField('Address:', <textarea className="form-input" style={{ ...inputStyle, minHeight: '40px', resize: 'vertical' }} value={formData.billing_address} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Full billing address..." />)}
               {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
@@ -2873,22 +2960,31 @@ className="text-center cell-static col-shrink row-drag-handle"
                       <td className="col-shrink">
                         <input type="text" className="cell-input text-center" value={item.uom} onChange={(e) => updateItem(item.id, 'uom', e.target.value)} />
                       </td>
-                      <td className="col-shrink">
-                        <input 
-                          type="number" 
-                          className="cell-input text-right" 
-                          value={item.base_rate_snapshot || 0} 
-                          onChange={(e) => {
-                            const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
-                            const disc = item.discount_percent || 0;
-                            const finalRate = newBaseRate - (newBaseRate * disc / 100);
-                            updateItem(item.id, 'base_rate_snapshot', newBaseRate);
-                            updateItem(item.id, 'rate', finalRate);
-                            updateItem(item.id, 'is_override', true);
-                            updateItem(item.id, 'applied_discount_percent', disc);
-                          }}
-                          style={{ background: item.is_override ? '#fef3c7' : '#f8fafc', border: item.is_override ? '1px solid #f59e0b' : '' }}
-                        />
+                      <td className="col-shrink" style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', paddingRight: '4px' }}>
+                          {useArcPricing && item.item_id && (() => {
+                            const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
+                            if (arcRate !== null) {
+                              return <ArcRateBadge arcRate={arcRate} originalRate={item.base_rate_snapshot} />;
+                            }
+                            return <StandardRateBadge />;
+                          })()}
+                          <input 
+                            type="number" 
+                            className="cell-input text-right" 
+                            value={item.base_rate_snapshot || 0} 
+                            onChange={(e) => {
+                              const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
+                              const disc = item.discount_percent || 0;
+                              const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                              updateItem(item.id, 'base_rate_snapshot', newBaseRate);
+                              updateItem(item.id, 'rate', finalRate);
+                              updateItem(item.id, 'is_override', true);
+                              updateItem(item.id, 'applied_discount_percent', disc);
+                            }}
+                            style={{ flex: 1, minWidth: '60px', background: item.is_override ? '#fef3c7' : '#f8fafc', border: item.is_override ? '1px solid #f59e0b' : '' }}
+                          />
+                        </div>
                       </td>
                       <td className="col-shrink">
                         <input
@@ -3423,6 +3519,70 @@ className="text-center cell-static col-shrink row-drag-handle"
           setFormData({ ...formData, terms_conditions: terms, terms_text: terms.sections?.map((s: any) => `${s.title}\n${s.items?.map((i: any) => i.content).join('\n')}`).join('\n\n') || '' });
           setShowTermsDrawer(false);
         }}
+      />
+
+      <ArcConfirmationDialog
+        open={arcPricingConfirmOpen}
+        onClose={() => {
+          setArcPricingConfirmOpen(false);
+        }}
+        onApplyAll={() => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+          // Apply ARC rates to all items
+          setItems(prev => prev.map(item => {
+            if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+            if (!item.item_id) return item;
+            const rates = arcPricingMap[item.item_id];
+            if (!rates || rates.length === 0) return item;
+            const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
+            if (arcRate === null) return item;
+            const discountPercent = parseFloat(item.discount_percent) || 0;
+            const finalRate = arcRate - (arcRate * discountPercent / 100);
+            return {
+              ...item,
+              base_rate_snapshot: arcRate,
+              rate: finalRate,
+              final_rate_snapshot: finalRate,
+              applied_discount_percent: discountPercent
+            };
+          }));
+        }}
+        onApplySelected={(selectedIds) => {
+          setUseArcPricing(true);
+          setArcPricingConfirmOpen(false);
+          // Apply ARC rates to selected items
+          setItems(prev => prev.map(item => {
+            if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+            if (!item.item_id) return item;
+            if (!selectedIds.includes(item.id)) return item;
+            const rates = arcPricingMap[item.item_id];
+            if (!rates || rates.length === 0) return item;
+            const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
+            if (arcRate === null) return item;
+            const discountPercent = parseFloat(item.discount_percent) || 0;
+            const finalRate = arcRate - (arcRate * discountPercent / 100);
+            return {
+              ...item,
+              base_rate_snapshot: arcRate,
+              rate: finalRate,
+              final_rate_snapshot: finalRate,
+              applied_discount_percent: discountPercent
+            };
+          }));
+        }}
+        items={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id).map((item: any, index: number) => {
+          const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
+          return {
+            id: item.id || `item-${index}`,
+            description: item.description || `Item ${index + 1}`,
+            currentRate: Number(item.rate) || 0,
+            arcRate: arcRate,
+            hasArcRate: arcRate !== null,
+            variantId: item.variant_id,
+            materialId: item.item_id,
+          };
+        })}
       />
 
       {confirmDialog && (
