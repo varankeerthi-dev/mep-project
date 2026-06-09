@@ -312,6 +312,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           material_id: item.material_id,
           variant_id: item.variant_id,
           make: item.make || '',
+          warehouse_id: item.warehouse_id || '',
           material_name: item.material_name,
           unit: item.unit,
           quantity: item.quantity,
@@ -407,12 +408,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return map;
   }, [warehouses]);
   
-  const getAvailableQty = (itemId, variantId) => {
-    if (formData.source_type !== 'WAREHOUSE') return 0;
-    if (!formData.warehouse_id) return 0;
+  const getAvailableQty = (itemId, variantId, warehouseId?) => {
+    const whId = warehouseId || formData.warehouse_id;
+    if (!whId) return 0;
     const s = stock.find(x => 
       x.item_id === itemId && 
-      x.warehouse_id === formData.warehouse_id &&
+      x.warehouse_id === whId &&
       (variantId ? x.company_variant_id === variantId : !x.company_variant_id)
     );
     return parseFloat(s?.current_stock) || 0;
@@ -524,6 +525,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         material_id: p.item_id,
         variant_id: variantId,
         make: make,
+        warehouse_id: p.warehouse_id || formData.warehouse_id || '',
         material_name: mat?.display_name || mat?.name || '',
         unit: mat?.unit || 'Nos',
         quantity: qty,
@@ -629,6 +631,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       material_id: '', 
       variant_id: formData.variant_id || '', 
       make: '',
+      warehouse_id: formData.warehouse_id || '',
       material_name: '', 
       unit: 'Nos', 
       quantity: '', 
@@ -663,23 +666,23 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         const defaultVarId = updates.uses_variant ? (formData.variant_id || '') : '';
         updates.variant_id = defaultVarId;
         updates.make = '';
+        updates.warehouse_id = item.warehouse_id || formData.warehouse_id || '';
         updates.rate = getRate(value, defaultVarId, '');
         
-        updates.available_qty = (formData.source_type === 'WAREHOUSE' && mat?.item_type !== 'service') ? getAvailableQty(value, defaultVarId) : 0;
+        updates.available_qty = mat?.item_type !== 'service' ? getAvailableQty(value, defaultVarId, updates.warehouse_id) : 0;
       }
       
       if (field === 'variant_id' && item.material_id) {
         updates.rate = getRate(item.material_id, value, item.make || '');
-        updates.available_qty = (formData.source_type === 'WAREHOUSE' && !item.is_service) ? getAvailableQty(item.material_id, value) : 0;
+        updates.available_qty = !item.is_service ? getAvailableQty(item.material_id, value, item.warehouse_id) : 0;
       }
       
       if (field === 'make' && item.material_id) {
         updates.rate = getRate(item.material_id, item.variant_id || '', value);
       }
       
-      if (field === 'unit' && item.material_id) {
-        const mat = getMaterial(item.material_id);
-        updates.rate = mat?.sale_price || item.rate || 0;
+      if (field === 'warehouse_id' && item.material_id) {
+        updates.available_qty = !item.is_service ? getAvailableQty(item.material_id, item.variant_id || '', value) : 0;
       }
       
       if (field === 'quantity' || field === 'rate') {
@@ -712,11 +715,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     if (!formData.client_name) { alert('Please select Client'); return false; }
     if (!formData.dc_date) { alert('Please select DC Date'); return false; }
     
-    if (formData.source_type === 'WAREHOUSE' && !formData.warehouse_id) {
-      alert('Please select Warehouse');
-      return false;
-    }
-    
     for (const item of items) {
       if (!item.material_id) continue;
       if (item.uses_variant && !item.variant_id) {
@@ -727,7 +725,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         alert(`Invalid quantity for: ${item.material_name}`);
         return false;
       }
-      if (!item.is_service && formData.source_type === 'WAREHOUSE' && parseFloat(item.quantity) > item.available_qty && !allowInsufficientStock) {
+      if (!item.is_service && !item.warehouse_id) {
+        alert(`Warehouse required for: ${item.material_name}`);
+        return false;
+      }
+      if (!item.is_service && parseFloat(item.quantity) > item.available_qty && !allowInsufficientStock) {
         alert(`Insufficient stock for: ${item.material_name}`);
         return false;
       }
@@ -738,7 +740,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
 
   const buildDCData = (statusOverride?: string) => ({
     ...formData,
-    warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null,
+    warehouse_id: null,
     variant_id: formData.variant_id || null,
     eway_bill_date: formData.eway_bill_date || null,
     eway_valid_till: formData.eway_valid_till || null,
@@ -777,7 +779,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         const dcNumber = await generateDCNo(true); // true = reserve the number
         const dcDataWithNumber = { ...dcData, dc_number: dcNumber };
         
-        const { data, error } = await supabase.from('delivery_challans').insert(dcDataWithNumber).select().single();
+        const { data, error } = await supabase.from('delivery_challans').insert(dcDataWithNumber).select();
         
         if (error) {
           console.error('Error creating DC:', error);
@@ -786,7 +788,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           return;
         }
         
-        dcId = data.id;
+        dcId = data[0].id;
       }
       
       console.log('DC saved, ID:', dcId);
@@ -797,6 +799,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         material_id: item.material_id,
         variant_id: item.uses_variant && item.variant_id ? item.variant_id : null,
         make: item.make || null,
+        warehouse_id: item.warehouse_id || null,
         material_name: item.material_name,
         unit: item.unit,
         quantity: parseFloat(item.quantity),
@@ -817,25 +820,35 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         }
       }
       
-      if (formData.source_type === 'WAREHOUSE' && formData.warehouse_id) {
-        for (const item of validItems) {
-          if (item.is_service) continue; // Skip stock movement for services
-          
-          const { data: existing } = await supabase.from('item_stock')
-            .select('*')
-            .eq('item_id', item.material_id)
-            .eq('company_variant_id', item.uses_variant ? item.variant_id : null)
-            .eq('warehouse_id', formData.warehouse_id)
-            .single();
-          
-          if (existing) {
-            await supabase.from('item_stock')
-              .update({ 
-                current_stock: Math.max(0, (parseFloat(existing.current_stock) || 0) - parseFloat(item.quantity)),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existing.id);
-          }
+      // Deduct stock per item using each item's own warehouse_id
+      for (const item of validItems) {
+        if (item.is_service) continue;
+        const itemWarehouseId = item.warehouse_id;
+        if (!itemWarehouseId) continue;
+        
+        const variantId = item.uses_variant ? item.variant_id : null;
+        let stockQuery = supabase.from('item_stock')
+          .select('*')
+          .eq('item_id', item.material_id)
+          .eq('warehouse_id', itemWarehouseId);
+        
+        if (variantId) {
+          stockQuery = stockQuery.eq('company_variant_id', variantId);
+        } else {
+          stockQuery = stockQuery.is('company_variant_id', null);
+        }
+        
+        const { data: stockRows } = await stockQuery;
+        
+        if (stockRows && stockRows.length > 0) {
+          // Deduct from first matching stock row
+          const existing = stockRows[0];
+          await supabase.from('item_stock')
+            .update({ 
+              current_stock: Math.max(0, (parseFloat(existing.current_stock) || 0) - parseFloat(item.quantity)),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
         }
       }
       
@@ -1388,7 +1401,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                   <th className="col-item">ITEM</th>
                   <th className="col-variant">VARIANT</th>
                   <th className="col-make">MAKE</th>
-                  {formData.source_type === 'WAREHOUSE' && <th className="col-avail">AVAIL</th>}
+                  <th className="col-warehouse">WAREHOUSE</th>
+                  <th className="col-avail">AVAIL</th>
                   <th className="col-qty">QTY</th>
                   <th className="col-rate">RATE</th>
                   <th className="col-amount">AMOUNT</th>
@@ -1466,11 +1480,22 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                         ))}
                       </select>
                     </td>
-                    {formData.source_type === 'WAREHOUSE' && (
-                      <td className="col-shrink text-right cell-static avail-value">
-                        {!item.is_service ? item.available_qty.toFixed(2) : '-'}
-                      </td>
-                    )}
+                    <td className="col-shrink">
+                      <select
+                        className="cell-select"
+                        value={item.warehouse_id || ''}
+                        onChange={(e) => handleItemChange(item.id, 'warehouse_id', e.target.value)}
+                        disabled={isLocked || !item.material_id || formData.source_type === 'DIRECT'}
+                      >
+                        <option value="">Select</option>
+                        {warehouses.map(wh => (
+                          <option key={wh.id} value={wh.id}>{wh.warehouse_name || wh.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="col-shrink text-right cell-static avail-value">
+                      {!item.is_service ? item.available_qty.toFixed(2) : '-'}
+                    </td>
                     <td className="col-shrink">
                       <input 
                         type="number"
@@ -1505,7 +1530,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 
                 {/* Total Row mirroring Vyapar Screenshot */}
                 <tr className="total-row">
-                  <td colSpan={formData.source_type === 'WAREHOUSE' ? 4 : 3} className="total-label">TOTAL</td>
+                  <td colSpan={8} className="total-label">TOTAL</td>
                   <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>{totalQty.toFixed(2)}</td>
                   <td></td>
                   <td></td>

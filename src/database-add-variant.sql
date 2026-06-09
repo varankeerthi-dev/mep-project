@@ -99,6 +99,9 @@ ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAUL
 -- Add variant_id to delivery_challan_items
 ALTER TABLE delivery_challan_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);
 
+-- Add warehouse_id to delivery_challan_items
+ALTER TABLE delivery_challan_items ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id);
+
 -- ============================================
 -- CLIENT SHIPPING ADDRESSES
 -- ============================================
