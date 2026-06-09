@@ -2234,10 +2234,12 @@ const itemsToInsert = items.map(item => ({
     }
   };
 
-  const compactFieldStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '13px' };
-  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '6px' };
-  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '12px', color: '#374151' };
+  const compactFieldStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '12px' };
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
+  const sectionHeaderStyle = { fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '2px' };
+  const inputStyle = { padding: '4px 8px', fontSize: '12px' };
 
   const renderHeaderField = (label, field, isLast = false) => (
     <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
@@ -2382,376 +2384,147 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         </div>
 
         {/* Document Details Grid */}
-        <div className="bg-white border border-zinc-200 mb-10 shadow-sm p-[5px]">
-          <div className="px-5 py-4 border-b border-zinc-200 flex items-center gap-2">
-              <div className="w-1 h-5 bg-blue-600 rounded-sm"></div>
+        <div style={{ background: '#f8f9fa', padding: '10px', marginBottom: '10px', borderRadius: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 16px' }}>
+
+            {/* Column 1: DOCUMENT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Document</div>
+              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+                <span style={labelColStyle}>Quote No:</span>
+                <div style={{ flex: 1, display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', width: '45%' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>
+                  <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', minWidth: '40px' }}>Date:</span>
+                  <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+                </div>
+              </div>
+              {renderHeaderField('Prepared By:', <input type="text" className="form-input" style={inputStyle} value={formData.prepared_by || ''} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Sales executive..." />)}
+              {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
+              {renderHeaderField('Variant:', <select className="form-select" style={inputStyle} value={formData.variant_id} onChange={(e) => {
+                const newVariantId = e.target.value;
+                setFormData({ ...formData, variant_id: newVariantId });
+                if (items.length > 0) {
+                  setItems(prev => prev.map(item => {
+                    if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                    const mat = materials.find(m => m.id === item.item_id);
+                    if (!mat) return { ...item, variant_id: newVariantId || null };
+                    const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
+                    const variantDiscount = newVariantId ? (headerDiscounts[newVariantId] || 0) : 0;
+                    const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                    return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: variantDiscount, applied_discount_percent: variantDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
+                  }));
+                }
+              }}>
+                <option value="">Standard</option>
+                {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+              </select>)}
+              {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
+              {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr_400px] gap-12 px-10 pt-10 pb-10">
-              
-              {/* Column 1: DOCUMENT */}
-              <div className="space-y-8 pl-6">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-8">Document</h3>
-                
-                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px]">
-                  <div className="flex flex-col gap-2 pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-4 py-3 border border-zinc-200 bg-zinc-50 text-zinc-600 text-sm font-medium focus:outline-none transition-colors min-h-12 flex items-center">
-                      {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">Prepared By</label>
-                    <input 
-                      type="text" 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                      value={formData.prepared_by || ''} 
-                      onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
-                      placeholder="Sales executive..."
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px] pt-5">
-                  <div className="flex flex-col gap-2 pt-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">Quotation Date <span className="text-red-500">*</span></label>
-                    <input 
-                      type="date" 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                      value={formData.date} 
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">Valid Till</label>
-                    <input 
-                      type="date" 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                      value={formData.valid_till} 
-                      onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px]">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">Variant</label>
-                    <select 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                      value={formData.variant_id} 
-                      onChange={(e) => {
-                        const newVariantId = e.target.value;
-                        setFormData({ ...formData, variant_id: newVariantId });
-                        if (items.length > 0) {
-                          setItems(prev => prev.map(item => {
-                            if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
-                            const mat = materials.find(m => m.id === item.item_id);
-                            if (!mat) return { ...item, variant_id: newVariantId || null };
-                            const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
-                            const variantDiscount = newVariantId ? (headerDiscounts[newVariantId] || 0) : 0;
-                            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                            return {
-                              ...item,
-                              variant_id: newVariantId || null,
-                              base_rate_snapshot: newRate,
-                              discount_percent: variantDiscount,
-                              applied_discount_percent: variantDiscount,
-                              rate: finalRate,
-                              final_rate_snapshot: finalRate,
-                              is_override: false
-                            };
-                          }));
-                        }
-                      }}
-                    >
-                      <option value="">Standard</option>
-                      {variants.map(v => (
-                        <option key={v.id} value={v.id}>{v.variant_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">Reference</label>
-                    <input 
-                      type="text" 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                      value={formData.reference || ''} 
-                      onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
-                      placeholder="Client RFQ No..."
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-zinc-600 mb-2">Payment Terms</label>
-                  <input 
-                    type="text" 
-                    className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                    value={formData.payment_terms} 
-                    onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
-                    placeholder="Net 30 Days"
+            {/* Column 2: CLIENT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Client</div>
+              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+                <span style={labelColStyle}>Client:</span>
+                <div style={{ ...fieldColStyle, position: 'relative' }} className="client-dropdown-container">
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={inputStyle}
+                    placeholder="Search or select..."
+                    value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
+                    onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
+                    onClick={() => setIsClientDropdownOpen(true)}
+                    onFocus={() => setIsClientDropdownOpen(true)}
                   />
-                </div>
-              </div>
-
-              {/* Column 2: CLIENT */}
-              <div className="space-y-8">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-8">Client</h3>
-                
-                <div className="flex flex-col gap-2 client-dropdown-container">
-                  <label className="text-sm font-semibold text-zinc-600 mb-2">Client <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <div className="relative">
-                      <input 
-                        type="text"
-                        className="w-full px-3 py-2 border border-zinc-200 bg-white text-xs text-zinc-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-10"
-                        placeholder="Search or select..."
-                        value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
-                        onChange={(e) => {
-                          setClientSearch(e.target.value);
-                          setIsClientDropdownOpen(true);
-                        }}
-                        onClick={() => setIsClientDropdownOpen(true)}
-                        onFocus={() => setIsClientDropdownOpen(true)}
-                      />
-                    </div>
-                    {isClientDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-300 shadow-lg max-h-[300px] overflow-y-auto rounded-none">
-                        {clients
-                          .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
-                          .map(c => (
-                            <div 
-                              key={c.id}
-                              className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm border-b border-zinc-100 last:border-0"
-                              onClick={() => {
-                              handleClientChange(c.id);
-                              setClientSearch(c.client_name);
-                              setIsClientDropdownOpen(false);
-                              setClientSearch('');
-                            }}
-                            >
-                              {c.client_name}
-                            </div>
-                          ))}
-                        {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                          <div className="px-3 py-2 text-xs text-zinc-500 italic text-center bg-zinc-50">
-                            No clients found matching "{clientSearch}"
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 pt-2">
-                  <label className="text-sm font-semibold text-zinc-600 mb-2">Contact</label>
-                  <input 
-                    type="text" 
-                    className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                    value={formData.client_contact} 
-                    onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
-                    placeholder="+91 98765 43210"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-zinc-600 mb-2">Billing Address</label>
-                  <textarea 
-                    className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[60px] resize-y" 
-                    value={formData.billing_address} 
-                    onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
-                    placeholder="Full billing address..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-16 gap-y-6 pb-[18px]">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">GSTIN</label>
-                    <input 
-                      type="text" 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12" 
-                      value={formData.gstin} 
-                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
-                      placeholder="27AABCU9603R1ZX"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-zinc-600 mb-2">State</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
-                        value={formData.state} 
-                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      >
-                        <option value="">Select state...</option>
-                        {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <div className="absolute right-2 top-2 pointer-events-none">
-                        <svg className="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Column 3: PROJECT & DISCOUNTS */}
-              <div className="space-y-8">
-                <h3 className="text-xs font-semibold text-zinc-500 mb-8">Project</h3>
-                
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-zinc-600 mb-2">Project</label>
-                  <div className="relative">
-                    <select 
-                      className="w-full pl-[5px] pr-4 py-3 border border-zinc-200 bg-white text-sm text-zinc-800 focus:border-blue-500 focus:outline-none transition-colors min-h-12 appearance-none" 
-                      value={formData.project_id} 
-                      onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                    >
-                      <option value="">Select project...</option>
-                      {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
-                        <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-2 top-3 pointer-events-none">
-                      <svg className="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-semibold text-zinc-500">Discounts</h3>
-                    {variants.length > 0 && (
-                      <button 
-                        type="button" 
-                        className="text-[9px] font-bold text-blue-500 uppercase tracking-wider hover:text-blue-700 transition-colors"
-                        onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
-                      >
-                        {activeTab === 'items' ? 'View Approvals' : 'Back to Discounts'}
-                      </button>
-                    )}
-                  </div>
-                   
-                  {activeTab === 'items' ? (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-[10px]">
-                      {(() => {
-                        const renderVariants = [...variants];
-                        if (formData.include_erection_charges) {
-                          renderVariants.push({
-                            id: 'erection',
-                            variant_name: 'ERECTION CHARGES'
-                          });
-                        }
-                        
-                        return renderVariants.length > 0 ? renderVariants.map((variant) => {
-                          const settings = discountSettings[variant.id];
-                          const discountValue = headerDiscounts[variant.id] || 0;
-                          const approvalDisplay = getApprovalDisplayStatus(variant.id);
-                        
-                          return (
-                            <div key={variant.id} className="flex items-center justify-between bg-white min-h-[40px] px-2.5 py-1">
-                              <span className="text-xs font-bold text-zinc-700 mr-2 break-words">
-                                {variant.variant_name}
-                              </span>
-                              {approvalDisplay !== 'none' && (
-                                <span className={`text-[8px] px-1 py-0.5 rounded-none font-bold uppercase tracking-tighter mr-1 ${
-                                  approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
-                                  approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
-                                }`}>
-                                  {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
-                                </span>
-                              )}
-                              <div className="flex items-center border border-zinc-200 rounded-none bg-white shadow-sm shrink-0 h-[40px] w-[100px] hover:border-blue-400 hover:shadow-md transition-all" title="Enter the discount percentage">
-                                <input
-                                  type="number"
-                                  className="flex-1 px-2.5 text-right text-sm font-bold text-zinc-600 bg-transparent outline-none h-full hover:bg-zinc-50 transition-colors"
-                                  value={headerDiscounts[variant.id] || 0}
-                                  onChange={(e) => {
-                                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                                    setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                                  }}
-                                  onBlur={(e) => {
-                                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                                    handleHeaderDiscountChange(variant.id, val);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') e.target.blur();
-                                  }}
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                />
-                                <div className="px-2.5 text-sm font-bold text-zinc-400 border-l border-zinc-200 h-full flex items-center">
-                                  %
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }) : (
-                          <div className="col-span-2 text-xs text-zinc-500 italic p-2 border border-zinc-100 bg-zinc-50">
-                            No variants available.
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-zinc-500 italic p-2 border border-zinc-100 bg-zinc-50">
-                      Approval history shown below.
+                  {isClientDropdownOpen && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {clients
+                        .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                        .map(c => (
+                          <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            onClick={() => { handleClientChange(c.id); setClientSearch(c.client_name); setIsClientDropdownOpen(false); setClientSearch(''); }}
+                          >{c.client_name}</div>
+                        ))}
+                      {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                        <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No clients found</div>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
+              {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
+              {renderHeaderField('Address:', <textarea className="form-input" style={{ ...inputStyle, minHeight: '40px', resize: 'vertical' }} value={formData.billing_address} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Full billing address..." />)}
+              {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
+              {renderHeaderField('State:', <select className="form-select" style={inputStyle} value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })}>
+                <option value="">Select state...</option>
+                {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>, true)}
             </div>
 
-            {/* Approval History Tab Content */}
-            {activeTab === 'approval' && (
-              <div className="px-5 pb-5 pt-2 border-t border-zinc-100">
-                {approvalHistory.length === 0 ? (
-                  <div className="py-6 text-center text-zinc-500 italic text-xs">
-                    No approval history found for this document.
+            {/* Column 3: PROJECT & DISCOUNTS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Project</div>
+              {renderHeaderField('Project:', <select className="form-select" style={inputStyle} value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}>
+                <option value="">Select project...</option>
+                {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
+                  <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
+                ))}
+              </select>)}
+              
+              {/* Discounts */}
+              <div style={{ marginTop: '4px' }}>
+                <div style={{ ...sectionHeaderStyle, marginBottom: '6px' }}>Discounts</div>
+                {activeTab === 'items' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
+                    {(() => {
+                      const renderVariants = [...variants];
+                      if (formData.include_erection_charges) {
+                        renderVariants.push({ id: 'erection', variant_name: 'ERECTION CHARGES' });
+                      }
+                      return renderVariants.length > 0 ? renderVariants.map((variant) => {
+                        const approvalDisplay = getApprovalDisplayStatus(variant.id);
+                        return (
+                          <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '4px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
+                            <span style={{ fontWeight: 600, color: '#374151', marginRight: '4px', fontSize: '10px' }}>{variant.variant_name}</span>
+                            {approvalDisplay !== 'none' && (
+                              <span style={{ fontSize: '8px', padding: '1px 4px', fontWeight: 700, borderRadius: '2px', marginRight: '4px', background: approvalDisplay === 'approved' ? '#10b981' : approvalDisplay === 'pending' ? '#f59e0b' : '#ef4444', color: 'white' }}>
+                                {approvalDisplay === 'approved' ? 'App' : approvalDisplay === 'pending' ? 'Pend' : 'Rej'}
+                              </span>
+                            )}
+                            <input type="number" style={{ width: '40px', padding: '2px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #e5e7eb', borderRadius: '2px' }}
+                              value={headerDiscounts[variant.id] || 0}
+                              onChange={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val })); }}
+                              onBlur={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); handleHeaderDiscountChange(variant.id, val); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                              min="0" max="100" step="0.01"
+                            />
+                            <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: '2px' }}>%</span>
+                          </div>
+                        );
+                      }) : <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>No variants available.</div>;
+                    })()}
                   </div>
                 ) : (
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-zinc-50 border-b border-zinc-100">
-                      <tr>
-                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Variant</th>
-                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Event</th>
-                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">By</th>
-                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Date</th>
-                        <th className="px-3 py-2 font-bold text-zinc-500 uppercase tracking-wider">Remark</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                      {approvalHistory.map((log) => {
-                        const variant = variants.find(v => v.id === log.variant_id);
-                        return (
-                          <tr key={log.id} className="hover:bg-zinc-50 transition-colors">
-                            <td className="px-3 py-2 font-bold text-zinc-700">{variant?.variant_name || '-'}</td>
-                            <td className="px-3 py-2 capitalize">{log.event_type}</td>
-                            <td className="px-3 py-2 text-zinc-500">{log.performed_by_email || '-'}</td>
-                            <td className="px-3 py-2 text-zinc-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
-                            <td className="px-3 py-2 text-zinc-500 italic">{log.remark || '-'}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>Approval history shown below.</div>
                 )}
               </div>
-            )}
 
-            {/* Bottom Options (Erection Charges) */}
-            <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/50 flex items-center gap-6">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  className="w-3.5 h-3.5 text-blue-600 border-zinc-300 rounded-none focus:ring-0 focus:ring-offset-0"
+              {/* Erection toggle */}
+              <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" className="form-checkbox" style={{ width: '14px', height: '14px' }}
                   checked={formData.include_erection_charges}
                   onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
                 />
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider group-hover:text-zinc-700 transition-colors">Include Erection Charges</span>
-              </label>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Erection Charges</span>
+              </div>
             </div>
+
           </div>
+        </div>
 
       <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
