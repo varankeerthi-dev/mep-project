@@ -214,6 +214,7 @@ function ItemsTab() {
   const { organisation } = useAuth();
   const organisationId = organisation?.id;
   const location = useLocation();
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(() => new URLSearchParams(location.search).get('add') === 'true');
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -1950,6 +1951,9 @@ function ItemsTab() {
             </Button>
             <Button size="sm" variant="outline" onClick={() => { setMultiItemRows([{ id: Date.now(), category: '', name: '', unit: 'nos', gst_rate: 18, hsn_code: '', uses_variant: false, inventory: 0 }]); setShowMultiItemModal(true); }} className="text-xs font-sans">
               <TableIcon className="w-4 h-4 mr-1" /> Multi-Item
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate('/store/adjust')} className="text-xs font-sans">
+              Adjust Stock
             </Button>
             <div className="relative">
               <Button size="sm" variant="outline" className="text-xs font-sans" onClick={() => setShowMoreDropdown(!showMoreDropdown)}>

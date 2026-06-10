@@ -181,6 +181,7 @@ const DCEdit = lazyAny(() => import('./pages/DCEdit'));
 const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
 const ModuleSettingsPage = lazyAny(() => import('./components/ModuleSettings'));
+const StockAdjustmentPage = lazyAny(() => import('./pages/StockAdjustment'));
 const HelpPage = lazyAny(() => import('./pages/HelpPage'));
 const ApprovalSettings = lazyAny(() => import('./components/ApprovalSettings'));
 const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/PaymentsHub'));
@@ -414,6 +415,7 @@ export default function App() {
       case '/store/outward': return <MaterialOutward />;
       case '/store/transfer': return <StockTransfer />;
       case '/store/stock': return <StockBalance />;
+      case '/store/adjust': return <StockAdjustmentPage />;
       case '/quick-stock-check': return <QuickStockCheck />;
       // Reports
       case '/reports': return <ReportsDashboard />;
