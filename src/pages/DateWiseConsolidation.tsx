@@ -167,7 +167,21 @@ export default function DateWiseConsolidation() {
                   <div key={dc.id} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-light)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                       <strong>{dc.dc_number}</strong>
-                      <span>{dc.client_name || '-'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {dc.rate_source && dc.rate_source !== 'base' && (
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            borderRadius: '3px',
+                            padding: '1px 4px',
+                            color: dc.rate_source === 'project' ? '#2563eb' : dc.rate_source === 'arc' ? '#16a34a' : '#ea580c',
+                            background: dc.rate_source === 'project' ? '#dbeafe' : dc.rate_source === 'arc' ? '#dcfce7' : '#fff7ed'
+                          }}>
+                            {dc.rate_source === 'project' ? 'P' : dc.rate_source === 'arc' ? 'A' : 'M'}
+                          </span>
+                        )}
+                        <span>{dc.client_name || '-'}</span>
+                      </div>
                     </div>
                     <table className="table">
                       <thead>

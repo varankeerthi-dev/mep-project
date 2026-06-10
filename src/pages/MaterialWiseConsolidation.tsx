@@ -24,7 +24,7 @@ export default function MaterialWiseConsolidation() {
     enabled: !!organisation?.id
   });
 
-  const { consolidatedData, dcColumns, summary } = useMemo(() => {
+  const { consolidatedData, dcColumns, summary, dcRateSourceMap } = useMemo(() => {
     const grouped: Record<string, {
       materialName: string;
       unit: string;
@@ -34,6 +34,7 @@ export default function MaterialWiseConsolidation() {
       totalAmount: number;
     }> = {};
     const dcMap: Record<string, any> = {};
+    const dcRateSourceMap: Record<string, string> = {};
     
     rawData.forEach((item: any) => {
       const key = `${item.material_name}-${item.size || ''}`;
@@ -52,6 +53,9 @@ export default function MaterialWiseConsolidation() {
       const dcKey = `${item.delivery_challan?.dc_number}-${item.delivery_challan?.dc_date}`;
       if (!dcMap[dcKey]) {
         dcMap[dcKey] = { dcNumber: item.delivery_challan?.dc_number, dcDate: item.delivery_challan?.dc_date, qty: 0 };
+      }
+      if (!dcRateSourceMap[dcKey]) {
+        dcRateSourceMap[dcKey] = item.delivery_challan?.rate_source || 'base';
       }
       
       grouped[key].dcItems.push({
@@ -79,7 +83,7 @@ export default function MaterialWiseConsolidation() {
     const totalQuantity = sortedData.reduce((sum, item) => sum + item.totalQuantity, 0);
     const totalAmount = sortedData.reduce((sum, item) => sum + item.totalAmount, 0);
     
-    return { consolidatedData: sortedData, dcColumns, summary: { uniqueMaterials, totalQuantity, totalAmount } };
+    return { consolidatedData: sortedData, dcColumns, summary: { uniqueMaterials, totalQuantity, totalAmount }, dcRateSourceMap };
   }, [rawData]);
 
   const handleFilterChange = (e) => {
@@ -192,9 +196,24 @@ export default function MaterialWiseConsolidation() {
                     <th>Size</th>
                     {dcColumns.slice(0, 6).map(dc => {
                       const [dcNumber, dcDate] = dc.split('|');
+                      const rateSource = dcRateSourceMap?.[dc] || 'base';
                       return (
                         <th key={dc} style={{ minWidth: '100px', textAlign: 'center' }}>
-                          <div style={{ fontSize: '10px' }}>{dcNumber}</div>
+                          <div style={{ fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                            {rateSource !== 'base' && (
+                              <span style={{
+                                fontSize: '8px',
+                                fontWeight: 700,
+                                borderRadius: '2px',
+                                padding: '0 2px',
+                                color: rateSource === 'project' ? '#2563eb' : rateSource === 'arc' ? '#16a34a' : '#ea580c',
+                                background: rateSource === 'project' ? '#dbeafe' : rateSource === 'arc' ? '#dcfce7' : '#fff7ed'
+                              }}>
+                                {rateSource === 'project' ? 'P' : rateSource === 'arc' ? 'A' : 'M'}
+                              </span>
+                            )}
+                            {dcNumber}
+                          </div>
                           <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
                             {dcDate ? format(new Date(dcDate), 'dd/MM') : ''}
                           </div>

@@ -31,6 +31,7 @@ export interface DeliveryChallan {
   vehicle_number?: string
   driver_name?: string
   dc_type?: string
+  rate_source?: 'base' | 'project' | 'arc' | 'manual'
   remarks?: string
   status?: string
   created_at?: string
@@ -488,6 +489,7 @@ export async function getConsolidationDateWise(filters: DCFilters = {}, orgId?: 
       dc_number,
       dc_date,
       client_name,
+      rate_source,
       items:delivery_challan_items(
         id,
         material_name,
@@ -539,7 +541,7 @@ export async function getConsolidationMaterialWise(_filters: DCFilters = {}, org
     .from('delivery_challan_items')
     .select(`
       *,
-      delivery_challan:delivery_challans(dc_number, dc_date, client_name)
+      delivery_challan:delivery_challans(dc_number, dc_date, client_name, rate_source)
     `)
     .in('delivery_challan_id', challanIds);
 
@@ -1117,4 +1119,31 @@ export async function saveBOQWithItems(
 
   await Promise.all(sheetOperations);
   return headerId;
+}
+
+// Fetch project-specific rates for items
+export async function getProjectRates(
+  projectId: string,
+  itemIds: string[]
+): Promise<Record<string, number>> {
+  if (!projectId || itemIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('project_rates')
+    .select('item_id, rate')
+    .eq('project_id', projectId)
+    .in('item_id', itemIds);
+
+  if (error) {
+    console.error('Error fetching project rates:', error);
+    return {};
+  }
+
+  const map: Record<string, number> = {};
+  data?.forEach(r => {
+    if (r.item_id && r.rate !== null && r.rate !== undefined) {
+      map[r.item_id] = Number(r.rate);
+    }
+  });
+  return map;
 }

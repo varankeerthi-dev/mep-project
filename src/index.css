@@ -2486,6 +2486,10 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
+  button[role="switch"] {
+    border-radius: 9999px !important;
+  }
   
   /* Hide number input arrow spinners */
   input[type="number"]::-webkit-outer-spin-button,

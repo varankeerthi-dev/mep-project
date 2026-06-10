@@ -14,6 +14,8 @@ import {
   type ConvertedQuotationItem,
   type ConvertedDCItem,
   type ConversionResult,
+  type MultiDCQuotationMode,
+  type DCAllocation,
 } from './types';
 
 // Fetch source document based on conversion type
@@ -534,6 +536,7 @@ export function getSourceStatusAfterConversion(conversionType: ConversionType): 
     'dc-to-quotation': 'Converted to Quotation',
     'dc-to-proforma': 'Converted to Proforma',
     'proforma-to-invoice': 'Converted to Invoice',
+    'multi-dc-to-quotation': 'Converted to Quotation',
   };
 
   return statusMap[conversionType];
@@ -545,4 +548,260 @@ export function getSourceTableName(conversionType: ConversionType): string {
   if (conversionType.startsWith('dc-')) return 'delivery_challans';
   if (conversionType === 'proforma-to-invoice') return 'proforma_invoices';
   throw new Error(`Unknown conversion type: ${conversionType}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Multi-DC → Quotation functions
+// ═══════════════════════════════════════════════════════════════════════
+
+// Fetch multiple DCs for conversion
+export async function fetchMultipleDCsForConversion(
+  dcIds: string[],
+  organisationId: string
+): Promise<DCSourceData[]> {
+  const { data, error } = await supabase
+    .from('delivery_challans')
+    .select(`
+      id,
+      dc_number,
+      client_name,
+      project_id,
+      ship_to_state,
+      po_no,
+      remarks,
+      dc_date,
+      items:delivery_challan_items(
+        id,
+        material_id,
+        material_name,
+        quantity,
+        rate,
+        amount
+      )
+    `)
+    .in('id', dcIds)
+    .eq('organisation_id', organisationId);
+
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('No Delivery Challans found');
+
+  return data.map((dc: any) => ({
+    id: dc.id,
+    dc_number: dc.dc_number,
+    client_name: dc.client_name,
+    client_id: null,
+    project_id: dc.project_id,
+    ship_to_state: dc.ship_to_state || '',
+    po_no: dc.po_no || '',
+    remarks: dc.remarks,
+    dc_date: dc.dc_date,
+    items: (dc.items || []).map((item: any) => ({
+      id: item.id,
+      material_id: item.material_id,
+      material_name: item.material_name,
+      quantity: Number(item.quantity),
+      rate: Number(item.rate),
+      amount: Number(item.amount),
+    })),
+  }));
+}
+
+// Validate that all DCs belong to the same client
+export async function validateDCsSameClient(
+  dcIds: string[],
+  organisationId: string
+): Promise<{ valid: boolean; clientName?: string; clientId?: string; error?: string }> {
+  const { data, error } = await supabase
+    .from('delivery_challans')
+    .select('id, client_name')
+    .in('id', dcIds)
+    .eq('organisation_id', organisationId);
+
+  if (error) throw error;
+
+  const clientNames = [...new Set(data.map((dc: any) => dc.client_name).filter(Boolean))];
+  if (clientNames.length === 0) {
+    return { valid: false, error: 'No client found on selected DCs' };
+  }
+  if (clientNames.length > 1) {
+    return { valid: false, error: `Multiple clients found: ${clientNames.join(', ')}. All DCs must be from the same client.` };
+  }
+
+  // Resolve client_id
+  const clientId = await resolveClientIdFromName(clientNames[0], organisationId);
+
+  return { valid: true, clientName: clientNames[0], clientId };
+}
+
+// Transform multiple DCs into a single quotation (Single Total mode)
+export function transformMultiDC_SingleTotal(
+  sources: DCSourceData[],
+  clientId: string
+): ConversionResult {
+  const allItems: ConvertedQuotationItem[] = [];
+  sources.forEach(dc => {
+    dc.items.forEach(item => {
+      allItems.push({
+        item_id: item.material_id,
+        description: item.material_name,
+        qty: item.quantity,
+        rate: item.rate,
+        tax_percent: 18,
+        uom: 'nos',
+      });
+    });
+  });
+
+  const data: ConvertedQuotationData = {
+    client_id: clientId,
+    project_id: sources[0]?.project_id || null,
+    billing_address: null,
+    gstin: null,
+    state: sources[0]?.ship_to_state || null,
+    date: new Date().toISOString().split('T')[0],
+    valid_till: null,
+    payment_terms: null,
+    reference: sources.map(s => s.dc_number).join(', '),
+    remarks: sources.map(s => s.remarks).filter(Boolean).join('; ') || null,
+    items: allItems,
+  };
+
+  return {
+    data,
+    sourceType: 'Delivery Challan',
+    sourceNumber: sources.map(s => s.dc_number).join(', '),
+    conversionType: 'multi-dc-to-quotation',
+    targetDocumentType: 'quotation',
+  };
+}
+
+// Transform multiple DCs into a quotation grouped by DC
+export function transformMultiDC_GroupedByDC(
+  sources: DCSourceData[],
+  clientId: string
+): ConversionResult {
+  const allItems: ConvertedQuotationItem[] = [];
+  sources.forEach(dc => {
+    // Add a header row for each DC
+    allItems.push({
+      item_id: null,
+      description: `── DC: ${dc.dc_number} (${dc.dc_date}) ──`,
+      qty: 0,
+      rate: 0,
+      tax_percent: 0,
+      uom: '',
+    });
+    // Add items under this DC
+    dc.items.forEach(item => {
+      allItems.push({
+        item_id: item.material_id,
+        description: item.material_name,
+        qty: item.quantity,
+        rate: item.rate,
+        tax_percent: 18,
+        uom: 'nos',
+      });
+    });
+  });
+
+  const data: ConvertedQuotationData = {
+    client_id: clientId,
+    project_id: sources[0]?.project_id || null,
+    billing_address: null,
+    gstin: null,
+    state: sources[0]?.ship_to_state || null,
+    date: new Date().toISOString().split('T')[0],
+    valid_till: null,
+    payment_terms: null,
+    reference: sources.map(s => s.dc_number).join(', '),
+    remarks: sources.map(s => s.remarks).filter(Boolean).join('; ') || null,
+    items: allItems,
+  };
+
+  return {
+    data,
+    sourceType: 'Delivery Challan',
+    sourceNumber: sources.map(s => s.dc_number).join(', '),
+    conversionType: 'multi-dc-to-quotation',
+    targetDocumentType: 'quotation',
+  };
+}
+
+// Transform multiple DCs into a quotation with one row per DC
+export function transformMultiDC_OneRowPerDC(
+  sources: DCSourceData[],
+  clientId: string
+): ConversionResult {
+  const allItems: ConvertedQuotationItem[] = [];
+  sources.forEach(dc => {
+    const totalAmount = dc.items.reduce((sum, item) => sum + item.amount, 0);
+    const totalQty = dc.items.reduce((sum, item) => sum + item.quantity, 0);
+    allItems.push({
+      item_id: null,
+      description: `Delivery Challan ${dc.dc_number} (${dc.dc_date}) - ${dc.items.length} items`,
+      qty: totalQty,
+      rate: totalAmount > 0 && totalQty > 0 ? totalAmount / totalQty : 0,
+      tax_percent: 18,
+      uom: 'nos',
+    });
+  });
+
+  const data: ConvertedQuotationData = {
+    client_id: clientId,
+    project_id: sources[0]?.project_id || null,
+    billing_address: null,
+    gstin: null,
+    state: sources[0]?.ship_to_state || null,
+    date: new Date().toISOString().split('T')[0],
+    valid_till: null,
+    payment_terms: null,
+    reference: sources.map(s => s.dc_number).join(', '),
+    remarks: sources.map(s => s.remarks).filter(Boolean).join('; ') || null,
+    items: allItems,
+  };
+
+  return {
+    data,
+    sourceType: 'Delivery Challan',
+    sourceNumber: sources.map(s => s.dc_number).join(', '),
+    conversionType: 'multi-dc-to-quotation',
+    targetDocumentType: 'quotation',
+  };
+}
+
+// Save DC links for a quotation
+export async function saveQuotationDCLinks(
+  quotationId: string,
+  allocations: DCAllocation[]
+): Promise<void> {
+  // Delete existing links
+  await supabase.from('quotation_dc_links').delete().eq('quotation_id', quotationId);
+
+  if (allocations.length === 0) return;
+
+  const links = allocations.map(a => ({
+    quotation_id: quotationId,
+    delivery_challan_id: a.dc_id,
+    allocated_amount: a.allocated_amount,
+  }));
+
+  const { error } = await supabase.from('quotation_dc_links').insert(links);
+  if (error) throw error;
+}
+
+// Load DC links for a quotation
+export async function loadQuotationDCLinks(quotationId: string): Promise<DCAllocation[]> {
+  const { data, error } = await supabase
+    .from('quotation_dc_links')
+    .select('delivery_challan_id, allocated_amount, dc:delivery_challans(id, dc_number, dc_date, client_name)')
+    .eq('quotation_id', quotationId);
+
+  if (error) throw error;
+
+  return (data || []).map((link: any) => ({
+    dc_id: link.delivery_challan_id,
+    dc_number: link.dc?.dc_number || '',
+    allocated_amount: Number(link.allocated_amount),
+    items: [], // Will be loaded separately if needed
+  }));
 }

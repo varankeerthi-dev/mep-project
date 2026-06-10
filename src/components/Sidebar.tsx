@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import * as HeroIcons from '@heroicons/react/24/outline';
+import { useOrgModules } from '../hooks/useOrgModules';
 
 type SubmenuItem = {
   id: string;
@@ -26,6 +27,38 @@ type SidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
   mobileOpen: boolean;
+};
+
+// Maps sidebar menu IDs to module-registry IDs
+const SIDEBAR_MODULE_MAP: Record<string, string> = {
+  dashboard: 'dashboard',
+  'projects-overview': 'projects',
+  projects: 'projects',
+  tools: 'tools_management',
+  approvals: 'approvals',
+  todo: 'daily_updates',
+  'follow-up': 'follow_up',
+  'payments-hub': 'ledger',
+  clients: 'clients',
+  'site-visit': 'site_visits',
+  'site-report': 'site_reports',
+  'client-communication': 'site_reports',
+  subcontractor: 'subcontractors',
+  quotation: 'quotations',
+  invoice: 'invoices',
+  'proforma-invoices': 'proforma_invoices',
+  'credit-notes': 'credit_notes',
+  ledger: 'ledger',
+  boq: 'boq',
+  issue: 'site_reports',
+  procurement: 'materials',
+  store: 'materials',
+  purchase: 'purchase',
+  manufacturing: 'manufacturing',
+  dc: 'delivery_challans',
+  'client-po': 'client_purchase_orders',
+  'non-billable-dc': 'delivery_challans',
+  reports: 'reports',
 };
 
 const menuData: MenuSection[] = [
@@ -186,6 +219,25 @@ const menuData: MenuSection[] = [
     ]
   },
   {
+    section: 'Manufacturing',
+    items: [
+      { 
+        id: 'manufacturing', 
+        label: 'Manufacturing', 
+        submenu: [
+          { id: 'mfg-dashboard', label: 'Dashboard', path: '/manufacturing' },
+          { id: 'mfg-boms', label: 'BOMs', path: '/manufacturing/boms' },
+          { id: 'mfg-schedules', label: 'Production Schedules', path: '/manufacturing/schedules' },
+          { id: 'mfg-job-cards', label: 'Job Cards', path: '/manufacturing/job-cards' },
+          { id: 'mfg-production', label: 'Production Entry', path: '/manufacturing/production' },
+          { id: 'mfg-custom-units', label: 'Custom Units', path: '/manufacturing/custom-units' },
+          { id: 'mfg-custom-fields', label: 'Custom Fields', path: '/manufacturing/custom-fields' },
+          { id: 'mfg-activity-log', label: 'Activity Log', path: '/manufacturing/activity-log' }
+        ]
+      }
+    ]
+  },
+  {
     section: 'Purchase',
     items: [
       { 
@@ -303,6 +355,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'payments-hub': 'WalletIcon',
   'purchase-payment-queue': 'ClockIcon',
   procurement: 'ClipboardDocumentListIcon',
+  manufacturing: 'Cog6ToothIcon',
   dc: 'TruckIcon',
   'non-billable-dc': 'TruckIcon',
   reports: 'ChartBarIcon',
@@ -320,6 +373,30 @@ const getIconComponent = (id: string) => {
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
   const isCollapsed = collapsed && !mobileOpen;
   const pathKey = (currentPath || '').split('?')[0];
+  const { data: modules } = useOrgModules();
+
+  const enabledModuleIds = useMemo(() => {
+    if (!modules) return null;
+    const set = new Set<string>();
+    for (const m of modules) {
+      if (m.enabled) set.add(m.moduleId);
+    }
+    return set;
+  }, [modules]);
+
+  const isModuleEnabled = useCallback((menuId: string): boolean => {
+    if (!enabledModuleIds) return true;
+    const moduleId = SIDEBAR_MODULE_MAP[menuId];
+    if (!moduleId) return true;
+    return enabledModuleIds.has(moduleId);
+  }, [enabledModuleIds]);
+
+  const filteredMenuData = useMemo(() => {
+    return menuData.map(section => ({
+      ...section,
+      items: section.items.filter(item => isModuleEnabled(item.id))
+    })).filter(section => section.items.length > 0);
+  }, [isModuleEnabled]);
 
   // Compute which menus to expand on first render only
   // (useState ignores the initial value after mount, so recomputing on path change was wasted work)
@@ -388,7 +465,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
         )}
       >
         <div className="sidebar-content">
-          {menuData.map(section => (
+          {filteredMenuData.map(section => (
             <div key={section.section} className="sidebar-section">
               {!isCollapsed && (
                 <div className="sidebar-section-title">

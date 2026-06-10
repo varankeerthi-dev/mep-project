@@ -5,9 +5,27 @@ export const conversionTypes = [
   'dc-to-quotation',
   'dc-to-proforma',
   'proforma-to-invoice',
+  'multi-dc-to-quotation',
 ] as const;
 
 export type ConversionType = (typeof conversionTypes)[number];
+
+export type MultiDCQuotationMode = 'single-total' | 'grouped-by-dc' | 'one-row-per-dc';
+
+export interface DCAllocation {
+  dc_id: string;
+  dc_number: string;
+  allocated_amount: number;
+  items: DCAllocationItem[];
+}
+
+export interface DCAllocationItem {
+  material_id: string | null;
+  material_name: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
 
 export interface ConversionPayload {
   type: ConversionType;

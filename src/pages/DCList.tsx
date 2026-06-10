@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjects } from '../hooks/useProjects';
+import { validateDCsSameClient } from '../conversions/api';
+import type { MultiDCQuotationMode } from '../conversions/types';
 import {
   Truck as LocalShippingIcon,
   Plus as PlusIcon,
@@ -21,6 +23,7 @@ import {
   Search as SearchIcon,
   MoreHorizontal as MoreHorizontalIcon,
   ChevronDown as ChevronDownIcon,
+  CheckSquare as CheckSquareIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -57,6 +60,12 @@ export default function DCList() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
+
+  // Multi-DC selection state
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedDCIds, setSelectedDCIds] = useState<Set<string>>(new Set());
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [multiDCError, setMultiDCError] = useState('');
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -549,6 +558,53 @@ export default function DCList() {
     setConvertDC(null);
   };
 
+  // Multi-DC handlers
+  const toggleMultiSelectMode = () => {
+    setMultiSelectMode(prev => !prev);
+    setSelectedDCIds(new Set());
+    setMultiDCError('');
+  };
+
+  const toggleDCSelection = (dcId: string) => {
+    setSelectedDCIds(prev => {
+      const next = new Set(prev);
+      if (next.has(dcId)) {
+        next.delete(dcId);
+      } else {
+        next.add(dcId);
+      }
+      return next;
+    });
+    setMultiDCError('');
+  };
+
+  const selectAllVisible = () => {
+    const visibleIds = new Set(paginationData.currentItems.map((dc: any) => dc.id));
+    setSelectedDCIds(prev => {
+      const allSelected = visibleIds.size === prev.size && [...visibleIds].every(id => prev.has(id));
+      return allSelected ? new Set() : visibleIds;
+    });
+  };
+
+  const handleMultiDCConvert = async () => {
+    if (selectedDCIds.size < 2) {
+      setMultiDCError('Select at least 2 DCs to convert');
+      return;
+    }
+    setMultiDCError('');
+    setShowModeModal(true);
+  };
+
+  const handleModeSelect = async (mode: MultiDCQuotationMode) => {
+    setShowModeModal(false);
+    // Client validation happens in the conversion hook
+    const dcIdArray = Array.from(selectedDCIds);
+    const modeParam = mode === 'single-total' ? '' : `&multiDCMode=${mode}`;
+    navigate(`/quotation/create?convertFrom=multi-dc-to-quotation&sourceId=${dcIdArray[0]}&dcIds=${dcIdArray.join(',')}${modeParam}`);
+    setMultiSelectMode(false);
+    setSelectedDCIds(new Set());
+  };
+
   const calculateTotal = (items: any[]) => {
     if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -592,6 +648,17 @@ export default function DCList() {
             <PlusIcon className="w-4 h-4" />
             Create DC
           </button>
+          <button
+            onClick={toggleMultiSelectMode}
+            className={`inline-flex items-center justify-center gap-2 px-4 h-[30px] text-sm font-medium rounded-lg transition-colors ${
+              multiSelectMode
+                ? 'text-white bg-indigo-600 hover:bg-indigo-700 border border-indigo-600'
+                : 'text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900'
+            }`}
+          >
+            <CheckSquareIcon className="w-4 h-4" />
+            {multiSelectMode ? 'Cancel Selection' : 'Multi-Select'}
+          </button>
         </div>
       </div>
 
@@ -628,12 +695,47 @@ export default function DCList() {
         </div>
       </div>
 
+      {/* Multi-Select Bulk Action Bar */}
+      {multiSelectMode && (
+        <div className="flex items-center gap-4 px-6 py-3 border-b border-indigo-200 bg-indigo-50">
+          <button
+            onClick={selectAllVisible}
+            className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
+          >
+            {selectedDCIds.size === paginationData.currentItems.length ? 'Deselect All' : 'Select All Visible'}
+          </button>
+          <span className="text-sm text-indigo-600">{selectedDCIds.size} DC(s) selected</span>
+          {multiDCError && <span className="text-sm text-red-600">{multiDCError}</span>}
+          <button
+            onClick={handleMultiDCConvert}
+            disabled={selectedDCIds.size < 2}
+            className={`ml-auto px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              selectedDCIds.size >= 2
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+            }`}
+          >
+            Convert to Quotation
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <div className="min-w-full">
           <table className="w-full border-separate border-spacing-0 table-fixed">
             <thead className="sticky top-0 z-10">
               <tr className="bg-blue-100/80 border-b border-blue-200">
+                {multiSelectMode && (
+                  <th className="h-[36px] px-3 text-center align-middle w-[40px] border-r border-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={selectedDCIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
+                      onChange={selectAllVisible}
+                      className="w-4 h-4 accent-indigo-600"
+                    />
+                  </th>
+                )}
                 <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[120px] border-r border-zinc-200">
                   Date
                 </th>
@@ -673,9 +775,20 @@ export default function DCList() {
                     key={dc.id}
                     className={`hover:bg-zinc-50 cursor-pointer transition-all duration-150 ${
                       index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
-                    }`}
-                    onClick={() => navigate(`/dc/view/${dc.id}`)}
+                    } ${selectedDCIds.has(dc.id) ? 'bg-indigo-50' : ''}`}
+                    onClick={() => multiSelectMode ? toggleDCSelection(dc.id) : navigate(`/dc/view/${dc.id}`)}
                   >
+                    {multiSelectMode && (
+                      <td className="px-3 text-center align-middle border-r border-zinc-100 border-t border-zinc-200/70">
+                        <input
+                          type="checkbox"
+                          checked={selectedDCIds.has(dc.id)}
+                          onChange={() => toggleDCSelection(dc.id)}
+                          className="w-4 h-4 accent-indigo-600"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-6 align-middle text-sm font-semibold text-zinc-900 whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
                       {formatDate(dc.dc_date)}
                     </td>
@@ -691,16 +804,23 @@ export default function DCList() {
                       {formatCurrency(calculateTotal(dc.items))}
                     </td>
                     <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-zinc-100 border-t border-zinc-200/70">
-                      <span
-                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
-                        style={{
-                          backgroundColor: getStatusColor(dc.status).bg,
-                          color: getStatusColor(dc.status).color,
-                          borderColor: getStatusColor(dc.status).color + '20',
-                        }}
-                      >
-                        {dc.status || 'Active'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
+                          style={{
+                            backgroundColor: getStatusColor(dc.status).bg,
+                            color: getStatusColor(dc.status).color,
+                            borderColor: getStatusColor(dc.status).color + '20',
+                          }}
+                        >
+                          {dc.status || 'Active'}
+                        </span>
+                        {dc.conversion_status === 'quoted' && (
+                          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                            Quoted
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 pl-1 py-6 align-middle text-center border-t border-zinc-200/70">
                       <div className="flex items-center justify-center gap-2">
@@ -987,6 +1107,51 @@ export default function DCList() {
              <div className="px-8 py-6 bg-zinc-50 flex justify-end">
                 <button onClick={() => {setShowPrintMenu(false); setPrintMenuDC(null);}} className="text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors">Close</button>
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-DC Mode Selection Modal */}
+      {showModeModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-8 py-6 border-b border-zinc-100 bg-zinc-50/50">
+              <h3 className="text-xl font-black text-zinc-900">Quotation Layout</h3>
+              <p className="text-sm font-bold text-zinc-400 mt-1 uppercase tracking-widest">
+                {selectedDCIds.size} DCs selected
+              </p>
+            </div>
+            <div className="p-8 space-y-3">
+              <button
+                onClick={() => handleModeSelect('single-total')}
+                className="w-full p-6 text-left rounded-2xl border-2 border-zinc-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all"
+              >
+                <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">Single Total</p>
+                <p className="text-xs font-bold text-zinc-500 mt-1">All items merged into one flat list with a single grand total</p>
+              </button>
+              <button
+                onClick={() => handleModeSelect('grouped-by-dc')}
+                className="w-full p-6 text-left rounded-2xl border-2 border-zinc-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all"
+              >
+                <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">Grouped by DC</p>
+                <p className="text-xs font-bold text-zinc-500 mt-1">Each DC has a header row with its items listed below</p>
+              </button>
+              <button
+                onClick={() => handleModeSelect('one-row-per-dc')}
+                className="w-full p-6 text-left rounded-2xl border-2 border-zinc-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all"
+              >
+                <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">One Row per DC</p>
+                <p className="text-xs font-bold text-zinc-500 mt-1">Each DC appears as a single summary row with total qty and amount</p>
+              </button>
+            </div>
+            <div className="px-8 py-6 border-t border-zinc-100 flex justify-end">
+              <button
+                onClick={() => setShowModeModal(false)}
+                className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

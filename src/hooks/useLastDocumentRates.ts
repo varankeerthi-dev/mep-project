@@ -80,6 +80,25 @@ export function useLastDocumentRates(
         throw invoiceError;
       }
 
+      // 3. Fetch company variants to map variant names to IDs for legacy/missing variant_id cases
+      const { data: variantsData, error: variantsError } = await supabase
+        .from('company_variants')
+        .select('id, variant_name');
+
+      if (variantsError) {
+        console.error('Error fetching company variants for rate resolution:', variantsError);
+        throw variantsError;
+      }
+
+      const variantNameToIdMap: Record<string, string> = {};
+      if (variantsData) {
+        variantsData.forEach((v: any) => {
+          if (v.variant_name && v.id) {
+            variantNameToIdMap[v.variant_name.toLowerCase().trim()] = v.id;
+          }
+        });
+      }
+
       const ratesMap: LastRatesMap = {};
 
       // Helper function to normalise variant UUIDs for keys
@@ -117,7 +136,10 @@ export function useLastDocumentRates(
           const materialId = meta.material_id;
           if (!materialId || !row.invoices) return;
 
-          const variantId = meta.variant_id;
+          let variantId = meta.variant_id;
+          if (!variantId && meta.variant) {
+            variantId = variantNameToIdMap[meta.variant.toLowerCase().trim()];
+          }
           const itemKey = getItemKey(materialId, variantId);
           // Prefer base_rate from meta_json, fallback to rate
           const rateVal = parseFloat(meta.base_rate) || parseFloat(row.rate) || 0;

@@ -346,6 +346,10 @@ export function composeInvoiceInput(
           variant: meta?.variant,
           base_rate: baseRate,
           discount_percent: discountPercent,
+          material_id: meta?.material_id,
+          variant_id: meta?.variant_id,
+          warehouse_id: meta?.warehouse_id,
+          is_service: meta?.is_service,
         },
       };
     }),

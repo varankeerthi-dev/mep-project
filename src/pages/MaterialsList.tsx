@@ -264,7 +264,8 @@ function ItemsTab() {
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
     uses_variant: false, track_inventory: false,
-    dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg'
+    dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
+    allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false
   });
 
   const [variantPricing, setVariantPricing] = useState([]);
@@ -1042,6 +1043,10 @@ function ItemsTab() {
       weight: formData.weight ? parseFloat(formData.weight) : null,
       weight_unit: formData.weight_unit || 'kg',
       item_type: 'product',
+      allow_purchase: formData.allow_purchase,
+      allow_sales: formData.allow_sales,
+      show_in_bom: formData.show_in_bom,
+      is_manufactured: formData.is_manufactured,
       organisation_id: organisation?.id
     };
 
@@ -1302,7 +1307,11 @@ function ItemsTab() {
       dimension: material.dimension || '',
       dimension_unit: material.dimension_unit || 'cm',
       weight: material.weight || '',
-      weight_unit: material.weight_unit || 'kg'
+      weight_unit: material.weight_unit || 'kg',
+      allow_purchase: material.allow_purchase !== false,
+      allow_sales: material.allow_sales !== false,
+      show_in_bom: material.show_in_bom !== false,
+      is_manufactured: material.is_manufactured === true
     });
     setShowForm(true);
     loadVariantPricing(material.id);
@@ -2602,6 +2611,73 @@ function ItemsTab() {
                 <div className="item-form-section-header">
                   <h4 className="item-form-section-title">Basic Information</h4>
                   <span className="item-form-section-hint">Required</span>
+                </div>
+                <div className="mb-4">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      {
+                        key: 'allow_purchase',
+                        label: 'Allow Purchase',
+                        description: 'Can be bought from vendors'
+                      },
+                      {
+                        key: 'allow_sales',
+                        label: 'Allow Sales',
+                        description: 'Can be sold to clients'
+                      },
+                      {
+                        key: 'show_in_bom',
+                        label: 'Show in BOM',
+                        description: 'Appears as raw material in BOMs'
+                      },
+                      {
+                        key: 'is_manufactured',
+                        label: 'Is Manufactured (Finished Good)',
+                        description: 'Produced via manufacturing, not purchased'
+                      }
+                    ].map((flag) => {
+                      const isActive = !!(formData as any)[flag.key];
+                      return (
+                        <button
+                          key={flag.key}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, [flag.key]: !isActive } as any)}
+                          className={`group min-w-0 rounded-md border px-2.5 py-2 text-left transition-all duration-200 hover:scale-[1.005] hover:shadow-sm ${
+                            isActive
+                              ? 'border-zinc-200 bg-white text-emerald-700'
+                              : 'border-zinc-200 bg-white text-zinc-500'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className={`text-[10px] leading-4 transition-all duration-200 ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                                {flag.label}
+                              </div>
+                              <div className="mt-0.5 text-[8px] leading-3 transition-all duration-200">
+                                <span className={isActive ? 'text-emerald-600' : 'text-zinc-400'}>
+                                  {flag.description}
+                                </span>{' '}
+                                <span className="text-amber-500">
+                                  {isActive ? 'Enabled' : 'Disabled'}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
+                              isActive
+                                ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                                : 'border-zinc-300 bg-white text-zinc-400'
+                            }`}>
+                              {isActive && (
+                                <svg className="h-2 w-2" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <path d="M4 10l3.5 3.5L16 5" />
+                                </svg>
+                              )}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">

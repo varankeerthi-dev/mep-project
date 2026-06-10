@@ -6,8 +6,13 @@ import {
   resolveClientIdFromName,
   getSourceStatusAfterConversion,
   getSourceTableName,
+  fetchMultipleDCsForConversion,
+  validateDCsSameClient,
+  transformMultiDC_SingleTotal,
+  transformMultiDC_GroupedByDC,
+  transformMultiDC_OneRowPerDC,
 } from './api';
-import type { ConversionType, ConversionResult } from './types';
+import type { ConversionType, ConversionResult, MultiDCQuotationMode } from './types';
 
 export function useConvertDocument(type: ConversionType, sourceId: string) {
   const { organisation } = useAuth();
@@ -42,6 +47,46 @@ export function useConversionStatus(conversionType: ConversionType) {
     status: getSourceStatusAfterConversion(conversionType),
     tableName: getSourceTableName(conversionType),
   };
+}
+
+// Hook for multi-DC conversion
+export function useConvertMultipleDCs(
+  dcIds: string[],
+  mode: MultiDCQuotationMode = 'single-total'
+) {
+  const { organisation } = useAuth();
+
+  return useQuery({
+    queryKey: ['multi-dc-conversion', dcIds, mode],
+    queryFn: async (): Promise<ConversionResult> => {
+      if (!organisation?.id) throw new Error('Organisation not found');
+      if (dcIds.length === 0) throw new Error('No DCs selected');
+
+      // Validate same client
+      const validation = await validateDCsSameClient(dcIds, organisation.id);
+      if (!validation.valid) throw new Error(validation.error);
+
+      // Fetch all DCs
+      const sources = await fetchMultipleDCsForConversion(dcIds, organisation.id);
+
+      // Resolve client_id on each source
+      sources.forEach(s => { s.client_id = validation.clientId || null; });
+
+      // Transform based on mode
+      switch (mode) {
+        case 'single-total':
+          return transformMultiDC_SingleTotal(sources, validation.clientId!);
+        case 'grouped-by-dc':
+          return transformMultiDC_GroupedByDC(sources, validation.clientId!);
+        case 'one-row-per-dc':
+          return transformMultiDC_OneRowPerDC(sources, validation.clientId!);
+        default:
+          return transformMultiDC_SingleTotal(sources, validation.clientId!);
+      }
+    },
+    enabled: !!organisation?.id && dcIds.length > 0,
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export { getSourceTableName };

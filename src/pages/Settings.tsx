@@ -3,19 +3,21 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { 
   Settings as SettingsIcon, User, FileText, Save, Plus, Trash2, Hash, 
-  FileCode, Receipt, Truck, LogOut as LogOutIcon, Users, CreditCard 
+  FileCode, Receipt, Truck, LogOut as LogOutIcon, Users, CreditCard,
+  LayoutGrid
 } from 'lucide-react';
 import PricingPage from './PricingPage';
 import { AddTeamMemberModal } from '../components/AddTeamMemberModal';
 import TemplateSettings from './TemplateSettings';
 import PrintSettings from './PrintSettings';
 import PrintTemplateBuilder from './PrintTemplateBuilder';
+import ModuleSettings from '../components/ModuleSettings';
 
 export default function SettingsPage() {
   const { user, organisation, handleLogout } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('modules');
   
   const [docSettings, setDocSettings] = useState({
     vendor_prefix: 'VEN', vendor_start_number: 1, vendor_suffix: '', vendor_padding: 3,
@@ -137,6 +139,7 @@ export default function SettingsPage() {
   };
 
   const navItems = [
+    { id: 'modules', label: 'Modules', icon: LayoutGrid },
     { id: 'general', label: 'General & Config', icon: SettingsIcon },
     { id: 'documents', label: 'Document Numbers', icon: Hash },
     { id: 'templates', label: 'Document Templates', icon: FileText },
@@ -217,6 +220,12 @@ export default function SettingsPage() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: '#fafafa' }}>
           <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
             
+            {activeTab === 'modules' && (
+              <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px', overflow: 'hidden' }}>
+                <ModuleSettings />
+              </div>
+            )}
+
             {activeTab === 'general' && (
               <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px' }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #e5e5e5' }}>

@@ -10,7 +10,8 @@ import { useUnits } from '../hooks/useUnits';
 import { useClients } from '../hooks/useClients';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { createDeliveryChallan } from '../api';
+import { createDeliveryChallan, getProjectRates } from '../api';
+import { fetchArcPricingForItems, getArcRateFromMap } from '../lib/arc-pricing';
 
 export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
   const { data: materials = [] } = useMaterials();
@@ -103,6 +104,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
     ship_to_contact: '',
     status: 'active',
     dc_type: 'non-billable',
+    rate_source: 'base',
     authorized_signatory_id: '',
     // organisation_id: organisation?.id || null
   });
@@ -112,6 +114,23 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
   ]);
   const [isDirty, setIsDirty] = useState(false);
   const [draggingItemId, setDraggingItemId] = useState(null);
+
+  // Project rates query - re-fetches when project_id changes
+  const projectRatesQuery = useQuery({
+    queryKey: ['project-rates-for-nbdc', formData.project_id, organisation?.id],
+    queryFn: () => getProjectRates(formData.project_id, materials.map(m => m.id)),
+    enabled: !!formData.project_id && !!materials.length && !!organisation?.id,
+  });
+  const projectRates = projectRatesQuery.data || {};
+
+  // ARC rates query - re-fetches when client changes
+  const arcClient = clients.find(c => c.client_name === formData.client_name);
+  const arcRatesQuery = useQuery({
+    queryKey: ['arc-rates-for-nbdc', arcClient?.id],
+    queryFn: () => fetchArcPricingForItems(arcClient!.id, materials.map(m => m.id)),
+    enabled: !!arcClient?.id && !!materials.length,
+  });
+  const arcPricingMap = arcRatesQuery.data || {};
 
   const handleDragStart = (e, id) => {
     setDraggingItemId(id);
@@ -186,11 +205,22 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
         dc_number: editDC.dc_number || '',
         variant_id: editDC.variant_id || '',
         eway_bill_date: editDC.eway_bill_date || '',
-        eway_valid_till: editDC.eway_valid_till || ''
+        eway_valid_till: editDC.eway_valid_till || '',
+        rate_source: editDC.rate_source || 'base'
       });
       loadExistingItems(editDC.id);
     }
   }, [editDC]);
+
+  // Auto-switch rate source when project or client is cleared
+  useEffect(() => {
+    if (!formData.project_id && formData.rate_source === 'project') {
+      setFormData(prev => ({ ...prev, rate_source: 'base' }));
+    }
+    if (!formData.client_name && formData.rate_source === 'arc') {
+      setFormData(prev => ({ ...prev, rate_source: 'base' }));
+    }
+  }, [formData.project_id, formData.client_name, formData.rate_source]);
 
   const loadExistingItems = async (dcId) => {
     const { data } = await supabase.from('delivery_challan_items').select('*').eq('delivery_challan_id', dcId);
@@ -289,6 +319,21 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
   };
 
   const getRate = (itemId, variantId) => {
+    // Strict mode: manual → user types rate, default 0
+    if (formData.rate_source === 'manual') return 0;
+
+    // Strict mode: project rate → ₹0 if missing (no fallback)
+    if (formData.rate_source === 'project') {
+      return projectRates[itemId] ?? 0;
+    }
+
+    // Strict mode: ARC rate → ₹0 if missing (no fallback)
+    if (formData.rate_source === 'arc') {
+      const arcRate = getArcRateFromMap(arcPricingMap, itemId, variantId);
+      return arcRate ?? 0;
+    }
+
+    // Base rate (default) → existing logic
     if (variantId && pricing[itemId]?.[variantId]) {
       return pricing[itemId][variantId];
     }
@@ -588,7 +633,8 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
         po_date: formData.po_date || null,
         project_id: formData.project_id || null,
         status: 'active',
-        dc_type: 'non-billable'
+        dc_type: 'non-billable',
+        rate_source: formData.rate_source
       };
       
       let dcId;
@@ -731,7 +777,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       
       <form onSubmit={handleSubmit}>
         <div style={{ background: '#f8f9fa', padding: '12px', marginBottom: '12px', borderRadius: '6px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>NB-DC No *</label>
               <input type="text" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.dc_number} disabled />
@@ -787,6 +833,15 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
               <select name="source_type" className="form-select" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.source_type} onChange={(e) => handleSourceTypeChange(e.target.value)} disabled={isLocked}>
                 <option value="WAREHOUSE">Warehouse</option>
                 <option value="DIRECT_SUPPLY">Direct</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Rate From</label>
+              <select name="rate_source" className="form-select" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.rate_source} onChange={handleInputChange} disabled={isLocked}>
+                <option value="base">Base Rate</option>
+                <option value="project" disabled={!formData.project_id}>Project Rate</option>
+                <option value="arc" disabled={!formData.client_name}>Client ARC</option>
+                <option value="manual">Manual Entry</option>
               </select>
             </div>
           </div>
@@ -933,15 +988,27 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
                       </select>
                     </td>
                     <td className="col-rate">
-                      <input 
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.rate}
-                        onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
-                        disabled={isLocked}
-                        placeholder="0"
-                        step="0.01"
-                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        {formData.rate_source === 'project' && (
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#2563eb', background: '#dbeafe', borderRadius: '3px', padding: '0 3px' }}>P</span>
+                        )}
+                        {formData.rate_source === 'arc' && (
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#16a34a', background: '#dcfce7', borderRadius: '3px', padding: '0 3px' }}>A</span>
+                        )}
+                        {formData.rate_source === 'manual' && (
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#ea580c', background: '#fff7ed', borderRadius: '3px', padding: '0 3px' }}>M</span>
+                        )}
+                        <input 
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.rate}
+                          onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
+                          disabled={isLocked || formData.rate_source === 'project' || formData.rate_source === 'arc'}
+                          placeholder="0"
+                          step="0.01"
+                          style={{ flex: 1 }}
+                        />
+                      </div>
                     </td>
                     <td className="col-amount cell-static text-right amount-value">
                       {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}

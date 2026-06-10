@@ -154,6 +154,20 @@ const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNote
 const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
+
+// Manufacturing
+const ManufacturingDashboard = lazyAny(() => import('./pages/manufacturing/ManufacturingDashboard'));
+const BOMList = lazyAny(() => import('./pages/manufacturing/BOMList'));
+const BOMEditor = lazyAny(() => import('./pages/manufacturing/BOMEditor'));
+const ProductionScheduleList = lazyAny(() => import('./pages/manufacturing/ProductionScheduleList'));
+const ProductionScheduleEditor = lazyAny(() => import('./pages/manufacturing/ProductionScheduleEditor'));
+const JobCardList = lazyAny(() => import('./pages/manufacturing/JobCardList'));
+const JobCardCreate = lazyAny(() => import('./pages/manufacturing/JobCardCreate'));
+const JobCardDetail = lazyAny(() => import('./pages/manufacturing/JobCardDetail'));
+const ProductionEntryForm = lazyAny(() => import('./pages/manufacturing/ProductionEntryForm'));
+const CustomUnits = lazyAny(() => import('./pages/manufacturing/CustomUnits'));
+const CustomFields = lazyAny(() => import('./pages/manufacturing/CustomFields'));
+const ActivityLog = lazyAny(() => import('./pages/manufacturing/ActivityLog'));
 const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
 const IssueAllList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueAllList })));
 const IssueDashboard = lazyAny(() => import('./issues/pages/IssueDashboard').then(m => ({ default: m.IssueDashboard })));
@@ -165,6 +179,7 @@ const Documents = lazyAny(() => ProjectManagementInternal.then(m => ({ default: 
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
 const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
+const ModuleSettingsPage = lazyAny(() => import('./components/ModuleSettings'));
 const HelpPage = lazyAny(() => import('./pages/HelpPage'));
 const ApprovalSettings = lazyAny(() => import('./components/ApprovalSettings'));
 const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/PaymentsHub'));
@@ -302,6 +317,21 @@ export default function App() {
       case '/follow-up': return <FollowUpCentre />;
       case '/boq': return <BOQList />;
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
+      // Manufacturing
+      case '/manufacturing': return <ManufacturingDashboard onNavigate={navigate} />;
+      case '/manufacturing/boms': return <BOMList onNavigate={navigate} />;
+      case '/manufacturing/boms/create': return <BOMEditor onSuccess={() => navigate('/manufacturing/boms')} onCancel={() => navigate('/manufacturing/boms')} />;
+      case '/manufacturing/boms/edit': return <BOMEditor onSuccess={() => navigate('/manufacturing/boms')} onCancel={() => navigate('/manufacturing/boms')} />;
+      case '/manufacturing/schedules': return <ProductionScheduleList onNavigate={navigate} />;
+      case '/manufacturing/schedules/create': return <ProductionScheduleEditor onSuccess={() => navigate('/manufacturing/schedules')} onCancel={() => navigate('/manufacturing/schedules')} />;
+      case '/manufacturing/schedules/edit': return <ProductionScheduleEditor onSuccess={() => navigate('/manufacturing/schedules')} onCancel={() => navigate('/manufacturing/schedules')} />;
+      case '/manufacturing/job-cards': return <JobCardList onNavigate={navigate} />;
+      case '/manufacturing/job-cards/create': return <JobCardCreate onSuccess={() => navigate('/manufacturing/job-cards')} onCancel={() => navigate('/manufacturing/job-cards')} />;
+      case '/manufacturing/production': return <ProductionEntryForm onNavigate={navigate} />;
+      case '/manufacturing/production/create': return <ProductionEntryForm onNavigate={navigate} />;
+      case '/manufacturing/custom-units': return <CustomUnits onNavigate={navigate} />;
+      case '/manufacturing/custom-fields': return <CustomFields onNavigate={navigate} />;
+      case '/manufacturing/activity-log': return <ActivityLog onNavigate={navigate} />;
       case '/documents': return <Documents />;
       case '/issue': return <IssueDashboard />;
       case '/issues': return <IssueListPage />;
@@ -383,6 +413,10 @@ export default function App() {
             return <MeasurementSheetWrapper workOrderId={id} onBack={() => navigate(`/subcontractors/workorders/${id}`)} onSuccess={() => navigate(`/subcontractors/workorders/${id}`)} />;
           }
           return <WorkOrderDetailView workOrderId={id} onNavigate={navigate} />;
+        }
+        if (pathKey.startsWith('/manufacturing/job-cards/')) {
+          const jobCardId = pathKey.split('/manufacturing/job-cards/')[1];
+          return <JobCardDetail jobCardId={jobCardId} onNavigate={navigate} />;
         }
         if (pathKey.startsWith('/meetings/') && pathKey.includes('/minutes')) {
           const meetingId = pathKey.split('/meetings/')[1].split('/minutes')[0];

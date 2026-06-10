@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/formatters';
+import { format } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -75,7 +76,10 @@ export default function CreateQuotation() {
   const duplicateId = searchParams.get('duplicateId');
   const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
   const sourceId = searchParams.get('sourceId');
+  const dcIdsParam = searchParams.get('dcIds');
+  const multiDCModeParam = searchParams.get('multiDCMode') as any;
   const isConverting = Boolean(convertFrom && sourceId && !editId && !duplicateId);
+  const isMultiDC = convertFrom === 'multi-dc-to-quotation' && dcIdsParam;
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
   const { organisation } = useAuth();
   const { user } = useAuth();
@@ -174,6 +178,16 @@ export default function CreateQuotation() {
   const [showTermsDrawer, setShowTermsDrawer] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
+
+  // Multi-DC allocation state
+  const [dcAllocations, setDcAllocations] = useState<Array<{
+    dc_id: string;
+    dc_number: string;
+    dc_date: string;
+    total_amount: number;
+    allocated_amount: number;
+  }>>([]);
+  const [multiDCError, setMultiDCError] = useState('');
 
   useEffect(() => {
     const measure = () => {
@@ -605,6 +619,56 @@ export default function CreateQuotation() {
       setItems(newItems);
     }
   }, [isConverting, conversionQuery.data, convertFrom, sourceId]);
+
+  // Load DC data for multi-DC allocation
+  useEffect(() => {
+    if (!isMultiDC || !dcIdsParam || !organisation?.id) return;
+
+    const dcIdArray = dcIdsParam.split(',').filter(Boolean);
+    if (dcIdArray.length === 0) return;
+
+    const loadDCs = async () => {
+      const { data: dcs } = await supabase
+        .from('delivery_challans')
+        .select('id, dc_number, dc_date, items:delivery_challan_items(amount)')
+        .in('id', dcIdArray)
+        .eq('organisation_id', organisation.id);
+
+      if (dcs && dcs.length > 0) {
+        const allocations = dcs.map(dc => {
+          const totalAmount = (dc.items || []).reduce((sum: number, item: any) => sum + (parseFloat(String(item.amount)) || 0), 0);
+          return {
+            dc_id: dc.id,
+            dc_number: dc.dc_number,
+            dc_date: dc.dc_date,
+            total_amount: totalAmount,
+            allocated_amount: totalAmount, // Default: allocate full amount
+          };
+        });
+        setDcAllocations(allocations);
+        // Set multi_dc_mode on form data
+        setFormData(prev => ({ ...prev, multi_dc_mode: multiDCModeParam || 'single-total' }));
+      }
+    };
+
+    loadDCs();
+  }, [isMultiDC, dcIdsParam, organisation?.id]);
+
+  // Auto-split allocation equally when items change (for multi-DC)
+  useEffect(() => {
+    if (!isMultiDC || dcAllocations.length === 0) return;
+    const quotationTotal = calculations?.grandTotal || 0;
+    if (quotationTotal <= 0) return;
+
+    // Pro-rata split: allocate proportionally based on DC total amounts
+    const grandTotal = dcAllocations.reduce((sum, dc) => sum + dc.total_amount, 0);
+    if (grandTotal <= 0) return;
+
+    setDcAllocations(prev => prev.map(dc => ({
+      ...dc,
+      allocated_amount: Math.round((dc.total_amount / grandTotal) * quotationTotal * 100) / 100,
+    })));
+  }, [calculations?.grandTotal, isMultiDC]);
 
 const handleDragStart = useCallback((e, itemId) => {
   setDraggingItemId(itemId);
@@ -1087,6 +1151,28 @@ const loadQuoteNoPreview = useCallback(async () => {
         await loadQuoteNoPreview();
       } else {
         await loadApprovalData(id);
+      }
+
+      // Load existing DC allocations if this is a multi-DC quotation
+      if (data.multi_dc_mode && !isDuplicate) {
+        const { data: dcLinks } = await supabase
+          .from('quotation_dc_links')
+          .select('delivery_challan_id, allocated_amount, dc:delivery_challans(id, dc_number, dc_date, items:delivery_challan_items(amount))')
+          .eq('quotation_id', id);
+
+        if (dcLinks && dcLinks.length > 0) {
+          const allocations = dcLinks.map((link: any) => {
+            const totalAmount = (link.dc?.items || []).reduce((sum: number, item: any) => sum + (parseFloat(String(item.amount)) || 0), 0);
+            return {
+              dc_id: link.delivery_challan_id,
+              dc_number: link.dc?.dc_number || '',
+              dc_date: link.dc?.dc_date || '',
+              total_amount: totalAmount,
+              allocated_amount: Number(link.allocated_amount),
+            };
+          });
+          setDcAllocations(allocations);
+        }
       }
     }
   };
@@ -2015,13 +2101,14 @@ const loadQuoteNoPreview = useCallback(async () => {
         negotiation_mode: formData.negotiation_mode,
         authorized_signatory_id: (() => {
           const val = formData.authorized_signatory_id;
-          if (val && val.length > 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(val)) {
+          if (val && val.length > 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
             return String(val);
           }
           return null;
         })(),
         revision_no: formData.revision_no || 1,
-        revision_history: formData.revision_history || []
+        revision_history: formData.revision_history || [],
+        multi_dc_mode: isMultiDC ? (multiDCModeParam || 'single-total') : null,
       };
 
       if (editId) {
@@ -2215,6 +2302,35 @@ const itemsToInsert = items.map(item => ({
         );
       }
       await Promise.all(insertPromises);
+
+      // Save DC links for multi-DC conversion
+      if (isMultiDC && quotationId && dcAllocations.length > 0) {
+        // Validate allocated amount matches quotation total (₹1 tolerance)
+        const totalAllocated = dcAllocations.reduce((sum, dc) => sum + dc.allocated_amount, 0);
+        const quotationTotal = calculations.grandTotal || 0;
+        if (Math.abs(totalAllocated - quotationTotal) > 1) {
+          throw new Error(`Allocated amount (₹${totalAllocated.toFixed(2)}) does not match quotation total (₹${quotationTotal.toFixed(2)}). Please adjust allocations.`);
+        }
+
+        // Save junction table links
+        const links = dcAllocations.map(dc => ({
+          quotation_id: quotationId,
+          delivery_challan_id: dc.dc_id,
+          allocated_amount: dc.allocated_amount,
+        }));
+
+        await supabase.from('quotation_dc_links').delete().eq('quotation_id', quotationId);
+        const { error: linkError } = await supabase.from('quotation_dc_links').insert(links);
+        if (linkError) throw linkError;
+
+        // Mark DCs as quoted
+        const dcIdArray = dcAllocations.map(dc => dc.dc_id);
+        await supabase
+          .from('delivery_challans')
+          .update({ conversion_status: 'quoted' })
+          .in('id', dcIdArray)
+          .in('conversion_status', ['active', 'pending_conversion']);
+      }
 
 
       // Update source document status if this was a conversion
@@ -2621,6 +2737,76 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
           </div>
         </div>
+
+      {/* Multi-DC Allocation Section */}
+      {isMultiDC && dcAllocations.length > 0 && (
+        <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-6 bg-indigo-600 rounded-none"></div>
+              <h3 className="text-lg font-bold text-zinc-900">DC Allocation</h3>
+              <span className="text-xs font-medium text-zinc-500 ml-2">
+                {dcAllocations.length} DC(s) • Mode: {multiDCModeParam || 'single-total'}
+              </span>
+            </div>
+          </div>
+          <div className="p-6">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200">
+                  <th className="text-left py-2 font-semibold text-zinc-700">DC Number</th>
+                  <th className="text-left py-2 font-semibold text-zinc-700">DC Date</th>
+                  <th className="text-right py-2 font-semibold text-zinc-700">DC Total</th>
+                  <th className="text-right py-2 font-semibold text-zinc-700">Allocated Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dcAllocations.map(dc => (
+                  <tr key={dc.dc_id} className="border-b border-zinc-100">
+                    <td className="py-2 font-medium text-zinc-900">{dc.dc_number}</td>
+                    <td className="py-2 text-zinc-600">{dc.dc_date ? format(new Date(dc.dc_date), 'dd/MM/yyyy') : '-'}</td>
+                    <td className="py-2 text-right tabular-nums">₹{dc.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      <input
+                        type="number"
+                        className="w-32 text-right border border-zinc-200 rounded px-2 py-1 text-sm"
+                        value={dc.allocated_amount}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setDcAllocations(prev => prev.map(d =>
+                            d.dc_id === dc.dc_id ? { ...d, allocated_amount: val } : d
+                          ));
+                        }}
+                        step="0.01"
+                      />
+                    </td>
+                  </tr>
+                ))}
+                <tr className="font-bold">
+                  <td colSpan={2} className="py-2 text-right">Total Allocated:</td>
+                  <td className="py-2 text-right tabular-nums">
+                    ₹{dcAllocations.reduce((sum, dc) => sum + dc.total_amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 text-right tabular-nums">
+                    ₹{dcAllocations.reduce((sum, dc) => sum + dc.allocated_amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            {multiDCError && (
+              <div className="mt-3 text-sm text-red-600 font-medium">{multiDCError}</div>
+            )}
+            <div className="mt-3 text-xs text-zinc-500">
+              Quotation Total: ₹{(calculations?.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              {Math.abs(dcAllocations.reduce((sum, dc) => sum + dc.allocated_amount, 0) - (calculations?.grandTotal || 0)) > 1 && (
+                <span className="ml-2 text-red-600 font-medium">
+                  (Difference: ₹{Math.abs(dcAllocations.reduce((sum, dc) => sum + dc.allocated_amount, 0) - (calculations?.grandTotal || 0)).toFixed(2)})
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
