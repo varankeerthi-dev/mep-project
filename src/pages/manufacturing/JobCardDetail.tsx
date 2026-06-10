@@ -66,6 +66,60 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
     enabled: !!jobCardId
   });
 
+  const materialIds = useMemo(() => {
+    if (!materials) return [];
+    return [...new Set(materials.map(m => m.material_id).filter(Boolean))];
+  }, [materials]);
+
+  const { data: stockByMaterial } = useQuery<Record<string, { warehouse_name: string; warehouse_purpose: string; current_stock: number }[]>>({
+    queryKey: ['job-card-stock', materialIds, organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id || materialIds.length === 0) return {};
+      let stockRows: any[] = [];
+      // Try with organisation_id first, fallback without
+      const { data: withOrg, error: err1 } = await supabase
+        .from('item_stock')
+        .select('item_id, company_variant_id, current_stock, warehouse_id')
+        .eq('organisation_id', organisation.id)
+        .in('item_id', materialIds);
+      if (err1) {
+        const { data: withoutOrg } = await supabase
+          .from('item_stock')
+          .select('item_id, company_variant_id, current_stock, warehouse_id')
+          .in('item_id', materialIds);
+        stockRows = withoutOrg || [];
+      } else {
+        stockRows = withOrg || [];
+      }
+      // Fetch warehouse names
+      const whIds = [...new Set(stockRows.map(r => r.warehouse_id).filter(Boolean))];
+      let whMap: Record<string, string> = {};
+      if (whIds.length > 0) {
+        const { data: whRows } = await supabase.from('warehouses').select('id, name').in('id', whIds);
+        for (const w of whRows || []) whMap[w.id] = w.name;
+      }
+      const map: Record<string, { warehouse_name: string; warehouse_purpose: string; current_stock: number }[]> = {};
+      for (const row of stockRows) {
+        if (!map[row.item_id]) map[row.item_id] = [];
+        map[row.item_id].push({
+          warehouse_name: whMap[row.warehouse_id] || 'Store',
+          warehouse_purpose: 'general',
+          current_stock: row.current_stock || 0,
+        });
+      }
+      return map;
+    },
+    enabled: !!organisation?.id && materialIds.length > 0
+  });
+
+  const totalStockByMaterial = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const [matId, entries] of Object.entries(stockByMaterial || {})) {
+      map[matId] = entries.reduce((sum, e) => sum + e.current_stock, 0);
+    }
+    return map;
+  }, [stockByMaterial]);
+
   const { data: productionEntries } = useQuery({
     queryKey: ['production-entries', jobCardId],
     queryFn: async () => {
@@ -86,13 +140,24 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
     queryKey: ['manufacturing-warehouses', organisation?.id],
     queryFn: async () => {
       if (!organisation?.id) return [];
-      const { data, error } = await supabase
+      // Try with warehouse_purpose first, fallback without
+      let whData: any[] = [];
+      const { data: withPurpose, error: err1 } = await supabase
         .from('warehouses')
         .select('id, name, warehouse_code, warehouse_purpose, is_default')
         .eq('organisation_id', organisation.id)
         .eq('is_active', true);
-      if (error) throw error;
-      return (data || []) as WarehouseInfo[];
+      if (err1) {
+        const { data: withoutPurpose } = await supabase
+          .from('warehouses')
+          .select('id, name, warehouse_code, is_default')
+          .eq('organisation_id', organisation.id)
+          .eq('is_active', true);
+        whData = (withoutPurpose || []).map((w: any) => ({ ...w, warehouse_purpose: w.is_default ? 'main' : 'general' }));
+      } else {
+        whData = withPurpose || [];
+      }
+      return whData as WarehouseInfo[];
     },
     enabled: !!organisation?.id
   });
@@ -102,7 +167,10 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
     const mainStore = warehouses.find(w => w.warehouse_purpose === 'main' || w.is_default);
     const wip = warehouses.find(w => w.warehouse_purpose === 'wip');
     const fg = warehouses.find(w => w.warehouse_purpose === 'fg');
-    return { mainStore, wip, fg };
+    // Fallback: if WIP/FG not found, use second/third warehouse
+    const fallbackWip = wip || warehouses.find(w => w.id !== mainStore?.id);
+    const fallbackFg = fg || warehouses.find(w => w.id !== mainStore?.id && w.id !== fallbackWip?.id);
+    return { mainStore, wip: fallbackWip, fg: fallbackFg };
   }, [warehouses]);
 
   // ─── ISSUE MATERIALS: Main Store → WIP ───────────────────────────
@@ -113,21 +181,28 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
 
       setIssueError(null);
 
-      // 1. Check stock availability for each reserved material
+      // 1. Check stock availability for each reserved material (sum across all variants)
       const reservedMaterials = (materials || []).filter(m => m.status === 'reserved');
       if (reservedMaterials.length === 0) throw new Error('No reserved materials to issue');
 
       for (const mat of reservedMaterials) {
-        const { data: stock, error: stockErr } = await supabase
+        let stockRows: any[] = [];
+        const { data: withOrg, error: err1 } = await supabase
           .from('item_stock')
           .select('current_stock')
           .eq('item_id', mat.material_id)
-          .eq('warehouse_id', whIds.mainStore.id)
-          .eq('organisation_id', organisation.id)
-          .maybeSingle();
+          .eq('organisation_id', organisation.id);
+        if (err1) {
+          const { data: withoutOrg } = await supabase
+            .from('item_stock')
+            .select('current_stock')
+            .eq('item_id', mat.material_id);
+          stockRows = withoutOrg || [];
+        } else {
+          stockRows = withOrg || [];
+        }
 
-        if (stockErr) throw stockErr;
-        const available = stock?.current_stock || 0;
+        const available = (stockRows || []).reduce((sum, r) => sum + (r.current_stock || 0), 0);
         if (available < mat.planned_qty) {
           throw new Error(
             `Insufficient stock for ${mat.materials?.name || 'material'}: ` +
@@ -486,7 +561,23 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
                 <tbody>
                   {materials?.map((mat) => (
                     <tr key={mat.id} className="border-b border-zinc-100">
-                      <td className="px-4 py-4 font-medium text-zinc-900">{mat.materials?.name}</td>
+                      <td className="px-4 py-4">
+                        <div className="font-medium text-zinc-900">{mat.materials?.name}</div>
+                        {stockByMaterial?.[mat.material_id] && stockByMaterial[mat.material_id].length > 0 && (
+                          <div className="text-xs text-zinc-400 mt-0.5">
+                            <span className={totalStockByMaterial[mat.material_id] >= mat.planned_qty ? 'text-green-600' : 'text-red-500'}>
+                              Total: {totalStockByMaterial[mat.material_id]} {mat.materials?.unit}
+                            </span>
+                            <span className="mx-1">·</span>
+                            {stockByMaterial[mat.material_id].map((s, i) => (
+                              <span key={i} className="inline-flex items-center gap-0.5 mr-1">
+                                <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.current_stock > 0 ? 'bg-green-500' : 'bg-zinc-300'}`} />
+                                {s.warehouse_name}: {s.current_stock}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-4 text-zinc-700">{mat.planned_qty} {mat.materials?.unit}</td>
                       <td className="px-4 py-4 text-zinc-700">{mat.issued_qty || '-'}</td>
                       <td className="px-4 py-4 text-zinc-700">{mat.consumed_qty || '-'}</td>

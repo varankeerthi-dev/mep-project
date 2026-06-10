@@ -13,6 +13,7 @@ const ALL_MODULE_IDS = MODULE_REGISTRY.map((m) => m.id);
 export function useOrgModules() {
   const { organisation } = useAuth();
   const orgId = organisation?.id;
+  const manufacturingEnabled = Boolean((organisation as any)?.manufacturing_enabled);
 
   return useQuery<OrgModuleState[]>({
     queryKey: ['org-modules', orgId],
@@ -36,7 +37,9 @@ export function useOrgModules() {
       // Merge registry with DB state — new modules default to enabled
       return ALL_MODULE_IDS.map((id) => ({
         moduleId: id,
-        enabled: enabledMap.has(id) ? enabledMap.get(id)! : true,
+        enabled: id === 'manufacturing' && !manufacturingEnabled
+          ? false
+          : enabledMap.has(id) ? enabledMap.get(id)! : true,
       }));
     },
     enabled: !!orgId,
@@ -45,9 +48,12 @@ export function useOrgModules() {
 }
 
 export function useIsModuleEnabled(moduleId: string) {
+  const { organisation } = useAuth();
+  const manufacturingEnabled = Boolean((organisation as any)?.manufacturing_enabled);
   const { data: modules } = useOrgModules();
   if (!modules) return true; // Default to enabled while loading
   const mod = modules.find((m) => m.moduleId === moduleId);
+  if (moduleId === 'manufacturing' && !manufacturingEnabled) return false;
   return mod?.enabled ?? true;
 }
 

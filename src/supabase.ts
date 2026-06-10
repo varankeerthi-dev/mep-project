@@ -186,11 +186,21 @@ export const getUserOrganisations = async (
 
 export const createOrganization = async (
   orgName: string,
-  userId: string
+  userId: string,
+  options?: {
+    organisationTypes?: string[];
+    manufacturingEnabled?: boolean;
+    onboardingCompleted?: boolean;
+  }
 ): Promise<{ data: Organisation | null; error: Error | null }> => {
   const { data: org, error: orgError } = await supabase
     .from('organisations')
-    .insert({ name: orgName })
+    .insert({
+      name: orgName,
+      organisation_types: options?.organisationTypes ?? [],
+      manufacturing_enabled: options?.manufacturingEnabled ?? false,
+      onboarding_completed: options?.onboardingCompleted ?? false,
+    })
     .select()
     .single()
   

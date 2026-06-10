@@ -213,7 +213,8 @@ function ItemsTab() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const organisationId = organisation?.id;
-  const [showForm, setShowForm] = useState(false);
+  const location = useLocation();
+  const [showForm, setShowForm] = useState(() => new URLSearchParams(location.search).get('add') === 'true');
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
@@ -1230,6 +1231,7 @@ function ItemsTab() {
       setSelectedMaterialId(itemId);
       setActiveDetailTab(isEditing ? 'audit' : 'overview');
       await refreshMaterials();
+      queryClient.invalidateQueries({ queryKey: ['materials-for-bom'] });
       if (selectedMaterialId === itemId) {
         await loadItemTransactions(itemId);
       }
@@ -1795,6 +1797,10 @@ function ItemsTab() {
             item_type: 'product',
             organisation_id: organisation?.id,
             is_active: true,
+            allow_purchase: true,
+            allow_sales: true,
+            show_in_bom: true,
+            is_manufactured: false,
             sale_price: row.uses_variant ? 0 : (row.sale_price ? parseFloat(row.sale_price) : 0)
           };
 

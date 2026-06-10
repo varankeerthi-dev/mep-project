@@ -128,6 +128,10 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       gst_rate: formData.gst_rate || null,
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
+      allow_purchase: true,
+      allow_sales: true,
+      show_in_bom: true,
+      is_manufactured: false,
       item_type: 'product',
       organisation_id: organisation?.id
     };

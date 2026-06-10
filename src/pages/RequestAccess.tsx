@@ -1,12 +1,20 @@
 import { useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { Building2, Loader2, LogOut, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Building2, Factory, LayoutGrid, Loader2, LogOut, RefreshCw, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { useCreateAccessRequest, useMyAccessRequests, usePublicOrganisations } from '@/rbac';
 import { signOut } from '@/supabase';
 
 type Props = {
   user: User;
-  onCreateOrganisation: (name: string) => Promise<void>;
+  onCreateOrganisation: (
+    name: string,
+    options?: {
+      organisationTypes?: string[];
+      manufacturingEnabled?: boolean;
+      onboardingCompleted?: boolean;
+    }
+  ) => Promise<void>;
   onRefreshMemberships: () => Promise<void>;
 };
 
@@ -16,6 +24,7 @@ const labelCn =
   'text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400';
 const inputCn =
   'h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200';
+const ORG_TYPES = ['wholesaler', 'trader', 'project', 'sales', 'service'];
 
 function statusBadge(status: string) {
   const s = (status || '').toLowerCase();
@@ -28,6 +37,9 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
   const [selectedOrgId, setSelectedOrgId] = useState('');
   const [createOrgMode, setCreateOrgMode] = useState(false);
   const [orgName, setOrgName] = useState('');
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['sales']);
+  const [manufacturingEnabled, setManufacturingEnabled] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -61,10 +73,19 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
     if (!orgName.trim() || isCreatingOrg) return;
     setIsCreatingOrg(true);
     try {
-      await onCreateOrganisation(orgName.trim());
+      await onCreateOrganisation(orgName.trim(), {
+        organisationTypes: selectedTypes,
+        manufacturingEnabled,
+        onboardingCompleted: true,
+      });
+      setShowWelcome(true);
     } finally {
       setIsCreatingOrg(false);
     }
+  };
+
+  const toggleType = (type: string) => {
+    setSelectedTypes((prev) => prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]);
   };
 
   return (
@@ -91,6 +112,141 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
             You're signed in as <span className="font-medium text-zinc-900">{user.email}</span>. Select an organisation and request approval from its admins.
           </p>
         </div>
+
+        <section className={cardCn}>
+          <div className="border-b border-zinc-200 px-5 py-4 flex items-center justify-between">
+            <div>
+              <div className="text-[13px] font-semibold text-zinc-950">Create a new organisation</div>
+              <div className="mt-1 text-[12px] text-zinc-500">
+                Welcome first. Choose your operating model now. Manufacturing cannot be changed later.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreateOrgMode((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 transition hover:bg-zinc-50"
+            >
+              <Sparkles size={14} />
+              {createOrgMode ? 'Close' : 'Start onboarding'}
+            </button>
+          </div>
+
+          {createOrgMode && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="px-5 py-5 space-y-5"
+            >
+              {showWelcome ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                  <div className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-400">Onboarding complete</div>
+                  <div className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">Welcome to ONE. The super ONE</div>
+                  <p className="mt-2 max-w-2xl text-[13px] leading-6 text-zinc-500">
+                    Your workspace is ready. Next we will introduce the quick access toolbar, side menu, and module settings.
+                  </p>
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    {[
+                      ['Quick access toolbar', 'Fast create, help, and logout actions live at the top.'],
+                      ['Side menu', 'Modules and workflows are grouped for direct navigation.'],
+                      ['Settings', 'Module settings control what the organisation can use.'],
+                    ].map(([title, text], index) => (
+                      <motion.div
+                        key={title}
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.08 }}
+                        className="rounded-2xl border border-zinc-200 bg-white p-4"
+                      >
+                        <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900">
+                          {index === 0 ? <LayoutGrid size={18} /> : index === 1 ? <ShieldCheck size={18} /> : <Factory size={18} />}
+                        </div>
+                        <div className="text-[13px] font-semibold text-zinc-950">{title}</div>
+                        <div className="mt-1 text-[12px] leading-5 text-zinc-500">{text}</div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-3">
+                    <label className="space-y-2">
+                      <div className={labelCn}>Organisation name</div>
+                      <input
+                        value={orgName}
+                        onChange={(e) => setOrgName(e.target.value)}
+                        className={inputCn}
+                        placeholder="Your company name"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className={labelCn}>Organisation types</div>
+                      <div className="mt-2 grid gap-2 md:grid-cols-5">
+                        {ORG_TYPES.map((type) => {
+                          const active = selectedTypes.includes(type);
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => toggleType(type)}
+                              className={`rounded-xl border px-3 py-2 text-left text-[12px] transition hover:scale-[1.01] ${
+                                active
+                                  ? 'border-emerald-200 bg-white font-semibold text-emerald-700'
+                                  : 'border-zinc-200 bg-white text-zinc-500'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-[13px] font-semibold text-zinc-950">Manufacturing</div>
+                          <div className="mt-1 text-[12px] leading-5 text-zinc-500">
+                            Separate platform capability. Default is No. If you leave it off, manufacturing screens, raw material behavior, and manufacturing-only module access stay hidden.
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setManufacturingEnabled((v) => !v)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                            manufacturingEnabled ? 'bg-zinc-950' : 'bg-zinc-200'
+                          }`}
+                          role="switch"
+                          aria-checked={manufacturingEnabled}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 rounded-full bg-white transition ${
+                              manufacturingEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void submitCreateOrg()}
+                        disabled={!orgName.trim() || isCreatingOrg}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isCreatingOrg ? <Loader2 className="animate-spin" size={16} /> : <Building2 size={16} />}
+                        {isCreatingOrg ? 'Creating...' : 'Create organisation'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </section>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <section className={cardCn}>
@@ -199,47 +355,6 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
           </section>
         </div>
 
-        <section className={cardCn}>
-          <div className="border-b border-zinc-200 px-5 py-4 flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-semibold text-zinc-950">Create a new organisation</div>
-              <div className="mt-1 text-[12px] text-zinc-500">
-                If you're setting up a new workspace, create an organisation and you'll be the first admin.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCreateOrgMode((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-700 transition hover:bg-zinc-50"
-            >
-              <Building2 size={14} />
-              {createOrgMode ? 'Cancel' : 'Create org'}
-            </button>
-          </div>
-
-          {createOrgMode && (
-            <div className="px-5 py-5 grid gap-3 sm:grid-cols-[1fr_180px] items-end">
-              <label className="space-y-2">
-                <div className={labelCn}>Organisation name</div>
-                <input
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  className={inputCn}
-                  placeholder="Your company name"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void submitCreateOrg()}
-                disabled={!orgName.trim() || isCreatingOrg}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCreatingOrg ? <Loader2 className="animate-spin" size={16} /> : <Building2 size={16} />}
-                {isCreatingOrg ? 'Creating...' : 'Create'}
-              </button>
-            </div>
-          )}
-        </section>
       </div>
     </div>
   );

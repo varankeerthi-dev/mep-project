@@ -86,8 +86,22 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   }, [bomId]);
 
   const generateBomCode = async () => {
-    const { data } = await supabase.rpc('generate_bom_code');
-    return data as string;
+    try {
+      const { data, error } = await supabase.rpc('generate_bom_code', { org_id: organisation?.id });
+      if (error || !data) throw error;
+      return data as string;
+    } catch {
+      const { data } = await supabase
+        .from('bom_headers')
+        .select('bom_code')
+        .eq('organisation_id', organisation?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const last = data?.bom_code;
+      const next = last ? parseInt(last.replace('BOM-', '')) + 1 : 1;
+      return `BOM-${String(next).padStart(4, '0')}`;
+    }
   };
 
   const saveBOM = useMutation({

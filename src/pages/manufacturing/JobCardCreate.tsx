@@ -97,8 +97,22 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
   };
 
   const generateJobCardNo = async () => {
-    const { data } = await supabase.rpc('generate_job_card_no');
-    return data as string;
+    try {
+      const { data, error } = await supabase.rpc('generate_job_card_no', { org_id: organisation?.id });
+      if (error || !data) throw error;
+      return data as string;
+    } catch {
+      const { data } = await supabase
+        .from('job_cards')
+        .select('job_card_no')
+        .eq('organisation_id', organisation?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const last = data?.job_card_no;
+      const next = last ? parseInt(last.replace('JC-', '')) + 1 : 1;
+      return `JC-${String(next).padStart(4, '0')}`;
+    }
   };
 
   const saveJobCard = useMutation({

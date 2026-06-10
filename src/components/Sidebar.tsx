@@ -54,7 +54,6 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   procurement: 'materials',
   store: 'materials',
   purchase: 'purchase',
-  manufacturing: 'manufacturing',
   dc: 'delivery_challans',
   'client-po': 'client_purchase_orders',
   'non-billable-dc': 'delivery_challans',
@@ -458,6 +457,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     <>
       {mobileOpen && <div className="sidebar-overlay" onClick={handleOverlayClick} />}
       <aside
+        data-tour-anchor="sidebar"
         className={cx(
           'sidebar',
           isCollapsed && 'collapsed',

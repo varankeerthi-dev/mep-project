@@ -302,7 +302,7 @@ export default function ModuleSettings() {
   }
 
   return (
-    <div style={{ minHeight: '100%' }}>
+    <div style={{ minHeight: '100%' }} data-tour-anchor="module-settings">
       {/* Header Section */}
       <div style={{ padding: '24px 40px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>

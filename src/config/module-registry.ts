@@ -177,14 +177,6 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     route: '/boq',
   },
   {
-    id: 'manufacturing',
-    label: 'Manufacturing',
-    description: 'BOMs, production schedules, job cards, and activity logs.',
-    icon: 'Factory',
-    category: 'core',
-    route: '/manufacturing',
-  },
-  {
     id: 'reports',
     label: 'Reports & Analytics',
     description: 'Financial, project, inventory, and compliance reports.',

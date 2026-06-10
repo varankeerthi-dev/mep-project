@@ -85,8 +85,22 @@ export default function ProductionScheduleEditor({ onSuccess, onCancel }: Produc
   }, [scheduleId]);
 
   const generateScheduleNo = async () => {
-    const { data } = await supabase.rpc('generate_schedule_no');
-    return data as string;
+    try {
+      const { data, error } = await supabase.rpc('generate_schedule_no', { org_id: organisation?.id });
+      if (error || !data) throw error;
+      return data as string;
+    } catch {
+      const { data } = await supabase
+        .from('production_schedules')
+        .select('schedule_no')
+        .eq('organisation_id', organisation?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const last = data?.schedule_no;
+      const next = last ? parseInt(last.replace('PS-', '')) + 1 : 1;
+      return `PS-${String(next).padStart(4, '0')}`;
+    }
   };
 
   const saveSchedule = useMutation({

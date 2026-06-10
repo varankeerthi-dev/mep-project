@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -213,6 +214,9 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [dbSetup, setDbSetup] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourRect, setTourRect] = useState<DOMRect | null>(null);
   const currentPath = `${location.pathname}${location.search}` || '/';
   const tokenInvalidateGateRef = useRef(0);
   const refreshMembershipsGateRef = useRef(0);
@@ -249,6 +253,62 @@ export default function App() {
   const handleHelp = useCallback(() => {
     navigate('/help');
   }, [navigate]);
+
+  useEffect(() => {
+    const onboardingCompleted = Boolean((organisation as any)?.onboarding_completed);
+    const tourSeen = localStorage.getItem('mep-onboarding-tour-seen') === 'true';
+    if (user && organisation && !onboardingCompleted && !tourSeen) {
+      setTourOpen(true);
+      setTourStep(0);
+    } else {
+      setTourOpen(false);
+    }
+  }, [user, organisation]);
+
+  const completeTour = useCallback(() => {
+    localStorage.setItem('mep-onboarding-tour-seen', 'true');
+    setTourOpen(false);
+    setTourStep(0);
+  }, []);
+
+  const tourSteps = [
+    {
+      title: 'Quick access toolbar',
+      body: 'Use this top bar to create records fast, open help, and manage shortcuts.',
+      selector: '[data-tour-anchor="quick-access-bar"]',
+      action: null,
+    },
+    {
+      title: 'Side menu',
+      body: 'This is the module map. It keeps the workspace organized and hides what the org does not use.',
+      selector: '[data-tour-anchor="sidebar"]',
+      action: null,
+    },
+    {
+      title: 'Module settings',
+      body: 'Here you can switch modules on or off. Manufacturing remains hidden when the organisation setup says No.',
+      selector: '[data-tour-anchor="module-settings"]',
+      action: () => navigate('/settings'),
+    },
+  ] as const;
+
+  useEffect(() => {
+    if (!tourOpen) return;
+    const updateTourRect = () => {
+      const selector = tourSteps[tourStep]?.selector;
+      const element = selector ? document.querySelector(selector) as HTMLElement | null : null;
+      if (element) setTourRect(element.getBoundingClientRect());
+    };
+    updateTourRect();
+    window.addEventListener('resize', updateTourRect);
+    window.addEventListener('scroll', updateTourRect, true);
+    const timer = window.setInterval(updateTourRect, 250);
+    return () => {
+      window.removeEventListener('resize', updateTourRect);
+      window.removeEventListener('scroll', updateTourRect, true);
+      window.clearInterval(timer);
+    };
+  }, [tourOpen, tourStep]);
 
   const renderedPage = useMemo(() => {
     const pathKey = (currentPath || '/').split('?')[0];
@@ -446,14 +506,21 @@ export default function App() {
     setOrganisation(org);
   }, []);
 
-  const handleCreateOrganisation = async (orgName: string) => {
+  const handleCreateOrganisation = async (
+    orgName: string,
+    options?: {
+      organisationTypes?: string[];
+      manufacturingEnabled?: boolean;
+      onboardingCompleted?: boolean;
+    }
+  ) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
       alert('Session expired. Please sign in again.');
       return;
     }
 
-    const { data, error } = (await createOrganization(orgName, session.user.id)) as CreateOrganisationResult;
+    const { data, error } = (await createOrganization(orgName, session.user.id, options)) as CreateOrganisationResult;
     if (error) {
       console.error('Create org error:', error);
       alert('Error creating organisation: ' + (error.message || 'Unknown error'));
@@ -714,6 +781,97 @@ export default function App() {
       </div>
 
       {process.env.NODE_ENV === 'development' && <DynamicAgentation />}
+
+      <AnimatePresence>
+        {tourOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1200]"
+          >
+            <div className="absolute inset-0 bg-black/55" />
+            {tourRect && (
+              <motion.div
+                key={tourStep}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.18 }}
+                className="absolute rounded-3xl border-2 border-white/90 ring-4 ring-cyan-400/35 shadow-2xl pointer-events-none"
+                style={{
+                  top: Math.max(8, tourRect.top - 8),
+                  left: Math.max(8, tourRect.left - 8),
+                  width: tourRect.width + 16,
+                  height: tourRect.height + 16,
+                }}
+              />
+            )}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute bottom-6 left-1/2 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 rounded-3xl border border-zinc-200 bg-white p-5 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
+                    Onboarding {tourStep + 1} / {tourSteps.length}
+                  </div>
+                  <h3 className="mt-2 text-lg font-semibold tracking-tight text-zinc-950">
+                    {tourSteps[tourStep].title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                    {tourSteps[tourStep].body}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={completeTour}
+                  className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Skip
+                </button>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="text-xs text-zinc-400">
+                  {tourStep === 2 ? 'The next step opens settings.' : 'Use Next to continue.'}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTourStep((v) => Math.max(0, v - 1))}
+                    disabled={tourStep === 0}
+                    className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition disabled:cursor-not-allowed disabled:opacity-40 hover:bg-zinc-50"
+                  >
+                    Back
+                  </button>
+                  {tourStep < tourSteps.length - 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (tourSteps[tourStep].action) tourSteps[tourStep].action();
+                        setTourStep((v) => v + 1);
+                      }}
+                      className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={completeTour}
+                      className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    >
+                      Finish
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Toaster />
       <ReactQueryDevtools initialIsOpen={false} />
