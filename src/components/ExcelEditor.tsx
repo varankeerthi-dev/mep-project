@@ -46,7 +46,7 @@ interface ExcelEditorProps {
 }
 
 const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: boolean; type?: string; warehouseId?: string; mandatory?: boolean; editableForNew?: boolean }[] = [
-  { key: 'item_code', label: 'Item Code', width: 120, editable: false, editableForNew: true },
+  { key: 'item_code', label: 'Item Code / SKU', width: 120, editable: false, editableForNew: true },
   { key: 'name', label: 'Item Name', width: 200, editable: true, mandatory: true },
   { key: 'variant_name', label: 'Variant', width: 100, editable: true, editableForNew: true },
   { key: 'display_name', label: 'Display Name', width: 200, editable: true },
@@ -378,7 +378,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
         <InfoIcon className="w-5 h-5 text-blue-600 mt-0.5" />
         <div className="text-sm text-blue-800">
           <p><strong>Navigation:</strong> Click any cell to edit. Use Tab to move right, Shift+Tab to move left, Enter to move down.</p>
-          <p><strong>Add New:</strong> Click "Add New Row" to create a new material. Fill in required fields (Item Code, Name, Category, Unit).</p>
+          <p><strong>Add New:</strong> Click "Add New Row" to create a new material. Fill in required fields (Item Code / SKU, Name, Category, Unit).</p>
           <p><strong>Saving:</strong> Click "Save Changes" when done. All changes will be logged for audit.</p>
         </div>
       </div>
@@ -593,7 +593,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
                   <table className="w-full text-left text-sm">
                     <thead className="bg-zinc-50 border-b border-zinc-100">
                       <tr>
-                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Item Code</th>
+                        <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Item Code / SKU</th>
                         <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Item Name</th>
                         <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Field</th>
                         <th className="p-4 font-black text-zinc-500 uppercase tracking-widest text-[10px]">Old Value</th>

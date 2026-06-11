@@ -4,6 +4,7 @@ import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useCombinedUnits } from '../../hooks/useCombinedUnits';
 
 type BOMEditorProps = {
   onSuccess: () => void;
@@ -17,6 +18,11 @@ type BOMItem = {
   unit: string;
   wastage_pct: number;
   notes: string;
+  company_variant_id?: string;
+  variant_name?: string;
+  make?: string;
+  lead_time_days: number;
+  bom_level: number;
 };
 
 export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
@@ -33,11 +39,13 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     output_qty: 1,
     output_unit: 'nos',
     description: '',
-    is_active: true
+    is_active: true,
+    batch_no: '',
+    approval_status: 'draft'
   });
 
   const [items, setItems] = useState<BOMItem[]>([
-    { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '' }
+    { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '', lead_time_days: 0, bom_level: 0 }
   ]);
   const [materialSearchText, setMaterialSearchText] = useState<Record<number, string>>({});
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
@@ -63,7 +71,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       if (!organisation?.id) return [];
       const { data, error } = await supabase
         .from('materials')
-        .select('id, name, unit')
+        .select('id, name, unit, make, uses_variant')
         .eq('organisation_id', organisation.id)
         .eq('item_classification', 'raw_material')
         .order('name');
@@ -72,6 +80,48 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     },
     enabled: !!organisation?.id
   });
+
+  const { data: variantPricing } = useQuery({
+    queryKey: ['bom-variant-pricing', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data: mats } = await supabase
+        .from('materials')
+        .select('id')
+        .eq('organisation_id', organisation.id)
+        .eq('item_classification', 'raw_material');
+      const ids = (mats || []).map(m => m.id);
+      if (!ids.length) return [];
+      const { data, error } = await supabase
+        .from('item_variant_pricing')
+        .select('item_id, company_variant_id, make')
+        .in('item_id', ids);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id
+  });
+
+  const { data: companyVariants } = useQuery({
+    queryKey: ['company-variants-bom', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('company_variants')
+        .select('id, variant_name')
+        .eq('organisation_id', organisation.id)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id
+  });
+
+  const getVariantsForMaterial = (materialId: string) =>
+    (variantPricing || []).filter(v => v.item_id === materialId);
+
+  const getVariantName = (variantId: string) =>
+    companyVariants?.find(v => v.id === variantId)?.variant_name || variantId;
 
   const { data: finishedGoods } = useQuery({
     queryKey: ['finished-goods', organisation?.id],
@@ -120,7 +170,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         output_qty: bom.output_qty,
         output_unit: bom.output_unit,
         description: bom.description || '',
-        is_active: bom.is_active
+        is_active: bom.is_active,
+        batch_no: bom.batch_no || '',
+        approval_status: bom.approval_status || 'draft'
       });
       const { data: bomItems } = await supabase.from('bom_items').select('*, materials(name)').eq('bom_id', bomId);
       if (bomItems?.length) {
@@ -130,7 +182,12 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           required_qty: item.required_qty,
           unit: item.unit,
           wastage_pct: item.wastage_pct || 5,
-          notes: item.notes || ''
+          company_variant_id: item.company_variant_id || '',
+          variant_name: '',
+          make: item.make || '',
+          notes: item.notes || '',
+          lead_time_days: item.lead_time_days || 0,
+          bom_level: item.bom_level || 0
         })));
       }
     };
@@ -168,6 +225,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         output_unit: formData.output_unit,
         description: formData.description,
         is_active: formData.is_active,
+        batch_no: formData.batch_no || null,
+        approval_status: formData.approval_status || 'draft',
         organisation_id: organisation.id
       };
       const headerResult = bomId
@@ -184,7 +243,11 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           required_qty: item.required_qty,
           unit: item.unit,
           wastage_pct: item.wastage_pct,
-          notes: item.notes
+          company_variant_id: item.company_variant_id || null,
+          make: item.make || null,
+          notes: item.notes,
+          lead_time_days: item.lead_time_days || 0,
+          bom_level: item.bom_level || 0
         }));
       if (payload.length) {
         const { error } = await supabase.from('bom_items').insert(payload);
@@ -199,7 +262,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
 
   const addItem = () => {
     const newIndex = items.length;
-    setItems(prev => [...prev, { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '' }]);
+    setItems(prev => [...prev, { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '', company_variant_id: '', variant_name: '', make: '', lead_time_days: 0, bom_level: 0 }]);
     setMaterialSearchText(prev => ({ ...prev, [newIndex]: '' }));
     setOpenDropdownIndex(newIndex);
   };
@@ -226,6 +289,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     updateItem(index, 'material_id', materialId);
     updateItem(index, 'material_name', material?.name || '');
     updateItem(index, 'unit', material?.unit || 'kg');
+    updateItem(index, 'make', material?.make || '');
+    updateItem(index, 'company_variant_id', '');
+    updateItem(index, 'variant_name', '');
   };
 
   // ─── CreateQuotation-style layout constants ───
@@ -255,7 +321,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     </div>
   );
 
-  const units = ['kg', 'mtr', 'nos', 'ft', 'sqm', 'cum', 'ltr', 'pcs'];
+  const { data: combinedUnits = [] } = useCombinedUnits();
+  const fallbackUnits = [{ value: 'kg', label: 'Kg' }, { value: 'mtr', label: 'Mtr' }, { value: 'nos', label: 'Nos' }, { value: 'ft', label: 'Ft' }, { value: 'sqm', label: 'Sqm' }, { value: 'cum', label: 'Cum' }, { value: 'ltr', label: 'Ltr' }, { value: 'pcs', label: 'Pcs' }];
+  const unitOptions = combinedUnits.length > 0 ? combinedUnits : fallbackUnits;
 
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
@@ -338,10 +406,11 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <input type="number" style={{ ...inputStyle, width: '60px' }} value={formData.output_qty} onChange={(e) => setFormData({ ...formData, output_qty: Number(e.target.value) })} />
                   <select style={{ ...inputStyle, width: '70px' }} value={formData.output_unit} onChange={(e) => setFormData({ ...formData, output_unit: e.target.value })}>
-                    {units.map(u => <option key={u} value={u}>{u}</option>)}
+                    {unitOptions.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
                   </select>
                 </div>
-              ), true)}
+              ))}
+              {renderHeaderField('Batch No:', <input type="text" style={inputStyle} value={formData.batch_no} onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })} placeholder="Optional batch/lot identifier" />, true)}
             </div>
 
             {/* Column 2: Status & Description */}
@@ -352,6 +421,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                   style={{ padding: '3px 10px', borderRadius: '10px', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: formData.is_active ? '#dcfce7' : '#f3f4f6', color: formData.is_active ? '#166534' : '#6b7280', transition: 'all 0.2s' }}>
                   {formData.is_active ? 'Active' : 'Inactive'}
                 </button>
+              ))}
+              {renderHeaderField('Approval:', (
+                <select style={{ ...inputStyle, width: '140px' }} value={formData.approval_status} onChange={(e) => setFormData({ ...formData, approval_status: e.target.value })}>
+                  <option value="draft">Draft</option>
+                  <option value="pending_approval">Pending Approval</option>
+                  <option value="approved">Approved</option>
+                  <option value="obsolete">Obsolete</option>
+                </select>
               ))}
               {renderHeaderField('Description:', <textarea style={{ ...inputStyle, height: '56px', resize: 'vertical', padding: '6px 8px' }} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Optional product description" />, true)}
             </div>
@@ -366,18 +443,22 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           </div>
 
           {/* Table Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 1fr 30px', gap: '0', padding: '6px 12px', background: '#fafafa', borderBottom: '1px solid #e5e7eb', fontSize: '10px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 40px 60px 100px 80px 60px 60px 60px 1fr 24px', gap: '0', padding: '6px 12px', background: '#fafafa', borderBottom: '1px solid #e5e7eb', fontSize: '10px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             <span>Material</span>
+            <span style={{ textAlign: 'center' }}>Level</span>
             <span style={{ textAlign: 'right' }}>Qty</span>
+            <span>Variant</span>
+            <span>Brand</span>
             <span>Unit</span>
-            <span style={{ textAlign: 'right' }}>Wastage %</span>
+            <span style={{ textAlign: 'right' }}>Waste%</span>
+            <span style={{ textAlign: 'right' }}>Lead Time</span>
             <span>Notes</span>
             <span></span>
           </div>
 
           {/* Table Rows */}
           {items.map((item, index) => (
-            <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 1fr 30px', gap: '2px', padding: '6px 10px', borderBottom: index < items.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center', background: index % 2 === 0 ? '#fff' : '#fafafa' }}>
+            <div key={index} style={{ display: 'grid', gridTemplateColumns: '1.5fr 40px 60px 100px 80px 60px 60px 60px 1fr 24px', gap: '2px', padding: '6px 10px', borderBottom: index < items.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center', background: index % 2 === 0 ? '#fff' : '#fafafa' }}>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <div className="material-dropdown-container" style={{ position: 'relative', width: '100%' }}>
                   <input
@@ -396,7 +477,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                       {(materials || [])
                         .filter(m => {
                           const q = (materialSearchText[index] ?? '').toLowerCase();
-                          return !q || m.name.toLowerCase().includes(q);
+                          return !q || m.name.toLowerCase().includes(q) || (m.make || '').toLowerCase().includes(q);
                         })
                         .map(m => (
                           <div key={m.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
@@ -407,11 +488,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                               setMaterialSearchText(prev => ({ ...prev, [index]: '' }));
                               setOpenDropdownIndex(-1);
                             }}
-                          >{m.name}</div>
+                          >
+                            <div style={{ fontWeight: 500 }}>{m.name}</div>
+                            {m.make && <div style={{ fontSize: '10px', color: '#9ca3af' }}>{m.make}</div>}
+                          </div>
                         ))}
                       {(materials || []).filter(m => {
                         const q = (materialSearchText[index] ?? '').toLowerCase();
-                        return !q || m.name.toLowerCase().includes(q);
+                        return !q || m.name.toLowerCase().includes(q) || (m.make || '').toLowerCase().includes(q);
                       }).length === 0 && (
                         <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No materials found</div>
                       )}
@@ -420,15 +504,43 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 </div>
               </div>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <input type="number" min="0" value={item.bom_level} onChange={(e) => updateItem(index, 'bom_level', Math.max(0, parseInt(e.target.value) || 0))} style={{ ...cellInputStyle, textAlign: 'center' }} title="BOM hierarchy level (0 = direct material)" />
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <input type="number" value={item.required_qty || ''} onChange={(e) => updateItem(index, 'required_qty', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }} />
               </div>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                {(() => {
+                  const variants = getVariantsForMaterial(item.material_id);
+                  if (!variants.length) return <span style={{ fontSize: '11px', color: '#9ca3af' }}>—</span>;
+                  return (
+                    <select value={item.company_variant_id || ''} onChange={(e) => {
+                      const vId = e.target.value;
+                      const vName = getVariantName(vId);
+                      updateItem(index, 'company_variant_id', vId || '');
+                      updateItem(index, 'variant_name', vName);
+                    }} style={cellInputStyle}>
+                      <option value="">No Variant</option>
+                      {variants.map(v => (
+                        <option key={v.company_variant_id} value={v.company_variant_id}>{getVariantName(v.company_variant_id)}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <input type="text" value={item.make || ''} onChange={(e) => updateItem(index, 'make', e.target.value)} placeholder="Brand" style={cellInputStyle} />
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={cellInputStyle}>
-                  {units.map(u => <option key={u} value={u}>{u}</option>)}
+                  {unitOptions.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
                 </select>
               </div>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <input type="number" value={item.wastage_pct || ''} onChange={(e) => updateItem(index, 'wastage_pct', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }} />
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <input type="number" min="0" value={item.lead_time_days} onChange={(e) => updateItem(index, 'lead_time_days', Math.max(0, parseInt(e.target.value) || 0))} style={{ ...cellInputStyle, textAlign: 'right' }} placeholder="Days" title="Procurement/manufacturing lead time in days" />
               </div>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <input type="text" value={item.notes} onChange={(e) => updateItem(index, 'notes', e.target.value)} placeholder="—" style={cellInputStyle} />

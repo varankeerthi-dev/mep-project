@@ -293,7 +293,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Item Code</label>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Item Code / SKU</label>
                       <input
                         type="text"
                         style={{ padding: '10px 14px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', outline: 'none' }}

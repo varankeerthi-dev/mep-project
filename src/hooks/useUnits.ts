@@ -12,7 +12,6 @@ export function useUnits() {
       const { data, error } = await supabase
         .from('item_units')
         .select('*')
-        .eq('organisation_id', organisation.id)
         .order('unit_name');
       if (error) throw error;
       return data || [];

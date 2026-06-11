@@ -154,7 +154,7 @@ const buildItemChangeLog = (before, after) => {
   const keys = [
     ['name', 'Item Name'],
     ['display_name', 'Display Name'],
-    ['item_code', 'Item Code'],
+    ['item_code', 'Item Code / SKU'],
     ['main_category', 'Main Category'],
     ['sub_category', 'Sub Category'],
     ['size', 'Size'],
@@ -311,6 +311,21 @@ function ItemsTab() {
   const [pricingHistory, setPricingHistory] = useState([]);
   const [showPricingHistory, setShowPricingHistory] = useState(false);
   const [showTechnical, setShowTechnical] = useState(false);
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  
+  const addNewCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name || !organisation?.id) return;
+    try {
+      await supabase.from('item_categories').insert({ category_name: name, is_active: true });
+      setNewCategoryName('');
+      setShowNewCategory(false);
+      queryClient.invalidateQueries({ queryKey: ['materials-page-data', orgId] });
+    } catch (err) {
+      alert('Error saving category: ' + (err as any).message);
+    }
+  };
   
   // Excel Edit Mode state
   const [excelEditMode, setExcelEditMode] = useState(false);
@@ -539,7 +554,7 @@ function ItemsTab() {
       const rowNo = idx + 1;
 
       if (cols.length < 2) {
-        errors.push(`Row ${rowNo}: requires at least 2 columns (Item Code/Name + Sale Price).`);
+        errors.push(`Row ${rowNo}: requires at least 2 columns (Item Code/SKU or Name + Sale Price).`);
         continue;
       }
 
@@ -2605,7 +2620,7 @@ function ItemsTab() {
 
             <div className="alert" style={{ background: '#f8fafc', color: '#344054', border: '1px solid #eaecf0' }}>
               Paste from Excel using tab-separated columns:
-              <strong> Item Code/Name | Sale Price | Purchase Price(optional)</strong>.
+              <strong> Item Code/SKU or Name | Sale Price | Purchase Price(optional)</strong>.
               Header row is supported.
             </div>
 
@@ -2649,7 +2664,7 @@ function ItemsTab() {
                     <tr>
                       <th>Row</th>
                       <th>Item</th>
-                      <th>Item Code</th>
+                      <th>Item Code / SKU</th>
                       <th>Current Sale</th>
                       <th>New Sale</th>
                       <th>Current Purchase</th>
@@ -2787,17 +2802,44 @@ function ItemsTab() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Item Code</label>
+                    <label className="form-label">Item Code / SKU</label>
                     <input type="text" className="form-input" value={formData.item_code} onChange={e => setFormData({...formData, item_code: e.target.value})} placeholder="Auto-generated if empty" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Main Category</label>
-                      <select className="form-select" value={formData.main_category} onChange={e => setFormData({...formData, main_category: e.target.value})}>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <select className="form-select" value={formData.main_category} onChange={e => setFormData({...formData, main_category: e.target.value})}
+                        style={{ flex: 1 }}>
                         <option value="">Select Category</option>
                         {categoryOptions.map((categoryName) => (
                           <option key={categoryName} value={categoryName}>{categoryName}</option>
                         ))}
                       </select>
+                      {showNewCategory ? (
+                        <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                          <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)}
+                            placeholder="Category name" autoFocus
+                            style={{ width: '110px', padding: '6px 8px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '6px', outline: 'none' }}
+                            onKeyDown={e => { if (e.key === 'Enter') addNewCategory(); if (e.key === 'Escape') { setShowNewCategory(false); setNewCategoryName(''); }}}
+                          />
+                          <button type="button" onClick={addNewCategory} title="Save"
+                            style={{ width: '26px', height: '26px', border: 'none', background: '#185FA5', color: '#fff', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            ✓
+                          </button>
+                          <button type="button" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }} title="Cancel"
+                            style={{ width: '26px', height: '26px', border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setShowNewCategory(true)} title="Add new category"
+                          style={{ width: '26px', height: '26px', border: '1px dashed #d1d5db', background: '#fff', color: '#9ca3af', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.color = '#185FA5'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#9ca3af'; }}>
+                          +
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -5223,7 +5265,7 @@ function VariantsTab() {
 // Helper function to generate template with selected fields
 function generateSelectiveTemplate(selectedFields: string[]) {
   const columns = [
-    { key: 'item_code', label: 'Item Code' },
+    { key: 'item_code', label: 'Item Code / SKU' },
     { key: 'name', label: 'Item Name' },
     ...selectedFields.map(field => {
       if (field.startsWith('stock_')) {

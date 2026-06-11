@@ -847,7 +847,7 @@ const handleNew = (preset: any = null) => {
 
     let columnsHTML = '';
     if (optionalCols.sno) columnsHTML += '<th>#</th>';
-    if (optionalCols.item_code) columnsHTML += '<th>Item Code</th>';
+    if (optionalCols.item_code) columnsHTML += '<th>Item Code / SKU</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
     if (optionalCols.item) columnsHTML += `<th>${labels.item || 'Item Description'}</th>`;
     if (optionalCols.variant) columnsHTML += '<th>Variant</th>';

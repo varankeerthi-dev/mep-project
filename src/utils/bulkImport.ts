@@ -33,7 +33,7 @@ const REQUIRED_COLUMNS = ['item_code', 'name'];
 // use the "Option A" flat exploded format:
 //   one row per item-variant pair. The importer groups by item_code and upserts item_variant_pricing.
 const IMPORT_COLUMNS = [
-  { key: 'item_code', label: 'Item Code', required: true, type: 'string' },
+  { key: 'item_code', label: 'Item Code / SKU', required: true, type: 'string' },
   { key: 'name', label: 'Item Name', required: true, type: 'string' },
   { key: 'display_name', label: 'Display Name', required: false, type: 'string' },
   { key: 'main_category', label: 'Main Category', required: false, type: 'string' },
@@ -270,7 +270,7 @@ export const generateImportTemplateXLSX = (): ArrayBuffer => {
   // Add Notes sheet
   const notesData = [
     ['Column', 'Notes'],
-    ['Item Code', 'Required. Unique identifier. For variant items: repeat Item Code on each variant row.'],
+    ['Item Code / SKU', 'Required. Unique identifier. For variant items: repeat Item Code / SKU on each variant row.'],
     ['Item Name', 'Required on first row of each item. Can be blank on subsequent variant rows.'],
     ['Uses Variant', 'Yes / No. If Yes, fill Variant Name, Variant Sale Price, Variant Purchase Price.'],
     ['Variant Name', 'e.g. Green, Blue, Retail, Wholesale. One variant per row.'],
@@ -437,7 +437,7 @@ export const parseExcelData = async (
     
     // Validate required fields
     if (!rowData.item_code && !rowData.name) {
-      row.errors.push('Either Item Code or Name is required');
+      row.errors.push('Either Item Code/SKU or Name is required');
     }
     
     // Check if item exists

@@ -373,7 +373,7 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                       </th>
                       <th className="p-3 font-bold text-zinc-600">Row</th>
                       <th className="p-3 font-bold text-zinc-600">Action</th>
-                      <th className="p-3 font-bold text-zinc-600">Item Code</th>
+                      <th className="p-3 font-bold text-zinc-600">Item Code / SKU</th>
                       <th className="p-3 font-bold text-zinc-600">Name</th>
                       <th className="p-3 font-bold text-zinc-600">Category</th>
                       <th className="p-3 font-bold text-zinc-600">Sale Price</th>

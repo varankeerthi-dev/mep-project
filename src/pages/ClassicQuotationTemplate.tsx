@@ -309,8 +309,8 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   }
 
   if (showItemCode) {
-    activeHeaders.push('Item Code');
-    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Item Code'), halign: 'center' };
+    activeHeaders.push('Item Code / SKU');
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Item Code / SKU'), halign: 'center' };
     colIndex++;
   }
 

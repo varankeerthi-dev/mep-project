@@ -122,6 +122,8 @@ CREATE TABLE IF NOT EXISTS bom_items (
   unit VARCHAR(20) NOT NULL,
   wastage_pct DECIMAL(5,2) DEFAULT 5.00,
   is_additional BOOLEAN DEFAULT false,
+  company_variant_id UUID REFERENCES company_variants(id),
+  make VARCHAR(255),
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -923,3 +925,14 @@ ALTER TABLE materials ADD COLUMN IF NOT EXISTS item_classification VARCHAR(20)
 UPDATE materials SET item_classification = 'finished_good' WHERE is_manufactured = true AND item_classification IS NULL;
 UPDATE materials SET item_classification = 'raw_material' WHERE is_manufactured = false AND show_in_bom = true AND item_classification IS NULL;
 UPDATE materials SET item_classification = 'goods_sold' WHERE is_manufactured = false AND show_in_bom = false AND item_classification IS NULL;
+
+-- Section 16: Add variant_id and make to bom_items
+ALTER TABLE bom_items ADD COLUMN IF NOT EXISTS company_variant_id UUID REFERENCES company_variants(id);
+ALTER TABLE bom_items ADD COLUMN IF NOT EXISTS make VARCHAR(255);
+
+-- Section 17: Professional BOM fields
+ALTER TABLE bom_headers ADD COLUMN IF NOT EXISTS batch_no VARCHAR(100);
+ALTER TABLE bom_headers ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'draft';
+
+ALTER TABLE bom_items ADD COLUMN IF NOT EXISTS lead_time_days INTEGER DEFAULT 0;
+ALTER TABLE bom_items ADD COLUMN IF NOT EXISTS bom_level INTEGER DEFAULT 0;
