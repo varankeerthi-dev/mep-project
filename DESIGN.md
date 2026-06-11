@@ -1,156 +1,197 @@
-# Design System: MEP Project Reports & Management
+# Instructions
 
-## 1. Visual Theme & Atmosphere
+Don't assume anything. Don't introduce new tech, libraries, or patterns. Every implementation must strictly follow one of the patterns documented in this file. If no matching pattern exists, ask before inventing anything new.
 
-A restrained, gallery-airy interface with confident asymmetric layouts and fluid spring-physics motion. The atmosphere is clinical yet warm — like a well-lit architecture studio. Density sits at 4 (Daily App Balanced) with variance at 8 (Offset Asymmetric) and motion at 6 (Fluid CSS). The design emphasizes data clarity over decorative elements, using generous whitespace and precise typography to create a sense of professional calm. Every element has purpose and breathing room.
+---
 
-## 2. Color Palette & Roles
+# Card Body Padding
 
-- **Canvas White** (#F9FAFB) — Primary background surface, subtle warmth
-- **Pure Surface** (#FFFFFF) — Card and container fill, clean data tables
-- **Charcoal Ink** (#18181B) — Primary text, Zinc-950 depth for headlines
-- **Muted Steel** (#71717A) — Secondary text, descriptions, metadata, timestamps
-- **Whisper Border** (rgba(226,232,240,0.5)) — Card borders, 1px structural lines
-- **Executive Blue** (#2563EB) — Single accent for CTAs, active states, focus rings
-- **Success Green** (#059669) — Positive indicators, completed states
-- **Warning Amber** (#D97706) — Caution states, pending items
-- **Critical Red** (#DC2626) — Error states, overdue items
+Card body internal padding is **24px** on all sides (`SubcontractorWorkOrderCreate.tsx`).
 
-## 3. Typography Rules
+```tsx
+cardBody: { padding: '24px' }
+```
 
-- **Display:** Geist — Track-tight, controlled scale, weight-driven hierarchy. No screaming sizes.
-- **Body:** Satoshi — Relaxed leading (1.6), 65ch max-width, neutral secondary color
-- **Mono:** JetBrains Mono — For code, metadata, timestamps, high-density numbers
-- **Scale:** clamp(1rem, 2.5vw, 1.125rem) for body, clamp(1.5rem, 4vw, 2rem) for h3
-- **Banned:** Inter font, generic system fonts for premium contexts. Serif fonts banned in dashboards.
+---
 
-## 4. Component Stylings
+# Form Field Row — Document Section Pattern
 
-* **Buttons:** Flat, no outer glow. Tactile -1px translate on active. Executive Blue fill for primary, ghost/outline for secondary. Minimum 44px tap targets.
-* **Cards:** Generously rounded corners (2.5rem). Diffused whisper shadow. Used only when elevation serves hierarchy. High-density: replace with border-top dividers.
-* **Inputs:** Label above, error below. Focus ring in Executive Blue. No floating labels. Clean, minimal styling.
-* **Tables:** ERP-style with clean headers, subtle row borders, status badges. No zebra striping.
-* **Loaders:** Skeletal shimmer matching exact layout dimensions. No circular spinners.
-* **Empty States:** Composed, illustrated compositions — not just "No data" text.
-* **Status Badges:** Rounded-full, semantic colors, minimal text.
+Label-value row layout for document header sections (e.g., CreateQuotation, BOMEditor).
 
-## 5. Layout Principles
+## Structure
 
-CSS Grid over Flexbox math. Asymmetric splits for Hero sections. Strict single-column collapse below 768px. Max-width containment (1400px centered). Generous internal padding (clamp(1.5rem, 4vw, 2.5rem)). No flexbox percentage math. No overlapping elements — every element occupies its own clear spatial zone.
+Each field row is a horizontal flex row:
 
-### Grid System
-- **Desktop:** 12-column grid, asymmetric content blocks
-- **Tablet:** 8-column grid, adaptive layouts
-- **Mobile:** Single-column, full-width elements
+```
+[Label (fixed width)] [gap] [Entry / Input (fills remaining)]
+```
 
-### Spacing Philosophy
-- **Micro:** 0.25rem (4px) — tight component internals
-- **Small:** 0.5rem (8px) — element spacing
-- **Medium:** 1rem (16px) — component padding
-- **Large:** 1.5rem (24px) — section spacing
-- **XL:** 2rem (32px) — page sections
-- **XXL:** clamp(3rem, 8vw, 6rem) — major sections
+Rows stack vertically with 8px gap. Wrapped in a section container with a section header label.
 
-## 6. Motion & Interaction
+## Tokens
 
-Spring physics for all interactive elements (stiffness: 100, damping: 20). Staggered cascade reveals for list items. Perpetual micro-loops on active dashboard components. Hardware-accelerated transforms only. Isolated Client Components for CPU-heavy animations.
+```tsx
+// Row container — flex row, centered vertically
+headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' }
 
-### Animation Library
-- **Fade In:** `opacity: 0 → 1` with `translateY(8px → 0)`
-- **Slide In:** `translateX(-16px → 0)` for side panels
-- **Scale In:** `scale(0.95 → 1)` for modals
-- **Hover:** `scale(1.02)` with `transition: transform 0.2s spring`
-- **Active:** `scale(0.98)` with `transition: transform 0.1s ease-out`
+// Label — fixed width, right-aligned text
+labelColStyle   = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' }
 
-## 7. Component-Specific Rules
+// Entry cell — fills remaining space
+fieldColStyle   = { flex: 1 }
 
-### Reports Dashboard
-- **Metric Cards:** 2.5rem rounded, subtle shadow, hover state
-- **Report Categories:** Grid with asymmetric spacing, no 3-column equal layouts
-- **Quick Actions:** Floating action button in Executive Blue
+// Section group header — uppercase label above a group of rows
+sectionHeaderStyle = {
+  fontWeight: 600, fontSize: '11px', color: '#6b7280',
+  textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px'
+}
 
-### Invoice Reports
-- **Table Headers:** Sticky, background: Canvas White, border-bottom: Whisper Border
-- **Status Cells:** Semantic color badges, consistent sizing
-- **Filter Panel:** Slide-in from right, backdrop blur
+// Input styling inside entry cells
+inputStyle = { padding: '4px 8px', fontSize: '12px' }
+```
 
-### PDF Export
-- **Button States:** Loading → Success → Error states
-- **Progress Bar:** Executive Blue fill, Whisper Border track
+## Render helper
 
-## 8. Responsive Rules
+```tsx
+const renderHeaderField = (label, field, isLast = false) => (
+  <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+    <span style={labelColStyle}>{label}</span>
+    <div style={fieldColStyle}>{field}</div>
+  </div>
+);
+```
 
-Every design works across all viewports:
+## Usage
 
-### Mobile-First Collapse (< 768px)
-- All multi-column layouts collapse to single column
-- No horizontal scroll — critical failure if present
-- Touch targets minimum 44px
-- Typography minimum 1rem/14px
+Sections sit inside a 2-column grid:
 
-### Tablet (768px - 1024px)
-- 2-column layouts where appropriate
-- Adaptive navigation
-- Maintained spacing ratios
+```tsx
+<div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+    {/* Column 1 */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={sectionHeaderStyle}>Section Title</div>
+      {renderHeaderField('Label:', <input ... />)}
+      {renderHeaderField('Another:', <select ... />)}
+    </div>
+    {/* Column 2 */}
+    <div>...</div>
+  </div>
+</div>
+```
 
-### Desktop (> 1024px)
-- Full asymmetric layouts
-- Hover states enabled
-- Maximum density utilization
+## Label width variants
 
-## 9. Anti-Patterns (Banned)
+- **CreateQuotation**: 70px — tighter, compact forms
+- **BOMEditor**: 90px — wider labels for longer field names
 
-**NEVER USE:**
-- Emojis anywhere in the interface
-- Inter font for premium contexts
-- Generic serif fonts (Times New Roman, Georgia, Garamond)
-- Pure black (#000000) — use Charcoal Ink instead
-- Neon/outer glow shadows on any element
-- Oversaturated accent colors (>80% saturation)
-- Excessive gradient text on large headers
-- Custom mouse cursors
-- Overlapping elements — clean spatial separation always
-- 3-column equal card layouts ("feature rows")
-- Generic placeholder names ("John Doe", "Acme", "Nexus")
-- Fake round numbers ("99.99%", "50%") — use realistic data
-- AI copywriting clichés ("Elevate", "Seamless", "Unleash", "Next-Gen")
-- Filler UI text: "Scroll to explore", "Swipe down", scroll arrows, bouncing chevrons
-- Broken image links — use picsum.photos or SVG avatars
-- Centered Hero sections for high-variance projects
-- Floating labels in forms
-- Zebra striping in tables
-- Circular loading spinners
+Pick based on label length and available horizontal space.
 
-## 10. Data Visualization Rules
+---
 
-- **Charts:** Minimal, data-first approach. Executive Blue primary, neutral grays secondary
-- **Grid Lines:** Whisper Border, subtle
-- **Axis Labels:** Muted Steel, minimal font size
-- **Interactive Elements:** Hover states with spring physics
-- **Legends:** Inline where possible, separate only when necessary
+# Searchable Dropdown — Default Pattern
 
-## 11. Form & Input Patterns
+Replace native `<select>` with a searchable text input + dropdown for any list exceeding 5 items.
 
-- **Labels:** Above inputs, never floating
-- **Placeholders:** Descriptive, not label substitutes
-- **Validation:** Inline error messages below fields
-- **Success States:** Green checkmark, subtle animation
-- **Multi-select:** Clean pill-based interface
-- **Date Ranges:** Preset options + custom range picker
+Used in: `BOMEditor.tsx` (material dropdown), `CreateQuotation.tsx` (client dropdown)
 
-## 12. Navigation Architecture
+## State
 
-- **Primary Nav:** Horizontal, Executive Blue accent for active
-- **Secondary Nav:** Vertical sidebar, subtle hierarchy
-- **Breadcrumbs:** Minimal, semantic structure
-- **Mobile Menu:** Slide-in from left, backdrop blur
+```
+searchText: string              // filters list in dropdown
+isDropdownOpen: boolean         // toggle visibility
+```
 
-## 13. Performance Guidelines
+## Click-Outside
 
-- **Images:** WebP format, lazy loading, proper sizing
-- **Fonts:** Variable fonts for performance where possible
-- **Animations:** Transform and opacity only
-- **JavaScript:** Isolated Client Components for heavy interactions
-- **CSS:** Utility-first with component overrides
+`useEffect` + `mousedown` listener using a `.dropdown-container` className:
 
-This design system enforces a premium, data-focused aesthetic that prioritizes clarity and professional polish over decorative elements. Every rule serves to prevent generic AI design patterns and ensure consistent, high-quality output across all components.
+```tsx
+useEffect(() => {
+  const handler = (e: MouseEvent) => {
+    if (!(e.target as HTMLElement).closest('.dropdown-container')) {
+      setIsDropdownOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handler);
+  return () => document.removeEventListener('mousedown', handler);
+}, []);
+```
+
+## Input
+
+Always shows selected value when closed, search text when open:
+
+```tsx
+<input
+  value={isDropdownOpen ? searchText : (selectedItem?.name || '')}
+  onChange={e => { setSearchText(e.target.value); setIsDropdownOpen(true); }}
+  onFocus={() => setIsDropdownOpen(true)}
+  placeholder="Search..."
+/>
+```
+
+## Dropdown
+
+Absolute-positioned below input, filtered case-insensitively:
+
+```tsx
+{isDropdownOpen && (
+  <div style={{
+    position: 'absolute', top: '100%', left: 0, right: 0,
+    zIndex: 50, background: 'white', border: '1px solid #d1d5db',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+    maxHeight: '200px', overflowY: 'auto'
+  }}>
+    {items
+      .filter(i => !searchText || i.name.toLowerCase().includes(searchText.toLowerCase()))
+      .map(i => (
+        <div key={i.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+          onClick={() => { handleSelect(i); setSearchText(''); setIsDropdownOpen(false); }}
+        >{i.name}</div>
+      ))}
+    {filteredCount === 0 && (
+      <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No items found</div>
+    )}
+  </div>
+)}
+```
+
+## Container
+
+Must have `position: 'relative'` and parent with `overflow: 'hidden'` must be removed/avoided to prevent clipping.
+
+### Rendering Above Containers
+
+Dropdowns must always render above sibling elements and not be clipped by parent borders. To achieve this:
+
+1. **Remove `overflow: hidden`** from the parent container that holds the dropdown trigger
+2. **Set `zIndex: 50`** on the dropdown panel
+3. **Use `position: 'absolute'`** with `top: '100%'` to position below the trigger
+4. If the parent has `border-radius`, the dropdown will naturally extend beyond — this is correct behavior
+
+**Common mistake**: Setting `overflow: hidden` on a table/card container to enforce border-radius will clip all dropdowns inside it. Instead, use `overflow: 'visible'` or remove overflow entirely.
+
+**Example**:
+```tsx
+// ❌ BAD — clips dropdown
+<div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+
+// ✅ GOOD — dropdown extends above
+<div style={{ border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+```
+
+## Per-Row in Tables
+
+When multiple dropdowns exist in a table (e.g., BOM rows), use:
+
+- `searchText: Record<number, string>` — search keyed by row index
+- `openIndex: number` — single open tracker (`-1` = none)
+- On row add: `setOpenIndex(newIndex)`
+- On row remove: rebuild index map
+
+## Container class
+
+`.dropdown-container` is added to the wrapper `div` for click-outside detection.
