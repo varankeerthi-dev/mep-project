@@ -89,6 +89,25 @@ export default function CreatePO() {
     enabled: !!organisation?.id
   });
   const { data: allProjects = [] } = useProjects();
+  
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  const [formData, setFormData] = useState<POFormData>({
+    vendor_id: '',
+    client_id: '',
+    project_id: preSelectedProjectId || '',
+    po_number: '',
+    po_date: new Date().toISOString().split('T')[0],
+    po_expiry_date: '',
+    po_total_value: '',
+    po_utilized_value: 0,
+    po_available_value: 0,
+    remarks: '',
+    save_as_vendor_default: true,
+    status: 'Open',
+  });
+
   const { data: vendorHolds = [] } = useVendorHolds(organisation?.id, formData?.vendor_id || undefined);
   
   // Load materials for inventory selection
@@ -107,24 +126,6 @@ export default function CreatePO() {
     enabled: !!organisation?.id
   });
   
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  
-  const [formData, setFormData] = useState<POFormData>({
-    vendor_id: '',
-    save_as_vendor_default: true,
-    client_id: '',
-    project_id: preSelectedProjectId || '',
-    po_number: '',
-    po_date: new Date().toISOString().split('T')[0],
-    po_expiry_date: '',
-    po_total_value: '',
-    po_utilized_value: 0,
-    po_available_value: 0,
-    status: 'Open',
-    remarks: ''
-  });
-
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState('');
   
