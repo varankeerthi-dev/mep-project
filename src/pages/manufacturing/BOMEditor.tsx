@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -38,6 +38,20 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const [items, setItems] = useState<BOMItem[]>([
     { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '' }
   ]);
+  const [materialSearchText, setMaterialSearchText] = useState<Record<number, string>>({});
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.material-dropdown-container')) {
+        setOpenDropdownIndex(-1);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { data: materials } = useQuery({
     queryKey: ['materials-for-bom', organisation?.id],
@@ -48,7 +62,6 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         .select('id, name, unit')
         .eq('organisation_id', organisation.id)
         .eq('show_in_bom', true)
-        .eq('is_manufactured', false)
         .order('name');
       if (error) throw error;
       return data || [];
@@ -143,8 +156,16 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     }
   });
 
-  const addItem = () => setItems(prev => [...prev, { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '' }]);
-  const removeItem = (index: number) => setItems(prev => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const addItem = () => {
+    const newIndex = items.length;
+    setItems(prev => [...prev, { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '' }]);
+    setMaterialSearchText(prev => ({ ...prev, [newIndex]: '' }));
+    setOpenDropdownIndex(newIndex);
+  };
+  const removeItem = (index: number) => {
+    setItems(prev => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+    setOpenDropdownIndex(-1);
+  };
   const updateItem = (index: number, field: keyof BOMItem, value: any) => {
     setItems(prev => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
@@ -161,7 +182,30 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
   const labelColStyle: React.CSSProperties = { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151' };
   const fieldColStyle: React.CSSProperties = { flex: 1 };
-  const inputStyle: React.CSSProperties = { padding: '4px 8px', fontSize: '12px', width: '100%', height: '28px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', color: '#111827', outline: 'none' };
+  const inputStyle: React.CSSProperties = { padding: '4px 8px', fontSize: '12px', width: '100%', height: '28px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', color: '#111827', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s' };
+
+  const cellInputStyle: React.CSSProperties = { ...inputStyle, border: '1px solid transparent', background: 'transparent', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s' };
+
+  const handleCellFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = '#3b82f6';
+    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)';
+    e.currentTarget.style.background = '#fff';
+  };
+  const handleCellBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = 'transparent';
+    e.currentTarget.style.boxShadow = 'none';
+    e.currentTarget.style.background = 'transparent';
+  };
+  const handleCellHover = (e: React.MouseEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (document.activeElement !== e.currentTarget) {
+      e.currentTarget.style.borderColor = '#d1d5db';
+    }
+  };
+  const handleCellLeave = (e: React.MouseEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (document.activeElement !== e.currentTarget) {
+      e.currentTarget.style.borderColor = 'transparent';
+    }
+  };
 
   const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
     <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '10px' }}>
@@ -187,11 +231,17 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Define raw materials for a finished product</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button onClick={onCancel} style={{ padding: '6px 14px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-            onMouseLeave={e => e.currentTarget.style.background = '#fff'}>Cancel</button>
+          <button onClick={onCancel} style={{ padding: '6px 14px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+            onMouseDown={e => { e.currentTarget.style.background = '#e5e7eb'; }}
+            onMouseUp={e => { e.currentTarget.style.background = '#f3f4f6'; }}>Cancel</button>
           <button onClick={() => saveBOM.mutate()} disabled={!formData.product_name || saveBOM.isPending}
-            style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: saveBOM.isPending ? 'not-allowed' : 'pointer', opacity: saveBOM.isPending ? 0.7 : 1 }}>
+            style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: saveBOM.isPending ? 'not-allowed' : 'pointer', opacity: saveBOM.isPending ? 0.7 : 1, transition: 'all 0.15s' }}
+            onMouseEnter={e => { if (!saveBOM.isPending) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+            onMouseLeave={e => { if (!saveBOM.isPending) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
+            onMouseDown={e => { if (!saveBOM.isPending) { e.currentTarget.style.transform = 'scale(0.98)'; }}}
+            onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
             {saveBOM.isPending ? 'Saving...' : 'Save BOM'}
           </button>
         </div>
@@ -201,7 +251,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       <div style={{ padding: '20px 24px', maxWidth: '960px' }}>
 
         {/* ─── Document Details (matching CreateQuotation pattern) ─── */}
-        <div style={{ background: '#f8f9fa', padding: '12px', marginBottom: '16px', borderRadius: '6px' }}>
+        <div style={{ background: '#f8f9fa', padding: '12px', marginBottom: '16px', borderRadius: '6px', border: '1px solid #e5e7eb', transition: 'border-color 0.2s' }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = '#93c5fd'}
+          onMouseLeave={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
 
             {/* Column 1: BOM Details */}
@@ -252,29 +304,26 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
 
           {/* Table Rows */}
           {items.map((item, index) => (
-            <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 1fr 30px', gap: '0', padding: '8px 12px', borderBottom: index < items.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center', background: index % 2 === 0 ? '#fff' : '#fafafa' }}>
-              <select value={item.material_id} onChange={(e) => handleMaterialSelect(index, e.target.value)} style={{ ...inputStyle, border: '1px solid transparent', background: 'transparent', fontSize: '12px' }}
-                onMouseEnter={e => e.currentTarget.style.border = '1px solid #d1d5db'}
-                onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'}>
+            <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 1fr 30px', gap: '0', padding: '8px 12px', borderBottom: index < items.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center', background: index % 2 === 0 ? '#fff' : '#fafafa', transition: 'background 0.15s, box-shadow 0.15s', borderRadius: '4px' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px #93c5fd'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 0 ? '#fff' : '#fafafa'; e.currentTarget.style.boxShadow = 'none'; }}>
+              <select value={item.material_id} onChange={(e) => handleMaterialSelect(index, e.target.value)} style={cellInputStyle}
+                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <option value="">Select material...</option>
                 {materials?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
-              <input type="number" value={item.required_qty || ''} onChange={(e) => updateItem(index, 'required_qty', Number(e.target.value))} style={{ ...inputStyle, textAlign: 'right', border: '1px solid transparent', background: 'transparent' }}
-                onMouseEnter={e => e.currentTarget.style.border = '1px solid #d1d5db'}
-                onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'} />
-              <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={{ ...inputStyle, border: '1px solid transparent', background: 'transparent', fontSize: '12px' }}
-                onMouseEnter={e => e.currentTarget.style.border = '1px solid #d1d5db'}
-                onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'}>
+              <input type="number" value={item.required_qty || ''} onChange={(e) => updateItem(index, 'required_qty', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }}
+                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave} />
+              <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={cellInputStyle}
+                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 {units.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
-              <input type="number" value={item.wastage_pct || ''} onChange={(e) => updateItem(index, 'wastage_pct', Number(e.target.value))} style={{ ...inputStyle, textAlign: 'right', border: '1px solid transparent', background: 'transparent' }}
-                onMouseEnter={e => e.currentTarget.style.border = '1px solid #d1d5db'}
-                onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'} />
-              <input type="text" value={item.notes} onChange={(e) => updateItem(index, 'notes', e.target.value)} placeholder="—" style={{ ...inputStyle, border: '1px solid transparent', background: 'transparent' }}
-                onMouseEnter={e => e.currentTarget.style.border = '1px solid #d1d5db'}
-                onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'} />
+              <input type="number" value={item.wastage_pct || ''} onChange={(e) => updateItem(index, 'wastage_pct', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }}
+                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave} />
+              <input type="text" value={item.notes} onChange={(e) => updateItem(index, 'notes', e.target.value)} placeholder="—" style={cellInputStyle}
+                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave} />
               <button onClick={() => removeItem(index)} disabled={items.length <= 1}
-                style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', color: '#9ca3af', cursor: items.length <= 1 ? 'not-allowed' : 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: items.length <= 1 ? 0.3 : 1 }}
+                style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', color: '#9ca3af', cursor: items.length <= 1 ? 'not-allowed' : 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: items.length <= 1 ? 0.3 : 1, transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (items.length > 1) { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#ef4444'; }}}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9ca3af'; }}>
                 <Trash2 size={13} />
