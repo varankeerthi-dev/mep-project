@@ -163,7 +163,17 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     setOpenDropdownIndex(newIndex);
   };
   const removeItem = (index: number) => {
-    setItems(prev => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+    if (items.length <= 1) return;
+    setItems(prev => prev.filter((_, i) => i !== index));
+    setMaterialSearchText(prev => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const ki = parseInt(k);
+        if (ki < index) next[ki] = v;
+        else if (ki > index) next[ki - 1] = v;
+      });
+      return next;
+    });
     setOpenDropdownIndex(-1);
   };
   const updateItem = (index: number, field: keyof BOMItem, value: any) => {
@@ -186,29 +196,19 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
 
   const cellInputStyle: React.CSSProperties = { ...inputStyle, border: '1px solid transparent', background: 'transparent', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s' };
 
-  const handleCellFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
-    e.currentTarget.style.borderColor = '#3b82f6';
-    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)';
-    e.currentTarget.style.background = '#fff';
+  const cellStyle: React.CSSProperties = { padding: '4px 6px', borderRadius: '4px', transition: 'background 0.15s, box-shadow 0.15s', cursor: 'default' };
+
+  const handleCellHover = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.style.background = '#f0f7ff';
   };
-  const handleCellBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
-    e.currentTarget.style.borderColor = 'transparent';
-    e.currentTarget.style.boxShadow = 'none';
+  const handleCellLeave = (e: React.MouseEvent<HTMLDivElement>) => {
     e.currentTarget.style.background = 'transparent';
-  };
-  const handleCellHover = (e: React.MouseEvent<HTMLInputElement | HTMLSelectElement>) => {
-    if (document.activeElement !== e.currentTarget) {
-      e.currentTarget.style.borderColor = '#d1d5db';
-    }
-  };
-  const handleCellLeave = (e: React.MouseEvent<HTMLInputElement | HTMLSelectElement>) => {
-    if (document.activeElement !== e.currentTarget) {
-      e.currentTarget.style.borderColor = 'transparent';
-    }
   };
 
   const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
-    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '10px' }}>
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '10px', padding: '4px 6px', borderRadius: '4px', transition: 'background 0.15s' }}
+      onMouseEnter={e => e.currentTarget.style.background = '#f0f7ff'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
       <span style={labelColStyle}>{label}</span>
       <div style={fieldColStyle}>{field}</div>
     </div>
@@ -286,7 +286,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         </div>
 
         {/* ─── Raw Materials Table ─── */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
           <div style={{ padding: '10px 12px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={sectionHeaderStyle}>Raw Materials</div>
             <span style={{ fontSize: '11px', color: '#9ca3af' }}>{items.filter(i => i.material_id).length} material{items.filter(i => i.material_id).length !== 1 ? 's' : ''}</span>
@@ -304,24 +304,62 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
 
           {/* Table Rows */}
           {items.map((item, index) => (
-            <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 1fr 30px', gap: '0', padding: '8px 12px', borderBottom: index < items.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center', background: index % 2 === 0 ? '#fff' : '#fafafa', transition: 'background 0.15s, box-shadow 0.15s', borderRadius: '4px' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px #93c5fd'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 0 ? '#fff' : '#fafafa'; e.currentTarget.style.boxShadow = 'none'; }}>
-              <select value={item.material_id} onChange={(e) => handleMaterialSelect(index, e.target.value)} style={cellInputStyle}
-                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
-                <option value="">Select material...</option>
-                {materials?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-              <input type="number" value={item.required_qty || ''} onChange={(e) => updateItem(index, 'required_qty', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }}
-                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave} />
-              <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={cellInputStyle}
-                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
-                {units.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <input type="number" value={item.wastage_pct || ''} onChange={(e) => updateItem(index, 'wastage_pct', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }}
-                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave} />
-              <input type="text" value={item.notes} onChange={(e) => updateItem(index, 'notes', e.target.value)} placeholder="—" style={cellInputStyle}
-                onFocus={handleCellFocus} onBlur={handleCellBlur} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave} />
+            <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 1fr 30px', gap: '2px', padding: '6px 10px', borderBottom: index < items.length - 1 ? '1px solid #f3f4f6' : 'none', alignItems: 'center', background: index % 2 === 0 ? '#fff' : '#fafafa' }}>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <div className="material-dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="text"
+                    value={openDropdownIndex === index ? (materialSearchText[index] ?? '') : (item.material_name || '')}
+                    onChange={(e) => {
+                      setMaterialSearchText(prev => ({ ...prev, [index]: e.target.value }));
+                      setOpenDropdownIndex(index);
+                    }}
+                    onFocus={() => setOpenDropdownIndex(index)}
+                    placeholder="Search material..."
+                    style={cellInputStyle}
+                  />
+                  {openDropdownIndex === index && materials && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {(materials || [])
+                        .filter(m => {
+                          const q = (materialSearchText[index] ?? '').toLowerCase();
+                          return !q || m.name.toLowerCase().includes(q);
+                        })
+                        .map(m => (
+                          <div key={m.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            onClick={() => {
+                              handleMaterialSelect(index, m.id);
+                              setMaterialSearchText(prev => ({ ...prev, [index]: '' }));
+                              setOpenDropdownIndex(-1);
+                            }}
+                          >{m.name}</div>
+                        ))}
+                      {(materials || []).filter(m => {
+                        const q = (materialSearchText[index] ?? '').toLowerCase();
+                        return !q || m.name.toLowerCase().includes(q);
+                      }).length === 0 && (
+                        <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No materials found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <input type="number" value={item.required_qty || ''} onChange={(e) => updateItem(index, 'required_qty', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }} />
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={cellInputStyle}>
+                  {units.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <input type="number" value={item.wastage_pct || ''} onChange={(e) => updateItem(index, 'wastage_pct', Number(e.target.value))} style={{ ...cellInputStyle, textAlign: 'right' }} />
+              </div>
+              <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
+                <input type="text" value={item.notes} onChange={(e) => updateItem(index, 'notes', e.target.value)} placeholder="—" style={cellInputStyle} />
+              </div>
               <button onClick={() => removeItem(index)} disabled={items.length <= 1}
                 style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', color: '#9ca3af', cursor: items.length <= 1 ? 'not-allowed' : 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: items.length <= 1 ? 0.3 : 1, transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (items.length > 1) { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#ef4444'; }}}
