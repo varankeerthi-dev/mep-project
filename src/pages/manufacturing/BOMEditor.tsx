@@ -29,6 +29,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const [formData, setFormData] = useState({
     bom_code: '',
     product_name: '',
+    product_id: '',
     output_qty: 1,
     output_unit: 'nos',
     description: '',
@@ -40,7 +41,10 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   ]);
   const [materialSearchText, setMaterialSearchText] = useState<Record<number, string>>({});
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
+  const [productSearchText, setProductSearchText] = useState('');
+  const [openProductDropdown, setOpenProductDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,13 +65,48 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         .from('materials')
         .select('id, name, unit')
         .eq('organisation_id', organisation.id)
-        .eq('show_in_bom', true)
+        .eq('item_classification', 'raw_material')
         .order('name');
       if (error) throw error;
       return data || [];
     },
     enabled: !!organisation?.id
   });
+
+  const { data: finishedGoods } = useQuery({
+    queryKey: ['finished-goods', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, name, item_code')
+        .eq('organisation_id', organisation.id)
+        .eq('item_classification', 'finished_good')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id
+  });
+
+  useEffect(() => {
+    const handleClickOutsideProduct = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.product-dropdown-container')) {
+        setOpenProductDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideProduct);
+    return () => document.removeEventListener('mousedown', handleClickOutsideProduct);
+  }, []);
+
+  const handleProductSelect = (materialId: string) => {
+    const material = finishedGoods?.find(m => m.id === materialId);
+    if (!material) return;
+    setFormData(prev => ({ ...prev, product_id: materialId, product_name: material.name }));
+    setProductSearchText('');
+    setOpenProductDropdown(false);
+  };
 
   useEffect(() => {
     if (!bomId) return;
@@ -77,6 +116,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       setFormData({
         bom_code: bom.bom_code,
         product_name: bom.product_name,
+        product_id: bom.product_id || '',
         output_qty: bom.output_qty,
         output_unit: bom.output_unit,
         description: bom.description || '',
@@ -123,6 +163,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       const headerData = {
         bom_code: bomCode,
         product_name: formData.product_name,
+        product_id: formData.product_id || null,
         output_qty: formData.output_qty,
         output_unit: formData.output_unit,
         description: formData.description,
@@ -260,7 +301,39 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={sectionHeaderStyle}>BOM Details</div>
               {renderHeaderField('BOM Code:', <input type="text" style={inputStyle} value={formData.bom_code} onChange={(e) => setFormData({ ...formData, bom_code: e.target.value })} placeholder="Auto-generated if empty" />)}
-              {renderHeaderField('Product:', <input type="text" style={inputStyle} value={formData.product_name} onChange={(e) => setFormData({ ...formData, product_name: e.target.value })} placeholder="e.g. PP pressure pipe 110mm" />)}
+              {renderHeaderField('Product:', (
+                <div className="product-dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                  <input type="text" style={inputStyle} value={openProductDropdown ? productSearchText : formData.product_name}
+                    onChange={(e) => { setProductSearchText(e.target.value); setOpenProductDropdown(true); }}
+                    onFocus={() => setOpenProductDropdown(true)}
+                    placeholder="Search finished good..." />
+                  {openProductDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {(finishedGoods || [])
+                        .filter(m => {
+                          const q = productSearchText.toLowerCase();
+                          return !q || m.name.toLowerCase().includes(q) || (m.item_code || '').toLowerCase().includes(q);
+                        })
+                        .map(m => (
+                          <div key={m.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            onClick={() => handleProductSelect(m.id)}
+                          >
+                            <div style={{ fontWeight: 500 }}>{m.name}</div>
+                            {m.item_code && <div style={{ fontSize: '10px', color: '#9ca3af' }}>{m.item_code}</div>}
+                          </div>
+                        ))}
+                      {(finishedGoods || []).filter(m => {
+                        const q = productSearchText.toLowerCase();
+                        return !q || m.name.toLowerCase().includes(q) || (m.item_code || '').toLowerCase().includes(q);
+                      }).length === 0 && (
+                        <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No finished goods found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
               {renderHeaderField('Output:', (
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <input type="number" style={{ ...inputStyle, width: '60px' }} value={formData.output_qty} onChange={(e) => setFormData({ ...formData, output_qty: Number(e.target.value) })} />

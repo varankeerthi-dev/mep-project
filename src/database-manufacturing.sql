@@ -907,3 +907,19 @@ BEGIN
   RAISE NOTICE '  - trigger_production_entry_activity';
   RAISE NOTICE '  - trigger_schedule_activity';
 END $$;
+
+-- ============================================================
+-- 15. ITEM CLASSIFICATION — role-based item categories
+-- ============================================================
+-- finished_good : Manufactured and sold
+-- raw_material  : Purchased, consumed in production, appears in BOM
+-- consumable    : Purchased, used for operations/maintenance, not in BOM
+-- goods_sold    : Purchased and resold as-is
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS item_classification VARCHAR(20)
+  CHECK (item_classification IN ('finished_good', 'raw_material', 'consumable', 'goods_sold'))
+  DEFAULT 'goods_sold';
+
+-- Backfill existing materials
+UPDATE materials SET item_classification = 'finished_good' WHERE is_manufactured = true AND item_classification IS NULL;
+UPDATE materials SET item_classification = 'raw_material' WHERE is_manufactured = false AND show_in_bom = true AND item_classification IS NULL;
+UPDATE materials SET item_classification = 'goods_sold' WHERE is_manufactured = false AND show_in_bom = false AND item_classification IS NULL;

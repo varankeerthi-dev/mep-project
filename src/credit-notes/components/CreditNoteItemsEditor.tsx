@@ -120,6 +120,7 @@ export function CNItemsEditor({
     unit: string | null;
     sale_price: number | null;
     make: string | null;
+    item_classification?: string;
     variants: Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>;
   }>>([]);
 
@@ -137,7 +138,7 @@ export function CNItemsEditor({
     if (!organisation?.id) return;
 
     Promise.all([
-      supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make').eq('organisation_id', organisation.id).order('name'),
+      supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make, item_classification').eq('organisation_id', organisation.id).order('name'),
       supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
       supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisation.id).eq('is_active', true),
     ]).then(([materialsRes, pricingRes, variantsRes]) => {
@@ -164,6 +165,7 @@ export function CNItemsEditor({
         unit: m.unit ?? null,
         sale_price: m.sale_price ?? null,
         make: m.make ?? null,
+        item_classification: m.item_classification || null,
         variants: pricingByMaterial.get(String(m.id)) ?? [],
       })));
     });
@@ -305,10 +307,15 @@ export function CNItemsEditor({
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, []);
 
+  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
+
   const getFilteredMaterials = useCallback((index: number) => {
     const searchTerm = searchTerms[index] || '';
-    if (!searchTerm) return materialOptions;
-    return materialOptions.filter(m =>
+    const base = searchTerm
+      ? materialOptions
+      : materialOptions.filter(m => DEFAULT_CLASSIFICATIONS.includes(m.item_classification || ''));
+    return base.filter(m =>
+      !searchTerm ||
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (m.make && m.make.toLowerCase().includes(searchTerm.toLowerCase()))

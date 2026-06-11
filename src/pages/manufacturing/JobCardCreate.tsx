@@ -193,8 +193,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
         .from('materials')
         .select('id, name, unit, category')
         .eq('organisation_id', organisation.id)
-        .eq('show_in_bom', true)
-        .eq('is_manufactured', false)
+        .eq('item_classification', 'raw_material')
         .order('name');
       if (error) throw error;
       return data || [];

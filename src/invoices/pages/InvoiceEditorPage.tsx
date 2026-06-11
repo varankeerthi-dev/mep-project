@@ -75,7 +75,7 @@ async function loadClientOptions(organisationId: string): Promise<InvoiceClientO
 }
 
 async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
-  const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
+  const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification').eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
   const { data: variantPricingData, error: pricingError } = await supabase
@@ -130,6 +130,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
           make: material.make || material.material || null,
           unit: material.unit || 'nos',
           sale_price: material.sale_price || null,
+          item_classification: material.item_classification || null,
           variants: [],
         };
       }
@@ -143,6 +144,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
         make: firstVariant.make || null,
         unit: material.unit || 'nos',
         sale_price: firstVariant.sale_price || null,
+        item_classification: material.item_classification || null,
         variants: materialVariants,
       };
     })

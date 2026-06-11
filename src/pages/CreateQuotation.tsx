@@ -1381,11 +1381,16 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
   };
 
+  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
+
   const filteredMaterials = useMemo(() => {
-    if (!itemSearch) return materials;
     const search = itemSearch.toLowerCase();
-    return materials.filter(m => 
-      m.name?.toLowerCase().includes(search) || 
+    const base = search
+      ? materials
+      : materials.filter((m: any) => DEFAULT_CLASSIFICATIONS.includes(m.item_classification));
+    return base.filter((m: any) =>
+      !search ||
+      m.name?.toLowerCase().includes(search) ||
       m.item_code?.toLowerCase().includes(search) ||
       m.display_name?.toLowerCase().includes(search)
     );
@@ -2392,7 +2397,7 @@ const itemsToInsert = items.map(item => ({
     <div>
       <div ref={headerRef} className="flex items-center justify-between fixed top-0 left-0 right-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ top: '32px', left: '220px', marginBottom: 0 }}>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">
+          <h1 className="text-base font-bold text-zinc-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
           </h1>
           {editId && formData.revision_no > 1 && (

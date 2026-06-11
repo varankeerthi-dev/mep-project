@@ -1430,6 +1430,18 @@ body {
 
 .item-modal .form-group {
   margin-bottom: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.item-modal .form-group:hover {
+  background: #eef2ff;
+}
+
+.item-modal .form-group:focus-within {
+  background: #e0e7ff;
+  outline: 1px solid #a5b4fc;
 }
 
 .item-modal .item-form-section {

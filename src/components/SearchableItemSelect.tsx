@@ -33,17 +33,22 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
     [materials, value],
   );
 
+  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
+
   const filtered = useMemo(
-    () =>
-      search
-        ? materials.filter(
-            (m) =>
-              (m.display_name || m.name || '')
-                .toLowerCase()
-                .includes(search.toLowerCase()) ||
-              (m.item_code || '').toLowerCase().includes(search.toLowerCase()),
-          )
-        : materials,
+    () => {
+      const base = search
+        ? materials
+        : materials.filter((m) => DEFAULT_CLASSIFICATIONS.includes(m.item_classification));
+      return base.filter(
+        (m) =>
+          !search ||
+          (m.display_name || m.name || '')
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+          (m.item_code || '').toLowerCase().includes(search.toLowerCase()),
+      );
+    },
     [materials, search],
   );
 

@@ -131,11 +131,15 @@ export function InvoiceItemsEditor({
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, []);
 
+  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
+
   const getFilteredMaterials = useCallback((index: number) => {
     const searchTerm = searchTerms[index] || '';
-    if (!searchTerm) return productOptions;
-    return productOptions.filter(m => 
-      m.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const base = searchTerm
+      ? productOptions
+      : productOptions.filter(m => DEFAULT_CLASSIFICATIONS.includes(m.item_classification || ''));
+    return base.filter(m =>
+      !searchTerm || m.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerms, productOptions]);
 

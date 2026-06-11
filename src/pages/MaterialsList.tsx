@@ -50,7 +50,7 @@ import {
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
 const GST_RATES = [
-  { value: 0, label: '0%' },
+  { value: 0, label: '0% (Exempt)' },
   { value: 0.5, label: '0.5%' },
   { value: 5, label: '5%' },
   { value: 12, label: '12%' },
@@ -229,6 +229,19 @@ function ItemsTab() {
   const [hideInactive, setHideInactive] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
   const [materialSavePending, setMaterialSavePending] = useState(false);
+
+  // Click-outside handler for all dropdowns
+  useEffect(() => {
+    if (!showColumnSettings && !showCategoryDropdown && !showMoreDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-dropdown="columns"]') && showColumnSettings) setShowColumnSettings(false);
+      if (!target.closest('[data-dropdown="category"]') && showCategoryDropdown) setShowCategoryDropdown(false);
+      if (!target.closest('[data-dropdown="more"]') && showMoreDropdown) setShowMoreDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
+  }, [showColumnSettings, showCategoryDropdown, showMoreDropdown]);
   const [isSavingSequentially, setIsSavingSequentially] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
   const [showMultiItemModal, setShowMultiItemModal] = useState(false);
@@ -267,8 +280,27 @@ function ItemsTab() {
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
     uses_variant: false, track_inventory: false,
     dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
-    allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false
+    item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false
   });
+
+  const CLASSIFICATION_OPTIONS = [
+    { value: 'finished_good', label: 'Finished Good', desc: 'Manufactured and sold', requiresMfg: true },
+    { value: 'raw_material', label: 'Raw Material', desc: 'Purchased, consumed in production, appears in BOM', requiresMfg: true },
+    { value: 'consumable', label: 'Consumable', desc: 'Purchased, used for operations/maintenance, not in BOM', requiresMfg: false },
+    { value: 'goods_sold', label: 'Goods Sold', desc: 'Purchased and resold as-is', requiresMfg: false },
+  ];
+
+  const manufacturingEnabled = Boolean((organisation as any)?.manufacturing_enabled);
+
+  const setItemClassification = (type: string) => {
+    const presets: Record<string, { allow_purchase: boolean; allow_sales: boolean; show_in_bom: boolean; is_manufactured: boolean }> = {
+      finished_good: { allow_purchase: false, allow_sales: true, show_in_bom: false, is_manufactured: true },
+      raw_material: { allow_purchase: true, allow_sales: false, show_in_bom: true, is_manufactured: false },
+      consumable: { allow_purchase: true, allow_sales: false, show_in_bom: false, is_manufactured: false },
+      goods_sold: { allow_purchase: true, allow_sales: true, show_in_bom: false, is_manufactured: false },
+    };
+    setFormData(prev => ({ ...prev, item_classification: type, ...presets[type] }));
+  };
 
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
@@ -278,6 +310,7 @@ function ItemsTab() {
   const [clientMappingTab, setClientMappingTab] = useState('code');
   const [pricingHistory, setPricingHistory] = useState([]);
   const [showPricingHistory, setShowPricingHistory] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(false);
   
   // Excel Edit Mode state
   const [excelEditMode, setExcelEditMode] = useState(false);
@@ -1044,7 +1077,8 @@ function ItemsTab() {
       dimension_unit: formData.dimension_unit || 'cm',
       weight: formData.weight ? parseFloat(formData.weight) : null,
       weight_unit: formData.weight_unit || 'kg',
-      item_type: 'product',
+      item_type: formData.item_classification === 'goods_sold' || formData.item_classification === 'consumable' ? 'product' : formData.item_classification || 'product',
+      item_classification: formData.item_classification,
       allow_purchase: formData.allow_purchase,
       allow_sales: formData.allow_sales,
       show_in_bom: formData.show_in_bom,
@@ -1311,6 +1345,7 @@ function ItemsTab() {
       dimension_unit: material.dimension_unit || 'cm',
       weight: material.weight || '',
       weight_unit: material.weight_unit || 'kg',
+      item_classification: material.item_classification || 'goods_sold',
       allow_purchase: material.allow_purchase !== false,
       allow_sales: material.allow_sales !== false,
       show_in_bom: material.show_in_bom !== false,
@@ -1872,7 +1907,16 @@ function ItemsTab() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: '12px', lineHeight: '1.5' }}>
+      <style>{`
+        .items-tab * { font-family: 'Inter', system-ui, sans-serif !important; }
+        .items-tab table { font-size: 12px !important; }
+        .items-tab th { font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.03em !important; }
+        .items-tab td { font-size: 12px !important; }
+        .items-tab input, .items-tab select, .items-tab textarea { font-size: 12px !important; }
+        .items-tab button { font-size: 12px !important; }
+        .items-tab label { font-size: 12px !important; }
+      `}</style>
       {/* Sequential Saving Progress Overlay */}
       {isSavingSequentially && (
         <div className="modal-overlay open" style={{ zIndex: 10000, background: 'rgba(255,255,255,0.9)' }}>
@@ -1895,44 +1939,55 @@ function ItemsTab() {
       <div className="mb-4">
         <button 
           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-          className="flex items-center gap-2 text-lg font-bold text-zinc-900 hover:text-indigo-600 transition-colors"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: '#111827', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
-          {showCategoryDropdown ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          {showCategoryDropdown ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           Category: {categoryFilter === 'All' ? 'All Materials' : categoryFilter}
         </button>
       </div>
 
-      <div className="p-2 mb-2 rounded-lg border border-zinc-200 bg-white">
-        <div className="flex justify-between items-center flex-wrap gap-2">
-          <div className="flex items-center gap-1">
-            <InventoryIcon className="w-6 h-6 text-indigo-600" />
-            <span className="text-base font-semibold text-zinc-900">Materials</span>
-            <Badge variant="outline" className="text-xs font-normal ml-1 font-sans">{filteredMaterials.length} items</Badge>
+      <div style={{ padding: '8px 10px', marginBottom: '10px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', height: '30px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <InventoryIcon style={{ width: '14px', height: '14px', color: '#4f46e5' }} />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>Materials</span>
+            <Badge variant="outline" style={{ fontSize: '10px', fontWeight: 500, padding: '1px 6px' }}>{filteredMaterials.length} items</Badge>
           </div>
-          <div className="flex gap-1 flex-wrap items-center">
-            <div className="relative">
-              <Button 
-                size="sm" 
-                variant={categoryFilter !== 'All' ? 'default' : 'outline'} 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Hide Inactive */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px', color: '#6b7280', marginRight: '4px' }}>
+              <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} style={{ width: '13px', height: '13px' }} />
+              Hide Inactive
+            </label>
+
+            <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
+
+            {/* Category */}
+            <div data-dropdown="category" style={{ position: 'relative' }}>
+              <button 
                 onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                className="text-xs font-sans"
+                style={{ display: 'flex', alignItems: 'center', gap: '3px', height: '28px', padding: '0 8px', borderRadius: '6px', border: categoryFilter !== 'All' ? '1px solid #6366f1' : '1px solid #d1d5db', background: categoryFilter !== 'All' ? '#4f46e5' : '#fff', color: categoryFilter !== 'All' ? '#fff' : '#374151', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
               >
                 {categoryFilter === 'All' ? 'Category' : categoryFilter}
-                <ChevronDown className="w-3 h-3 ml-1" />
-              </Button>
+                <ChevronDown style={{ width: '12px', height: '12px' }} />
+              </button>
               {showCategoryDropdown && (
-                <div className="absolute z-50 mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '4px', minWidth: '140px', zIndex: 50 }}>
                   <button
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100"
+                    style={{ width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', borderRadius: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
                     onClick={() => { setCategoryFilter('All'); setShowCategoryDropdown(false); }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     All Categories
                   </button>
                   {MAIN_CATEGORIES.map((cat) => (
                     <button
                       key={cat}
-                      className={cn("w-full text-left px-3 py-2 text-xs hover:bg-zinc-100", categoryFilter === cat && "bg-indigo-50 text-indigo-600")}
+                      style={{ width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', background: categoryFilter === cat ? '#eef2ff' : 'transparent', borderRadius: '6px', fontSize: '12px', color: categoryFilter === cat ? '#4f46e5' : '#374151', cursor: 'pointer' }}
                       onClick={() => { setCategoryFilter(cat); setShowCategoryDropdown(false); }}
+                      onMouseEnter={e => { if (categoryFilter !== cat) e.currentTarget.style.background = '#f9fafb'; }}
+                      onMouseLeave={e => { if (categoryFilter !== cat) e.currentTarget.style.background = 'transparent'; }}
                     >
                       {cat}
                     </button>
@@ -1940,42 +1995,112 @@ function ItemsTab() {
                 </div>
               )}
             </div>
-            <Input
+
+            {/* Search */}
+            <input
+              type="text"
               placeholder="Search materials..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-[200px] h-8 text-xs"
+              style={{ height: '28px', width: '160px', padding: '0 8px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', color: '#374151', outline: 'none', background: '#fafafa' }}
             />
-            <Button size="sm" onClick={() => setShowForm(true)} className="text-xs font-sans">
-              <Plus className="w-4 h-4 mr-1" /> Add Material
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setMultiItemRows([{ id: Date.now(), category: '', name: '', unit: 'nos', gst_rate: 18, hsn_code: '', uses_variant: false, inventory: 0 }]); setShowMultiItemModal(true); }} className="text-xs font-sans">
-              <TableIcon className="w-4 h-4 mr-1" /> Multi-Item
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => navigate('/store/adjust')} className="text-xs font-sans">
+
+            <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
+
+            <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '3px', height: '28px', padding: '0 10px', borderRadius: '6px', border: 'none', background: '#4f46e5', color: '#fff', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#4338ca'}
+              onMouseLeave={e => e.currentTarget.style.background = '#4f46e5'}>
+              <Plus style={{ width: '12px', height: '12px' }} /> Add Material
+            </button>
+            <button onClick={() => { setMultiItemRows([{ id: Date.now(), category: '', name: '', unit: 'nos', gst_rate: 18, hsn_code: '', uses_variant: false, inventory: 0 }]); setShowMultiItemModal(true); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '3px', height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
+              <TableIcon style={{ width: '12px', height: '12px' }} /> Multi-Item
+            </button>
+            <button onClick={() => navigate('/store/adjust')}
+              style={{ display: 'flex', alignItems: 'center', gap: '3px', height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
               Adjust Stock
-            </Button>
-            <div className="relative">
-              <Button size="sm" variant="outline" className="text-xs font-sans" onClick={() => setShowMoreDropdown(!showMoreDropdown)}>
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
+            </button>
+
+            {/* Columns */}
+            <div data-dropdown="columns" style={{ position: 'relative' }}>
+              <button
+                style={{ display: 'flex', alignItems: 'center', gap: '3px', height: '28px', padding: '0 8px', borderRadius: '6px', border: showColumnSettings ? '1px solid #6366f1' : '1px solid #d1d5db', background: showColumnSettings ? '#eef2ff' : '#fff', color: showColumnSettings ? '#4f46e5' : '#6b7280', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s' }}
+                onClick={() => setShowColumnSettings((prev) => !prev)}
+                onMouseEnter={e => { if (!showColumnSettings) { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
+                onMouseLeave={e => { if (!showColumnSettings) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}}
+              >
+                <Settings style={{ width: '12px', height: '12px' }} /> Columns
+              </button>
+              {showColumnSettings && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '8px', minWidth: '320px', zIndex: 50 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', padding: '0 4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Columns</span>
+                    <button
+                      onClick={() => { localStorage.setItem('itemsTableColumns', JSON.stringify(visibleColumns)); setShowColumnSettings(false); setSaveNotice('Column layout saved as default'); }}
+                      style={{ padding: '3px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', color: '#374151', fontSize: '11px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.color = '#166534'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#374151'; }}
+                    >
+                      Save as Default
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px' }}>
+                    {ITEM_TABLE_COLUMNS.map((column) => (
+                      <label key={column.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#374151', padding: '4px 6px', borderRadius: '4px', transition: 'background 0.1s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.includes(column.key)}
+                          disabled={column.locked}
+                          onChange={() => toggleColumn(column.key)}
+                          style={{ width: '13px', height: '13px', accentColor: '#4f46e5' }}
+                        />
+                        {column.label}{column.locked ? ' *' : ''}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* More */}
+            <div data-dropdown="more" style={{ position: 'relative' }}>
+              <button
+                style={{ display: 'flex', alignItems: 'center', height: '28px', padding: '0 6px', borderRadius: '6px', border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', cursor: 'pointer', transition: 'all 0.15s' }}
+                onClick={() => setShowMoreDropdown(!showMoreDropdown)}
+                onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+              >
+                <MoreHorizontal style={{ width: '14px', height: '14px' }} />
+              </button>
               {showMoreDropdown && (
-                <div className="absolute z-50 mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[180px] right-0">
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '4px', minWidth: '160px', zIndex: 50 }}>
                   <button
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2"
+                    style={{ width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', borderRadius: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                     onClick={() => { openBulkPriceModal(); setShowMoreDropdown(false); }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <Tag className="w-3 h-3" /> Bulk Price Update
                   </button>
                   <button
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2"
+                    style={{ width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', borderRadius: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                     onClick={() => { setShowBulkImportModal(true); setShowMoreDropdown(false); }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <Upload className="w-3 h-3" /> Bulk Import
                   </button>
                   <button
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2"
+                    style={{ width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', borderRadius: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                     onClick={() => { setShowFieldSelector(true); setShowMoreDropdown(false); }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <FileSpreadsheet className="w-3 h-3" /> Excel Edit
                   </button>
@@ -1991,68 +2116,44 @@ function ItemsTab() {
       )}
 
       {isLoading ? (
-        <div style={{ padding: '100px', textAlign: 'center' }}>
+        <div style={{ padding: '80px', textAlign: 'center' }}>
           <div className="loading-spinner"></div>
-          <p style={{ marginTop: '10px', color: '#666' }}>Loading items...</p>
+          <p style={{ marginTop: '10px', color: '#6b7280', fontSize: '12px' }}>Loading items...</p>
         </div>
       ) : isError ? (
-        <div style={{ padding: '100px', textAlign: 'center' }}>
-          <p style={{ marginBottom: '12px', color: '#b91c1c', fontWeight: 600 }}>{materialsError || 'Unable to load materials.'}</p>
+        <div style={{ padding: '80px', textAlign: 'center' }}>
+          <p style={{ marginBottom: '12px', color: '#b91c1c', fontWeight: 600, fontSize: '12px' }}>{materialsError || 'Unable to load materials.'}</p>
           <button type="button" className="btn btn-primary" onClick={retryItemDependencies}>
             Retry
           </button>
         </div>
       ) : (
         <>
-          <div className="card" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
-              Hide Inactive Items
-            </label>
-            <button
-              className="btn btn-secondary btn-sm flex items-center gap-2"
-              onClick={() => setShowColumnSettings((prev) => !prev)}
-            >
-              <Settings className="w-3 h-3" /> Columns
-            </button>
-          </div>
-
-          {showColumnSettings && (
-            <div className="card" style={{ marginBottom: '16px' }}>
-              <h3 className="card-title">Select Visible Columns</h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-                {ITEM_TABLE_COLUMNS.map((column) => (
-                  <label key={column.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.includes(column.key)}
-                      disabled={column.locked}
-                      onChange={() => toggleColumn(column.key)}
-                    />
-                    {column.label}{column.locked ? ' (Default)' : ''}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-xl overflow-hidden border border-zinc-200">
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
             {filteredMaterials.length === 0 ? (
-              <div className="p-12 text-center text-zinc-500"><h3 className="text-lg font-medium">No Items Found</h3></div>
+              <div style={{ padding: '60px', textAlign: 'center', color: '#6b7280' }}><h3 style={{ fontSize: '13px', fontWeight: 600 }}>No Items Found</h3></div>
             ) : (
-              <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead className="bg-zinc-50 sticky top-0 z-10">
                   {table.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
                         <th 
                           key={header.id} 
-                          className={cn(
-                            "px-4 py-3 border border-zinc-200",
-                            header.id === 'name' ? "text-left" : "text-center"
-                          )}
+                          style={{
+                            padding: '8px 12px',
+                            borderBottom: '1px solid #e5e7eb',
+                            borderRight: '1px solid #f3f4f6',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#6b7280',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            textAlign: header.id === 'name' ? 'left' : 'center',
+                            whiteSpace: 'nowrap',
+                          }}
                         >
                           {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                         </th>
@@ -2070,11 +2171,14 @@ function ItemsTab() {
                       <tr
                         key={row.id}
                         onClick={() => selectMaterialRow(m)}
-                        className={`
-                          transition-colors cursor-pointer relative
-                          ${isSelected ? 'bg-blue-50' : 'hover:bg-zinc-50'}
-                        `}
-                        style={{ opacity: isActive ? 1 : 0.55 }}
+                        style={{
+                          cursor: 'pointer',
+                          opacity: isActive ? 1 : 0.55,
+                          background: isSelected ? '#eff6ff' : 'transparent',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f9fafb'; }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                       >
                         {isSelected && (
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
@@ -2082,10 +2186,15 @@ function ItemsTab() {
                         {row.getVisibleCells().map(cell => (
                           <td 
                             key={cell.id} 
-                            className={cn(
-                              "px-4 py-3 border border-zinc-200",
-                              cell.column.id === 'name' ? "text-left" : "text-center"
-                            )}
+                            style={{
+                              padding: '8px 12px',
+                              borderBottom: '1px solid #f3f4f6',
+                              borderRight: '1px solid #f9fafb',
+                              fontSize: '12px',
+                              color: '#374151',
+                              textAlign: cell.column.id === 'name' ? 'left' : 'center',
+                              whiteSpace: 'nowrap',
+                            }}
                           >
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
@@ -2097,15 +2206,15 @@ function ItemsTab() {
               </table>
             </div>
             {/* Pagination Controls */}
-            <div className="px-4 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50/50">
-              <div className="text-xs text-zinc-500 font-medium">
+            <div style={{ padding: '8px 16px', borderTop: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', fontSize: '12px' }}>
+              <div style={{ color: '#6b7280', fontWeight: 500 }}>
                 Showing {visibleMaterials.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, filteredMaterials.length)} of {filteredMaterials.length} items
               </div>
-              <div className="flex items-center gap-2">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-8 px-3 text-xs"
+                  style={{ height: '28px', padding: '0 10px', fontSize: '12px' }}
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                 >
@@ -2114,19 +2223,19 @@ function ItemsTab() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-8 px-3 text-xs"
+                  style={{ height: '28px', padding: '0 10px', fontSize: '12px' }}
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
                   Previous
                 </Button>
-                <span className="text-xs font-medium text-zinc-600 px-2">
+                <span style={{ fontSize: '12px', fontWeight: 500, color: '#4b5563', padding: '0 8px' }}>
                   Page {currentPage} of {totalPages || 1}
                 </span>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-8 px-3 text-xs"
+                  style={{ height: '28px', padding: '0 10px', fontSize: '12px' }}
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage >= totalPages}
                 >
@@ -2135,7 +2244,7 @@ function ItemsTab() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-8 px-3 text-xs"
+                  style={{ height: '28px', padding: '0 10px', fontSize: '12px' }}
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage >= totalPages}
                 >
@@ -2602,7 +2711,7 @@ function ItemsTab() {
             if (e.target === e.currentTarget) resetForm();
           }}
         >
-          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '800px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
+          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                 <div>
@@ -2623,61 +2732,38 @@ function ItemsTab() {
                   <span className="item-form-section-hint">Required</span>
                 </div>
                 <div className="mb-4">
+                  <label className="form-label mb-2">Item Classification</label>
                   <div className="grid grid-cols-4 gap-1.5">
-                    {[
-                      {
-                        key: 'allow_purchase',
-                        label: 'Allow Purchase',
-                        description: 'Can be bought from vendors'
-                      },
-                      {
-                        key: 'allow_sales',
-                        label: 'Allow Sales',
-                        description: 'Can be sold to clients'
-                      },
-                      {
-                        key: 'show_in_bom',
-                        label: 'Show in BOM',
-                        description: 'Appears as raw material in BOMs'
-                      },
-                      {
-                        key: 'is_manufactured',
-                        label: 'Is Manufactured (Finished Good)',
-                        description: 'Produced via manufacturing, not purchased'
-                      }
-                    ].map((flag) => {
-                      const isActive = !!(formData as any)[flag.key];
+                    {CLASSIFICATION_OPTIONS.map((opt) => {
+                      const isSelected = formData.item_classification === opt.value;
                       return (
                         <button
-                          key={flag.key}
+                          key={opt.value}
                           type="button"
-                          onClick={() => setFormData({ ...formData, [flag.key]: !isActive } as any)}
-                          className={`group min-w-0 rounded-md border px-2.5 py-2 text-left transition-all duration-200 hover:scale-[1.005] hover:shadow-sm ${
-                            isActive
-                              ? 'border-zinc-200 bg-white text-emerald-700'
-                              : 'border-zinc-200 bg-white text-zinc-500'
+                          onClick={() => setItemClassification(opt.value)}
+                          className={`min-w-0 rounded-md border px-2.5 py-2 text-left transition-all duration-200 ${
+                            isSelected
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                              : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                              <div className={`text-[10px] leading-4 transition-all duration-200 ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                                {flag.label}
+                              <div className={`text-[10px] leading-4 transition-all duration-200 ${isSelected ? 'font-semibold' : 'font-medium'}`}>
+                                {opt.label}
                               </div>
                               <div className="mt-0.5 text-[8px] leading-3 transition-all duration-200">
-                                <span className={isActive ? 'text-emerald-600' : 'text-zinc-400'}>
-                                  {flag.description}
-                                </span>{' '}
-                                <span className="text-amber-500">
-                                  {isActive ? 'Enabled' : 'Disabled'}
+                                <span className={isSelected ? 'text-emerald-600' : 'text-zinc-400'}>
+                                  {opt.desc}
                                 </span>
                               </div>
                             </div>
                             <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
-                              isActive
+                              isSelected
                                 ? 'border-emerald-500 bg-emerald-50 text-emerald-600'
                                 : 'border-zinc-300 bg-white text-zinc-400'
                             }`}>
-                              {isActive && (
+                              {isSelected && (
                                 <svg className="h-2 w-2" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                   <path d="M4 10l3.5 3.5L16 5" />
                                 </svg>
@@ -2717,27 +2803,28 @@ function ItemsTab() {
               </div>
 
               <div className="item-form-section">
-                <div className="item-form-section-header">
-                  <h4 className="item-form-section-title">Technical Attributes</h4>
+                <div className="item-form-section-header" onClick={() => setShowTechnical(!showTechnical)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  <h4 className="item-form-section-title">{showTechnical ? '▾' : '▸'} Technical Attributes</h4>
                   <span className="item-form-section-hint">Internal use</span>
                 </div>
+                {showTechnical && (
+                <>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Dimensions (L × W × H)</label>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
                       <input 
                         type="text" 
-                        className="form-input w-[50px]" 
+                        className="form-input" 
                         value={formData.dimension} 
                         onChange={e => setFormData({...formData, dimension: e.target.value})} 
                         placeholder="10x10x10" 
-                        style={{ padding: '4px 2px' }}
                       />
                       <select 
-                        className="form-select w-[8px] px-0 text-center" 
+                        className="form-select" 
                         value={formData.dimension_unit} 
                         onChange={e => setFormData({...formData, dimension_unit: e.target.value})}
-                        style={{ appearance: 'none', padding: '0', fontSize: '10px', border: 'none', background: 'transparent', overflow: 'visible' }}
+                        style={{ width: 'auto', minWidth: '60px' }}
                       >
                         <option value="cm">cm</option>
                         <option value="in">in</option>
@@ -2746,21 +2833,20 @@ function ItemsTab() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Weight</label>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
                       <input 
                         type="number" 
-                        className="form-input w-[50px]" 
+                        className="form-input" 
                         value={formData.weight} 
                         onChange={e => setFormData({...formData, weight: e.target.value})} 
                         placeholder="0.0"
                         step="0.1" 
-                        style={{ padding: '4px 2px' }}
                       />
                       <select 
-                        className="form-select w-[8px] px-0 text-center" 
+                        className="form-select" 
                         value={formData.weight_unit} 
                         onChange={e => setFormData({...formData, weight_unit: e.target.value})}
-                        style={{ appearance: 'none', padding: '0', fontSize: '10px', border: 'none', background: 'transparent', overflow: 'visible' }}
+                        style={{ width: 'auto', minWidth: '60px' }}
                       >
                         <option value="kg">kg</option>
                         <option value="lb">lb</option>
@@ -2780,11 +2866,11 @@ function ItemsTab() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">MAKE(Brand name)</label>
-                    <input type="text" className="form-input" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value})} placeholder="Brand name" />
+                    <label className="form-label">Brand (Make)</label>
+                    <input type="text" className="form-input" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value})} placeholder="e.g. Kirloskar, Siemens" />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Material</label>
+                    <label className="form-label">Material of Construction</label>
                     <input type="text" className="form-input" value={formData.material} onChange={e => setFormData({...formData, material: e.target.value})} placeholder="e.g., SS304, CI, PVC" />
                   </div>
                 </div>
@@ -2795,9 +2881,11 @@ function ItemsTab() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Sub Category</label>
-                    <input type="text" className="form-input" value={formData.sub_category} onChange={e => setFormData({...formData, sub_category: e.target.value})} />
+                    <input type="text" className="form-input" value={formData.sub_category} onChange={e => setFormData({...formData, sub_category: e.target.value})} placeholder="e.g., Ball Valve, Gate Valve" />
                   </div>
                 </div>
+                </>
+                )}
               </div>
 
               <div className="item-form-section">
@@ -2852,51 +2940,38 @@ function ItemsTab() {
                 </div>
               </div>
 
-              <div className="item-form-section">
-                <div className="item-form-section-header">
-                  <h4 className="item-form-section-title">Variants & Status</h4>
-                  <span className="item-form-section-hint">Optional</span>
-                </div>
+              <div className="item-form-section-footer" style={{ display: 'flex', gap: '24px', padding: '8px 0 0 0', borderTop: '1px solid #e5e7eb', marginTop: '12px' }}>
+                <label className="item-checkbox-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                  />
+                  Active
+                </label>
 
-                <div className="item-toggle-row">
-                  <label className="item-checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_active}
-                      onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                    />
-                    Active
-                  </label>
-
-                  <label className="item-checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={formData.uses_variant}
-                      onChange={e => {
-                        const checked = e.target.checked;
-                        if (editingMaterial) {
-                          handleUsesVariantChange(checked);
-                        } else {
-                          setFormData({
-                            ...formData,
-                            uses_variant: checked,
-                            sale_price: checked ? '0' : formData.sale_price
-                          });
-                          if (checked && variantPricing.length === 0) {
-                            addVariantPricingRow();
-                          }
+                <label className="item-checkbox-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.uses_variant}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      if (editingMaterial) {
+                        handleUsesVariantChange(checked);
+                      } else {
+                        setFormData({
+                          ...formData,
+                          uses_variant: checked,
+                          sale_price: checked ? '0' : formData.sale_price
+                        });
+                        if (checked && variantPricing.length === 0) {
+                          addVariantPricingRow();
                         }
-                      }}
-                    />
-                    This item uses Variant
-                  </label>
-                </div>
-
-                <p className="item-form-helper">
-                  {formData.uses_variant
-                    ? 'Prices will be set per variant below. At least one variant price is required before saving.'
-                    : 'Enable to set different prices for different variants (Retail, Wholesale, Special, etc.)'}
-                </p>
+                      }
+                    }}
+                  />
+                  This item uses Variant pricing
+                </label>
               </div>
 
               {formData.uses_variant && (

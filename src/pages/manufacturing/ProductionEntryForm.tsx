@@ -65,7 +65,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
       if (!formData.job_card_id) return null;
       const { data, error } = await supabase
         .from('job_cards')
-        .select('*')
+        .select('*, bom_headers!inner(product_id)')
         .eq('id', formData.job_card_id)
         .single();
       if (error) throw error;
@@ -399,11 +399,14 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
         }
       }
 
-      // 5. Auto-create finished product in materials table if not exists
+      // 5. Look up finished product — prefer product_id FK from BOM, fall back to name match
+      const bomProductId = (selectedJobCard as any)?.bom_headers?.product_id;
       const productName = selectedJobCard?.product_name;
       let finishedProductId: string | null = null;
 
-      if (productName) {
+      if (bomProductId) {
+        finishedProductId = bomProductId;
+      } else if (productName) {
         const { data: existingProduct } = await supabase
           .from('materials')
           .select('id')
@@ -420,6 +423,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
               name: productName,
               unit: formData.output_unit || selectedJobCard?.output_unit || 'nos',
               organisation_id: organisation.id,
+              item_classification: 'finished_good',
               allow_purchase: false,
               allow_sales: true,
               show_in_bom: false,

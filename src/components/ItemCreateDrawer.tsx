@@ -36,7 +36,8 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
     item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-    uses_variant: false, track_inventory: false
+    uses_variant: false, track_inventory: false,
+    item_classification: 'goods_sold'
   });
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
@@ -132,6 +133,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       allow_sales: true,
       show_in_bom: true,
       is_manufactured: false,
+      item_classification: 'goods_sold',
       item_type: 'product',
       organisation_id: organisation?.id
     };

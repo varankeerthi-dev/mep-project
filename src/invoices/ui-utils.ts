@@ -156,6 +156,7 @@ export type InvoiceMaterialOption = {
   unit: string | null;
   sale_price: number | null;
   item_type: string;
+  item_classification?: string;
   variants: MaterialVariant[];
 };
 
