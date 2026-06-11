@@ -79,9 +79,6 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             let query = supabase.from('item_units').select('*').eq('is_active', true).order('unit_name');
-            if (orgId) {
-              query = query.eq('organisation_id', orgId);
-            }
             return await timedSupabaseQuery(query, 'Item Units');
           } catch (error) {
             if (isMissingRelationError(error)) {

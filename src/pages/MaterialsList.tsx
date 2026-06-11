@@ -1092,7 +1092,7 @@ function ItemsTab() {
       dimension_unit: formData.dimension_unit || 'cm',
       weight: formData.weight ? parseFloat(formData.weight) : null,
       weight_unit: formData.weight_unit || 'kg',
-      item_type: formData.item_classification === 'goods_sold' || formData.item_classification === 'consumable' ? 'product' : formData.item_classification || 'product',
+      item_type: 'product',
       item_classification: formData.item_classification,
       allow_purchase: formData.allow_purchase,
       allow_sales: formData.allow_sales,

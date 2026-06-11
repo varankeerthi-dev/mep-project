@@ -94,7 +94,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       if (!ids.length) return [];
       const { data, error } = await supabase
         .from('item_variant_pricing')
-        .select('item_id, company_variant_id, make')
+        .select('item_id, company_variant_id')
         .in('item_id', ids);
       if (error) throw error;
       return data || [];
@@ -324,6 +324,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const { data: combinedUnits = [] } = useCombinedUnits();
   const fallbackUnits = [{ value: 'kg', label: 'Kg' }, { value: 'mtr', label: 'Mtr' }, { value: 'nos', label: 'Nos' }, { value: 'ft', label: 'Ft' }, { value: 'sqm', label: 'Sqm' }, { value: 'cum', label: 'Cum' }, { value: 'ltr', label: 'Ltr' }, { value: 'pcs', label: 'Pcs' }];
   const unitOptions = combinedUnits.length > 0 ? combinedUnits : fallbackUnits;
+  const brandOptions = [...new Set((materials || []).map(m => m.make).filter(Boolean))].sort();
 
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
@@ -529,7 +530,10 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 })()}
               </div>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
-                <input type="text" value={item.make || ''} onChange={(e) => updateItem(index, 'make', e.target.value)} placeholder="Brand" style={cellInputStyle} />
+                <select value={item.make || ''} onChange={(e) => updateItem(index, 'make', e.target.value)} style={cellInputStyle}>
+                  <option value="">—</option>
+                  {brandOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
               </div>
               <div style={cellStyle} onMouseEnter={handleCellHover} onMouseLeave={handleCellLeave}>
                 <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} style={cellInputStyle}>
