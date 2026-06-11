@@ -654,6 +654,73 @@ export default function CreateQuotation() {
     loadDCs();
   }, [isMultiDC, dcIdsParam, organisation?.id]);
 
+  const calculations = useMemo(() => {
+    let subtotal = 0;
+    let totalItemDiscount = 0;
+    let totalTax = 0;
+    
+    const subTotalGroups: { [key: string]: number } = {};
+    let runningGroupTotal = 0;
+    const taxGroups: { [key: string]: { baseAmount: number; taxAmount: number; sgst: number; cgst: number } } = {};
+
+    items.forEach(item => {
+      if (item.is_header) return;
+      if (item.is_subtotal) {
+        const label = item.subtotal_label || 'Sub-total:';
+        subTotalGroups[label] = runningGroupTotal;
+        runningGroupTotal = 0;
+        return;
+      }
+      const qty = parseFloat(item.qty) || 0;
+      const finalRate = parseFloat(item.rate) || 0;
+      const baseRate = parseFloat(item.base_rate_snapshot) || finalRate;
+      const grossBase = qty * baseRate;
+      const net = qty * finalRate;
+      const discountAmount = Math.max(0, grossBase - net);
+      const taxable = net;
+      const taxPercent = parseFloat(item.tax_percent) || 0;
+      const taxAmount = (taxable * taxPercent) / 100;
+      const lineTotal = taxable + taxAmount;
+      subtotal += net;
+      totalItemDiscount += discountAmount;
+      totalTax += taxAmount;
+      runningGroupTotal += net;
+      if (taxPercent > 0) {
+        if (!taxGroups[taxPercent]) {
+          taxGroups[taxPercent] = { baseAmount: 0, taxAmount: 0, sgst: 0, cgst: 0 };
+        }
+        const sgst = taxAmount / 2;
+        const cgst = taxAmount / 2;
+        taxGroups[taxPercent].baseAmount += taxable;
+        taxGroups[taxPercent].taxAmount += taxAmount;
+        taxGroups[taxPercent].sgst += sgst;
+        taxGroups[taxPercent].cgst += cgst;
+      }
+      item.line_total = lineTotal;
+      item.tax_amount = taxAmount;
+      item.discount_amount = discountAmount;
+    });
+
+    const afterItemDiscount = subtotal;
+    const extraDiscountPercent = parseFloat(formData.extra_discount_percent) || 0;
+    const extraDiscountAmount = (afterItemDiscount * extraDiscountPercent) / 100;
+    const extraDiscountManual = parseFloat(formData.extra_discount_amount) || 0;
+    const isInterState = formData.state && companyState && formData.state.trim().toLowerCase() !== companyState.trim().toLowerCase();
+    const cgst = isInterState ? 0 : totalTax / 2;
+    const sgst = isInterState ? 0 : totalTax / 2;
+    const igst = isInterState ? totalTax : 0;
+    const subtotalAfterDiscounts = afterItemDiscount - extraDiscountAmount - extraDiscountManual;
+    const baseTotal = subtotalAfterDiscounts + totalTax;
+    let roundOffValue = 0;
+    if (formData.round_off_enabled) {
+      roundOffValue = Math.round(baseTotal) - baseTotal;
+    } else {
+      roundOffValue = parseFloat(formData.round_off) || 0;
+    }
+    const grandTotal = baseTotal + roundOffValue;
+    return { subtotal, totalItemDiscount, extraDiscountAmount, cgst, sgst, igst, isInterState, totalTax, roundOff: roundOffValue, grandTotal, taxGroups, subTotalGroups, amountInWords: numberToWords(grandTotal) };
+  }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.round_off_enabled, formData.state, companyState]);
+
   // Auto-split allocation equally when items change (for multi-DC)
   useEffect(() => {
     if (!isMultiDC || dcAllocations.length === 0) return;
@@ -1888,112 +1955,6 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: number } | null>(null);
-
-  const calculations = useMemo(() => {
-    // In this UI, `rate` is treated as the final "rate after discount".
-    // So totals/tax should be computed off `qty * rate` (not applying discount_percent again).
-    let subtotal = 0;
-    let totalItemDiscount = 0;
-    let totalTax = 0;
-    
-    // Sub-total groups — each subtotal captures items above it until the previous subtotal
-    const subTotalGroups: { [key: string]: number } = {};
-    let runningGroupTotal = 0;
-
-    // Calculate taxes by rate for mixed tax scenarios
-    const taxGroups: { [key: string]: { baseAmount: number; taxAmount: number; sgst: number; cgst: number } } = {};
-
-    items.forEach(item => {
-      // Skip header rows
-      if (item.is_header) return;
-      
-      // When a subtotal is encountered, save the accumulated total above it
-      if (item.is_subtotal) {
-        const label = item.subtotal_label || 'Sub-total:';
-        subTotalGroups[label] = runningGroupTotal;
-        runningGroupTotal = 0;
-        return;
-      }
-      
-      const qty = parseFloat(item.qty) || 0;
-      const finalRate = parseFloat(item.rate) || 0;
-      const baseRate = parseFloat(item.base_rate_snapshot) || finalRate;
-
-      const grossBase = qty * baseRate;
-      const net = qty * finalRate;
-      const discountAmount = Math.max(0, grossBase - net);
-      const taxable = net;
-      const taxPercent = parseFloat(item.tax_percent) || 0;
-      const taxAmount = (taxable * taxPercent) / 100;
-      const lineTotal = taxable + taxAmount;
-
-      subtotal += net;
-      totalItemDiscount += discountAmount;
-      totalTax += taxAmount;
-      
-      runningGroupTotal += net;
-
-      // Group taxes by rate (only for items, not sub-totals)
-      if (taxPercent > 0) {
-        if (!taxGroups[taxPercent]) {
-          taxGroups[taxPercent] = { baseAmount: 0, taxAmount: 0, sgst: 0, cgst: 0 };
-        }
-        
-        const sgst = taxAmount / 2;
-        const cgst = taxAmount / 2;
-        
-        taxGroups[taxPercent].baseAmount += taxable;
-        taxGroups[taxPercent].taxAmount += taxAmount;
-        taxGroups[taxPercent].sgst += sgst;
-        taxGroups[taxPercent].cgst += cgst;
-      }
-
-      item.line_total = lineTotal;
-      item.tax_amount = taxAmount;
-      item.discount_amount = discountAmount;
-    });
-
-    // `subtotal` is already after item-level discounts.
-    const afterItemDiscount = subtotal;
-    const extraDiscountPercent = parseFloat(formData.extra_discount_percent) || 0;
-    const extraDiscountAmount = (afterItemDiscount * extraDiscountPercent) / 100;
-    const extraDiscountManual = parseFloat(formData.extra_discount_amount) || 0;
-    
-    const isInterState = formData.state && companyState && 
-                        formData.state.trim().toLowerCase() !== companyState.trim().toLowerCase();
-    
-    const cgst = isInterState ? 0 : totalTax / 2;
-    const sgst = isInterState ? 0 : totalTax / 2;
-    const igst = isInterState ? totalTax : 0;
-
-    const subtotalAfterDiscounts = afterItemDiscount - extraDiscountAmount - extraDiscountManual;
-    const baseTotal = subtotalAfterDiscounts + totalTax;
-    
-    let roundOffValue = 0;
-    if (formData.round_off_enabled) {
-      roundOffValue = Math.round(baseTotal) - baseTotal;
-    } else {
-      roundOffValue = parseFloat(formData.round_off) || 0;
-    }
-
-    const grandTotal = baseTotal + roundOffValue;
-
-    return {
-      subtotal,
-      totalItemDiscount,
-      extraDiscountAmount,
-      cgst,
-      sgst,
-      igst,
-      isInterState,
-      totalTax,
-      roundOff: roundOffValue,
-      grandTotal,
-      taxGroups,
-      subTotalGroups,
-      amountInWords: numberToWords(grandTotal)
-    };
-  }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.round_off_enabled, formData.state, companyState]);
 
   const saveCurrentRevision = useCallback(async () => {
     if (!formData.id || !editId) return null;
