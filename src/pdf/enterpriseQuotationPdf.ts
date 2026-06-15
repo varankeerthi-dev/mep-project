@@ -432,8 +432,10 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   }
 
   const tableHead = [cols.map(c => c.header)];
-  const tableBody: any[][] = [];
+  const tableBody: Record<string, any>[] = [];
   let sno = 0;
+
+  const sectionSubtotals: { label: string; value: number }[] = [];
 
   items.forEach(item => {
     if (item.is_header) {
@@ -446,13 +448,9 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     }
 
     if (item.is_subtotal) {
-      const span = cols.map(() => '');
-      const itemColIdx = cols.findIndex(c => c.key === 'item');
-      const ltIdx = cols.findIndex(c => c.key === 'line_total');
-      const groupVal = calculations.subTotalGroups?.[item.subtotal_label ?? 'Sub-total:'] ?? 0;
-      span[itemColIdx] = item.subtotal_label ?? 'Sub-total:';
-      if (ltIdx >= 0) span[ltIdx] = fmtCur(groupVal);
-      tableBody.push({ _type: 'subtotal', cells: span });
+      const label = item.subtotal_label ?? 'Sub-total:';
+      const val = calculations.subTotalGroups?.[label] ?? 0;
+      sectionSubtotals.push({ label, value: val });
       return;
     }
 
@@ -481,7 +479,6 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   });
 
   const bodyRows = tableBody.map(r => r.cells);
-  const footerH = 58;
 
   autoTable(doc, {
     startY: curY,
@@ -526,11 +523,6 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
         }
       }
 
-      if (meta._type === 'subtotal') {
-        data.cell.styles.fillColor = C.subtotalRow;
-        data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.textColor = C.primary;
-      }
     },
     didDrawPage(data) {
       const pageNum = (doc.internal as any).getCurrentPageInfo().pageNumber;
@@ -561,10 +553,11 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   });
 
   const finalY: number = (doc as any).lastAutoTable.finalY ?? curY;
+  const secSubH = sectionSubtotals.length > 0 ? 8 + sectionSubtotals.length * 5.5 + 2 : 0;
   const footerBlockH = computeFooterHeight(calculations, items);
 
   let fY = finalY + 4;
-  if (fY + footerBlockH > PAGE_H - MARGIN - 8) {
+  if (fY + secSubH + footerBlockH > PAGE_H - MARGIN - 8) {
     doc.addPage();
     const y = MARGIN;
     doc.setFillColor(...C.primary);
@@ -588,6 +581,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 4, { align: 'center' });
   }
 
+  fY = drawSectionSubtotals(doc, fY, sectionSubtotals);
   drawFooterBlock(doc, fY, calculations, signatory, bankDetails, header.remarks, items, org.name);
 
   if (termsAndConditions && termsAndConditions.length > 0) {
@@ -673,6 +667,40 @@ function computeFooterHeight(calc: Calculations, items?: QuotationItem[]): numbe
   h += 30 + 6;
 
   return h + 6;
+}
+
+function drawSectionSubtotals(doc: jsPDF, y: number, subs: { label: string; value: number }[]): number {
+  if (subs.length === 0) return y;
+
+  doc.setFillColor(...C.sectionHdr);
+  doc.rect(MARGIN, y, CONTENT_W, 6, 'F');
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.2);
+  doc.rect(MARGIN, y, CONTENT_W, 6);
+  doc.setFont('Helvetica', 'Bold');
+  doc.setFontSize(7);
+  doc.setTextColor(...C.primary);
+  doc.text('SECTION SUBTOTALS', MARGIN + 3, y + 4);
+  y += 6;
+
+  subs.forEach(s => {
+    doc.setFillColor(...C.white);
+    doc.rect(MARGIN, y, CONTENT_W, 5.5, 'F');
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.1);
+    doc.rect(MARGIN, y, CONTENT_W, 5.5);
+    doc.setFont('Helvetica', 'Bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...C.text);
+    doc.text(s.label, MARGIN + 3, y + 3.8);
+    doc.setFont('Helvetica', 'Bold');
+    doc.setTextColor(...C.primary);
+    doc.text(fmtCur(s.value), PAGE_W - MARGIN - 3, y + 3.8, { align: 'right' });
+    y += 5.5;
+  });
+
+  y += 2;
+  return y;
 }
 
 function drawFooterBlock(
