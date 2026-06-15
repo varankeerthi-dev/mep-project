@@ -268,7 +268,7 @@ export default function CreateQuotation() {
         
         // Preserve any previously applied discount for this row
         const discountToApply = existingErection.discount_percent || headerDiscounts['erection'] || 0;
-        const finalRate = baseRate - (baseRate * discountToApply / 100);
+        const finalRate = calculateVariantDiscountedRate(baseRate, discountToApply);
 
         // Update existing erection
         const updatedErection = {
@@ -289,7 +289,7 @@ export default function CreateQuotation() {
         // Create new erection item
         const baseRate = serviceRate.default_erection_rate;
         const discountToApply = headerDiscounts['erection'] || 0;
-        const finalRate = baseRate - (baseRate * discountToApply / 100);
+        const finalRate = calculateVariantDiscountedRate(baseRate, discountToApply);
 
         const newErection = {
           id: Date.now() + Math.random(), // Temporary ID
@@ -993,7 +993,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         if (isMatch && !item.is_override) {
           const appliedDiscount = newValue;
           const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
-          const finalRate = baseRate - (baseRate * appliedDiscount / 100);
+          const finalRate = calculateVariantDiscountedRate(baseRate, appliedDiscount);
           
           return {
             ...item,
@@ -1021,11 +1021,16 @@ const loadQuoteNoPreview = useCallback(async () => {
     setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   }, []);
 
+  const roundRate = useCallback((rate: number): number => {
+    return organisation?.round_off_enabled !== false ? Math.round(rate) : rate;
+  }, [organisation?.round_off_enabled]);
+
   const calculateVariantDiscountedRate = useCallback((baseRate, discountPercent) => {
     const base = parseFloat(baseRate) || 0;
     const discount = parseFloat(discountPercent) || 0;
-    return base - (base * discount / 100);
-  }, []);
+    const raw = base - (base * discount / 100);
+    return organisation?.round_off_enabled !== false ? Math.round(raw) : raw;
+  }, [organisation?.round_off_enabled]);
 
   const loadClientDiscountPortfolio = useCallback(async (clientId) => {
     if (!clientId) return { discounts: {}, settings: {} };
@@ -2074,7 +2079,6 @@ const loadQuoteNoPreview = useCallback(async () => {
         })(),
         revision_no: formData.revision_no || 1,
         revision_history: formData.revision_history || [],
-        multi_dc_mode: isMultiDC ? (multiDCModeParam || 'single-total') : null,
       };
 
       if (editId) {
@@ -2517,42 +2521,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         <div style={{ background: '#f8f9fa', padding: '10px', marginBottom: '10px', borderRadius: '6px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 16px' }}>
 
-            {/* Column 1: DOCUMENT */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={sectionHeaderStyle}>Document</div>
-              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-                <span style={labelColStyle}>Quote No:</span>
-                <div style={{ flex: 1, display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', width: '45%' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>
-                  <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', minWidth: '40px' }}>Date:</span>
-                  <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
-                </div>
-              </div>
-              {renderHeaderField('Prepared By:', <input type="text" className="form-input" style={inputStyle} value={formData.prepared_by || ''} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Sales executive..." />)}
-              {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
-              {renderHeaderField('Discount Category:', <select className="form-select" style={inputStyle} value={formData.variant_id} onChange={(e) => {
-                const newVariantId = e.target.value;
-                setFormData({ ...formData, variant_id: newVariantId });
-                if (items.length > 0) {
-                  setItems(prev => prev.map(item => {
-                    if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
-                    const mat = materials.find(m => m.id === item.item_id);
-                    if (!mat) return { ...item, variant_id: newVariantId || null };
-                    const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
-                    const variantDiscount = newVariantId ? (headerDiscounts[newVariantId] || 0) : 0;
-                    const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                    return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: variantDiscount, applied_discount_percent: variantDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
-                  }));
-                }
-              }}>
-                <option value="">Standard</option>
-                {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-              </select>)}
-              {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
-              {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
-            </div>
-
-            {/* Column 2: CLIENT */}
+            {/* Column 1: CLIENT & DOCUMENT */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={sectionHeaderStyle}>Client</div>
               <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
@@ -2601,7 +2570,6 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                             setUseArcPricing(enabled);
                             if (!enabled) {
                               setArcPricingMap({});
-                              // Revert all rates to standard rates
                               setItems(prev => prev.map(item => {
                                 if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
                                 if (!item.item_id) return item;
@@ -2609,7 +2577,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                                 if (!mat) return item;
                                 const stdRate = getRateForMaterialVariant(mat, item.variant_id, item.make);
                                 const discountPercent = parseFloat(item.discount_percent) || 0;
-                                const finalRate = stdRate - (stdRate * discountPercent / 100);
+                                const finalRate = calculateVariantDiscountedRate(stdRate, discountPercent);
                                 return {
                                   ...item,
                                   base_rate_snapshot: stdRate,
@@ -2637,10 +2605,23 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
               {renderHeaderField('Address:', <textarea className="form-input" style={{ ...inputStyle, minHeight: '40px', resize: 'vertical' }} value={formData.billing_address} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Full billing address..." />)}
               {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
-              {renderHeaderField('State:', <select className="form-select" style={inputStyle} value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })}>
-                <option value="">Select state...</option>
-                {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>, true)}
+            </div>
+
+            {/* Column 2: DOCUMENT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Document</div>
+              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+                <span style={labelColStyle}>Quote No:</span>
+                <div style={{ flex: 1, display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', width: '45%' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>
+                  <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', minWidth: '40px' }}>Date:</span>
+                  <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+                </div>
+              </div>
+              {renderHeaderField('Prepared By:', <input type="text" className="form-input" style={inputStyle} value={formData.prepared_by || ''} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Sales executive..." />)}
+              {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
+              {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
+              {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
             </div>
 
             {/* Column 3: PROJECT & DISCOUNTS */}
@@ -2653,6 +2634,25 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 ))}
               </select>)}
               
+              {renderHeaderField('Discount Category:', <select className="form-select" style={inputStyle} value={formData.variant_id} onChange={(e) => {
+                const newVariantId = e.target.value;
+                setFormData({ ...formData, variant_id: newVariantId });
+                if (items.length > 0) {
+                  setItems(prev => prev.map(item => {
+                    if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                    const mat = materials.find(m => m.id === item.item_id);
+                    if (!mat) return { ...item, variant_id: newVariantId || null };
+                    const effectiveVariantId = newVariantId && variantPricing[mat.id]?.[newVariantId] ? newVariantId : null;
+                    const newRate = getRateForMaterialVariant(mat, effectiveVariantId, item.make || '');
+                    const variantDiscount = effectiveVariantId ? (headerDiscounts[effectiveVariantId] || 0) : 0;
+                    const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                    return { ...item, variant_id: effectiveVariantId, base_rate_snapshot: newRate, discount_percent: variantDiscount, applied_discount_percent: variantDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
+                  }));
+                }
+              }}>
+                <option value="">Standard</option>
+                {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+              </select>)}
               {/* Discounts */}
               <div style={{ marginTop: '4px' }}>
                 <div style={{ ...sectionHeaderStyle, marginBottom: '6px' }}>Discounts</div>
@@ -2811,7 +2811,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         </div>
 
         <div className="grid-table-container">
-          <table className={`grid-table ${activeSection === 'erection' ? 'erection-section' : ''}`}>
+          <table className={`grid-table cq-editable ${activeSection === 'erection' ? 'erection-section' : ''}`}>
             <thead>
               <tr>
                 <th className="col-shrink">#</th>
@@ -2839,7 +2839,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 <th className="col-unit">UNIT</th>
                 <th className="col-rate">RATE</th>
                 <th className="col-disc">DISC %</th>
-                <th className="col-rate">RATE AFTER DISC</th>
+                <th className="col-rate-after-disc">RATE AFTER DISC</th>
                 <th className="col-gst">GST %</th>
                 {templateSettings?.column_settings?.optional?.custom1 && (
                   <th className="col-shrink">{templateSettings.column_settings.labels?.custom1 || 'Custom 1'}</th>
@@ -3138,7 +3138,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                               onChange={(e) => {
                                 const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
                                 const disc = item.discount_percent || 0;
-                                const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                                const finalRate = calculateVariantDiscountedRate(newBaseRate, disc);
                                 updateItem(item.id, 'base_rate_snapshot', newBaseRate);
                                 updateItem(item.id, 'rate', finalRate);
                                 updateItem(item.id, 'is_override', true);
@@ -3181,7 +3181,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                                     onClick={() => {
                                       const newBaseRate = rates.lastQuoted!.baseRate;
                                       const disc = item.discount_percent || 0;
-                                      const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                                      const finalRate = calculateVariantDiscountedRate(newBaseRate, disc);
                                       updateItem(item.id, 'base_rate_snapshot', newBaseRate);
                                       updateItem(item.id, 'rate', finalRate);
                                       updateItem(item.id, 'is_override', true);
@@ -3208,7 +3208,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                                     onClick={() => {
                                       const newBaseRate = rates.lastInvoiced!.baseRate;
                                       const disc = item.discount_percent || 0;
-                                      const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                                      const finalRate = calculateVariantDiscountedRate(newBaseRate, disc);
                                       updateItem(item.id, 'base_rate_snapshot', newBaseRate);
                                       updateItem(item.id, 'rate', finalRate);
                                       updateItem(item.id, 'is_override', true);
@@ -3786,7 +3786,7 @@ className="text-center cell-static col-shrink row-drag-handle"
             const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
             if (arcRate === null) return item;
             const discountPercent = parseFloat(item.discount_percent) || 0;
-            const finalRate = arcRate - (arcRate * discountPercent / 100);
+            const finalRate = calculateVariantDiscountedRate(arcRate, discountPercent);
             return {
               ...item,
               base_rate_snapshot: arcRate,
@@ -3809,7 +3809,7 @@ className="text-center cell-static col-shrink row-drag-handle"
             const arcRate = getArcRateFromMap(arcPricingMap, item.item_id, item.variant_id);
             if (arcRate === null) return item;
             const discountPercent = parseFloat(item.discount_percent) || 0;
-            const finalRate = arcRate - (arcRate * discountPercent / 100);
+            const finalRate = calculateVariantDiscountedRate(arcRate, discountPercent);
             return {
               ...item,
               base_rate_snapshot: arcRate,

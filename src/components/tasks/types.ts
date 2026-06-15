@@ -77,6 +77,10 @@ export interface Task {
   updated_at: string;
   deleted_at: string | null;
 
+  // Site-report integration (from 075_report_task_integration.sql)
+  last_site_report_id?: string | null;
+  last_report_date?: string | null;  // DATE column — local calendar date, no TZ
+
   // Computed/joined
   subtasks?: Task[];
   subtask_count?: number;
@@ -432,6 +436,7 @@ export const DEFAULT_COLUMNS: TaskColumnConfig = {
   wbs_code:            { visible: false, width: 100, order: 13 },
   estimated_hours:     { visible: false, width: 100, order: 14 },
   actual_hours:        { visible: false, width: 100, order: 15 },
+  last_report:         { visible: false, width: 110, order: 16 },
 };
 
 // ============================================
@@ -566,4 +571,5 @@ export const COLUMN_LABELS: Record<string, string> = {
   wbs_code: 'WBS',
   estimated_hours: 'Est. Hrs',
   actual_hours: 'Act. Hrs',
+  last_report: 'Last Report',
 };

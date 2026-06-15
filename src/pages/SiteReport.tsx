@@ -90,6 +90,7 @@ import {
   type BlockingParty,
   type WorkStoppage,
 } from '@/types/siteReportStoppage';
+import TaskLinkSelector from '@/components/tasks/TaskLinkSelector';
 
 // Removed Material-UI imports
 
@@ -248,12 +249,16 @@ export function SiteReport() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const issueIdParam = searchParams.get('issue_id');
+  const actionParam = searchParams.get('action');
+  const taskIdParam = searchParams.get('task_id');
 
   // Accordion open/closed state — all open by default
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     identification: true,
     manpower: true,
     workMilestones: true,
+    taskLinks: true,
     progressEquipmentSafety: true,
     logistics: true,
     issuesPlanClient: true,
@@ -279,15 +284,32 @@ export function SiteReport() {
   };
   const [stoppages, setStoppages] = useState<StoppageDraft[]>([]);
   const [stoppagesLoaded, setStoppagesLoaded] = useState(false);
+
+  // Task linking state (from 075_report_task_integration.sql)
+  const [primaryTaskId, setPrimaryTaskId] = useState<string | null>(null);
+  const [coveredTaskIds, setCoveredTaskIds] = useState<string[]>([]);
+  // Per-stoppage task_id: keyed by stoppage index
+  const [stoppageTaskIds, setStoppageTaskIds] = useState<Record<number, string | null>>({});
+
   const addStoppageRow = () => setStoppages((prev) => [
     ...prev,
     { category: 'payment', blocking_party: 'unknown', affected_work: '', reason_detail: '', expected_resolution_date: '' },
   ]);
   const updateStoppageRow = (idx: number, patch: Partial<StoppageDraft>) =>
     setStoppages((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-  const removeStoppageRow = (idx: number) =>
+  const removeStoppageRow = (idx: number) => {
     setStoppages((prev) => prev.filter((_, i) => i !== idx));
-  const resetStoppages = () => { setStoppages([]); setStoppagesLoaded(false); };
+    setStoppageTaskIds((prev) => {
+      const next: Record<number, string | null> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const ki = Number(k);
+        if (ki < idx) next[ki] = v;
+        else if (ki > idx) next[ki - 1] = v;
+      });
+      return next;
+    });
+  };
+  const resetStoppages = () => { setStoppages([]); setStoppagesLoaded(false); setStoppageTaskIds({}); };
 
   // Stoppage mutations (Phase H)
   const createStoppages = useCreateStoppagesForReport(organisation?.id ?? undefined, selectedReportId ?? undefined);
@@ -316,21 +338,6 @@ export function SiteReport() {
       resetStoppages();
     }
   }, [view, selectedReportId, existingStoppages, stoppagesLoaded]);
-
-  const issueIdParam = searchParams.get('issue_id');
-  const actionParam = searchParams.get('action');
-
-  useEffect(() => {
-    if (actionParam === 'create' && view !== 'create') {
-      setView('create');
-      setSubmitForApproval(false);
-      setSelectedApproverId('');
-      // Clear the action param so we don't force 'create' if user clicks Back
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('action');
-      setSearchParams(newParams, { replace: true });
-    }
-  }, [actionParam, view, searchParams, setSearchParams]);
 
   const form = useForm<SiteReportFormValues>({
     resolver: zodResolver(siteReportSchema),
@@ -364,6 +371,38 @@ export function SiteReport() {
   const { errors } = form.formState;
   const selectedClientId = form.watch('client');
 
+  // Pre-fill task links when navigated here from a task drawer
+  useEffect(() => {
+    if (taskIdParam && view === 'create') {
+      setPrimaryTaskId(taskIdParam);
+      setCoveredTaskIds(prev => prev.includes(taskIdParam) ? prev : [taskIdParam, ...prev]);
+      
+      // Fetch the task to pre-fill the project
+      supabase
+        .from('tasks')
+        .select('project_id')
+        .eq('id', taskIdParam)
+        .single()
+        .then(({ data }) => {
+          if (data?.project_id) {
+            form.setValue('projectName', data.project_id);
+          }
+        });
+    }
+  }, [taskIdParam, view, form]);
+
+  useEffect(() => {
+    if (actionParam === 'create' && view !== 'create') {
+      setView('create');
+      setSubmitForApproval(false);
+      setSelectedApproverId('');
+      // Clear the action param so we don't force 'create' if user clicks Back
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [actionParam, view, searchParams, setSearchParams]);
+
   // Fetch existing reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['site-reports', organisation?.id],
@@ -391,7 +430,7 @@ export function SiteReport() {
   });
 
   // Fetch Clients
-  const { data: clients, isLoading: clientsLoading, error: clientsError } = useQuery({
+  const { data: clients, isLoading: clientsLoading, error: clientsError } = useQuery<any[]>({
     queryKey: ['site-report-clients', organisation?.id],
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
     gcTime: 1000 * 60 * 30,    // Keep in memory for 30 minutes
@@ -413,30 +452,42 @@ export function SiteReport() {
   });
 
   // Fetch Projects
-  const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery({
+  const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery<any[]>({
     queryKey: ['site-report-projects', organisation?.id],
     enabled: !!organisation?.id,
-    queryFn: () =>
-      supabase
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
         .from('projects')
         .select('id, project_name, project_code')
-        .eq('organisation_id', organisation!.id)
+        .eq('organisation_id', organisation.id)
         .eq('status', 'Active')
-        .order('project_name')
-        .then(({ data }) => data || []),
+        .order('project_name');
+      if (error) {
+        console.error('Projects fetch error:', error);
+        return [];
+      }
+      return data || [];
+    }
   });
 
-  const { data: subcontractors } = useQuery({
+  const { data: subcontractors } = useQuery<any[]>({
     queryKey: ['site-report-subcontractors', organisation?.id],
     enabled: !!organisation?.id,
-    queryFn: () =>
-      supabase
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
         .from('subcontractors')
         .select('id, company_name, sub_number')
-        .eq('organisation_id', organisation!.id)
+        .eq('organisation_id', organisation.id)
         .eq('status', 'Active')
-        .order('company_name')
-        .then(({ data }) => data || []),
+        .order('company_name');
+      if (error) {
+        console.error('Subcontractors fetch error:', error);
+        return [];
+      }
+      return data || [];
+    }
   });
 
   // Fetch approvable org members (Phase D — for the Submit for Approval picker)
@@ -497,7 +548,7 @@ export function SiteReport() {
         .single();
       if (reportError) throw reportError;
 
-      const [subs, works, milestones, clientReqs, wpnd, si, issues] = await Promise.all([
+      const [subs, works, milestones, clientReqs, wpnd, si, issues, taskLinks] = await Promise.all([
         supabase.from('sub_contractors').select('name, count, start_time, end_time, subcontractor_id').eq('report_id', selectedReportId),
         supabase.from('work_carried_out').select('description').eq('report_id', selectedReportId),
         supabase.from('milestones_completed').select('description').eq('report_id', selectedReportId),
@@ -505,6 +556,7 @@ export function SiteReport() {
         supabase.from('site_report_work_plan_next_day').select('description, sort_order').eq('report_id', selectedReportId).order('sort_order'),
         supabase.from('site_report_special_instructions').select('description, sort_order').eq('report_id', selectedReportId).order('sort_order'),
         supabase.from('site_report_issues_faced').select('issue, solution, sort_order').eq('report_id', selectedReportId).order('sort_order'),
+        supabase.from('report_task_links').select('task_id').eq('report_id', selectedReportId),
       ]);
 
       return {
@@ -515,7 +567,8 @@ export function SiteReport() {
         _clientReqs: clientReqs.data || [],
         _wpnd: wpnd.data || [],
         _si: si.data || [],
-        _issues: issues.data || []
+        _issues: issues.data || [],
+        _taskLinks: taskLinks.data || []
       };
     },
   });
@@ -524,6 +577,11 @@ export function SiteReport() {
   useEffect(() => {
     if ((view !== 'view' && view !== 'edit') || !selectedReport) return;
     const r: any = selectedReport;
+    
+    // Initialize task links state
+    const linkedIds = (r._taskLinks || []).map((tl: any) => tl.task_id);
+    setPrimaryTaskId(r.primary_task_id || null);
+    setCoveredTaskIds(linkedIds.filter((id: string) => id !== r.primary_task_id));
     const clientReq = (r._clientReqs || []).map((cr: any) => ({ value: cr.description || '' }));
     const nextDay = (r._wpnd || []).map((w: any) => ({ value: w.description || '' }));
     const instr = (r._si || []).map((s: any) => ({ value: s.description || '' }));
@@ -611,54 +669,88 @@ export function SiteReport() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: SiteReportFormValues) => {
-      // 1. Save main report
+      // 0. Fetch task snapshots for linked tasks (primaryTaskId + coveredTaskIds)
+      const allLinkedIds = Array.from(new Set([
+        ...(primaryTaskId ? [primaryTaskId] : []),
+        ...coveredTaskIds,
+      ])).filter(Boolean);
+
+      let taskSnapshots: any[] = [];
+      if (allLinkedIds.length > 0) {
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('id, status, completion_percentage')
+          .in('id', allLinkedIds);
+        
+        if (tasksError) throw tasksError;
+
+        taskSnapshots = (tasksData || []).map(t => ({
+          task_id: t.id,
+          status_during_report: t.status,
+          completion_snapshot: t.completion_percentage,
+          is_completed_in_report: t.status === 'completed'
+        }));
+      }
+
+      // 1. Save main report and links using RPC
       const finalPmStatus = submitForApproval ? 'Pending Approval' : values.reporting.pmStatus;
-      const { data: report, error: reportError } = await supabase
+      const reportPayload = {
+        organisation_id: organisation?.id,
+        issue_id: toNullableUuid(issueIdParam) || null,
+        client_id: toNullableUuid(values.client) || null,
+        project_id: toNullableUuid(values.projectName) || null,
+        report_date: values.date,
+        total_manpower: values.manpower.total,
+        skilled_manpower: values.manpower.skilled,
+        unskilled_manpower: values.manpower.unskilled,
+        start_time: values.manpower.startTime || null,
+        end_time: values.manpower.endTime || null,
+        planned_progress: values.progress.planned,
+        actual_progress: values.progress.actual,
+        percent_complete: values.progress.percentComplete,
+        equipment_on_site: values.equipment.onSite,
+        breakdown_issues: values.equipment.breakdown,
+        toolbox_meeting: values.safety.toolboxMeeting,
+        ppe_followed: values.safety.ppe,
+        inspection_status: values.quality.inspection,
+        satisfied_percent: values.quality.satisfiedPercent,
+        rework_required_reason: values.quality.reworkRequiredReason,
+        is_rework: values.rework.isRework,
+        rework_reason: values.rework.reason,
+        rework_start: values.rework.start || null,
+        rework_end: values.rework.end || null,
+        rework_material_used: values.rework.materialUsed,
+        rework_total_manpower: values.rework.totalManpower,
+        doc_type: values.documents.type,
+        doc_no: values.documents.docNo,
+        received_signature: values.documents.receivedSignature,
+        quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
+        mail_received: values.clientRequirements.mailReceived,
+        pm_status: finalPmStatus,
+        material_arrangement: values.reporting.materialArrangement,
+        is_filed: values.documentation.filed,
+        tools_locked: values.documentation.toolsLocked,
+        site_pictures_status: values.documentation.sitePictures,
+        engineer_name: values.footer.engineer,
+        signature_date: values.footer.signatureDate,
+        primary_task_id: primaryTaskId || null
+      };
+
+      const { data: reportId, error: rpcError } = await supabase.rpc('create_site_report_with_tasks', {
+        p_report: reportPayload,
+        p_links: taskSnapshots
+      });
+
+      if (rpcError) throw rpcError;
+
+      // Fetch the full report record so child inserts work seamlessly
+      const { data: report, error: fetchError } = await supabase
         .from('site_reports')
-        .insert([{
-          organisation_id: organisation?.id,
-          issue_id: toNullableUuid(issueIdParam),
-          client_id: toNullableUuid(values.client),
-          project_id: toNullableUuid(values.projectName),
-          report_date: values.date,
-          total_manpower: values.manpower.total,
-          skilled_manpower: values.manpower.skilled,
-          unskilled_manpower: values.manpower.unskilled,
-          start_time: values.manpower.startTime || null,
-          end_time: values.manpower.endTime || null,
-          planned_progress: values.progress.planned,
-          actual_progress: values.progress.actual,
-          percent_complete: values.progress.percentComplete,
-          equipment_on_site: values.equipment.onSite,
-          breakdown_issues: values.equipment.breakdown,
-          toolbox_meeting: values.safety.toolboxMeeting,
-          ppe_followed: values.safety.ppe,
-          inspection_status: values.quality.inspection,
-          satisfied_percent: values.quality.satisfiedPercent,
-          rework_required_reason: values.quality.reworkRequiredReason,
-          is_rework: values.rework.isRework,
-          rework_reason: values.rework.reason,
-          rework_start: values.rework.start || null,
-          rework_end: values.rework.end || null,
-          rework_material_used: values.rework.materialUsed,
-          rework_total_manpower: values.rework.totalManpower,
-          doc_type: values.documents.type,
-          doc_no: values.documents.docNo,
-          received_signature: values.documents.receivedSignature,
-          quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
-          mail_received: values.clientRequirements.mailReceived,
-          pm_status: finalPmStatus,
-          material_arrangement: values.reporting.materialArrangement,
-          is_filed: values.documentation.filed,
-          tools_locked: values.documentation.toolsLocked,
-          site_pictures_status: values.documentation.sitePictures,
-          engineer_name: values.footer.engineer,
-          signature_date: values.footer.signatureDate
-        }])
-        .select()
+        .select('*')
+        .eq('id', reportId)
         .single();
 
-      if (reportError) throw reportError;
+      if (fetchError) throw fetchError;
 
       // 2. Prepare all related inserts for parallel execution
       const relatedInserts = [];
@@ -777,7 +869,7 @@ export function SiteReport() {
       // 4. Insert work stoppages (Phase H) — only non-empty rows
       const stoppageRows = (stoppages || [])
         .filter((s) => s.affected_work.trim() || s.reason_detail.trim() || s.expected_resolution_date)
-        .map((s) => ({
+        .map((s, idx) => ({
           organisation_id: organisation?.id,
           report_id: report.id,
           category: s.category,
@@ -785,6 +877,7 @@ export function SiteReport() {
           affected_work: s.affected_work,
           reason_detail: s.reason_detail,
           expected_resolution_date: s.expected_resolution_date || null,
+          task_id: stoppageTaskIds[idx] || null,
         }));
       if (stoppageRows.length > 0) {
         await createStoppages.mutateAsync(stoppageRows as any);
@@ -924,52 +1017,88 @@ export function SiteReport() {
         throw new Error(`Cannot edit a report with status "${existingReport.pm_status}". It is locked after approval.`);
       }
 
-      // 1. Update main row
-      const { data: report, error: reportError } = await supabase
+      // 0. Fetch task snapshots for linked tasks (primaryTaskId + coveredTaskIds)
+      const allLinkedIds = Array.from(new Set([
+        ...(primaryTaskId ? [primaryTaskId] : []),
+        ...coveredTaskIds,
+      ])).filter(Boolean);
+
+      let taskSnapshots: any[] = [];
+      if (allLinkedIds.length > 0) {
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('id, status, completion_percentage')
+          .in('id', allLinkedIds);
+        
+        if (tasksError) throw tasksError;
+
+        taskSnapshots = (tasksData || []).map(t => ({
+          task_id: t.id,
+          status_during_report: t.status,
+          completion_snapshot: t.completion_percentage,
+          is_completed_in_report: t.status === 'completed'
+        }));
+      }
+
+      // 1. Update main row and task links via RPC
+      const reportPayload = {
+        organisation_id: organisation?.id,
+        issue_id: toNullableUuid(selectedReport?.issue_id) || toNullableUuid(issueIdParam) || null,
+        client_id: toNullableUuid(values.client) || null,
+        project_id: toNullableUuid(values.projectName) || null,
+        report_date: values.date,
+        total_manpower: values.manpower.total,
+        skilled_manpower: values.manpower.skilled,
+        unskilled_manpower: values.manpower.unskilled,
+        start_time: values.manpower.startTime || null,
+        end_time: values.manpower.endTime || null,
+        planned_progress: values.progress.planned,
+        actual_progress: values.progress.actual,
+        percent_complete: values.progress.percentComplete,
+        equipment_on_site: values.equipment.onSite,
+        breakdown_issues: values.equipment.breakdown,
+        toolbox_meeting: values.safety.toolboxMeeting,
+        ppe_followed: values.safety.ppe,
+        inspection_status: values.quality.inspection,
+        satisfied_percent: values.quality.satisfiedPercent,
+        rework_required_reason: values.quality.reworkRequiredReason,
+        is_rework: values.rework.isRework,
+        rework_reason: values.rework.reason,
+        rework_start: values.rework.start || null,
+        rework_end: values.rework.end || null,
+        rework_material_used: values.rework.materialUsed,
+        rework_total_manpower: values.rework.totalManpower,
+        doc_type: values.documents.type,
+        doc_no: values.documents.docNo,
+        received_signature: values.documents.receivedSignature,
+        quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
+        mail_received: values.clientRequirements.mailReceived,
+        pm_status: values.reporting.pmStatus,
+        material_arrangement: values.reporting.materialArrangement,
+        is_filed: values.documentation.filed,
+        tools_locked: values.documentation.toolsLocked,
+        site_pictures_status: values.documentation.sitePictures,
+        engineer_name: values.footer.engineer,
+        signature_date: values.footer.signatureDate,
+        primary_task_id: primaryTaskId || null
+      };
+
+      const { error: rpcError } = await supabase.rpc('update_site_report_with_tasks', {
+        p_report_id: reportId,
+        p_report: reportPayload,
+        p_links: taskSnapshots
+      });
+
+      if (rpcError) throw rpcError;
+
+      // We still need the `report` object for subsequent logic if any
+      const { data: report, error: fetchError } = await supabase
         .from('site_reports')
-        .update({
-          client_id: toNullableUuid(values.client),
-          project_id: toNullableUuid(values.projectName),
-          report_date: values.date,
-          total_manpower: values.manpower.total,
-          skilled_manpower: values.manpower.skilled,
-          unskilled_manpower: values.manpower.unskilled,
-          start_time: values.manpower.startTime || null,
-          end_time: values.manpower.endTime || null,
-          planned_progress: values.progress.planned,
-          actual_progress: values.progress.actual,
-          percent_complete: values.progress.percentComplete,
-          equipment_on_site: values.equipment.onSite,
-          breakdown_issues: values.equipment.breakdown,
-          toolbox_meeting: values.safety.toolboxMeeting,
-          ppe_followed: values.safety.ppe,
-          inspection_status: values.quality.inspection,
-          satisfied_percent: values.quality.satisfiedPercent,
-          rework_required_reason: values.quality.reworkRequiredReason,
-          is_rework: values.rework.isRework,
-          rework_reason: values.rework.reason,
-          rework_start: values.rework.start || null,
-          rework_end: values.rework.end || null,
-          rework_material_used: values.rework.materialUsed,
-          rework_total_manpower: values.rework.totalManpower,
-          doc_type: values.documents.type,
-          doc_no: values.documents.docNo,
-          received_signature: values.documents.receivedSignature,
-          quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
-          mail_received: values.clientRequirements.mailReceived,
-          pm_status: values.reporting.pmStatus,
-          material_arrangement: values.reporting.materialArrangement,
-          is_filed: values.documentation.filed,
-          tools_locked: values.documentation.toolsLocked,
-          site_pictures_status: values.documentation.sitePictures,
-          engineer_name: values.footer.engineer,
-          signature_date: values.footer.signatureDate
-        })
+        .select('*')
         .eq('id', reportId)
-        .select()
         .single();
 
-      if (reportError) throw reportError;
+      if (fetchError) throw fetchError;
 
       // 2. Replace child rows: delete existing, then insert new (mirrors saveMutation)
       await Promise.allSettled([
@@ -1073,7 +1202,7 @@ export function SiteReport() {
       await deleteStoppages.mutateAsync();
       const stoppageRows = (stoppages || [])
         .filter((s) => s.affected_work.trim() || s.reason_detail.trim() || s.expected_resolution_date)
-        .map((s) => ({
+        .map((s, idx) => ({
           organisation_id: organisation?.id,
           report_id: reportId,
           category: s.category,
@@ -1081,6 +1210,7 @@ export function SiteReport() {
           affected_work: s.affected_work,
           reason_detail: s.reason_detail,
           expected_resolution_date: s.expected_resolution_date || null,
+          task_id: stoppageTaskIds[idx] || null,
         }));
       if (stoppageRows.length > 0) {
         await createStoppages.mutateAsync(stoppageRows as any);
@@ -1092,6 +1222,9 @@ export function SiteReport() {
       toast.success('Site report updated');
       queryClient.invalidateQueries({ queryKey: ['site-reports'] });
       queryClient.invalidateQueries({ queryKey: ['site-report', selectedReportId] });
+      // Invalidate task queries so "Last Report" column and drawer history refresh
+      queryClient.invalidateQueries({ queryKey: ['task-site-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       setView('list');
       setSelectedReportId(null);
     },
@@ -1188,7 +1321,6 @@ export function SiteReport() {
   }, []);
 
   const handlePrintPDF = useCallback(() => {
-    const { organisation } = useAuth();
     if (!organisation) {
       toast.error("Organization not found");
       return;
@@ -1198,8 +1330,8 @@ export function SiteReport() {
     const siteReportData = {
       id: 'temp-' + Date.now(),
       report_date: values.date,
-      client_name: clients.find(c => c.id === values.client)?.client_name,
-      project_name: projects.find(p => p.id === values.projectName)?.project_name,
+      client_name: clients?.find(c => c.id === values.client)?.client_name,
+      project_name: projects?.find(p => p.id === values.projectName)?.project_name,
       pm_name: '',
       pm_status: values.reporting?.pmStatus || 'Draft',
       weather: '',
@@ -1216,7 +1348,7 @@ export function SiteReport() {
     };
 
     const doc = generateProGridSiteReportPdf({
-      siteReport: siteReportData,
+      siteReport: siteReportData as any,
       organisation,
       orientation: 'portrait',
       pageFormat: 'a4'
@@ -1234,7 +1366,7 @@ export function SiteReport() {
     URL.revokeObjectURL(url);
     
     toast.success("PDF generated successfully");
-  }, [form, clients, projects]);
+  }, [form, clients, projects, organisation]);
 
   const downloadReportPDF = async (reportId: string) => {
     try {
@@ -1832,7 +1964,7 @@ export function SiteReport() {
                           <SelectItem key={client.id} value={client.id}>{client.client_name}</SelectItem>
                         ))}
                         {clients?.length === 0 && !clientsLoading && (
-                          <SelectItem value="_empty" disabled>No clients found</SelectItem>
+                          <SelectItem value="_empty">No clients found</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -1854,7 +1986,7 @@ export function SiteReport() {
                           <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
                         ))}
                         {projects?.length === 0 && !projectsLoading && (
-                          <SelectItem value="_empty" disabled>No projects for this client</SelectItem>
+                          <SelectItem value="_empty">No projects for this client</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -1970,7 +2102,7 @@ export function SiteReport() {
                                 <ShadcnButton 
                                   type="button" 
                                   variant="ghost" 
-                                  size="icon" 
+                                  size="sm" 
                                   className="h-7 w-7 text-zinc-300 hover:text-red-500"
                                   onClick={() => removeSubContractor(index)}
                                 >
@@ -2020,7 +2152,7 @@ export function SiteReport() {
                           <ShadcnButton 
                             type="button" 
                             variant="ghost" 
-                            size="icon" 
+                            size="sm" 
                             className="h-9 w-9 text-zinc-300 hover:text-red-500"
                             onClick={() => removeWork(index)}
                           >
@@ -2053,7 +2185,7 @@ export function SiteReport() {
                           <ShadcnButton 
                             type="button" 
                             variant="ghost" 
-                            size="icon" 
+                            size="sm" 
                             className="h-9 w-9 text-zinc-300 hover:text-red-500"
                             onClick={() => removeMilestone(index)}
                           >
@@ -2231,7 +2363,7 @@ export function SiteReport() {
                           <ShadcnButton 
                             type="button" 
                             variant="ghost" 
-                            size="icon" 
+                            size="sm" 
                             className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full" 
                             onClick={() => removeIssue(index)}
                           >
@@ -2262,7 +2394,7 @@ export function SiteReport() {
                       <div key={field.id} className="flex gap-1 group items-center">
                         <Input className="h-8 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
                         {view !== 'view' && (
-                          <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removePlan(index)}>
+                          <ShadcnButton type="button" variant="ghost" size="sm" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removePlan(index)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </ShadcnButton>
                         )}
@@ -2290,7 +2422,7 @@ export function SiteReport() {
                       <div key={field.id} className="flex gap-1 group items-center">
                         <Input className="h-8 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Requirement..." />
                         {view !== 'view' && (
-                          <ShadcnButton type="button" variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removeClientReq(index)}>
+                          <ShadcnButton type="button" variant="ghost" size="sm" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removeClientReq(index)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </ShadcnButton>
                         )}
@@ -2356,7 +2488,7 @@ export function SiteReport() {
                                   <ShadcnButton
                                     type="button"
                                     variant="ghost"
-                                    size="icon"
+                                    size="sm"
                                     className="h-6 w-6 text-red-300 hover:text-red-600"
                                     onClick={() => removeStoppageRow(index)}
                                   >
@@ -2428,6 +2560,18 @@ export function SiteReport() {
                                   value={s.expected_resolution_date}
                                   onChange={(e) => updateStoppageRow(index, { expected_resolution_date: e.target.value })}
                                   readOnly={view === 'view'}
+                                />
+                              </div>
+                              <div style={{ marginTop: '8px' }}>
+                                <TaskLinkSelector
+                                  label="Affected Task (optional)"
+                                  organisationId={organisation?.id ?? ''}
+                                  projectId={form.watch('projectName') || null}
+                                  value={stoppageTaskIds[index] ?? null}
+                                  onChange={(val) => setStoppageTaskIds((prev) => ({ ...prev, [index]: val as string | null }))}
+                                  mode="single"
+                                  placeholder="Link to a specific task..."
+                                  disabled={view === 'view'}
                                 />
                               </div>
                             </div>
@@ -2536,7 +2680,7 @@ export function SiteReport() {
                             </SelectItem>
                           ))}
                           {approvableMembers.length === 0 && (
-                            <SelectItem value="_empty" disabled>No MD / PM / Manager found in this organisation</SelectItem>
+                            <SelectItem value="_empty">No MD / PM / Manager found in this organisation</SelectItem>
                           )}
                         </SelectContent>
                       </Select>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
   ChevronDown,
@@ -13,6 +14,7 @@ import {
   Trash2,
   MoreHorizontal,
   CornerDownRight,
+  FileText,
 } from 'lucide-react';
 import {
   ProjectTask,
@@ -52,6 +54,7 @@ export default function ProjectTaskGroup({
   onUpdateTask,
 }: ProjectTaskGroupProps) {
   const isCollapsed = group.is_collapsed ?? false;
+  const navigate = useNavigate();
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
@@ -550,6 +553,49 @@ export default function ProjectTaskGroup({
                     return (
                       <td key={col} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#64748b' }}>
                         {task.actual_hours ? `${task.actual_hours}h` : '—'}
+                      </td>
+                    );
+                  }
+
+                  if (col === 'last_report') {
+                    const lastDate: string | null | undefined = (task as any).last_report_date;
+                    const reportId: string | null | undefined = (task as any).last_site_report_id;
+                    // IST-safe today string: uses local clock, not UTC
+                    const now = new Date();
+                    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const isToday = lastDate && lastDate === todayISO;
+                    return (
+                      <td key={col}>
+                        {lastDate ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (reportId) {
+                                navigate(`/site-reports?view=view&report_id=${reportId}`);
+                              }
+                            }}
+                            title={reportId ? 'View site report' : lastDate}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              padding: '0.1875rem 0.5rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.6875rem',
+                              fontWeight: 600,
+                              background: isToday ? '#dcfce7' : '#f0f4ff',
+                              color: isToday ? '#15803d' : '#3730a3',
+                              border: `1px solid ${isToday ? '#bbf7d0' : '#c7d2fe'}`,
+                              cursor: reportId ? 'pointer' : 'default',
+                              fontFamily: "'Inter', system-ui, sans-serif",
+                            }}
+                          >
+                            <FileText size={10} />
+                            {isToday ? 'Today' : lastDate}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>—</span>
+                        )}
                       </td>
                     );
                   }

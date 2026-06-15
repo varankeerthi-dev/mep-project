@@ -531,6 +531,78 @@ export class ApprovalWorkflowEngine {
     }
   }
 
+  private static async triggerQuotationWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering quotation workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering quotation workflows:', error);
+    }
+  }
+
+  private static async triggerProformaInvoiceWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering proforma invoice workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering proforma invoice workflows:', error);
+    }
+  }
+
+  private static async triggerPaymentRequestWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering payment request workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering payment request workflows:', error);
+    }
+  }
+
+  private static async triggerPurchasePaymentWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering purchase payment workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering purchase payment workflows:', error);
+    }
+  }
+
+  private static async triggerSubcontractorPaymentWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering subcontractor payment workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering subcontractor payment workflows:', error);
+    }
+  }
+
+  private static async triggerMaterialDispatchWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering material dispatch workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering material dispatch workflows:', error);
+    }
+  }
+
+  private static async triggerSiteVisitWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering site visit workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering site visit workflows:', error);
+    }
+  }
+
+  private static async triggerExpenseClaimWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering expense claim workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering expense claim workflows:', error);
+    }
+  }
+
+  private static async triggerSiteReportWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Triggering site report workflows:', approval.id);
+    } catch (error) {
+      console.error('Error triggering site report workflows:', error);
+    }
+  }
+
   /**
    * Get approval history
    */

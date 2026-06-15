@@ -1611,6 +1611,13 @@ body {
   background: #f0f6ff;
 }
 
+.grid-table.cq-editable .cell-input:hover,
+.grid-table.cq-editable .cell-select:hover,
+.grid-table.cq-editable .cell-static:hover {
+  outline: 1.5px solid #3b82f6;
+  outline-offset: -1px;
+}
+
 .grid-table th {
   background: #f8fafc;
   color: #374151;
@@ -1657,6 +1664,11 @@ body {
 
 .grid-table th.col-rate {
   width: 100px;
+  text-align: right;
+}
+
+.grid-table th.col-rate-after-disc {
+  width: 145px;
   text-align: right;
 }
 

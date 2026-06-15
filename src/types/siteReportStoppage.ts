@@ -29,6 +29,7 @@ export interface WorkStoppage {
   reported_by: string | null;
   created_at: string;
   updated_at: string;
+  task_id?: string | null;
 }
 
 export interface WorkStoppageWithReport extends WorkStoppage {

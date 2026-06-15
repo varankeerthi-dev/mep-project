@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import {
   X,
@@ -17,6 +19,8 @@ import {
   Plus,
   Check,
   ChevronDown,
+  ExternalLink,
+  ClipboardList,
 } from 'lucide-react';
 import {
   ProjectTask,
@@ -29,6 +33,9 @@ import {
   TaskUpdateInput,
   TaskAssignee,
 } from './types';
+import { toast } from '../../lib/logger';
+import { useTaskPermissions } from './useTaskPermissions';
+import TaskLinkSelector from './TaskLinkSelector';
 
 interface TaskEditDrawerProps {
   task: ProjectTask;
@@ -93,9 +100,49 @@ export default function TaskEditDrawer({
   const [pendingUpdates, setPendingUpdates] = useState<TaskUpdateInput>({});
   const [assigneeNames, setAssigneeNames] = useState<Record<string, { name: string; email?: string }>>({});
   const [orgMembers, setOrgMembers] = useState<{ id: string; name: string; email?: string }[]>([]);
+  const [showReportHistory, setShowReportHistory] = useState(false);
+  const [reportHistoryPage, setReportHistoryPage] = useState(10);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.origin + `/site-reports?task_id=${task.id}`);
+    toast.success('Task link copied to clipboard');
+  };
+
+  const handleColorChange = (color: string) => {
+    onUpdate({ color: color || null });
+    setShowColorPicker(false);
+  };
+
+  const handleFollowToggle = () => {
+    const nextVal = !isFollowing;
+    setIsFollowing(nextVal);
+    onUpdate({ is_following: nextVal });
+    toast.success(nextVal ? 'Following task' : 'Unfollowed task');
+  };
+
+  const handleClone = () => {
+    toast.info('Cloning task is not implemented');
+  };
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+    setShowActionMenu(false);
+  };
+
+  const confirmDelete = () => {
+    onDelete();
+    onClose();
+  };
+
+  const handleMove = (groupId: string | null) => {
+    onUpdate({ task_group_id: groupId });
+    setShowMoveModal(false);
+  };
 
   const effectiveAssigneeIds = (pendingUpdates.assignee_ids as string[] | undefined) ?? task.assignee_ids ?? [];
 
@@ -872,15 +919,16 @@ const effectiveStatus = (pendingUpdates.status as string) || task.status;
               }}
             >
               <Clock size={12} />
-              Duration
+              Duration (Days)
             </label>
             <input
-              type="text"
-              placeholder="e.g., 5 days"
-              defaultValue={task.duration}
+              type="number"
+              placeholder="e.g., 5"
+              defaultValue={task.duration_days || ''}
               onBlur={(e) => {
-                if (e.target.value !== task.duration) {
-                  onUpdate({ duration: e.target.value || undefined });
+                const val = parseInt(e.target.value);
+                if (val !== task.duration_days) {
+                  onUpdate({ duration_days: isNaN(val) ? null : val });
                 }
               }}
               style={{
@@ -918,7 +966,7 @@ const effectiveStatus = (pendingUpdates.status as string) || task.status;
                 max="100"
                 data-field="completion_percentage"
                 defaultValue={task.completion_percentage}
-                onChange={(e) => { localCompletion.current = parseInt(e.target.value); const numInput = e.target.parentElement?.querySelector('input[type="number"]'); if (numInput) numInput.value = e.target.value; }}
+                onChange={(e) => { localCompletion.current = parseInt(e.target.value); const numInput = e.target.parentElement?.querySelector('input[type="number"]') as HTMLInputElement; if (numInput) numInput.value = e.target.value; }}
                 style={{ flex: 1 }}
               />
               <input
@@ -927,7 +975,7 @@ const effectiveStatus = (pendingUpdates.status as string) || task.status;
                 max="100"
                 data-field="completion_pct_num"
                 defaultValue={task.completion_percentage}
-                onChange={(e) => { localCompletion.current = Math.min(100, Math.max(0, parseInt(e.target.value) || 0)); const rangeInput = e.target.parentElement?.querySelector('input[type="range"]'); if (rangeInput) rangeInput.value = e.target.value; }}
+                onChange={(e) => { localCompletion.current = Math.min(100, Math.max(0, parseInt(e.target.value) || 0)); const rangeInput = e.target.parentElement?.querySelector('input[type="range"]') as HTMLInputElement; if (rangeInput) rangeInput.value = e.target.value; }}
                 style={{
                   width: '3rem',
                   padding: '0.25rem 0.5rem',
@@ -1028,6 +1076,79 @@ const effectiveStatus = (pendingUpdates.status as string) || task.status;
                 fontFamily: 'inherit',
               }}
             />
+          </div>
+
+          {/* ─── Site Report History ─── */}
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <button
+                onClick={() => setShowReportHistory(prev => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#6b7280',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <ClipboardList size={12} />
+                Site Report History
+                <ChevronDown
+                  size={12}
+                  style={{ transform: showReportHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+                />
+              </button>
+
+              {/* Create Daily Report button */}
+              <button
+                onClick={() =>
+                  navigate(`/site-reports?task_id=${task.id}&action=create`)
+                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  padding: '0.375rem 0.625rem',
+                  borderRadius: '0.375rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: '#2563eb',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#dbeafe';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#eff6ff';
+                }}
+                title="Create a daily site report pre-filled with this task"
+              >
+                <Plus size={12} />
+                Create Daily Report
+              </button>
+            </div>
+
+            {/* Collapsible history list */}
+            {showReportHistory && (
+              <ReportHistoryPanel
+                taskId={task.id}
+                organisationId={organisationId}
+                page={reportHistoryPage}
+                onLoadMore={() => setReportHistoryPage(prev => prev + 10)}
+                navigate={navigate}
+              />
+            )}
           </div>
         </div>
 
@@ -1260,5 +1381,463 @@ const effectiveStatus = (pendingUpdates.status as string) || task.status;
         }
       `}</style>
     </>
+  );
+}
+
+interface ReportHistoryPanelProps {
+  taskId: string;
+  organisationId: string;
+  page: number;
+  onLoadMore: () => void;
+  navigate: ReturnType<typeof useNavigate>;
+}
+
+function ReportHistoryPanel({
+  taskId,
+  organisationId,
+  page,
+  onLoadMore,
+  navigate,
+}: ReportHistoryPanelProps) {
+  const { role } = useTaskPermissions();
+  const isPmOrAdmin = role === 'admin' || role === 'project_manager';
+
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
+  const [correctedPrimaryTaskId, setCorrectedPrimaryTaskId] = useState<string | null>(null);
+  const [correctedCoveredTaskIds, setCorrectedCoveredTaskIds] = useState<string[]>([]);
+  const [correctedStoppageTasks, setCorrectedStoppageTasks] = useState<Record<string, string | null>>({});
+  const [editingStoppages, setEditingStoppages] = useState<any[]>([]);
+
+  const queryClient = useQueryClient();
+
+  const { data: reports = [], isLoading, error } = useQuery({
+    queryKey: ['task-site-reports', taskId, organisationId, page],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('report_task_links')
+        .select(`
+          report_id,
+          status_during_report,
+          completion_snapshot,
+          is_completed_in_report,
+          site_reports!inner (
+            id,
+            report_date,
+            pm_status,
+            engineer_name,
+            project_id,
+            primary_task_id
+          )
+        `)
+        .eq('task_id', taskId)
+        .eq('organisation_id', organisationId)
+        .order('site_reports(report_date)', { ascending: false })
+        .limit(page);
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const handleStartEditing = async (reportLink: any) => {
+    const report = reportLink.site_reports;
+    setEditingReportId(report.id);
+    setCorrectedPrimaryTaskId(report.primary_task_id || null);
+    
+    // Fetch all current task links for this report
+    const { data: linksData } = await supabase
+      .from('report_task_links')
+      .select('task_id')
+      .eq('report_id', report.id);
+    
+    const linkedTaskIds = (linksData || []).map(l => l.task_id);
+    setCorrectedCoveredTaskIds(linkedTaskIds.filter(id => id !== report.primary_task_id));
+
+    // Fetch all work stoppages for this report
+    const { data: stoppagesData } = await supabase
+      .from('site_report_work_stoppages')
+      .select('id, task_id, category, affected_work')
+      .eq('report_id', report.id);
+    
+    const stoppageMap: Record<string, string | null> = {};
+    (stoppagesData || []).forEach(s => {
+      stoppageMap[s.id] = s.task_id || null;
+    });
+    setCorrectedStoppageTasks(stoppageMap);
+    setEditingStoppages(stoppagesData || []);
+  };
+
+  const handleSaveCorrections = async (reportId: string) => {
+    try {
+      const allSelectedTaskIds = Array.from(new Set([
+        ...(correctedPrimaryTaskId ? [correctedPrimaryTaskId] : []),
+        ...correctedCoveredTaskIds,
+      ])).filter(Boolean);
+
+      let taskSnapshots: any[] = [];
+      if (allSelectedTaskIds.length > 0) {
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('id, status, completion_percentage')
+          .in('id', allSelectedTaskIds);
+
+        if (tasksError) throw tasksError;
+
+        taskSnapshots = (tasksData || []).map(t => ({
+          task_id: t.id,
+          status_during_report: t.status,
+          completion_snapshot: t.completion_percentage,
+          is_completed_in_report: t.status === 'completed'
+        }));
+      }
+
+      const stoppageUpdates = Object.entries(correctedStoppageTasks).map(([stoppageId, taskId]) => ({
+        stoppage_id: stoppageId,
+        task_id: taskId
+      }));
+
+      // Update primary task directly in site_reports
+      const { error: reportUpdateError } = await supabase
+        .from('site_reports')
+        .update({ primary_task_id: correctedPrimaryTaskId })
+        .eq('id', reportId);
+      
+      if (reportUpdateError) throw reportUpdateError;
+
+      // Update covered tasks many-to-many and stoppage tasks
+      const { error: rpcError } = await supabase.rpc('update_report_task_links', {
+        p_report_id: reportId,
+        p_links: taskSnapshots,
+        p_stoppage_updates: stoppageUpdates
+      });
+
+      if (rpcError) throw rpcError;
+
+      toast.success('Report links corrected successfully');
+      setEditingReportId(null);
+      queryClient.invalidateQueries({ queryKey: ['task-site-reports', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to save corrections: ${err.message || err}`);
+    }
+  };
+
+  const PM_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+    'Approved':         { bg: '#dcfce7', text: '#15803d' },
+    'Pending Approval': { bg: '#fef3c7', text: '#b45309' },
+    'Reported':         { bg: '#dbeafe', text: '#1d4ed8' },
+    'Draft':            { bg: '#f4f4f5', text: '#52525b' },
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.75rem', color: '#9ca3af' }}>
+        Loading report history…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#ef4444' }}>
+        Failed to load report history.
+      </div>
+    );
+  }
+
+  if (reports.length === 0) {
+    return (
+      <div
+        style={{
+          padding: '1rem',
+          textAlign: 'center',
+          background: '#f8fafc',
+          borderRadius: '0.5rem',
+          border: '1px dashed #e2e8f0',
+        }}
+      >
+        <ClipboardList size={20} style={{ color: '#cbd5e1', margin: '0 auto 0.5rem', display: 'block' }} />
+        <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+          No site reports linked to this task yet.
+        </p>
+        <p style={{ fontSize: '0.6875rem', color: '#cbd5e1', margin: '0.25rem 0 0' }}>
+          Create a daily report to start tracking field progress.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {reports.map((link: any) => {
+        const report = link.site_reports;
+        const statusCfg = PM_STATUS_COLORS[report.pm_status] || { bg: '#f4f4f5', text: '#52525b' };
+
+        if (editingReportId === report.id) {
+          return (
+            <div
+              key={link.report_id}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                padding: '0.875rem',
+                background: '#ffffff',
+                borderRadius: '0.5rem',
+                border: '2px solid #2563eb',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1f2937' }}>
+                  Correcting Links: {report.report_date}
+                </span>
+                <span
+                  style={{
+                    padding: '0.125rem 0.375rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.625rem',
+                    fontWeight: 600,
+                    background: statusCfg.bg,
+                    color: statusCfg.text,
+                  }}
+                >
+                  {report.pm_status}
+                </span>
+              </div>
+
+              {/* Primary Task */}
+              <div>
+                <TaskLinkSelector
+                  organisationId={organisationId}
+                  projectId={report.project_id}
+                  value={correctedPrimaryTaskId}
+                  onChange={(val) => setCorrectedPrimaryTaskId(val as string | null)}
+                  mode="single"
+                  label="Primary Task"
+                  placeholder="Select primary task..."
+                />
+              </div>
+
+              {/* Covered Tasks */}
+              <div>
+                <TaskLinkSelector
+                  organisationId={organisationId}
+                  projectId={report.project_id}
+                  value={correctedCoveredTaskIds}
+                  onChange={(val) => setCorrectedCoveredTaskIds(val as string[])}
+                  mode="multi"
+                  label="Covered Tasks"
+                  placeholder="Select covered tasks..."
+                />
+              </div>
+
+              {/* Stoppages */}
+              {editingStoppages.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', color: '#6b7280' }}>
+                    Stoppage Task Links
+                  </span>
+                  {editingStoppages.map((stoppage) => (
+                    <div key={stoppage.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#4b5563', fontStyle: 'italic' }}>
+                        {stoppage.affected_work || stoppage.category}
+                      </span>
+                      <TaskLinkSelector
+                        organisationId={organisationId}
+                        projectId={report.project_id}
+                        value={correctedStoppageTasks[stoppage.id] || null}
+                        onChange={(val) => setCorrectedStoppageTasks(prev => ({ ...prev, [stoppage.id]: val as string | null }))}
+                        mode="single"
+                        placeholder="Link affected task..."
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  onClick={() => setEditingReportId(null)}
+                  style={{
+                    flex: 1,
+                    padding: '0.375rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: '#4b5563',
+                    background: '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSaveCorrections(report.id)}
+                  style={{
+                    flex: 1,
+                    padding: '0.375rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    background: '#2563eb',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Save Corrections
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={link.report_id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              padding: '0.5rem 0.75rem',
+              background: '#f8fafc',
+              borderRadius: '0.5rem',
+              border: '1px solid #e2e8f0',
+              transition: 'border-color 0.15s, background 0.15s',
+              cursor: 'pointer',
+            }}
+            onClick={() => navigate(`/site-reports?view=view&report_id=${link.report_id}`)}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLDivElement).style.background = '#f0f4ff';
+              (e.currentTarget as HTMLDivElement).style.borderColor = '#c7d2fe';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLDivElement).style.background = '#f8fafc';
+              (e.currentTarget as HTMLDivElement).style.borderColor = '#e2e8f0';
+            }}
+          >
+            {/* Date */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '2.5rem',
+                padding: '0.25rem 0.375rem',
+                background: 'white',
+                borderRadius: '0.375rem',
+                border: '1px solid #e5e7eb',
+              }}
+            >
+              <span style={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {report.report_date ? new Date(report.report_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' }) : '—'}
+              </span>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1f2937', lineHeight: 1 }}>
+                {report.report_date ? new Date(report.report_date + 'T12:00:00').getDate() : '—'}
+              </span>
+            </div>
+
+            {/* Report info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#1f2937' }}>
+                  {report.report_date || 'Unknown date'}
+                </span>
+                <span
+                  style={{
+                    padding: '0.0625rem 0.375rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.625rem',
+                    fontWeight: 600,
+                    background: statusCfg.bg,
+                    color: statusCfg.text,
+                  }}
+                >
+                  {report.pm_status || 'Draft'}
+                </span>
+                {link.is_completed_in_report && (
+                  <span
+                    style={{
+                      padding: '0.0625rem 0.375rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.625rem',
+                      fontWeight: 600,
+                      background: '#dcfce7',
+                      color: '#15803d',
+                    }}
+                  >
+                    ✓ Completed
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.125rem' }}>
+                {report.engineer_name && (
+                  <span style={{ fontSize: '0.6875rem', color: '#6b7280' }}>
+                    by {report.engineer_name}
+                  </span>
+                )}
+                {link.completion_snapshot != null && (
+                  <span style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                    • {link.completion_snapshot}% at report
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* PM/Admin Correction button */}
+            {isPmOrAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartEditing(link);
+                }}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  color: '#2563eb',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '0.25rem',
+                  cursor: 'pointer',
+                  marginRight: '0.25rem',
+                }}
+              >
+                Correct Links
+              </button>
+            )}
+
+            {/* Arrow */}
+            <ExternalLink size={12} style={{ color: '#94a3b8', flexShrink: 0 }} />
+          </div>
+        );
+      })}
+
+      {reports.length >= page && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onLoadMore(); }}
+          style={{
+            padding: '0.5rem',
+            borderRadius: '0.375rem',
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            color: '#2563eb',
+            background: 'transparent',
+            border: '1px solid #bfdbfe',
+            cursor: 'pointer',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          Load more reports
+        </button>
+      )}
+    </div>
   );
 }

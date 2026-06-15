@@ -578,6 +578,7 @@ export default function ProjectTaskListView({
     wbs_code: false,
     estimated_hours: false,
     actual_hours: false,
+    last_report: false,
   });
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null);
@@ -612,6 +613,7 @@ export default function ProjectTaskListView({
     wbs_code: '90px',
     estimated_hours: '80px',
     actual_hours: '80px',
+    last_report: '110px',
   });
 
   // DnD sensors
@@ -1486,7 +1488,7 @@ export default function ProjectTaskListView({
 
       {currentView === 'board' && (
         <ProjectTaskBoard
-          projectId={projectId}
+          projectId={projectId || ''}
           organisationId={organisationId}
           userId={userId}
         />
@@ -1494,15 +1496,15 @@ export default function ProjectTaskListView({
 
       {currentView === 'gantt' && (
         <ProjectTaskGantt
-          projectId={projectId}
-          projectName={projectName}
+          projectId={projectId || ''}
+          projectName={projectName || ''}
           organisationId={organisationId}
         />
       )}
 
       {currentView === 'calendar' && (
         <ProjectTaskCalendar
-          projectId={projectId}
+          projectId={projectId || ''}
           organisationId={organisationId}
         />
       )}
@@ -1525,7 +1527,7 @@ export default function ProjectTaskListView({
       {/* Create Task Drawer */}
       {showCreateModal && (
         <TaskCreateDrawer
-          projectId={projectId}
+          projectId={projectId || ''}
           defaultGroupId={createForGroupId}
           groups={groups}
           organisationId={organisationId}
@@ -1542,7 +1544,7 @@ export default function ProjectTaskListView({
       {/* Create Group Modal */}
       {showGroupModal && (
         <GroupCreateModal
-          projectId={projectId}
+          projectId={projectId || ''}
           onClose={() => setShowGroupModal(false)}
           onSubmit={(input) => createGroupMutation.mutate(input)}
           isLoading={createGroupMutation.isPending}
