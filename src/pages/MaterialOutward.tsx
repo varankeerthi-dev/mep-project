@@ -304,14 +304,14 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Variant *</label>
+              <label className="form-label">Category *</label>
               <select
                 className="form-select"
                 value={formData.variant_id}
                 onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                 required
               >
-                <option value="">Select Variant</option>
+                <option value="">Select Category</option>
                 {variants.map((variant) => (
                   <option key={variant.id} value={variant.id}>
                     {variant.variant_name}

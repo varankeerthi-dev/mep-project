@@ -297,7 +297,7 @@ export default function StockAdjustment() {
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
           {/* Table Header */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px 1fr 80px 80px 80px 30px', gap: '0', padding: '6px 12px', background: '#fafafa', borderBottom: '1px solid #e5e7eb', fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            <span>Item</span><span>Variant</span><span>Make</span><span>Warehouse</span><span style={{ textAlign: 'right' }}>Current</span><span style={{ textAlign: 'right' }}>New Qty</span><span style={{ textAlign: 'right' }}>Diff</span><span></span>
+            <span>Item</span><span>Discount Category</span><span>Make</span><span>Warehouse</span><span style={{ textAlign: 'right' }}>Current</span><span style={{ textAlign: 'right' }}>New Qty</span><span style={{ textAlign: 'right' }}>Diff</span><span></span>
           </div>
 
           {/* Table Rows */}
@@ -356,7 +356,7 @@ export default function StockAdjustment() {
                           onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
                           onMouseLeave={e => e.currentTarget.style.background = 'white'}
                           onClick={(e) => { e.stopPropagation(); updateRow(row.id, { variant_id: v.company_variant_id, variant_name: v.variant_name || '', make: v.make || row.make }); setVariantSearchText(prev => ({ ...prev, [row.id]: '' })); setOpenVariantIndex(-1); }}>
-                          {v.variant_name || 'Variant'}
+                          {v.variant_name || 'Category'}
                         </div>
                       ))}
                     </div>

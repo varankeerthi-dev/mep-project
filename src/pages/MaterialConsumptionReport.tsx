@@ -82,7 +82,7 @@ function SectionTable({ data, sectionLabel, sectionColor, bgColor }: { data: any
                   <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
                     <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '5%' }}>#</th>
                     <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '18%' }}>Material</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '12%' }}>Variant</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '12%' }}>Discount Category</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Planned</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Received</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Used</th>
@@ -183,7 +183,7 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
         '#': i + 1,
         'Type': item.is_boq !== false ? 'BOQ' : 'Non-BOQ',
         'Material': item.materials?.display_name || item.materials?.name || '',
-        'Variant': item.company_variants?.variant_name || '-',
+        'Discount Category': item.company_variants?.variant_name || '-',
         'Planned': item.planned_qty,
         'Received': item.received_qty,
         'Used': item.used_qty,
@@ -235,7 +235,7 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
       <h2 style="font-size:20px;font-weight:600;margin-bottom:4px">Material Consumption Report</h2>
       <p style="color:#6b7280;font-size:14px;margin-bottom:20px">Total ${filteredData.length} materials (BOQ: ${boqData.length}, Non-BOQ: ${nonBoqData.length})</p>
       <table><thead><tr>
-        <th style="text-align:left">#</th><th style="text-align:left">Material</th><th style="text-align:left">Variant</th>
+        <th style="text-align:left">#</th><th style="text-align:left">Material</th><th style="text-align:left">Discount Category</th>
         <th style="text-align:right">Planned</th><th style="text-align:right">Received</th><th style="text-align:right">Used</th>
         <th style="text-align:right">Remaining</th><th style="text-align:right">Variance</th>
         <th style="text-align:right">Planned Cost</th><th style="text-align:right">Actual Cost</th><th style="text-align:right">Cost Var.</th>

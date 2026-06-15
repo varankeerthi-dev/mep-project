@@ -2530,7 +2530,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
               {renderHeaderField('Prepared By:', <input type="text" className="form-input" style={inputStyle} value={formData.prepared_by || ''} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Sales executive..." />)}
               {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
-              {renderHeaderField('Variant:', <select className="form-select" style={inputStyle} value={formData.variant_id} onChange={(e) => {
+              {renderHeaderField('Discount Category:', <select className="form-select" style={inputStyle} value={formData.variant_id} onChange={(e) => {
                 const newVariantId = e.target.value;
                 setFormData({ ...formData, variant_id: newVariantId });
                 if (items.length > 0) {
@@ -2833,7 +2833,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <th className="col-make">{templateSettings?.column_settings?.labels?.make || 'MAKE'}</th>
                 )}
                 {(templateSettings?.column_settings?.optional?.variant !== false) && (
-                  <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
+                  <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'DISCOUNT CATEGORY'}</th>
                 )}
                 <th className="col-qty">QTY</th>
                 <th className="col-unit">UNIT</th>
@@ -3101,7 +3101,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                               }
                             }}
                           >
-                            <option value="">No Variant</option>
+                            <option value="">No Category</option>
                             {variants
                               .filter(v => {
                                 if (!item.item_id) return true;
@@ -3544,7 +3544,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                   { key: 'client_part_no', label: 'Client Part No' },
                   { key: 'hsn_code', label: 'HSN/SAC' },
                   { key: 'make', label: 'Make/Brand' },
-                  { key: 'variant', label: 'Variant Details' },
+                  { key: 'variant', label: 'Category Details' },
                   { key: 'description', label: 'Description' },
                   { key: 'client_description', label: 'Client Description' },
                   { key: 'custom1', label: 'Custom Column 1' },

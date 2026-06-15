@@ -218,7 +218,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
         return `Project is required for DIRECT SUPPLY item: ${itemName}.`;
       }
       if (item.uses_variant && !item.variant_id) {
-        return `Variant is required for item: ${itemName}.`;
+        return `Category is required for item: ${itemName}.`;
       }
       if (!item.quantity || parseFloat(item.quantity) <= 0) {
         return `Invalid quantity for item: ${itemName}.`;
@@ -533,7 +533,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
             </select>
           </div>
           <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
-            <label className="form-label">Default Variant</label>
+            <label className="form-label">Default Category</label>
             <select className="form-select" value={formData.default_variant_id} onChange={(e) => handleDefaultVariantChange(e.target.value)}>
               <option value="">Select</option>
               {activeVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.variant_name}</option>)}
@@ -556,7 +556,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                 <th style={{ width: '40px', textAlign: 'center', fontSize: '11px', padding: '8px' }}>#</th>
                 <th style={{ minWidth: '200px', fontSize: '11px', padding: '8px' }}>Item</th>
                 <th style={{ width: '100px', fontSize: '11px', padding: '8px' }}>Type</th>
-                <th style={{ width: '120px', fontSize: '11px', padding: '8px' }}>Variant</th>
+                <th style={{ width: '120px', fontSize: '11px', padding: '8px' }}>Discount Category</th>
                 <th style={{ width: '150px', fontSize: '11px', padding: '8px' }}>Project</th>
                 <th style={{ width: '80px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Qty</th>
                 <th style={{ width: '90px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Rate</th>

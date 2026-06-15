@@ -48,7 +48,7 @@ interface ExcelEditorProps {
 const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: boolean; type?: string; warehouseId?: string; mandatory?: boolean; editableForNew?: boolean }[] = [
   { key: 'item_code', label: 'Item Code / SKU', width: 120, editable: false, editableForNew: true },
   { key: 'name', label: 'Item Name', width: 200, editable: true, mandatory: true },
-  { key: 'variant_name', label: 'Variant', width: 100, editable: true, editableForNew: true },
+  { key: 'variant_name', label: 'Discount Category', width: 130, editable: true, editableForNew: true },
   { key: 'display_name', label: 'Display Name', width: 200, editable: true },
   { key: 'main_category', label: 'Category', width: 120, editable: true, mandatory: true },
   { key: 'sub_category', label: 'Sub Category', width: 120, editable: true },
@@ -71,7 +71,7 @@ const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: b
   { key: 'ean', label: 'EAN', width: 120, editable: true },
   { key: 'inventory_account', label: 'Inv Account', width: 130, editable: true },
   { key: 'is_active', label: 'Active', width: 80, editable: true, type: 'boolean' },
-  { key: 'uses_variant', label: 'Uses Variant', width: 100, editable: true, type: 'boolean' },
+  { key: 'uses_variant', label: 'Uses Discount Category', width: 130, editable: true, type: 'boolean' },
   { key: 'low_stock_level', label: 'Low Stock', width: 100, editable: true, type: 'number' },
   { key: '_delete', label: '', width: 50, editable: false },
 ];
@@ -457,7 +457,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
                             className="w-full h-full px-3 py-2 text-sm outline-none bg-transparent"
                             autoFocus
                           >
-                            <option value="">Select Variant</option>
+                            <option value="">Select Category</option>
                             {variants.map(v => (
                               <option key={v.id} value={v.variant_name}>{v.variant_name}</option>
                             ))}

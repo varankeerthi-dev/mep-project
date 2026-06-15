@@ -1206,7 +1206,7 @@ export function InvoiceItemsEditor({
                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                               >
-                                -- No Variant --
+                                -- No Category --
                               </div>
                               {variants.map((variant, idx) => (
                                 <div

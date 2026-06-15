@@ -37,7 +37,7 @@ const getActiveColumns = (config: any) => {
     { key: "item", label: labels.item || "Item Name", width: "25%" },
     { key: "client_part_no", label: labels.client_part_no || "Client Part No", width: "10%" },
     { key: "client_description", label: labels.client_description || "Client Description", width: "15%" },
-    { key: "variant", label: labels.variant || "Variant", width: "10%" },
+    { key: "variant", label: labels.variant || "Discount Category", width: "10%" },
     { key: "description", label: labels.description || "Description", width: "20%" },
     { key: "make", label: labels.make || "Make", width: "10%" },
     { key: "qty", label: labels.qty || "Qty", width: "7%" },

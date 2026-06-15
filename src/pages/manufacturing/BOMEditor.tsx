@@ -448,7 +448,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
             <span>Material</span>
             <span style={{ textAlign: 'center' }}>Level</span>
             <span style={{ textAlign: 'right' }}>Qty</span>
-            <span>Variant</span>
+            <span>Discount Category</span>
             <span>Brand</span>
             <span>Unit</span>
             <span style={{ textAlign: 'right' }}>Waste%</span>
@@ -521,7 +521,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                       updateItem(index, 'company_variant_id', vId || '');
                       updateItem(index, 'variant_name', vName);
                     }} style={cellInputStyle}>
-                      <option value="">No Variant</option>
+                      <option value="">No Category</option>
                       {variants.map(v => (
                         <option key={v.company_variant_id} value={v.company_variant_id}>{getVariantName(v.company_variant_id)}</option>
                       ))}

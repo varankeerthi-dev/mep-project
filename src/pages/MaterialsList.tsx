@@ -75,7 +75,7 @@ const ITEM_TABLE_COLUMNS = [
   { key: 'unit', label: 'Unit', default: true, locked: true },
   { key: 'gst_rate', label: 'GST Rate', default: true },
   { key: 'hsn_code', label: 'HSN/SAC', default: true },
-  { key: 'uses_variant', label: 'Variant', default: true },
+  { key: 'uses_variant', label: 'Discount Category', default: true },
   { key: 'stock', label: 'Inventory', default: true },
   { key: 'code', label: 'Code', default: false },
   { key: 'sub_category', label: 'Sub Category', default: false },
@@ -168,7 +168,7 @@ const buildItemChangeLog = (before, after) => {
     ['hsn_code', 'HSN/SAC'],
     ['gst_rate', 'GST Rate'],
     ['is_active', 'Active'],
-    ['uses_variant', 'Uses Variant'],
+    ['uses_variant', 'Uses Discount Category'],
   ];
 
   return keys
@@ -1677,7 +1677,7 @@ function ItemsTab() {
           break;
 
         case 'uses_variant':
-          columns.push(textCol('uses_variant', 'Variant', (m) => m.uses_variant ? 'Yes' : 'No'));
+          columns.push(textCol('uses_variant', 'Discount Category', (m) => m.uses_variant ? 'Yes' : 'No'));
           break;
 
         case 'stock':
@@ -3012,7 +3012,7 @@ function ItemsTab() {
                       }
                     }}
                   />
-                  This item uses Variant pricing
+                  This item uses Discount Category pricing
                 </label>
               </div>
 
@@ -3020,15 +3020,15 @@ function ItemsTab() {
                 <div className="item-form-section">
                   <div className="item-form-section-header">
                     <div>
-                      <h4 className="item-form-section-title">Variant Pricing</h4>
-                      <div className="item-form-section-hint">By variant &amp; make (brand)</div>
+                      <h4 className="item-form-section-title">Discount Category Pricing</h4>
+                      <div className="item-form-section-hint">By category &amp; make (brand)</div>
                     </div>
                     <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Row</button>
                   </div>
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Variant</th>
+                        <th>Discount Category</th>
                         <th>MAKE (Brand)</th>
                         <th>Sale Price</th>
                         <th>Purchase Price</th>
@@ -3044,7 +3044,7 @@ function ItemsTab() {
                               value={row.company_variant_id || ''} 
                               onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
                             >
-                              <option value="">No Variant</option>
+                              <option value="">No Category</option>
                               {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
                                 <option key={v.id} value={v.id}>{v.variant_name}</option>
                               ))}
@@ -3113,7 +3113,7 @@ function ItemsTab() {
                         : ['no_variant'];
                       
                       return activeVariantIds.map(vId => {
-                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Variant' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Variant';
+                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Category' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Category';
                         return (
                           <div key={vId} style={{ marginBottom: '12px' }}>
                             {formData.uses_variant && <h5 style={{ color: '#555', marginBottom: '6px' }}>{vName} Integration</h5>}
@@ -3197,7 +3197,7 @@ function ItemsTab() {
                               onChange={(e) => handleVendorMappingChange(mapping.id, 'variant_id', e.target.value)}
                               style={{ padding: '4px 8px', height: '32px' }}
                             >
-                              <option value="">No Variant</option>
+                              <option value="">No Category</option>
                               {Array.from(new Set(variantPricing.map(p => p.company_variant_id).filter(Boolean))).map(vId => {
                                 const v = variants.find(v => v.id === vId);
                                 if (!v) return null;
@@ -3351,7 +3351,7 @@ function ItemsTab() {
                                   onChange={(e) => handleClientMappingChange(mapping.id, 'company_variant_id', e.target.value)}
                                   style={{ padding: '4px 8px', height: '32px' }}
                                 >
-                                  <option value="">No Variant</option>
+                                  <option value="">No Category</option>
                                   {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
                                     <option key={v.id} value={v.id}>{v.variant_name}</option>
                                   ))}
@@ -3447,7 +3447,7 @@ function ItemsTab() {
                                   onChange={(e) => handleClientPricingChange(row.id, 'company_variant_id', e.target.value)}
                                   style={{ padding: '4px 8px', height: '32px', fontSize: '12px' }}
                                 >
-                                  <option value="">No Variant</option>
+                                  <option value="">No Category</option>
                                   {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
                                     <option key={v.id} value={v.id}>{v.variant_name}</option>
                                   ))}
@@ -3953,7 +3953,7 @@ function ItemsTab() {
                     'EAN': 'ean',
                     'Inv Account': 'inventory_account',
                     'Active': 'is_active',
-                    'Uses Variant': 'uses_variant',
+                    'Uses Discount Category': 'uses_variant',
                     'Low Stock': 'low_stock_level',
                   };
 
@@ -5202,23 +5202,23 @@ function VariantsTab() {
   const resetForm = () => { setShowForm(false); setEditingVariant(null); setFormData({ variant_name: '', is_active: true }); };
 
   const editVariant = (v) => { setEditingVariant(v); setFormData({ variant_name: v.variant_name, is_active: v.is_active !== false }); setShowForm(true); };
-  const deleteVariant = async (id) => { if (confirm('Delete this variant? This may affect existing pricing.')) { await supabase.from('company_variants').delete().eq('id', id); }};
+  const deleteVariant = async (id) => { if (confirm('Delete this category? This may affect existing pricing.')) { await supabase.from('company_variants').delete().eq('id', id); }};
 
   const filteredVariants = variants.filter(v => v.variant_name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div>
-      <div className="page-header"><h1 className="page-title">Inventory Variants</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Variant</button></div>
+      <div className="page-header"><h1 className="page-title">Discount Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
       <div className="card" style={{ marginBottom: '16px' }}>
-        <p style={{ color: '#666', marginBottom: '10px' }}>Variants represent different commercial contexts (e.g., Retail, Wholesale, Export). Each item can have different pricing per variant.</p>
-        <input type="text" className="form-input" placeholder="Search variants..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+        <p style={{ color: '#666', marginBottom: '10px' }}>Discount Categories group your items for tiered pricing (e.g., Pipe, Hardware, Electrical). Each item can have different sale/purchase prices per category, and quotations can apply category-specific discounts.</p>
+        <input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
       </div>
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Variant Name</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Category Name</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Created</th>
                 <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
@@ -5249,9 +5249,9 @@ function VariantsTab() {
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingVariant ? 'Edit Variant' : 'Add Variant'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingVariant ? 'Edit Category' : 'Add Category'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
             <form onSubmit={handleSubmit}>
-              <div className="form-group"><label className="form-label">Variant Name *</label><input type="text" className="form-input" value={formData.variant_name} onChange={e => setFormData({...formData, variant_name: e.target.value})} placeholder="e.g., Retail, Wholesale, Export" required /></div>
+              <div className="form-group"><label className="form-label">Category Name *</label><input type="text" className="form-input" value={formData.variant_name} onChange={e => setFormData({...formData, variant_name: e.target.value})} placeholder="e.g., Retail, Wholesale, Export" required /></div>
               <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
               <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingVariant ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
             </form>
@@ -5343,7 +5343,7 @@ export default function MaterialsList() {
         <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>
         <TabButton active={activeTab === 'unit'} onClick={() => changeTab('unit')}>Unit</TabButton>
         <TabButton active={activeTab === 'warehouses'} onClick={() => changeTab('warehouses')}>Warehouses</TabButton>
-        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Inventory Variants</TabButton>
+        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Discount Categories</TabButton>
       </div>
 
       {activeTab === 'items' && <ItemsTab />}

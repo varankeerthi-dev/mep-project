@@ -213,7 +213,7 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
     const exportData = materialSummary.map((item, index) => ({
       'S.No': index + 1,
       'Item Name': item.item_name,
-      'Variant': item.variant_name || '-',
+      'Discount Category': item.variant_name || '-',
       'UOM': item.uom,
       'BOQ Qty': item.boq_qty,
       'Est. Rate': item.estimated_rate,
@@ -388,7 +388,7 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
           <TableHeader>
             <TableRow>
               <TableHead>Item</TableHead>
-              <TableHead>Variant</TableHead>
+              <TableHead>Discount Category</TableHead>
               <TableHead>BOQ Qty</TableHead>
               <TableHead>Received</TableHead>
               <TableHead>Pending</TableHead>

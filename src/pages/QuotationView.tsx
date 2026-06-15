@@ -1082,7 +1082,7 @@ export default function QuotationView() {
       if (optionalCols.item !== false) columnConfig.push({ header: 'Item', key: 'item', width: 45 });
       if (optionalCols.item_code) columnConfig.push({ header: 'Part No', key: 'item_code', width: 25 });
       if (optionalCols.make) columnConfig.push({ header: 'Make', key: 'make', width: 25 });
-      if (optionalCols.variant) columnConfig.push({ header: 'Variant', key: 'variant', width: 25 });
+      if (optionalCols.variant) columnConfig.push({ header: 'Discount Category', key: 'variant', width: 25 });
       if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
       if (optionalCols.qty !== false) columnConfig.push({ header: 'Qty', key: 'qty', width: 12, align: 'right' });
       if (optionalCols.uom !== false) columnConfig.push({ header: 'Unit', key: 'uom', width: 15 });
@@ -1291,7 +1291,7 @@ export default function QuotationView() {
     if (optionalCols.sno !== false) columnsHTML += '<th>#</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
     if (optionalCols.item !== false) columnsHTML += '<th>Item</th>';
-    if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
+    if (optionalCols.variant) columnsHTML += '<th>Discount Category</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
     if (optionalCols.qty !== false) columnsHTML += '<th>Qty</th>';
     if (optionalCols.uom !== false) columnsHTML += '<th>Unit</th>';
@@ -1858,7 +1858,7 @@ export default function QuotationView() {
                       )}
                       <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Description</span></th>
                       {quotation.items?.some(i => i.variant_id) && (
-                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Variant</span></th>
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Discount Category</span></th>
                       )}
                       <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
                       <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Unit</span></th>

@@ -240,7 +240,7 @@ export default function DCList() {
       if (optionalCols.hsn_code) columnConfig.push({ header: labels.hsn_code || 'HSN/SAC', key: 'hsn_code', width: 20 });
       columnConfig.push({ header: labels.item || 'Item', key: 'item', width: optionalCols.description ? 50 : 70 });
       if (optionalCols.description) columnConfig.push({ header: labels.description || 'Description', key: 'description', width: 40 });
-      if (optionalCols.variant) columnConfig.push({ header: labels.variant || 'Variant', key: 'variant', width: 25 });
+      if (optionalCols.variant) columnConfig.push({ header: labels.variant || 'Discount Category', key: 'variant', width: 25 });
       if (optionalCols.size) columnConfig.push({ header: labels.size || 'Size', key: 'size', width: 20 });
       columnConfig.push({ header: labels.qty || 'Qty', key: 'qty', width: 20 });
       columnConfig.push({ header: labels.unit || 'Unit', key: 'unit', width: 15 });

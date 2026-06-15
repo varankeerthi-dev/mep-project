@@ -219,7 +219,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Variant</label>
+              <label className="block text-sm font-medium mb-1">Category</label>
               <select
                 value={formData.variant_id}
                 onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
@@ -451,7 +451,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
               <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(180px, 1.5fr) 100px 80px 80px 80px 120px 80px 100px 100px 110px 70px', gap: '16px', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, color: '#374151' }}>
                 <div></div>
                 <div>Material</div>
-                <div>Variant</div>
+                <div>Category</div>
                 <div style={{ textAlign: 'right' }}>Planned Qty</div>
                 <div style={{ textAlign: 'right' }}>Supply Qty</div>
                 <div style={{ textAlign: 'right', color: '#3b82f6' }}>Received Qty</div>
@@ -624,7 +624,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
               <div style={{ display: 'grid', gridTemplateColumns: '36px minmax(180px, 1.5fr) 100px 80px 80px 80px 120px 80px 100px 100px 110px 70px', gap: '16px', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, color: '#374151' }}>
                 <div></div>
                 <div>Material</div>
-                <div>Variant</div>
+                <div>Category</div>
                 <div style={{ textAlign: 'right' }}>Planned Qty</div>
                 <div style={{ textAlign: 'right' }}>Supply Qty</div>
                 <div style={{ textAlign: 'right', color: '#3b82f6' }}>Received Qty</div>

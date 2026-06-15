@@ -1020,7 +1020,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     const columnConfig = [
       { header: 'S.No', key: 'sno', width: 10 },
       { header: 'Item Description', key: 'item', width: 52 },
-      { header: 'Variant', key: 'variant', width: 24 },
+      { header: 'Discount Category', key: 'variant', width: 24 },
       { header: 'Unit', key: 'unit', width: 14 },
       { header: 'Qty', key: 'qty', width: 16 },
       { header: 'Rate', key: 'rate', width: 22 },
@@ -1139,7 +1139,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 </div>
               </div>
               <div style={headerFieldStyle}>
-                <span style={labelColStyle}>Variant:</span>
+                <span style={labelColStyle}>Discount Category:</span>
                 <div style={fieldColStyle}>
                   <select name="variant_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.variant_id} onChange={(e) => handleHeaderVariantChange(e.target.value)} disabled={isLocked}>
                     <option value="">Select</option>

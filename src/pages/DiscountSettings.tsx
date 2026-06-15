@@ -116,7 +116,7 @@ function VariantGrid({ structure, variants, settings, setSettings, updateSetting
         <table className="table">
           <thead>
             <tr>
-              <th>Variant</th>
+              <th>Discount Category</th>
               <th style={{ width: '120px', textAlign: 'right' }}>Default %</th>
               <th style={{ width: '120px', textAlign: 'right' }}>Min %</th>
               <th style={{ width: '120px', textAlign: 'right' }}>Max %</th>
@@ -252,7 +252,7 @@ export default function DiscountSettings() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Discount Settings</h1>
-        <p style={{ color: '#64748b', marginTop: '4px' }}>Configure discount pricelists and variant-specific discount structures.</p>
+        <p style={{ color: '#64748b', marginTop: '4px' }}>Configure discount pricelists and category-specific discount structures.</p>
       </div>
 
       {message.text && (

@@ -13,7 +13,7 @@ import { useVariants } from '../hooks/useVariants';
 import { getItemStockBreakdown, assignStockToIntent } from '../material-intents/api';
 import { useHasPermission } from '../rbac/hooks';
 
-const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
+const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'No Category'];
 
 export default function QuickStockCheck() {
   const { organisation, user } = useAuth();
@@ -371,7 +371,7 @@ export default function QuickStockCheck() {
     doc.text(`Check No: ${checkNo}`, 14, 25);
     doc.text(`Date: ${formatDate(formData.check_date)}`, 14, 30);
     doc.text(`Client: ${formData.client_name}`, 14, 35);
-    doc.text(`Variant Filter: ${formData.variant_filter}`, 14, 40);
+    doc.text(`Category Filter: ${formData.variant_filter}`, 14, 40);
 
     const tableHeaders = [];
     if (visibleExportColumns.sno) tableHeaders.push('#');
@@ -571,7 +571,7 @@ export default function QuickStockCheck() {
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '10px', marginBottom: '2px' }}>Variant Filter</label>
+            <label className="form-label" style={{ fontWeight: 600, fontSize: '10px', marginBottom: '2px' }}>Category Filter</label>
             <select
               className="form-select"
               style={{ height: '28px', fontSize: '11px', padding: '2px 8px' }}
@@ -636,7 +636,7 @@ export default function QuickStockCheck() {
                 <tr>
                   <th style={{ ...excelHeaderStyle, width: '40px', textAlign: 'center' }}>#</th>
                   <th style={{ ...excelHeaderStyle, minWidth: '200px' }}>Item Name / Description</th>
-                  {formData.variant_filter !== 'Non-Variant' && <th style={{ ...excelHeaderStyle, width: '120px' }}>Variant</th>}
+                  {formData.variant_filter !== 'No Category' && <th style={{ ...excelHeaderStyle, width: '120px' }}>Discount Category</th>}
                   <th style={{ ...excelHeaderStyle, width: '100px', textAlign: 'right' }}>Req Qty</th>
                   {warehouses.map(wh => (
                     <th key={wh.id} style={{ ...excelHeaderStyle, width: '90px', textAlign: 'right' }}>{wh.warehouse_name}</th>
@@ -673,7 +673,7 @@ export default function QuickStockCheck() {
                         ))}
                       </select>
                     </td>
-                    {formData.variant_filter !== 'Non-Variant' && (
+                    {formData.variant_filter !== 'No Category' && (
                       <td style={{ ...excelCellStyle, padding: '0' }}>
                         <select
                           className="excel-select"
@@ -841,7 +841,7 @@ export default function QuickStockCheck() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Check No:</span> <span style={{ fontWeight: 600 }}>{formData.check_no || 'QC-XXXX'}</span></div>
-                      <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Variant:</span> <span style={{ fontWeight: 600 }}>{formData.variant_filter}</span></div>
+                      <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Category:</span> <span style={{ fontWeight: 600 }}>{formData.variant_filter}</span></div>
                     </div>
                   </div>
 

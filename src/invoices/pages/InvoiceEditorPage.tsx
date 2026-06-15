@@ -1826,7 +1826,7 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Discounts (By Variant)
+              Discounts (By Category)
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {variantRows.length > 0 ? variantRows.map((variant: any) => (
@@ -1858,7 +1858,7 @@ export default function InvoiceEditorPage() {
                 </div>
               )) : (
                 <div style={{ fontSize: '11px', color: '#737373', fontStyle: 'italic', padding: '8px', border: '1px solid #e5e5e5', background: '#fafafa' }}>
-                  No variants available.
+                  No categories available.
                 </div>
               )}
             </div>

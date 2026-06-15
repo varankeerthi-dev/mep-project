@@ -15,7 +15,7 @@ const OPTIONAL_COLUMNS = [
   { key: 'qty', label: 'Qty', isMandatory: true },
   { key: 'uom', label: 'Unit (UOM)' },
   { key: 'item_code', label: 'Tool Code' },
-  { key: 'variant', label: 'Variant' },
+  { key: 'variant', label: 'Discount Category' },
   { key: 'description', label: 'Description' },
   { key: 'client_part_no', label: 'Client Part No' },
   { key: 'client_description', label: 'Client Description' },
@@ -579,7 +579,7 @@ export default function TemplateSettings() {
       }
     },
     {
-      template_name: 'Enterprise Quotation Template',
+      template_name: 'Enterprise Template (Premium PDF)',
       template_code: 'QTN_ENTERPRISE',
       document_type: 'Quotation',
       is_default: false,
@@ -593,37 +593,10 @@ export default function TemplateSettings() {
         mandatory: [],
         optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
-        print: { style: 'default' }
+        print: { style: 'enterprise' }
       }
-    }
+    },
   ];
-
-  const seedBuiltInTemplates = async () => {
-    if (!organisation?.id) return;
-    setLoading(true);
-    try {
-      for (const template of BUILT_IN_TEMPLATES) {
-        const { data: existing } = await supabase
-          .from('document_templates')
-          .select('id')
-          .eq('template_code', template.template_code)
-          .eq('document_type', template.document_type)
-          .eq('organisation_id', organisation.id)
-          .single();
-        
-        if (!existing) {
-          await supabase.from('document_templates').insert({ ...template, organisation_id: organisation.id });
-        }
-      }
-      setSuccessMessage('Built-in templates added successfully!');
-      await loadTemplates();
-    } catch (err: any) {
-      console.error('Error seeding templates:', err);
-      alert('Error seeding templates: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEdit = (template: any) => {
     setSelectedTemplate(template);
@@ -685,7 +658,34 @@ export default function TemplateSettings() {
     setShowForm(true);
   };
 
-const handleNew = (preset: any = null) => {
+  const seedBuiltInTemplates = async () => {
+    if (!organisation?.id) return;
+    setLoading(true);
+    try {
+      for (const template of BUILT_IN_TEMPLATES) {
+        const { data: existing } = await supabase
+          .from('document_templates')
+          .select('id')
+          .eq('template_code', template.template_code)
+          .eq('document_type', template.document_type)
+          .eq('organisation_id', organisation.id)
+          .single();
+        
+        if (!existing) {
+          await supabase.from('document_templates').insert({ ...template, organisation_id: organisation.id });
+        }
+      }
+      setSuccessMessage('Built-in templates added successfully!');
+      await loadTemplates();
+    } catch (err: any) {
+      console.error('Error seeding templates:', err);
+      alert('Error seeding templates: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNew = (preset: any = null) => {
     const normalizedPreset = typeof preset === 'string' ? preset : null;
     setSelectedTemplate(null);
     
@@ -850,7 +850,7 @@ const handleNew = (preset: any = null) => {
     if (optionalCols.item_code) columnsHTML += '<th>Item Code / SKU</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
     if (optionalCols.item) columnsHTML += `<th>${labels.item || 'Item Description'}</th>`;
-    if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
+    if (optionalCols.variant) columnsHTML += '<th>Discount Category</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
     if (optionalCols.client_part_no) columnsHTML += '<th>Client Part No</th>';
     if (optionalCols.client_description) columnsHTML += '<th>Client Description</th>';
@@ -1567,6 +1567,7 @@ const handleNew = (preset: any = null) => {
           { value: 'saas', label: 'SAAS' },
           { value: 'pro_grid', label: 'Pro Grid' },
           { value: 'vertical', label: 'Vertical' },
+          { value: 'enterprise', label: 'Enterprise' },
         ].map(filter => (
           <button
             key={filter.value}
@@ -1651,6 +1652,11 @@ const handleNew = (preset: any = null) => {
                             {template.column_settings?.print?.style === 'vertical' && (
                               <span style={{ background: '#1e3a8a', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
                                 VERTICAL
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'enterprise' && (
+                              <span style={{ background: '#2C3E50', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                ENTERPRISE
                               </span>
                             )}
                           </div>

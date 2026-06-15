@@ -107,7 +107,7 @@ const DEFAULT_COLUMNS: ColumnSetting[] = [
   { key: 'sno', label: 'S.No', width: 50, visible: true },
   { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: true },
   { key: 'description', label: 'Description', width: 250, visible: true },
-  { key: 'variant', label: 'Variant', width: 100, visible: true },
+  { key: 'variant', label: 'Discount Category', width: 100, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
   { key: 'quantity', label: 'Qty', width: 70, visible: true },
   { key: 'unit', label: 'Unit', width: 70, visible: true },
@@ -1468,15 +1468,15 @@ export function BOQ() {
             <div style={boqHeaderTitleStyle}>Discount Profile</div>
             <div style={boqHeaderFieldsStyle}>
               <div>
-                <label style={labelStyle}>Variant Default</label>
+                <label style={labelStyle}>Category Default</label>
                 <select value={boqData.variantId} onChange={e => setBoqData(p => ({ ...p, variantId: e.target.value }))} style={{ ...inputStyle, width: '100%' }}>
-                  <option value="">Select Variant</option>
+                  <option value="">Select Category</option>
                   {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
                 </select>
               </div>
               {Object.keys(clientDiscounts).length > 0 && (
                 <div style={boqHeaderDiscountWrapStyle}>
-                  <span style={boqHeaderDiscountLabelStyle}>Variant Discounts</span>
+                  <span style={boqHeaderDiscountLabelStyle}>Category Discounts</span>
                   <div style={boqHeaderDiscountListStyle}>
                     {Object.entries(clientDiscounts).map(([variantId, data]) => (
                       <div key={variantId} style={variantDiscountBoxStyle}>

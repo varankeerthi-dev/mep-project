@@ -373,7 +373,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
               {/* Variants */}
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Variant Configuration</h4>
+                  <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Category Configuration</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="checkbox"
@@ -382,7 +382,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                       onChange={e => handleUsesVariantChange(e.target.checked)}
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
-                    <label htmlFor="uses_variant" style={{ fontSize: '13px', color: '#525252', cursor: 'pointer' }}>Multi-Variant Pricing</label>
+                    <label htmlFor="uses_variant" style={{ fontSize: '13px', color: '#525252', cursor: 'pointer' }}>Multi-Category Pricing</label>
                   </div>
                 </div>
 
@@ -395,7 +395,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                           value={row.company_variant_id}
                           onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
                         >
-                          <option value="">Variant</option>
+                          <option value="">Discount Category</option>
                           {variants.map(v => (
                             <option key={v.id} value={v.id}>{v.variant_name}</option>
                           ))}
@@ -431,7 +431,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                       onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
                       onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
                     >
-                      <Plus size={14} /> Add Variant Option
+                      <Plus size={14} /> Add Category Option
                     </button>
                   </div>
                 )}
@@ -461,7 +461,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                         : ['no_variant'];
                       
                       return activeVariantIds.map(vId => {
-                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Variant' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Variant';
+                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Category' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Category';
                         return (
                           <div key={vId} style={{ marginBottom: '20px' }}>
                             {formData.uses_variant && (

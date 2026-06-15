@@ -100,9 +100,9 @@ export default function QuickQuoteSettings() {
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Default Variant</label>
+            <label className="form-label">Default Category</label>
             <select className="form-select" value={settingsForm.default_variant || ''} onChange={(e) => setSettingsForm((prev) => prev ? { ...prev, default_variant: e.target.value || null } : prev)}>
-              <option value="">Select variant</option>
+              <option value="">Select Category</option>
               {variants.map((variant: any) => (
                 <option key={variant.id} value={variant.id}>{variant.variant_name}</option>
               ))}

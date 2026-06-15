@@ -822,7 +822,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
               </select>
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Variant</label>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Discount Category</label>
               <select name="variant_id" className="form-select" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.variant_id} onChange={(e) => handleHeaderVariantChange(e.target.value)} disabled={isLocked}>
                 <option value="">Select</option>
                 {activeVariants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}

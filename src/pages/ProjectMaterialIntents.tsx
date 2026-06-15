@@ -319,7 +319,7 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
 MATERIAL INTENT REQUEST
 ========================
 Item: ${intent.item_name}
-${intent.variant_name ? `Variant: ${intent.variant_name}` : ''}
+${intent.variant_name ? `Category: ${intent.variant_name}` : ''}
 Quantity: ${intent.requested_qty} ${intent.uom}
 Required Date: ${intent.required_date}
 Priority: ${intent.priority}
@@ -358,7 +358,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
   ];
 
   const variantOptions = [
-    { value: '', label: 'No Variant' },
+    { value: '', label: 'No Category' },
     ...variants.map(v => ({ value: v.id, label: v.variant_name }))
   ];
 
@@ -454,7 +454,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
           <TableHeader>
             <TableRow style={{ background: '#f9fafb' }}>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Indent Details' : 'Material Item'}</TableHead>
-              <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Date' : 'Variant'}</TableHead>
+              <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Date' : 'Discount Category'}</TableHead>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Summary' : 'Quantity'}</TableHead>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>Priority</TableHead>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>Status</TableHead>
@@ -533,10 +533,10 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                           </button>
                           <button 
                             onClick={() => {
-                              const content = `MATERIAL INTENT\n==================\nItem: ${intent.item_name}\n${intent.variant_name ? `Variant: ${intent.variant_name}\n` : ''}Quantity: ${intent.requested_qty} ${intent.uom}\nRequired Date: ${intent.required_date}\nPriority: ${intent.priority}\nStatus: ${intent.status}${intent.notes ? `\nNotes: ${intent.notes}` : ''}`;
+                              const content = `MATERIAL INTENT\n==================\nItem: ${intent.item_name}\n${intent.variant_name ? `Category: ${intent.variant_name}\n` : ''}Quantity: ${intent.requested_qty} ${intent.uom}\nRequired Date: ${intent.required_date}\nPriority: ${intent.priority}\nStatus: ${intent.status}${intent.notes ? `\nNotes: ${intent.notes}` : ''}`;
                               const printWindow = window.open('', '_blank');
                               if (printWindow) {
-                                printWindow.document.write(`<html><head><title>Intent - ${intent.indent_number || intent.id}</title><style>body{font-family:monospace;white-space:pre-wrap;padding:40px;}h2{margin-bottom:0;}</style></head><body><h2>Material Intent</h2><p style="color:#6b7280">Indent: ${intent.indent_number || 'N/A'}</p><p style="color:#6b7280">Date: ${new Date(intent.created_at).toLocaleDateString()}</p><hr/><p><strong>Item:</strong> ${intent.item_name}</p>${intent.variant_name ? `<p><strong>Variant:</strong> ${intent.variant_name}</p>` : ''}<p><strong>Quantity:</strong> ${intent.requested_qty} ${intent.uom}</p><p><strong>Required Date:</strong> ${intent.required_date}</p><p><strong>Priority:</strong> ${intent.priority}</p><p><strong>Status:</strong> ${intent.status}</p>${intent.notes ? `<p><strong>Notes:</strong> ${intent.notes}</p>` : ''}</body></html>`);
+                                printWindow.document.write(`<html><head><title>Intent - ${intent.indent_number || intent.id}</title><style>body{font-family:monospace;white-space:pre-wrap;padding:40px;}h2{margin-bottom:0;}</style></head><body><h2>Material Intent</h2><p style="color:#6b7280">Indent: ${intent.indent_number || 'N/A'}</p><p style="color:#6b7280">Date: ${new Date(intent.created_at).toLocaleDateString()}</p><hr/><p><strong>Item:</strong> ${intent.item_name}</p>${intent.variant_name ? `<p><strong>Category:</strong> ${intent.variant_name}</p>` : ''}<p><strong>Quantity:</strong> ${intent.requested_qty} ${intent.uom}</p><p><strong>Required Date:</strong> ${intent.required_date}</p><p><strong>Priority:</strong> ${intent.priority}</p><p><strong>Status:</strong> ${intent.status}</p>${intent.notes ? `<p><strong>Notes:</strong> ${intent.notes}</p>` : ''}</body></html>`);
                                 printWindow.document.close();
                                 printWindow.print();
                               }
@@ -659,7 +659,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                     <thead>
                       <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                         <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', borderRight: '1px solid #e5e7eb' }}>Material</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '150px', borderRight: '1px solid #e5e7eb' }}>Variant</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '150px', borderRight: '1px solid #e5e7eb' }}>Discount Category</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563', width: '90px', borderRight: '1px solid #e5e7eb' }}>Qty</th>
                         <th style={{ padding: '10px 12px', textAlign: 'center', width: '40px' }}></th>
                       </tr>
@@ -752,7 +752,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                                   onBlur={() => setEditingCell(null)}
                                   style={{ width: '100%', padding: '10px 12px', border: '1px solid #3b82f6', background: '#fff', outline: 'none', fontSize: '13px', appearance: 'none' }}
                                 >
-                                  <option value="">No Variant</option>
+                                  <option value="">No Category</option>
                                   {filteredVariants.map(v => (
                                     <option key={v.id} value={v.id}>{v.variant_name}</option>
                                   ))}
