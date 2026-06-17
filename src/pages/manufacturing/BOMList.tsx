@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { toast } from '../../lib/logger';
 import {
   Plus, Search, MoreHorizontal, ChevronLeft, ChevronRight,
-  Package, SlidersHorizontal
+  Package, Trash2, Loader2
 } from 'lucide-react';
 
 type BOMListProps = {
@@ -20,9 +21,38 @@ const statusConfig = {
 
 export default function BOMList({ onNavigate }: BOMListProps) {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; code: string; name: string } | null>(null);
+
+  const deleteBOM = useMutation({
+    mutationFn: async (bomId: string) => {
+      const [jobCards, schedules] = await Promise.all([
+        supabase.from('job_cards').select('id', { count: 'exact', head: true }).eq('bom_id', bomId),
+        supabase.from('production_schedule_items').select('id', { count: 'exact', head: true }).eq('bom_id', bomId),
+      ]);
+      const jcCount = jobCards.count ?? 0;
+      const psCount = schedules.count ?? 0;
+      if (jcCount > 0 || psCount > 0) {
+        const parts: string[] = [];
+        if (jcCount > 0) parts.push(`${jcCount} job card${jcCount !== 1 ? 's' : ''}`);
+        if (psCount > 0) parts.push(`${psCount} production schedule${psCount !== 1 ? 's' : ''}`);
+        throw new Error(`Cannot delete: this BOM is used by ${parts.join(' and ')}. Remove them first.`);
+      }
+      const { error } = await supabase.from('bom_headers').delete().eq('id', bomId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      toast.success('BOM deleted');
+      setDeleteTarget(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to delete BOM');
+    }
+  });
 
   const { data: boms, isLoading } = useQuery({
     queryKey: ['boms', organisation?.id, statusFilter, search],
@@ -181,6 +211,7 @@ export default function BOMList({ onNavigate }: BOMListProps) {
                               <ActionMenu
                                 onEdit={() => onNavigate(`/manufacturing/boms/edit?id=${bom.id}`)}
                                 onJobCard={() => onNavigate(`/manufacturing/job-cards/create?bom=${bom.id}`)}
+                                onDelete={() => setDeleteTarget({ id: bom.id, code: bom.bom_code, name: bom.product_name })}
                               />
                             </div>
                           </div>
@@ -248,12 +279,21 @@ export default function BOMList({ onNavigate }: BOMListProps) {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+
+      {deleteTarget && (
+        <DeleteBOMModal
+          target={deleteTarget}
+          isPending={deleteBOM.isPending}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => deleteBOM.mutate(deleteTarget.id)}
+        />
+      )}
     </div>
   );
 }
 
 /* ─── Action Menu Dropdown ─── */
-function ActionMenu({ onEdit, onJobCard }: { onEdit: () => void; onJobCard: () => void }) {
+function ActionMenu({ onEdit, onJobCard, onDelete }: { onEdit: () => void; onJobCard: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -280,9 +320,53 @@ function ActionMenu({ onEdit, onJobCard }: { onEdit: () => void; onJobCard: () =
             >
               Create Job Card
             </button>
+            <div className="my-1 border-t border-zinc-100" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 transition-all"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete BOM
+            </button>
           </div>
         </>
       )}
     </>
+  );
+}
+
+/* ─── Delete Confirmation Modal ─── */
+function DeleteBOMModal({ target, onCancel, onConfirm, isPending }: {
+  target: { id: string; code: string; name: string };
+  onCancel: () => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => !isPending && onCancel()}>
+      <div className="bg-white rounded-2xl p-6 max-w-[420px] w-[90%] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+            <Trash2 className="w-5 h-5 text-rose-600" />
+          </div>
+          <h3 className="text-[15px] font-semibold text-zinc-900 m-0">Delete this BOM?</h3>
+        </div>
+        <p className="text-[13px] text-zinc-700 leading-[18px] mt-0 mb-1">
+          <strong>{target.code}</strong> · {target.name}
+        </p>
+        <p className="text-[12px] text-zinc-500 leading-[18px] mt-0 mb-5">
+          This will permanently remove the BOM and all its material rows. Job cards or production schedules that reference this BOM will block the delete. This action cannot be undone.
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button onClick={onCancel} disabled={isPending}
+            className="px-4 h-9 text-[12px] font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-50 transition-all">
+            Cancel
+          </button>
+          <button onClick={onConfirm} disabled={isPending}
+            className="inline-flex items-center gap-1.5 px-4 h-9 text-[12px] font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-60 transition-all">
+            {isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting...</> : 'Delete BOM'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

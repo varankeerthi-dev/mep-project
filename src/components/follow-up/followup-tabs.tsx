@@ -5,6 +5,7 @@ import {
   Truck,
   Receipt,
   Clock,
+  UserPlus,
 } from 'lucide-react';
 import type { FollowUpTab } from '@/types/followup';
 
@@ -15,6 +16,7 @@ const TABS: {
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   { id: 'queue', label: 'Priority Queue', description: "Today's ranked follow-ups — all types", icon: LayoutDashboard },
+  { id: 'lead', label: 'Leads', description: 'Pre-quote pipeline', icon: UserPlus },
   { id: 'quotation', label: 'Quotations', description: 'Outstanding quotes → work orders', icon: FileText },
   { id: 'podc', label: 'PO/DC Backlog', description: 'Delivered work, PO pending', icon: Truck },
   { id: 'invoice', label: 'Invoices', description: 'Overdue escalation matrix', icon: Receipt },

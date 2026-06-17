@@ -1314,6 +1314,7 @@ body {
 .item-form-footer {
   position: sticky;
   bottom: 0;
+  z-index: 10;
   display: flex;
   gap: 12px;
   padding-top: 10px;

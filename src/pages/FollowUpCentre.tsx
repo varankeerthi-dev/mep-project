@@ -33,6 +33,7 @@ import {
   useFollowUpDataSource,
   useAssignFollowUp,
 } from '@/hooks/use-followup-data';
+import { useLeads, useCreateLead, useUpdateLead, useConvertLead, useDisqualifyLead } from '@/hooks/use-leads';
 import {
   useFollowupAssignees,
   resolveAssigneeLabel,
@@ -61,6 +62,12 @@ import type {
 } from '@/types/followup';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFollowupAccess } from '@/hooks/use-followup-access';
+import { LeadCaptureModal } from '@/components/leads/lead-capture-modal';
+import { LeadRow, leadTableHeader } from '@/components/follow-up/lead-row';
+import { WinLossModal } from '@/components/leads/win-loss-modal';
+import { Button } from '@/components/ui/button';
+import { UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function FollowUpCentre() {
   const { user, organisation } = useAuth();
@@ -73,13 +80,21 @@ export default function FollowUpCentre() {
   const { data: podc = [], isLoading: loadingP } = useFollowupPodc();
   const { data: invoices = [], isLoading: loadingI } = useFollowupInvoices();
   const { data: activity = [], isLoading: loadingA } = useFollowupActivity();
+  const { data: leads = [], isLoading: loadingL } = useLeads();
 
   const logResponse = useLogQuotationResponse();
   const flagIssue = useFlagPodcIssue();
   const recordReminder = useRecordReminder();
   const assignFollowUp = useAssignFollowUp();
+  const createLead = useCreateLead();
+  const updateLead = useUpdateLead();
+  const convertLead = useConvertLead();
+  const disqualifyLead = useDisqualifyLead();
   const { data: assignees = [] } = useFollowupAssignees();
   const { sendQuotationReminder, sharePodcPack, sendInvoiceReminder } = useWhatsappShare();
+
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [winLossTarget, setWinLossTarget] = useState<{ id: string; category: 'win' | 'loss' | 'disqualify' } | null>(null);
 
   const currentUserId = user?.id ?? null;
 
@@ -89,6 +104,7 @@ export default function FollowUpCentre() {
   const [podcPage, setPodcPage] = useState(1);
   const [invoicePage, setInvoicePage] = useState(1);
   const [activityPage, setActivityPage] = useState(1);
+  const [leadPage, setLeadPage] = useState(1);
   const itemsPerPage = 20;
 
   const [drawerItem, setDrawerItem] = useState<{
@@ -156,9 +172,29 @@ export default function FollowUpCentre() {
     [activity, filters, search]
   );
 
+  const filteredLeads = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return leads.filter((l) => {
+      if (filters.status !== 'all' && l.status !== filters.status) return false;
+      if (!q) return true;
+      return (
+        l.contact_name.toLowerCase().includes(q) ||
+        l.company_name.toLowerCase().includes(q) ||
+        l.project_name.toLowerCase().includes(q) ||
+        l.contact_email.toLowerCase().includes(q) ||
+        l.contact_phone.toLowerCase().includes(q)
+      );
+    });
+  }, [leads, filters.status, search]);
+
   const priorityQueue = useMemo(
-    () => buildPriorityQueue(quotations, podc, invoices),
-    [quotations, podc, invoices]
+    () => buildPriorityQueue(quotations, podc, invoices, leads),
+    [quotations, podc, invoices, leads]
+  );
+
+  const openLeadCount = useMemo(
+    () => leads.filter((l) => l.status === 'New' || l.status === 'Qualified').length,
+    [leads]
   );
 
   const filteredQueue = useMemo(
@@ -214,11 +250,28 @@ export default function FollowUpCentre() {
     return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredActivity.slice(startIndex, endIndex), hasNextPage: activityPage < totalPages, hasPrevPage: activityPage > 1 };
   }, [filteredActivity, activityPage, itemsPerPage]);
 
+  const leadPagination = useMemo(() => {
+    const totalItems = filteredLeads.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (leadPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredLeads.slice(startIndex, endIndex), hasNextPage: leadPage < totalPages, hasPrevPage: leadPage > 1 };
+  }, [filteredLeads, leadPage, itemsPerPage]);
+
   useEffect(() => { setQueuePage(1); }, [filters, search]);
   useEffect(() => { setQuotationPage(1); }, [filters, search]);
   useEffect(() => { setPodcPage(1); }, [filters, search]);
   useEffect(() => { setInvoicePage(1); }, [filters, search]);
   useEffect(() => { setActivityPage(1); }, [filters, search]);
+  useEffect(() => { setLeadPage(1); }, [filters, search]);
+
+  // Reset stale status filter when switching to Leads tab so prior-tab
+  // filters (e.g. 'sent', 'disputed') don't silently hide new leads.
+  useEffect(() => {
+    if (filters.tab === 'lead' && filters.status !== 'all') {
+      setFilters({ status: 'all' });
+    }
+  }, [filters.tab, filters.status, setFilters]);
 
   const handleAssigneeChange = useCallback(
     (source: 'quotation' | 'podc' | 'invoice', sourceId: string, userId: string | null) => {
@@ -241,7 +294,7 @@ export default function FollowUpCentre() {
           {
             label: 'Queue items',
             value: m.total,
-            sublabel: 'Ranked across all types',
+            sublabel: `${openLeadCount} lead${openLeadCount === 1 ? '' : 's'} · ${quotations.length} quote${quotations.length === 1 ? '' : 's'} · ${podc.length} PO/DC · ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`,
           },
           {
             label: 'Critical',
@@ -340,6 +393,19 @@ export default function FollowUpCentre() {
           { label: 'Today', value: '—', sublabel: 'Grouped view' },
           { label: 'Source', value: filters.status === 'all' ? 'All' : filters.status, sublabel: 'Tab filter' },
         ];
+      case 'lead': {
+        const open = leads.filter((l) => l.status === 'New' || l.status === 'Qualified').length;
+        const closed = leads.filter((l) => l.status === 'Converted' || l.status === 'Disqualified').length;
+        const totalValue = leads.reduce((s, l) => s + (l.estimated_value || 0), 0);
+        const overdue = leads.filter((l) => l.next_action_at && new Date(l.next_action_at).getTime() < Date.now() && (l.status === 'New' || l.status === 'Qualified')).length;
+        return [
+          { label: 'Open leads', value: open, sublabel: 'New + qualified' },
+          { label: 'Pipeline value', value: formatCompactCurrency(totalValue), sublabel: 'All open + closed' },
+          { label: 'Overdue action', value: overdue, variant: overdue > 0 ? ('warning' as const) : ('default' as const), sublabel: 'Past next-action date' },
+          { label: 'Closed', value: closed, sublabel: 'Converted + disqualified' },
+          { label: 'Filtered', value: filteredLeads.length, sublabel: 'Current view' },
+        ];
+      }
       default:
         return [];
     }
@@ -354,6 +420,8 @@ export default function FollowUpCentre() {
     filteredQuotations.length,
     filteredInvoices.length,
     filteredActivity.length,
+    openLeadCount,
+    filteredLeads.length,
   ]);
 
   const tabCounts = useMemo(
@@ -363,6 +431,7 @@ export default function FollowUpCentre() {
       podc: podc.length,
       invoice: invoices.length,
       activity: activity.length,
+      lead: leads.length,
     }),
     [
       priorityQueue.length,
@@ -370,6 +439,7 @@ export default function FollowUpCentre() {
       podc.length,
       invoices.length,
       activity.length,
+      leads.length,
     ]
   );
 
@@ -385,6 +455,14 @@ export default function FollowUpCentre() {
 
   const handleQueueOpen = useCallback(
     (item: PriorityQueueItem) => {
+      // Leads are not a tab in the Follow-Up Centre — they live in the queue.
+      // Open the lead capture context inline (here: scroll to the lead's row
+      // in the queue or future leads tab). For now, set the search filter so
+      // the user can find it in the priority queue.
+      if (item.source_tab === 'lead') {
+        setFilters({ q: item.reference_label });
+        return;
+      }
       setTab(item.source_tab);
       setFilters({ q: item.reference_label });
       if (item.source_tab === 'invoice') {
@@ -439,6 +517,11 @@ export default function FollowUpCentre() {
   const handleQueueQuickAction = useCallback(
     (item: PriorityQueueItem) => {
       if (!canManage) return;
+      if (item.source_tab === 'lead') {
+        // No outbound action wired yet — open the lead context (queue search).
+        handleQueueOpen(item);
+        return;
+      }
       const { quote, backlog, invoice } = resolveSourceRecords(item);
       if (item.source_tab === 'quotation' && quote) handleQuotationReminder(quote);
       if (item.source_tab === 'podc' && backlog) handlePodcShare(backlog);
@@ -450,6 +533,7 @@ export default function FollowUpCentre() {
       handleQuotationReminder,
       handlePodcShare,
       handleInvoiceReminder,
+      handleQueueOpen,
     ]
   );
 
@@ -458,7 +542,8 @@ export default function FollowUpCentre() {
     (filters.tab === 'quotation' && loadingQ) ||
     (filters.tab === 'podc' && loadingP) ||
     (filters.tab === 'invoice' && loadingI) ||
-    (filters.tab === 'activity' && loadingA);
+    (filters.tab === 'activity' && loadingA) ||
+    (filters.tab === 'lead' && loadingL);
 
   const PaginationFooter = useCallback(
     ({ page, setPage, pagination }: { page: number; setPage: (p: number) => void; pagination: { totalItems: number; totalPages: number; startIndex: number; endIndex: number; hasNextPage: boolean; hasPrevPage: boolean } }) => {
@@ -677,6 +762,37 @@ export default function FollowUpCentre() {
             <PaginationFooter page={activityPage} setPage={setActivityPage} pagination={activityPagination} />
           </div>
         );
+      case 'lead':
+        return (
+          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+              {leadTableHeader}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {leadPagination.currentItems.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
+                  <p className="text-sm font-medium text-zinc-700">No leads match your filters.</p>
+                  <p className="mt-1 text-xs text-zinc-500">Capture your first lead with the “New lead” button above.</p>
+                </div>
+              ) : (
+                leadPagination.currentItems.map((item) => (
+                  <LeadRow
+                    key={item.id}
+                    item={item}
+                    disabled={isReadOnly}
+                    onSelect={() => handleOpenHistory('quotation', item.id, item.company_name || item.contact_name, item.client_name || item.contact_name)}
+                    onConvert={() => setWinLossTarget({ id: item.id, category: 'win' })}
+                    onDisqualify={() => setWinLossTarget({ id: item.id, category: 'disqualify' })}
+                    onSetNextAction={(id, at, label) =>
+                      updateLead.mutate({ id, patch: { next_action_at: at, next_action_label: label } })
+                    }
+                  />
+                ))
+              )}
+            </div>
+            <PaginationFooter page={leadPage} setPage={setLeadPage} pagination={leadPagination} />
+          </div>
+        );
       default:
         return null;
     }
@@ -708,6 +824,17 @@ export default function FollowUpCentre() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              leftIcon={<UserPlus className="h-3.5 w-3.5" />}
+              onClick={() => setLeadModalOpen(true)}
+              disabled={!canManage}
+              title={canManage ? 'Capture a new lead' : 'Manager/admin only'}
+            >
+              New lead
+            </Button>
             {dataSource === 'mock' && (
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900">
                 Demo data — run <code className="font-mono">051_follow_up_centre.sql</code> in Supabase
@@ -781,6 +908,56 @@ export default function FollowUpCentre() {
         clientName={drawerItem?.clientName || ''}
         followUpStatus={drawerItem?.followUpStatus}
         onLogCommunication={handleLogCommunication}
+      />
+
+      <LeadCaptureModal
+        open={leadModalOpen}
+        onOpenChange={setLeadModalOpen}
+        defaultOwnerUserId={currentUserId}
+      />
+
+      <WinLossModal
+        open={!!winLossTarget}
+        onOpenChange={(o) => !o && setWinLossTarget(null)}
+        category={winLossTarget?.category ?? 'win'}
+        referenceLabel={
+          winLossTarget
+            ? leads.find((l) => l.id === winLossTarget.id)?.company_name ||
+              leads.find((l) => l.id === winLossTarget.id)?.contact_name
+            : undefined
+        }
+        onConfirm={({ reasonId, notes }) => {
+          if (!winLossTarget) return;
+          const targetId = winLossTarget.id;
+          if (winLossTarget.category === 'win') {
+            convertLead.mutate(
+              { id: targetId },
+              {
+                onSuccess: () =>
+                  toast.success('Lead converted', {
+                    description: 'Next: open the lead to link a client/quotation.',
+                  }),
+                onError: (err: unknown) =>
+                  toast.error('Could not convert lead', { description: err instanceof Error ? err.message : 'Unknown' }),
+              }
+            );
+          } else if (winLossTarget.category === 'disqualify') {
+            disqualifyLead.mutate(
+              { id: targetId, reason: notes || 'No reason given' },
+              {
+                onSuccess: () => toast.success('Lead disqualified'),
+                onError: (err: unknown) =>
+                  toast.error('Could not disqualify lead', { description: err instanceof Error ? err.message : 'Unknown' }),
+              }
+            );
+          } else {
+            // loss — not directly used for leads, but kept for shape parity
+            updateLead.mutate({ id: targetId, patch: { status: 'On Hold' } });
+          }
+          // reason/notes are captured for future use; lead model doesn't have reason columns yet
+          void reasonId;
+          setWinLossTarget(null);
+        }}
       />
     </div>
   );

@@ -19,7 +19,7 @@ import { useConvertDocument, useConversionStatus, getSourceTableName } from '../
 import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
-import { FileText, Plus, Mail } from 'lucide-react';
+import { FileText, Plus, Mail, Info } from 'lucide-react';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
 import { SearchableItemSelect } from '../components/SearchableItemSelect';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
@@ -97,12 +97,14 @@ export default function CreateQuotation() {
   const [draggingItemId, setDraggingItemId] = useState(null);
   
   const [headerDiscounts, setHeaderDiscounts] = useState({});
-  const [discountPopup, setDiscountPopup] = useState({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
+  const [discountPopup, setDiscountPopup] = useState({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0, type: 'variant' });
+  const [customiseModal, setCustomiseModal] = useState({ show: false, variantId: null, newValue: 0, type: 'variant', items: [] });
   const [useArcPricing, setUseArcPricing] = useState(false);
   const [arcPricingMap, setArcPricingMap] = useState<Record<string, any>>({});
   const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
   
   const [discountSettings, setDiscountSettings] = useState({});
+  const [discountCategoryMap, setDiscountCategoryMap] = useState({});
   const [approvalStatus, setApprovalStatus] = useState({});
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
@@ -216,7 +218,7 @@ export default function CreateQuotation() {
     client_contact: '',
     variant_id: '',
     reference: '',
-    prepared_by: '',
+    prepared_by: user?.user_metadata?.full_name || user?.email?.split('@')[0] || '',
     extra_discount_percent: 0,
     extra_discount_amount: 0,
     round_off: 0,
@@ -360,7 +362,7 @@ export default function CreateQuotation() {
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     queryFn: async () => {
-      const [pricing, settings, template, quickQuoteConfig, orgDetails] = await Promise.all([
+      const [pricing, settings, template, discountCatsRes, quickQuoteConfig, orgDetails] = await Promise.all([
         timedSupabaseQuery(
           supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
           'Quotation pricing',
@@ -382,6 +384,10 @@ export default function CreateQuotation() {
             .single(),
           'Quotation template',
         ),
+        organisation?.id ? timedSupabaseQuery(
+          supabase.from('discount_categories').select('*').or(`organisation_id.eq.${organisation.id},organisation_id.is.null`).eq('is_active', true).order('name'),
+          'Discount categories',
+        ) : Promise.resolve([]),
         organisation?.id ? loadQuickQuoteConfig(organisation.id) : Promise.resolve(null),
         organisation?.id ? timedSupabaseQuery(
           supabase.from('organisations').select('*').eq('id', organisation.id).single(),
@@ -397,6 +403,7 @@ export default function CreateQuotation() {
         pricing: pricing || [],
         settings: settings || [],
         template: template || null,
+        discountCategories: discountCatsRes || [],
         quickQuoteConfig: quickQuoteConfig || null,
         orgFullDetails: orgDetails || null
       };
@@ -485,7 +492,7 @@ export default function CreateQuotation() {
     const currentId = `${editId || ''}-${duplicateId || ''}`;
     if (initializedRef.current === currentId) return;
 
-    const { settings, template, quickQuoteConfig, pricing, orgFullDetails } = initQuery.data;
+    const { settings, template, quickQuoteConfig, pricing, orgFullDetails, discountCategories: discountCats } = initQuery.data;
 
     const materialsWithService = materials.map(item => ({
       ...item,
@@ -514,6 +521,12 @@ export default function CreateQuotation() {
       };
     });
     setDiscountSettings(settingsMap);
+
+    const dcMap = {};
+    (discountCats || []).forEach((dc) => {
+      dcMap[dc.id] = dc;
+    });
+    setDiscountCategoryMap(dcMap);
 
     if (template) {
       setTemplateSettings(template);
@@ -857,7 +870,8 @@ const loadQuoteNoPreview = useCallback(async () => {
       if (discounts && discounts.length > 0) {
         const discountMap = {};
         discounts.forEach(d => {
-          discountMap[d.variant_id] = parseFloat(d.header_discount_percent) || 0;
+          const key = d.discount_category_id || d.variant_id;
+          if (key) discountMap[key] = parseFloat(d.header_discount_percent) || 0;
         });
         setHeaderDiscounts(prev => ({ ...prev, ...discountMap }));
       }
@@ -866,65 +880,76 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
   };
 
-  const handleHeaderDiscountChange = useCallback((variantId, newValue) => {
+  const handleHeaderDiscountChange = useCallback((id, newValue, type = 'variant') => {
     const numValue = parseFloat(newValue) || 0;
     
-    const affectedItems = items.filter(item => 
-      (variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId) && !item.is_override
-    );
-    const overriddenItems = items.filter(item => 
-      (variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId) && item.is_override
-    );
+    const matchFn = type === 'erection'
+      ? (item) => item.section === 'erection'
+      : type === 'discount_category'
+        ? (item) => {
+            const mat = item.material || materials.find(m => m.id === item.item_id);
+            const dcId = item.discount_category_id || mat?.discount_category_id;
+            return dcId === id;
+          }
+        : (item) => item.variant_id === id;
+    
+    const affectedItems = items.filter(item => matchFn(item) && !item.is_override);
+    const overriddenItems = items.filter(item => matchFn(item) && item.is_override);
 
     const needsUpdate = affectedItems.some(item => parseFloat(item.discount_percent || 0) !== numValue);
     if (!needsUpdate) return;
     
-    const variant = variants.find(v => v.id === variantId);
-    const variantName = variantId === 'erection' ? 'Erection Charges' : (variant?.variant_name || 'Unknown Variant');
+    const dcObj = type === 'discount_category' ? discountCategoryMap[id] : null;
+    const variantName = id === 'erection' ? 'Erection Charges' : (dcObj?.name || variants.find(v => v.id === id)?.variant_name || 'Unknown');
     
     if (affectedItems.length > 0 || overriddenItems.length > 0) {
       setDiscountPopup({
         show: true,
-        variantId,
+        variantId: id,
         variantName,
         oldValue: affectedItems.length > 0 ? (affectedItems[0].discount_percent || 0) : 0,
         newValue: numValue,
         affectedRows: affectedItems.length,
-        overriddenRows: overriddenItems.length
+        overriddenRows: overriddenItems.length,
+        type
       });
     } else {
-      setHeaderDiscounts(prev => ({ ...prev, [variantId]: numValue }));
+      setHeaderDiscounts(prev => ({ ...prev, [id]: numValue }));
     }
-  }, [items, variants]);
+  }, [items, variants, discountCategoryMap, materials]);
 
-  const requestApproval = async (variantId, discountValue) => {
+  const requestApproval = async (variantId, discountValue, type = 'variant') => {
     if (!editId) {
       toast.error('Please save the quotation first before requesting approval.');
       return false;
     }
     
-    const settings = discountSettings[variantId];
-    if (!settings || discountValue <= settings.max) {
+    const isDiscountCategory = type === 'discount_category';
+    const settings = isDiscountCategory ? discountCategoryMap[variantId] : discountSettings[variantId];
+    const maxVal = settings ? (parseFloat(settings.max_discount_percent ?? settings.max) || 0) : 0;
+    if (!settings || discountValue <= maxVal) {
       return false;
     }
     
+    const dcObj = isDiscountCategory ? discountCategoryMap[variantId] : null;
     const variant = variants.find(v => v.id === variantId);
-    const variantName = variantId === 'erection' ? 'Erection Charges' : (variant?.variant_name || 'Unknown Variant');
+    const variantName = variantId === 'erection' ? 'Erection Charges' : (dcObj?.name || variant?.variant_name || 'Unknown Variant');
     const roles = APPROVAL_ROLES;
     
     try {
+      const idField = isDiscountCategory ? 'discount_category_id' : 'variant_id';
       await supabase
         .from('discount_approval')
         .delete()
         .eq('quotation_revision_id', editId)
-        .eq('variant_id', variantId);
+        .eq(idField, variantId);
       
       const approvalRecords = roles.map(role => ({
         quotation_revision_id: editId,
-        variant_id: variantId,
+        [idField]: variantId,
         role_name: role,
         status: 'pending',
-        remark: `Discount ${discountValue}% exceeds max ${settings.max}% for ${variantName}`
+        remark: `Discount ${discountValue}% exceeds max ${maxVal}% for ${variantName}`
       }));
       
       const { error: insertError } = await supabase
@@ -935,11 +960,11 @@ const loadQuoteNoPreview = useCallback(async () => {
       
       await supabase.from('discount_approval_log').insert({
         quotation_revision_id: editId,
-        variant_id: variantId,
+        [idField]: variantId,
         event_type: 'approval_requested',
         old_value: headerDiscounts[variantId] || 0,
         new_value: discountValue,
-        remark: `Approval requested for ${variantName}: ${discountValue}% (max: ${settings.max}%)`,
+        remark: `Approval requested for ${variantName}: ${discountValue}% (max: ${maxVal}%)`,
         organisation_id: organisation?.id
       });
       
@@ -982,14 +1007,19 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const applyDiscountChanges = useCallback(async () => {
-    const { variantId, newValue } = discountPopup;
-    const settings = discountSettings[variantId];
+    const { variantId, newValue, type } = discountPopup;
+    const settings = type === 'discount_category' ? discountCategoryMap[variantId] : discountSettings[variantId];
     
     setHeaderDiscounts(prev => ({ ...prev, [variantId]: newValue }));
     
     setItems(prevItems => 
       prevItems.map(item => {
-        const isMatch = variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId;
+        const mat = item.material || materials.find(m => m.id === item.item_id);
+        const isMatch = type === 'erection'
+          ? item.section === 'erection'
+          : type === 'discount_category'
+            ? ((item.discount_category_id || mat?.discount_category_id) === variantId)
+            : item.variant_id === variantId;
         if (isMatch && !item.is_override) {
           const appliedDiscount = newValue;
           const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
@@ -1007,19 +1037,46 @@ const loadQuoteNoPreview = useCallback(async () => {
       })
     );
     
-    if (settings && newValue > settings.max) {
-      const hasVariantItems = items.some(item => variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId);
-      if (hasVariantItems && editId) {
-        await requestApproval(variantId, newValue);
+    const maxVal = settings ? (parseFloat(settings.max_discount_percent ?? settings.max) || 0) : 0;
+    if (settings && newValue > maxVal) {
+      const hasItems = items.some(item => {
+        const mat = item.material || materials.find(m => m.id === item.item_id);
+        return type === 'erection'
+          ? item.section === 'erection'
+          : type === 'discount_category'
+            ? ((item.discount_category_id || mat?.discount_category_id) === variantId)
+            : item.variant_id === variantId;
+      });
+      if (hasItems && editId) {
+        await requestApproval(variantId, newValue, type);
       }
     }
     
-    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
-  }, [discountPopup, discountSettings, items, editId]);
+    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0, type: 'variant' });
+  }, [discountPopup, discountSettings, discountCategoryMap, items, editId, materials]);
 
   const cancelDiscountChanges = useCallback(() => {
-    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
+    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0, type: 'variant' });
   }, []);
+
+  const openCustomiseModal = useCallback(() => {
+    const { variantId, newValue, type } = discountPopup;
+    const matchedItems = items.filter(item => {
+      if (type === 'erection') return item.section === 'erection';
+      if (type === 'discount_category') {
+        const mat = item.material || materials.find(m => m.id === item.item_id);
+        return (item.discount_category_id || mat?.discount_category_id) === variantId;
+      }
+      return item.variant_id === variantId;
+    });
+    setCustomiseModal({
+      show: true,
+      variantId,
+      newValue,
+      type,
+      items: matchedItems.map(item => ({ id: item.id, label: item.material?.display_name || item.material?.name || item.description || 'Item', selected: true }))
+    });
+  }, [discountPopup, items, materials]);
 
   const roundRate = useCallback((rate: number): number => {
     return organisation?.round_off_enabled !== false ? Math.round(rate) : rate;
@@ -1031,6 +1088,39 @@ const loadQuoteNoPreview = useCallback(async () => {
     const raw = base - (base * discount / 100);
     return organisation?.round_off_enabled !== false ? Math.round(raw) : raw;
   }, [organisation?.round_off_enabled]);
+
+  const applyDiscountToSelected = useCallback(() => {
+    const selectedIds = new Set(customiseModal.items.filter(i => i.selected).map(i => i.id));
+    const { variantId, newValue, type } = customiseModal;
+    const roundOff = organisation?.round_off_enabled !== false;
+    setHeaderDiscounts(prev => ({ ...prev, [variantId]: newValue }));
+    setItems(prevItems =>
+      prevItems.map(item => {
+        const mat = item.material || materials.find(m => m.id === item.item_id);
+        const isMatch = type === 'erection'
+          ? item.section === 'erection'
+          : type === 'discount_category'
+            ? ((item.discount_category_id || mat?.discount_category_id) === variantId)
+            : item.variant_id === variantId;
+        if (isMatch && selectedIds.has(item.id) && !item.is_override) {
+          const appliedDiscount = newValue;
+          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+          const raw = baseRate - (baseRate * appliedDiscount / 100);
+          const finalRate = roundOff ? Math.round(raw) : raw;
+          return {
+            ...item,
+            applied_discount_percent: appliedDiscount,
+            final_rate_snapshot: finalRate,
+            discount_percent: appliedDiscount,
+            rate: finalRate
+          };
+        }
+        return item;
+      })
+    );
+    setCustomiseModal({ show: false, variantId: null, newValue: 0, type: 'variant', items: [] });
+    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0, type: 'variant' });
+  }, [customiseModal, materials, organisation?.round_off_enabled]);
 
   const loadClientDiscountPortfolio = useCallback(async (clientId) => {
     if (!clientId) return { discounts: {}, settings: {} };
@@ -1052,9 +1142,14 @@ const loadQuoteNoPreview = useCallback(async () => {
         
         if (pl) {
           const flatDisc = parseFloat(pl.discount_percent) || 0;
-          variants.forEach(v => {
-            discounts[v.id] = flatDisc;
-            settings[v.id] = {
+          const { data: dcList } = await supabase
+            .from('discount_categories')
+            .select('id')
+            .or(`organisation_id.eq.${organisation?.id},organisation_id.is.null`)
+            .eq('is_active', true);
+          (dcList || []).forEach(dc => {
+            discounts[dc.id] = flatDisc;
+            settings[dc.id] = {
               default: flatDisc,
               min: 0,
               max: flatDisc
@@ -1082,17 +1177,19 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
 
         if (struct) {
-          const { data: varSettings } = await supabase
+          const { data: dcSettings } = await supabase
             .from('discount_variant_settings')
-            .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+            .select('discount_category_id, default_discount_percent, min_discount_percent, max_discount_percent')
             .eq('structure_id', struct.id)
-            .eq('organisation_id', organisation?.id);
+            .eq('organisation_id', organisation?.id)
+            .not('discount_category_id', 'is', null);
           
-          varSettings?.forEach(s => {
-            const variantId = s.variant_id;
-            const customDisc = customDiscounts[variantId] !== undefined ? customDiscounts[variantId] : parseFloat(s.default_discount_percent) || 0;
-            discounts[variantId] = customDisc;
-            settings[variantId] = {
+          dcSettings?.forEach(s => {
+            const dcId = s.discount_category_id;
+            if (!dcId) return;
+            const customDisc = customDiscounts[dcId] !== undefined ? customDiscounts[dcId] : parseFloat(s.default_discount_percent) || 0;
+            discounts[dcId] = customDisc;
+            settings[dcId] = {
               default: parseFloat(s.default_discount_percent) || 0,
               min: parseFloat(s.min_discount_percent) || 0,
               max: parseFloat(s.max_discount_percent) || 0
@@ -1105,7 +1202,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
 
     return { discounts, settings };
-  }, [clients, variants]);
+  }, [clients]);
 
   const loadQuotation = async (id, isDuplicate = false) => {
     let data;
@@ -1265,10 +1362,12 @@ const loadQuoteNoPreview = useCallback(async () => {
       const statusMap = {};
       if (approvals && approvals.length > 0) {
         approvals.forEach(approval => {
-          if (!statusMap[approval.variant_id]) {
-            statusMap[approval.variant_id] = {};
+          const key = approval.discount_category_id || approval.variant_id;
+          if (!key) return;
+          if (!statusMap[key]) {
+            statusMap[key] = {};
           }
-          statusMap[approval.variant_id][approval.role_name] = {
+          statusMap[key][approval.role_name] = {
             status: approval.status,
             action_by: approval.action_by_email,
             action_at: approval.action_at,
@@ -1459,9 +1558,8 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const handleItemCreateSuccess = useCallback((newItem) => {
-    // ...
-    // Update local state immediately for better UX
-    const updatedMaterials = [...materials, newItem];
+    // Immediately update materials cache so item shows in SearchableItemSelect without waiting for refetch
+    queryClient.setQueryData(['materials', organisation?.id], (old) => [...(old || []), newItem]);
     
     // Update itemMakes if the new item has makes
     if (newItem.make) {
@@ -1505,7 +1603,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     
     setItems(prev => [...prev, newQuotationItem]);
     */
-  }, [queryClient, items.length, materials, itemMakes]);
+  }, [queryClient, items.length, materials, itemMakes, organisation?.id]);
 
   const pickerColumns = useMemo(() => [
     {
@@ -1767,7 +1865,9 @@ const loadQuoteNoPreview = useCallback(async () => {
         const updates = { [field]: value };
 
         if (field === 'discount_percent') {
-          const headerDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
+          const mat = item.material || materials.find(m => m.id === item.item_id);
+          const dcId = item.discount_category_id || mat?.discount_category_id;
+          const headerDiscount = dcId ? (headerDiscounts[dcId] || headerDiscounts[item.variant_id] || 0) : (item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0);
           const newDiscount = parseFloat(value) || 0;
           updates.is_override = newDiscount !== headerDiscount;
           updates.applied_discount_percent = newDiscount;
@@ -2202,6 +2302,7 @@ const itemsToInsert = items.map(item => ({
           quotation_id: quotationId,
           item_id: item.item_id || null,
           variant_id: item.variant_id || null,
+          discount_category_id: item.discount_category_id || null,
           make: item.make || null,
           description: item.description,
           qty: item.is_header || item.is_subtotal ? null : (parseFloat(item.qty) || 1),
@@ -2230,13 +2331,17 @@ const itemsToInsert = items.map(item => ({
         }));
 
       const variantDiscountRecords = Object.entries(headerDiscounts)
-        .filter(([variantId]) => variantId !== 'erection')
-        .map(([variantId, discount]) => ({
-          quotation_revision_id: quotationId,
-          variant_id: variantId,
-          header_discount_percent: parseFloat(discount) || 0,
-          organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
-        }));
+        .filter(([id]) => id !== 'erection')
+        .map(([id, discount]) => {
+          const isDc = !!discountCategoryMap[id];
+          return {
+            quotation_revision_id: quotationId,
+            variant_id: isDc ? null : id,
+            discount_category_id: isDc ? id : null,
+            header_discount_percent: parseFloat(discount) || 0,
+            organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
+          };
+        });
 
 
 
@@ -2382,6 +2487,129 @@ const itemsToInsert = items.map(item => ({
     </div>
   );
 
+  const openDropdownAtRef = (ref, setStyle) => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setStyle({
+        position: 'fixed',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        zIndex: 9999,
+        background: '#fff',
+        border: '1px solid #d4d4d4',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        maxHeight: '200px',
+        overflowY: 'auto',
+      });
+    }
+  };
+
+  const VariantCell = ({ value, variants: vList, itemId, variantPricing: vPricing, onChange }) => {
+    const [open, setOpen] = useState(false);
+    const [dropdownStyle, setDropdownStyle] = useState({});
+    const ref = useRef(null);
+    const listRef = useRef(null);
+
+    useEffect(() => {
+      const handler = (e) => {
+        if (ref.current && !ref.current.contains(e.target) && listRef.current && !listRef.current.contains(e.target)) {
+          setOpen(false);
+        }
+      };
+      const handleScroll = () => setOpen(false);
+      if (open) {
+        document.addEventListener('mousedown', handler);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+          document.removeEventListener('mousedown', handler);
+          window.removeEventListener('scroll', handleScroll);
+        };
+      }
+    }, [open]);
+
+    const selected = vList.find(v => v.id === value);
+    const filtered = vList.filter(v => {
+      if (!itemId) return true;
+      const itemVariants = vPricing[itemId];
+      return itemVariants && itemVariants[v.id];
+    });
+
+    return (
+      <>
+        <div ref={ref} onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+          onMouseEnter={e => { (e.currentTarget).style.borderColor = '#3b82f6'; }}
+          onMouseLeave={e => { (e.currentTarget).style.borderColor = 'transparent'; }}
+        >
+          {selected ? selected.variant_name : 'No Category'}
+        </div>
+        {open && (
+          <div ref={listRef} style={dropdownStyle}>
+            <div onClick={() => { onChange(null); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseLeave={e => e.currentTarget.style.background = 'white'}
+            >No Category</div>
+            {filtered.map(v => (
+              <div key={v.id} onClick={() => { onChange(v.id); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', color: '#1e293b', borderBottom: '1px solid #f3f4f6' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'white'}
+              >{v.variant_name}</div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const MakeCell = ({ value, makes, onChange }) => {
+    const [open, setOpen] = useState(false);
+    const [dropdownStyle, setDropdownStyle] = useState({});
+    const ref = useRef(null);
+    const listRef = useRef(null);
+
+    useEffect(() => {
+      const handler = (e) => {
+        if (ref.current && !ref.current.contains(e.target) && listRef.current && !listRef.current.contains(e.target)) {
+          setOpen(false);
+        }
+      };
+      const handleScroll = () => setOpen(false);
+      if (open) {
+        document.addEventListener('mousedown', handler);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+          document.removeEventListener('mousedown', handler);
+          window.removeEventListener('scroll', handleScroll);
+        };
+      }
+    }, [open]);
+
+    return (
+      <>
+        <div ref={ref} onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+          onMouseEnter={e => { (e.currentTarget).style.borderColor = '#3b82f6'; }}
+          onMouseLeave={e => { (e.currentTarget).style.borderColor = 'transparent'; }}
+        >
+          {value || 'No Make'}
+        </div>
+        {open && (
+          <div ref={listRef} style={dropdownStyle}>
+            <div onClick={() => { onChange(''); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseLeave={e => e.currentTarget.style.background = 'white'}
+            >No Make</div>
+            {makes.map(m => (
+              <div key={m} onClick={() => { onChange(m); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', color: '#1e293b', borderBottom: '1px solid #f3f4f6' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'white'}
+              >{m}</div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
   if (initLoading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
   }
@@ -2453,6 +2681,15 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               />
               <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
               <span className="ms-3 text-sm font-medium text-zinc-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
+              <div className="relative inline-flex items-center ml-1.5 group/popover">
+                <Info size={14} className="text-zinc-400 cursor-help" />
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/popover:block z-[100]">
+                  <div className="bg-zinc-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 w-56 shadow-lg">
+                    When enabled, editing discount or rate fields creates a new revision. Original values are preserved in the revision history for comparison.
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-zinc-900"></div>
+                  </div>
+                </div>
+              </div>
             </label>
             {(formData.revision_history?.length > 0) && (
               <button
@@ -2494,15 +2731,20 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </button>
             <button
               type="button"
-              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold transition-all ${
-                formData.status === 'Sent'
-                  ? 'text-emerald-600 hover:text-emerald-700'
-                  : 'text-blue-600 hover:text-blue-700'
-              } ${
-                saving ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              style={{
+                height: '36px', padding: '0 40px', minWidth: '100px',
+                background: '#185FA5', border: '1px solid #185FA5',
+                color: '#fff', borderRadius: '6px',
+                fontSize: '12px', fontWeight: 500,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.6 : 1,
+                transition: 'all 0.15s'
+              }}
               onClick={() => handleSave(false)}
               disabled={saving}
+              onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+              onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
             >
               {saving
                 ? 'Saving...'
@@ -2603,8 +2845,26 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 </div>
               )}
               {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
-              {renderHeaderField('Address:', <textarea className="form-input" style={{ ...inputStyle, minHeight: '40px', resize: 'vertical' }} value={formData.billing_address} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Full billing address..." />)}
+              {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{formData.billing_address || 'Auto-populated from client'}</div>)}
               {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
+              {renderHeaderField('Default variant:', <select className="form-select" style={inputStyle} value={formData.variant_id || ''} onChange={(e) => {
+                const newVariantId = e.target.value;
+                setFormData({ ...formData, variant_id: newVariantId });
+                if (items.length > 0) {
+                  setItems(prev => prev.map(item => {
+                    if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                    const mat = materials.find(m => m.id === item.item_id);
+                    if (!mat) return { ...item, variant_id: newVariantId || null };
+                    const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
+                    const variantDiscount = newVariantId ? (headerDiscounts[newVariantId] || 0) : 0;
+                    const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                    return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: variantDiscount, applied_discount_percent: variantDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
+                  }));
+                }
+              }}>
+                <option value="">Standard</option>
+                {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+              </select>)}
             </div>
 
             {/* Column 2: DOCUMENT */}
@@ -2618,7 +2878,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
                 </div>
               </div>
-              {renderHeaderField('Prepared By:', <input type="text" className="form-input" style={inputStyle} value={formData.prepared_by || ''} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Sales executive..." />)}
+              {renderHeaderField('Prepared By:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent' }}>{formData.prepared_by || 'Set on creation'}</div>)}
               {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
               {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
               {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
@@ -2633,58 +2893,60 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
                 ))}
               </select>)}
-              
-              {renderHeaderField('Discount Category:', <select className="form-select" style={inputStyle} value={formData.variant_id} onChange={(e) => {
-                const newVariantId = e.target.value;
-                setFormData({ ...formData, variant_id: newVariantId });
-                if (items.length > 0) {
-                  setItems(prev => prev.map(item => {
-                    if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
-                    const mat = materials.find(m => m.id === item.item_id);
-                    if (!mat) return { ...item, variant_id: newVariantId || null };
-                    const effectiveVariantId = newVariantId && variantPricing[mat.id]?.[newVariantId] ? newVariantId : null;
-                    const newRate = getRateForMaterialVariant(mat, effectiveVariantId, item.make || '');
-                    const variantDiscount = effectiveVariantId ? (headerDiscounts[effectiveVariantId] || 0) : 0;
-                    const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                    return { ...item, variant_id: effectiveVariantId, base_rate_snapshot: newRate, discount_percent: variantDiscount, applied_discount_percent: variantDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
-                  }));
-                }
-              }}>
-                <option value="">Standard</option>
-                {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-              </select>)}
               {/* Discounts */}
               <div style={{ marginTop: '4px' }}>
-                <div style={{ ...sectionHeaderStyle, marginBottom: '6px' }}>Discounts</div>
+                <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>Discounts</div>
                 {activeTab === 'items' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', marginBottom: '4px' }}>Discount categories</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {(() => {
-                      const renderVariants = [...variants];
-                      if (formData.include_erection_charges) {
-                        renderVariants.push({ id: 'erection', variant_name: 'ERECTION CHARGES' });
-                      }
-                      return renderVariants.length > 0 ? renderVariants.map((variant) => {
-                        const approvalDisplay = getApprovalDisplayStatus(variant.id);
-                        return (
-                          <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '4px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
-                            <span style={{ fontWeight: 600, color: '#374151', marginRight: '4px', fontSize: '10px' }}>{variant.variant_name}</span>
-                            {approvalDisplay !== 'none' && (
-                              <span style={{ fontSize: '8px', padding: '1px 4px', fontWeight: 700, borderRadius: '2px', marginRight: '4px', background: approvalDisplay === 'approved' ? '#10b981' : approvalDisplay === 'pending' ? '#f59e0b' : '#ef4444', color: 'white' }}>
-                                {approvalDisplay === 'approved' ? 'App' : approvalDisplay === 'pending' ? 'Pend' : 'Rej'}
-                              </span>
-                            )}
-                            <input type="number" style={{ width: '40px', padding: '2px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #e5e7eb', borderRadius: '2px' }}
-                              value={headerDiscounts[variant.id] || 0}
-                              onChange={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val })); }}
-                              onBlur={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); handleHeaderDiscountChange(variant.id, val); }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                              min="0" max="100" step="0.01"
-                            />
-                            <span style={{ fontSize: '10px', color: '#9ca3af', marginLeft: '2px' }}>%</span>
-                          </div>
-                        );
-                      }) : <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>No variants available.</div>;
+                      const dcItems = Object.values(discountCategoryMap);
+                      const hasErection = formData.include_erection_charges;
+                      return (
+                        <>
+                          {(dcItems as any[]).length > 0 ? (dcItems as any[]).map((dc) => {
+                            const approvalDisplay = getApprovalDisplayStatus(dc.id);
+                            return (
+                              <div key={dc.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'white', padding: '5px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px', minHeight: '32px' }}>
+                                <span style={{ fontWeight: 600, color: '#374151', fontSize: '11px', flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dc.name}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                                  {approvalDisplay !== 'none' && (
+                                    <span style={{ fontSize: '8px', padding: '1px 4px', fontWeight: 700, borderRadius: '2px', background: approvalDisplay === 'approved' ? '#10b981' : approvalDisplay === 'pending' ? '#f59e0b' : '#ef4444', color: 'white' }}>
+                                      {approvalDisplay === 'approved' ? 'App' : approvalDisplay === 'pending' ? 'Pend' : 'Rej'}
+                                    </span>
+                                  )}
+                                  <input type="number" style={{ width: '42px', padding: '3px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                                    value={headerDiscounts[dc.id] ?? dc.default_discount_percent ?? 0}
+                                    onChange={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setHeaderDiscounts(prev => ({ ...prev, [dc.id]: val })); }}
+                                    onBlur={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); handleHeaderDiscountChange(dc.id, val, 'discount_category'); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                    min="0" max="100" step="0.01"
+                                  />
+                                  <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>%</span>
+                                </div>
+                              </div>
+                            );
+                          }) : <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>No discount categories configured.</div>}
+                          {hasErection && (
+                            <div key="erection" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'white', padding: '5px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px', minHeight: '32px' }}>
+                              <span style={{ fontWeight: 600, color: '#374151', fontSize: '11px', flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Erection charges</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                                <input type="number" style={{ width: '42px', padding: '3px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                                  value={headerDiscounts['erection'] || 0}
+                                  onChange={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setHeaderDiscounts(prev => ({ ...prev, erection: val })); }}
+                                  onBlur={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); handleHeaderDiscountChange('erection', val, 'erection'); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  min="0" max="100" step="0.01"
+                                />
+                                <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>%</span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
                     })()}
+                    </div>
                   </div>
                 ) : (
                   <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>Approval history shown below.</div>
@@ -2697,7 +2959,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   checked={formData.include_erection_charges}
                   onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
                 />
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Erection Charges</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', letterSpacing: '0.05em' }}>Erection charges</span>
               </div>
             </div>
 
@@ -2795,12 +3057,12 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             </button>
             <div className="w-px h-6 bg-zinc-200 mx-2"></div>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Add Section</button>
-            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-amber-700 hover:text-amber-800 transition-all" onClick={() => addSubtotal()}>+ Add Sub-total</button>
+            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-neutral-700 hover:text-blue-600 transition-all" onClick={addSectionHeader}>+ Add Section</button>
+            <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-neutral-700 hover:text-neutral-900 transition-all" onClick={() => addSubtotal()}>+ Add Sub-total</button>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
             <button className="h-9 min-w-[120px] px-3 text-xs font-semibold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-              Multiple Items
+              Bulk add
             </button>
             <div className="w-px h-6 bg-zinc-200 mx-1"></div>
             <button className="h-9 min-w-[90px] px-3 text-xs font-semibold text-zinc-500 hover:text-zinc-700 transition-all flex items-center justify-center gap-1.5" onClick={() => setShowCustomLabelEditor(true)}>
@@ -2833,8 +3095,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   <th className="col-make">{templateSettings?.column_settings?.labels?.make || 'MAKE'}</th>
                 )}
                 {(templateSettings?.column_settings?.optional?.variant !== false) && (
-                  <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'DISCOUNT CATEGORY'}</th>
+                  <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
                 )}
+                <th className="col-disc-cat" style={{ fontSize: '11px', padding: '6px', textAlign: 'center', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>DISC CAT</th>
                 <th className="col-qty">QTY</th>
                 <th className="col-unit">UNIT</th>
                 <th className="col-rate">RATE</th>
@@ -2854,7 +3117,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={getVisibleColumnCount()} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Multiple Items".</td>
+                  <td colSpan={getVisibleColumnCount()} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Bulk add".</td>
                 </tr>
               ) : (
                 items
@@ -2976,9 +3239,11 @@ className="text-center cell-static col-shrink row-drag-handle"
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                               updateItem(item.id, 'description', '');
                               updateItem(item.id, 'tax_percent', mat.gst_rate || 0);
-                              const firstMake = itemMakes[mat.id]?.[0] || '';
-                              updateItem(item.id, 'make', firstMake);
-                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null, firstMake);
+                              updateItem(item.id, 'discount_category_id', mat.discount_category_id || null);
+                              const makes = itemMakes[mat.id] || [];
+                              const autoMake = makes.length === 1 ? makes[0] : '';
+                              updateItem(item.id, 'make', autoMake);
+                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null, autoMake);
                               updateItem(item.id, 'base_rate_snapshot', newRate);
                               const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
                               updateItem(item.id, 'rate', finalRate);
@@ -3059,12 +3324,11 @@ className="text-center cell-static col-shrink row-drag-handle"
                         </td>
                       )}
                       {(templateSettings?.column_settings?.optional?.make !== false) && (
-                        <td className="col-shrink">
-                          <select
-                            className="cell-select"
+                        <td className="col-shrink" style={{ position: 'relative' }}>
+                          <MakeCell
                             value={item.make || ''}
-                            onChange={(e) => {
-                              const nextMake = e.target.value;
+                            makes={itemMakes[item.item_id] || []}
+                            onChange={(nextMake) => {
                               updateItem(item.id, 'make', nextMake);
                               const mat = materials.find(m => m.id === item.item_id);
                               if (mat) {
@@ -3075,21 +3339,17 @@ className="text-center cell-static col-shrink row-drag-handle"
                                 updateItem(item.id, 'rate', finalRate);
                               }
                             }}
-                          >
-                            <option value="">No Make</option>
-                            {(itemMakes[item.item_id] || []).map(m => (
-                              <option key={m} value={m}>{m}</option>
-                            ))}
-                          </select>
+                          />
                         </td>
                       )}
                       {(templateSettings?.column_settings?.optional?.variant !== false) && (
-                        <td className="col-shrink">
-                          <select
-                            className="cell-select"
+                        <td className="col-shrink" style={{ position: 'relative' }}>
+                          <VariantCell
                             value={item.variant_id || ''}
-                            onChange={(e) => {
-                              const nextVariant = e.target.value || null;
+                            variants={variants}
+                            itemId={item.item_id}
+                            variantPricing={variantPricing}
+                            onChange={(nextVariant) => {
                               updateItem(item.id, 'variant_id', nextVariant);
                               const mat = materials.find(m => m.id === item.item_id);
                               if (mat) {
@@ -3100,21 +3360,17 @@ className="text-center cell-static col-shrink row-drag-handle"
                                 updateItem(item.id, 'rate', finalRate);
                               }
                             }}
-                          >
-                            <option value="">No Category</option>
-                            {variants
-                              .filter(v => {
-                                if (!item.item_id) return true;
-                                const itemVariants = variantPricing[item.item_id];
-                                return itemVariants && itemVariants[v.id];
-                              })
-                              .map(v => (
-                                <option key={v.id} value={v.id}>{v.variant_name}</option>
-                              ))
-                            }
-                          </select>
+                          />
                         </td>
                       )}
+                      <td className="col-disc-cat" style={{ textAlign: 'center', fontSize: '11px', padding: '4px', color: '#64748b' }}>
+                        {(() => {
+                          const mat = item.material || materials.find(m => m.id === item.item_id);
+                          const dcId = item.discount_category_id || mat?.discount_category_id;
+                          const dc = dcId ? discountCategoryMap[dcId] : null;
+                          return dc ? <span style={{ fontWeight: 600, color: '#0f172a' }}>{dc.name}</span> : <span style={{ color: '#94a3b8' }}>No Category</span>;
+                        })()}
+                      </td>
                       <td className="col-shrink">
                         <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" style={{appearance: 'textfield'}} />
                       </td>
@@ -3741,7 +3997,41 @@ className="text-center cell-static col-shrink row-drag-handle"
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={cancelDiscountChanges}>Cancel</button>
-              <button className="btn btn-primary" onClick={applyDiscountChanges}>Apply to All Rows</button>
+              <button className="btn btn-secondary" onClick={() => { openCustomiseModal(); }}>Customise</button>
+              <button className="btn btn-primary" onClick={applyDiscountChanges}>Apply to All</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {customiseModal.show && (
+        <div className="modal-overlay open">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Customise Discount — {discountPopup.variantName}</h3>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>Select items to apply {customiseModal.newValue}% discount:</p>
+              {customiseModal.items.map(item => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <input type="checkbox" className="form-checkbox" style={{ width: '16px', height: '16px' }}
+                    checked={item.selected}
+                    onChange={() => {
+                      setCustomiseModal(prev => ({
+                        ...prev,
+                        items: prev.items.map(i => i.id === item.id ? { ...i, selected: !i.selected } : i)
+                      }));
+                    }}
+                  />
+                  <span style={{ fontSize: '12px', color: '#1e293b', flex: 1 }}>{item.label}</span>
+                </div>
+              ))}
+              {customiseModal.items.length === 0 && (
+                <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>No matching items found.</div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setCustomiseModal({ show: false, variantId: null, newValue: 0, type: 'variant', items: [] })}>Cancel</button>
+              <button className="btn btn-primary" onClick={applyDiscountToSelected}>Submit</button>
             </div>
           </div>
         </div>

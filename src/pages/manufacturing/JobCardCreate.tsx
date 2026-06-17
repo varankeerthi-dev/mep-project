@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Trash2, Plus } from 'lucide-react';
 
 type JobCardCreateProps = {
   onSuccess: () => void;
@@ -35,6 +36,25 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
   });
 
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [bomSearchText, setBomSearchText] = useState('');
+  const [isBomDropdownOpen, setIsBomDropdownOpen] = useState(false);
+  const [materialSearchText, setMaterialSearchText] = useState<Record<number, string>>({});
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
+
+  // Click-Outside handler for dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.bom-dropdown-container')) {
+        setIsBomDropdownOpen(false);
+      }
+      if (!target.closest('.material-dropdown-container')) {
+        setOpenDropdownIndex(-1);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { data: boms } = useQuery({
     queryKey: ['boms-for-job-card', organisation?.id],
@@ -93,6 +113,8 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
         product_name: bom.product_name,
         output_unit: bom.output_unit
       });
+      setBomSearchText('');
+      setIsBomDropdownOpen(false);
     }
   };
 
@@ -177,6 +199,10 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
 
   const removeMaterial = (index: number) => {
     setMaterials(materials.filter((_, i) => i !== index));
+    // clean up row search text
+    const nextSearchText = { ...materialSearchText };
+    delete nextSearchText[index];
+    setMaterialSearchText(nextSearchText);
   };
 
   const updateMaterial = (index: number, field: keyof MaterialItem, value: any) => {
@@ -201,186 +227,309 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
     enabled: !!organisation?.id
   });
 
+  // ─── Design System style tokens ───
+  const sectionHeaderStyle: React.CSSProperties = { fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' };
+  const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle: React.CSSProperties = { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right', paddingRight: '4px' };
+  const fieldColStyle: React.CSSProperties = { flex: 1 };
+  const inputStyle: React.CSSProperties = { padding: '4px 8px', fontSize: '12px', width: '100%', height: '28px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', color: '#111827', outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s' };
+  const dropdownStyle: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' };
+
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '10px', padding: '4px 6px', borderRadius: '4px', transition: 'background 0.15s' }}
+      onMouseEnter={e => e.currentTarget.style.background = '#f0f7ff'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
+
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Create Job Card</h1>
-          <p className="text-zinc-500 mt-1">Issue materials for production</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="h-10 px-5 border border-zinc-200 text-zinc-700 rounded-lg font-medium hover:bg-zinc-50 transition-colors"
-          >
-            Cancel
+    <div style={{ minHeight: '100%', background: '#fafafa' }}>
+      {/* Header Bar */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyBetween: 'space-between', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+            <ArrowLeft size={14} /> Back
           </button>
-          <button
-            onClick={() => saveJobCard.mutate()}
-            disabled={!formData.bom_id || !formData.planned_qty || saveJobCard.isPending}
-            className="h-10 px-5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
+          <div style={{ width: '1px', height: '20px', background: '#e5e7eb' }} />
+          <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Create Job Card</h1>
+          <span style={{ fontSize: '11px', color: '#9ca3af' }}>Issue raw materials for factory production run</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button onClick={onCancel} style={{ padding: '6px 14px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+            onMouseDown={e => { e.currentTarget.style.background = '#e5e7eb'; }}
+            onMouseUp={e => { e.currentTarget.style.background = '#f3f4f6'; }}>Cancel</button>
+          <button onClick={() => saveJobCard.mutate()} disabled={!formData.bom_id || !formData.planned_qty || saveJobCard.isPending}
+            style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: saveJobCard.isPending || (!formData.bom_id || !formData.planned_qty) ? 'not-allowed' : 'pointer', opacity: saveJobCard.isPending || (!formData.bom_id || !formData.planned_qty) ? 0.6 : 1, transition: 'all 0.15s' }}
+            onMouseEnter={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+            onMouseLeave={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
+            onMouseDown={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.transform = 'scale(0.98)'; }}}
+            onMouseUp={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.transform = 'scale(1)'; }}}>
             {saveJobCard.isPending ? 'Creating...' : 'Create Job Card'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white border border-zinc-200 rounded-lg p-6">
-            <h2 className="text-lg font-medium text-zinc-900 mb-4">Job Card Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Select BOM *</label>
-                <select
-                  value={formData.bom_id}
-                  onChange={(e) => handleBomSelect(e.target.value)}
-                  className="w-full h-10 px-4 border border-zinc-200 rounded-lg focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">Select a BOM</option>
-                  {boms?.map((bom) => (
-                    <option key={bom.id} value={bom.id}>
-                      {bom.bom_code} - {bom.product_name} ({bom.output_qty} {bom.output_unit})
-                    </option>
+      {/* Main Content Area */}
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '24px' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Card 1: Job Header Details */}
+            <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e5e7eb', transition: 'border-color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#93c5fd'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                
+                {/* Column 1 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={sectionHeaderStyle}>BOM Selection</div>
+                  
+                  {renderHeaderField('Select BOM *', (
+                    <div className="bom-dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                      <input type="text" style={inputStyle} value={isBomDropdownOpen ? bomSearchText : (formData.product_name ? `${formData.product_name} (${formData.output_unit})` : '')}
+                        onChange={(e) => { setBomSearchText(e.target.value); setIsBomDropdownOpen(true); }}
+                        onFocus={() => setIsBomDropdownOpen(true)}
+                        placeholder="Search formulas by product name..." />
+                      {isBomDropdownOpen && (
+                        <div style={dropdownStyle}>
+                          {(boms || [])
+                            .filter(b => {
+                              const q = bomSearchText.toLowerCase();
+                              return !q || b.product_name.toLowerCase().includes(q) || (b.bom_code || '').toLowerCase().includes(q);
+                            })
+                            .map(b => (
+                              <div key={b.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                onClick={() => handleBomSelect(b.id)}
+                              >
+                                <div style={{ fontWeight: 500 }}>{b.product_name}</div>
+                                <div style={{ fontSize: '10px', color: '#6b7280' }}>Code: {b.bom_code} • Output: {b.output_qty} {b.output_unit}</div>
+                              </div>
+                            ))}
+                          {(boms || []).filter(b => {
+                            const q = bomSearchText.toLowerCase();
+                            return !q || b.product_name.toLowerCase().includes(q) || (b.bom_code || '').toLowerCase().includes(q);
+                          }).length === 0 && (
+                            <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No BOMs found</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Planned Qty *</label>
-                <input
-                  type="number"
-                  value={formData.planned_qty || ''}
-                  onChange={(e) => setFormData({ ...formData, planned_qty: Number(e.target.value) })}
-                  placeholder="Qty to produce"
-                  className="w-full h-10 px-4 border border-zinc-200 rounded-lg focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Priority</label>
-                <select
-                  value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                  className="w-full h-10 px-4 border border-zinc-200 rounded-lg focus:outline-none focus:border-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Remarks</label>
-                <input
-                  type="text"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  placeholder="Optional notes"
-                  className="w-full h-10 px-4 border border-zinc-200 rounded-lg focus:outline-none focus:border-blue-500"
-                />
+
+                  {renderHeaderField('Planned Qty *', (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input type="number" style={inputStyle} value={formData.planned_qty || ''} onChange={(e) => setFormData({ ...formData, planned_qty: Number(e.target.value) })} placeholder="Qty to produce" />
+                      {formData.output_unit && (
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', background: '#e5e7eb', padding: '4px 8px', borderRadius: '4px' }}>
+                          {formData.output_unit}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Column 2 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={sectionHeaderStyle}>Job Options</div>
+                  
+                  {renderHeaderField('Priority:', (
+                    <select style={inputStyle} value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}>
+                      <option value="low">Low Priority</option>
+                      <option value="medium">Medium Priority</option>
+                      <option value="high">High Priority</option>
+                      <option value="urgent">Urgent Priority</option>
+                    </select>
+                  ))}
+
+                  {renderHeaderField('Remarks:', (
+                    <input type="text" style={inputStyle} value={formData.remarks} onChange={(e) => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal production notes" />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white border border-zinc-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-zinc-900">Materials to Issue</h2>
-              <button
-                onClick={addMaterial}
-                className="h-10 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                Add Material
-              </button>
-            </div>
+            {/* Card 2: Materials List */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Materials to Issue</h2>
+                <button type="button" onClick={addMaterial}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#000000', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
+                  <Plus size={13} /> Add Material
+                </button>
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-zinc-200">
-                    <th className="text-left px-4 py-3 text-sm font-medium text-zinc-500">Material</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-zinc-500">BOM Qty</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-zinc-500">Planned Qty</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-zinc-500">Wastage %</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-zinc-500">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
-                        Select a BOM and enter planned qty to see materials
-                      </td>
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'visible' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Material Name</th>
+                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>BOM Qty</th>
+                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>Wastage %</th>
+                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>Planned Outward Qty</th>
+                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', w: '50px' }}></th>
                     </tr>
-                  ) : (
-                    materials.map((mat, index) => (
-                      <tr key={index} className="border-b border-zinc-100">
-                        <td className="px-4 py-4">
-                          {mat.is_additional ? (
-                            <select
-                              value={mat.material_id}
-                              onChange={(e) => {
-                                const material = allMaterials?.find(m => m.id === e.target.value);
-                                updateMaterial(index, 'material_id', e.target.value);
-                                updateMaterial(index, 'material_name', material?.name || '');
-                              }}
-                              className="w-full h-10 px-4 border border-zinc-200 rounded-lg focus:outline-none focus:border-blue-500"
-                            >
-                              <option value="">Select material</option>
-                              {allMaterials?.map((m) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="font-medium text-zinc-900">{mat.material_name}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-zinc-700">{mat.required_qty} {mat.unit}</td>
-                        <td className="px-4 py-4 text-zinc-700">{mat.planned_qty} {mat.unit}</td>
-                        <td className="px-4 py-4 text-zinc-700">{mat.wastage_pct}%</td>
-                        <td className="px-4 py-4">
-                          {mat.is_additional && (
-                            <button
-                              onClick={() => removeMaterial(index)}
-                              className="text-red-600 hover:text-red-700 text-sm font-medium"
-                            >
-                              Remove
-                            </button>
-                          )}
+                  </thead>
+                  <tbody>
+                    {materials.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>
+                          Select a BOM and input planned quantity to view raw materials list.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      materials.map((mat, index) => (
+                        <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', color: '#1f2937' }}>
+                            {mat.is_additional ? (
+                              <div className="material-dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                                <input type="text" style={{ ...inputStyle, height: '26px' }}
+                                  value={openDropdownIndex === index ? (materialSearchText[index] || '') : (mat.material_name || '')}
+                                  onChange={(e) => {
+                                    setMaterialSearchText({ ...materialSearchText, [index]: e.target.value });
+                                    setOpenDropdownIndex(index);
+                                  }}
+                                  onFocus={() => setOpenDropdownIndex(index)}
+                                  placeholder="Search raw material..." />
+                                {openDropdownIndex === index && (
+                                  <div style={dropdownStyle}>
+                                    {(allMaterials || [])
+                                      .filter(m => {
+                                        const q = (materialSearchText[index] || '').toLowerCase();
+                                        return !q || m.name.toLowerCase().includes(q);
+                                      })
+                                      .map(m => (
+                                        <div key={m.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                                          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                          onClick={() => {
+                                            updateMaterial(index, 'material_id', m.id);
+                                            updateMaterial(index, 'material_name', m.name);
+                                            updateMaterial(index, 'unit', m.unit || 'kg');
+                                            setOpenDropdownIndex(-1);
+                                          }}
+                                        >{m.name}</div>
+                                      ))}
+                                    {(allMaterials || []).filter(m => {
+                                      const q = (materialSearchText[index] || '').toLowerCase();
+                                      return !q || m.name.toLowerCase().includes(q);
+                                    }).length === 0 && (
+                                      <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No materials found</div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontWeight: 500 }}>{mat.material_name}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', color: '#4b5563', textAlign: 'right' }}>
+                            {mat.is_additional ? (
+                              <input type="number" style={{ ...inputStyle, width: '80px', height: '24px', textAlign: 'right' }} value={mat.required_qty || ''}
+                                onChange={(e) => {
+                                  const reqVal = Number(e.target.value);
+                                  const planVal = Math.ceil(reqVal * (1 + mat.wastage_pct / 100) * 100) / 100;
+                                  updateMaterial(index, 'required_qty', reqVal);
+                                  updateMaterial(index, 'planned_qty', planVal);
+                                }} />
+                            ) : (
+                              `${mat.required_qty} ${mat.unit}`
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', color: '#4b5563', textAlign: 'right' }}>
+                            {mat.is_additional ? (
+                              <input type="number" style={{ ...inputStyle, width: '60px', height: '24px', textAlign: 'right' }} value={mat.wastage_pct || ''}
+                                onChange={(e) => {
+                                  const wasteVal = Number(e.target.value);
+                                  const planVal = Math.ceil(mat.required_qty * (1 + wasteVal / 100) * 100) / 100;
+                                  updateMaterial(index, 'wastage_pct', wasteVal);
+                                  updateMaterial(index, 'planned_qty', planVal);
+                                }} />
+                            ) : (
+                              `${mat.wastage_pct}%`
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', color: '#111827', fontWeight: 600, textAlign: 'right' }}>
+                            {mat.is_additional ? (
+                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <input type="number" style={{ ...inputStyle, width: '80px', height: '24px', textAlign: 'right' }} value={mat.planned_qty || ''}
+                                  onChange={(e) => updateMaterial(index, 'planned_qty', Number(e.target.value))} />
+                                <span style={{ fontSize: '10px', color: '#6b7280' }}>{mat.unit}</span>
+                              </div>
+                            ) : (
+                              `${mat.planned_qty} ${mat.unit}`
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            {mat.is_additional ? (
+                              <button type="button" onClick={() => removeMaterial(index)}
+                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#000000', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            ) : (
+                              <span style={{ color: '#d1d5db' }}>—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-zinc-200 rounded-lg p-6 sticky top-6">
-            <h2 className="text-lg font-medium text-zinc-900 mb-4">Summary</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-500">BOM</span>
-                <span className="font-medium text-zinc-900">{formData.product_name || '-'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-500">Planned Qty</span>
-                <span className="font-medium text-zinc-900">{formData.planned_qty || '-'} {formData.output_unit}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-500">Materials</span>
-                <span className="font-medium text-zinc-900">{materials.length}</span>
+          {/* Sidebar Area */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Sidebar Summary Card */}
+            <div style={{ background: '#white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: '0 0 16px 0', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>Summary</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Product:</span>
+                  <span style={{ fontWeight: 600, color: '#1f2937' }}>{formData.product_name || '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Planned Qty:</span>
+                  <span style={{ fontWeight: 600, color: '#1f2937' }}>{formData.planned_qty ? `${formData.planned_qty} ${formData.output_unit}` : '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Priority:</span>
+                  <span style={{ fontWeight: 600, color: '#1f2937', textTransform: 'capitalize' }}>{formData.priority}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#6b7280' }}>Materials Count:</span>
+                  <span style={{ fontWeight: 600, color: '#1f2937' }}>{materials.length} items</span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 p-4 bg-zinc-50 rounded-lg">
-              <h3 className="text-sm font-medium text-zinc-700 mb-2">Next steps</h3>
-              <ul className="text-xs text-zinc-500 space-y-1">
-                <li>• Job card created in draft status</li>
-                <li>• Click "Issue Materials" to transfer to WIP</li>
-                <li>• Materials move from Main Store → Production Floor</li>
+            {/* Next Steps Guide Box */}
+            <div style={{ background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '16px' }}>
+              <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#374151', margin: '0 0 8px 0' }}>Job Card Lifecycle</h3>
+              <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '11px', color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <li>Job cards are created in <strong>Draft</strong> status and raw materials are reserved.</li>
+                <li>When production begins, issuing materials will deduct stock from the <strong>Main Store</strong> and transfer it to the <strong>WIP Warehouse</strong>.</li>
+                <li>All outward actions are tracked automatically in the material outward log for audit records.</li>
               </ul>
             </div>
+            
           </div>
         </div>
       </div>

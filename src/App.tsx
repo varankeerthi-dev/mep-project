@@ -158,6 +158,7 @@ const BOQList = lazyAny(() => import('./pages/BOQList'));
 
 // Manufacturing
 const ManufacturingDashboard = lazyAny(() => import('./pages/manufacturing/ManufacturingDashboard'));
+const ManufacturingInventory = lazyAny(() => import('./pages/manufacturing/InventoryReport'));
 const BOMList = lazyAny(() => import('./pages/manufacturing/BOMList'));
 const BOMEditor = lazyAny(() => import('./pages/manufacturing/BOMEditor'));
 const ProductionScheduleList = lazyAny(() => import('./pages/manufacturing/ProductionScheduleList'));
@@ -380,6 +381,7 @@ export default function App() {
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
       // Manufacturing
       case '/manufacturing': return <ManufacturingDashboard onNavigate={navigate} />;
+      case '/manufacturing/inventory': return <ManufacturingInventory onNavigate={navigate} />;
       case '/manufacturing/boms': return <BOMList onNavigate={navigate} />;
       case '/manufacturing/boms/create': return <BOMEditor onSuccess={() => navigate('/manufacturing/boms')} onCancel={() => navigate('/manufacturing/boms')} />;
       case '/manufacturing/boms/edit': return <BOMEditor onSuccess={() => navigate('/manufacturing/boms')} onCancel={() => navigate('/manufacturing/boms')} />;

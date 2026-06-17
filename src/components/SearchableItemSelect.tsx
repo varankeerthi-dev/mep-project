@@ -70,9 +70,17 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
         setSearch('');
       }
     };
+    const handleScroll = () => {
+      setIsOpen(false);
+      setSearch('');
+    };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        window.removeEventListener('scroll', handleScroll);
+      };
     }
   }, [isOpen]);
 

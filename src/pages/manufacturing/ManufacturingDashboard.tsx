@@ -120,6 +120,13 @@ export default function ManufacturingDashboard({ onNavigate }: DashboardProps) {
               <div className="text-sm text-zinc-500">Issue materials for production</div>
             </button>
             <button
+              onClick={() => onNavigate('/manufacturing/schedules/create')}
+              className="w-full text-left px-4 py-3 border border-zinc-200 rounded-lg hover:border-blue-500 transition-colors"
+            >
+              <div className="font-medium text-zinc-900">Create Schedule</div>
+              <div className="text-sm text-zinc-500">Plan production run with multiple products</div>
+            </button>
+            <button
               onClick={() => onNavigate('/manufacturing/production/create')}
               className="w-full text-left px-4 py-3 border border-zinc-200 rounded-lg hover:border-blue-500 transition-colors"
             >

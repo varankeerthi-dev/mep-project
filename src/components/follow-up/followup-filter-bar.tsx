@@ -273,6 +273,41 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
         />
       )}
 
+      {/* Lead tab filters */}
+      {tab === 'lead' && (
+        <>
+          <div className="flex items-center gap-1.5" role="group" aria-label="Filter leads by status">
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'New', label: 'New' },
+              { value: 'Qualified', label: 'Qualified' },
+              { value: 'On Hold', label: 'On Hold' },
+              { value: 'Converted', label: 'Converted' },
+              { value: 'Disqualified', label: 'Disqualified' },
+            ].map((opt) => (
+              <FilterChip
+                key={opt.value}
+                label={opt.label}
+                active={filters.status === opt.value}
+                onClick={() => onChange({ status: opt.value })}
+              />
+            ))}
+          </div>
+
+          <FilterSelect
+            value={filters.sort || 'newest_desc'}
+            options={[
+              { value: 'newest_desc', label: 'Newest first' },
+              { value: 'oldest_asc', label: 'Oldest first' },
+              { value: 'value_desc', label: 'Value: High → Low' },
+              { value: 'next_action_asc', label: 'Next action: Soonest' },
+            ]}
+            onChange={(value) => onChange({ sort: value })}
+            placeholder="Sort"
+          />
+        </>
+      )}
+
       {/* Reset button */}
       <button
         type="button"
@@ -287,7 +322,9 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
                   ? 'value_desc'
                   : tab === 'invoice'
                     ? 'overdue_desc'
-                    : 'days_desc',
+                    : tab === 'lead'
+                      ? 'newest_desc'
+                      : 'days_desc',
             dateFrom: '',
             dateTo: '',
             escalationStage: 'all',

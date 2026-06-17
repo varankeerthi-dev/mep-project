@@ -12,6 +12,7 @@ interface MaterialsPageData {
   variants: any[];
   warehouses: any[];
   clients: any[];
+  discountCategories: any[];
 }
 
 const isMissingRelationError = (error: any): boolean => {
@@ -32,6 +33,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         variantsResult,
         warehousesResult,
         clientsResult,
+        discountCategoriesResult,
       ] = await Promise.all([
         timedSupabaseQuery(
           (() => {
@@ -63,9 +65,6 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             let query = supabase.from('item_categories').select('*').eq('is_active', true).order('category_name');
-            if (orgId) {
-              query = query.eq('organisation_id', orgId);
-            }
             return await timedSupabaseQuery(query, 'Item Categories');
           } catch (error) {
             if (isMissingRelationError(error)) {
@@ -132,6 +131,16 @@ export function useMaterialsPageData(orgId?: string | null) {
             return [];
           }
         })(),
+
+        (async () => {
+          try {
+            let query = supabase.from('discount_categories').select('*').or(`organisation_id.eq.${orgId},organisation_id.is.null`).eq('is_active', true).order('name');
+            return await timedSupabaseQuery(query, 'Discount Categories');
+          } catch (error) {
+            console.log('discount_categories table not found');
+            return [];
+          }
+        })(),
       ]);
 
       return {
@@ -142,6 +151,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         variants: variantsResult || [],
         warehouses: warehousesResult || [],
         clients: clientsResult || [],
+        discountCategories: discountCategoriesResult || [],
       };
     },
     enabled: !!orgId,

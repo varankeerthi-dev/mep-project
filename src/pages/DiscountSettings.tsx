@@ -101,7 +101,7 @@ function StandardTab({ organisationId }) {
   );
 }
 
-function VariantGrid({ structure, variants, settings, setSettings, updateSetting, handleSave, saving, errors }) {
+function VariantGrid({ structure, rows, settings, setSettings, updateSetting, handleSave, saving, errors, isDiscountCategory }) {
   return (
     <div className="card">
       <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -112,41 +112,51 @@ function VariantGrid({ structure, variants, settings, setSettings, updateSetting
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Discount Category</th>
-              <th style={{ width: '120px', textAlign: 'right' }}>Default %</th>
-              <th style={{ width: '120px', textAlign: 'right' }}>Min %</th>
-              <th style={{ width: '120px', textAlign: 'right' }}>Max %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {variants.map(variant => {
-              const setting = settings[structure?.id]?.[variant.id] || {};
-              const variantErrors = errors[variant.id] || {};
-              return (
-                <tr key={variant.id}>
-                  <td style={{ fontWeight: 600 }}>{variant.variant_name}</td>
-                  <td>
-                    <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.default_discount_percent || 0} onChange={e => updateSetting(variant.id, 'default_discount_percent', e.target.value)} step="0.01" />
-                    {variantErrors.default && <div style={{ color: '#dc2626', fontSize: '10px' }}>{variantErrors.default}</div>}
-                  </td>
-                  <td>
-                    <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.min_discount_percent || 0} onChange={e => updateSetting(variant.id, 'min_discount_percent', e.target.value)} step="0.01" />
-                    {variantErrors.min && <div style={{ color: '#dc2626', fontSize: '10px' }}>{variantErrors.min}</div>}
-                  </td>
-                  <td>
-                    <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.max_discount_percent || 0} onChange={e => updateSetting(variant.id, 'max_discount_percent', e.target.value)} step="0.01" />
-                    {variantErrors.max && <div style={{ color: '#dc2626', fontSize: '10px' }}>{variantErrors.max}</div>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {rows.length === 0 && (
+        <div style={{ padding: '20px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic' }}>
+          {isDiscountCategory ? 'No discount categories configured. Add them in Store → Materials → Discount Categories tab.' : 'No variants configured.'}
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Discount Category</th>
+                <th style={{ width: '120px', textAlign: 'right' }}>Default %</th>
+                <th style={{ width: '120px', textAlign: 'right' }}>Min %</th>
+                <th style={{ width: '120px', textAlign: 'right' }}>Max %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(row => {
+                const rowId = isDiscountCategory ? row.id : row.id;
+                const setting = settings[structure?.id]?.[rowId] || {};
+                const rowErrors = errors[rowId] || {};
+                const rowName = isDiscountCategory ? row.name : row.variant_name;
+                return (
+                  <tr key={rowId}>
+                    <td style={{ fontWeight: 600 }}>{rowName}</td>
+                    <td>
+                      <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.default_discount_percent || 0} onChange={e => updateSetting(rowId, 'default_discount_percent', e.target.value)} step="0.01" />
+                      {rowErrors.default && <div style={{ color: '#dc2626', fontSize: '10px' }}>{rowErrors.default}</div>}
+                    </td>
+                    <td>
+                      <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.min_discount_percent || 0} onChange={e => updateSetting(rowId, 'min_discount_percent', e.target.value)} step="0.01" />
+                      {rowErrors.min && <div style={{ color: '#dc2626', fontSize: '10px' }}>{rowErrors.min}</div>}
+                    </td>
+                    <td>
+                      <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.max_discount_percent || 0} onChange={e => updateSetting(rowId, 'max_discount_percent', e.target.value)} step="0.01" />
+                      {rowErrors.max && <div style={{ color: '#dc2626', fontSize: '10px' }}>{rowErrors.max}</div>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -155,6 +165,7 @@ export default function DiscountSettings() {
   const { organisation } = useAuth();
   const [structures, setStructures] = useState([]);
   const [variants, setVariants] = useState([]);
+  const [discountCategories, setDiscountCategories] = useState([]);
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -179,15 +190,12 @@ export default function DiscountSettings() {
     setLoading(true);
     try {
       console.log('Loading discount settings for:', organisation.id);
-      const [structuresData, variantsData, settingsData] = await Promise.all([
+      const [structuresData, variantsData, settingsData, discountCatsData] = await Promise.all([
         supabase.from('discount_structures').select('*').eq('organisation_id', organisation.id).order('structure_number'),
         supabase.from('company_variants').select('*').eq('organisation_id', organisation.id).order('variant_name'),
-        supabase.from('discount_variant_settings').select('*').eq('organisation_id', organisation.id)
+        supabase.from('discount_variant_settings').select('*').eq('organisation_id', organisation.id),
+        supabase.from('discount_categories').select('*').or(`organisation_id.eq.${organisation.id},organisation_id.is.null`).eq('is_active', true).order('name')
       ]);
-
-      console.log('Structures:', structuresData);
-      console.log('Variants:', variantsData);
-      console.log('Settings:', settingsData);
 
       setStructures(structuresData.data?.length ? structuresData.data : [
         { id: '1', structure_number: 1, structure_name: 'Standard', description: 'Default standard discount' },
@@ -196,11 +204,13 @@ export default function DiscountSettings() {
         { id: '4', structure_number: 4, structure_name: 'Special', description: 'Special discount structure' }
       ]);
       setVariants(variantsData.data?.length ? variantsData.data : []);
+      setDiscountCategories(discountCatsData.data?.length ? discountCatsData.data : []);
 
       const settingsMap = {};
       (settingsData.data || []).forEach(s => {
         if (!settingsMap[s.structure_id]) settingsMap[s.structure_id] = {};
-        settingsMap[s.structure_id][s.variant_id] = s;
+        const key = s.discount_category_id || s.variant_id;
+        if (key) settingsMap[s.structure_id][key] = s;
       });
       setSettings(settingsMap);
     } catch (err) { console.error('Error loading data:', err); } finally { setLoading(false); }
@@ -226,12 +236,15 @@ export default function DiscountSettings() {
     setSaving(true);
     try {
       const { user } = await getCurrentUser();
-      for (const variant of variants) {
-        const setting = settings[structure.id]?.[variant.id];
+      const isDcTab = discountCategories.length > 0;
+      const rows = isDcTab ? discountCategories : variants;
+      for (const row of rows) {
+        const rowId = isDcTab ? row.id : row.id;
+        const setting = settings[structure.id]?.[rowId];
         if (!setting) continue;
         const data = {
           structure_id: structure.id,
-          variant_id: variant.id,
+          [isDcTab ? 'discount_category_id' : 'variant_id']: rowId,
           default_discount_percent: parseFloat(setting.default_discount_percent) || 0,
           min_discount_percent: parseFloat(setting.min_discount_percent) || 0,
           max_discount_percent: parseFloat(setting.max_discount_percent) || 0,
@@ -273,7 +286,7 @@ export default function DiscountSettings() {
         {activeTab === 1 ? (
           <StandardTab organisationId={organisation?.id} />
         ) : (
-          <VariantGrid structure={getCurrentStructure()} variants={variants} settings={settings} setSettings={setSettings} updateSetting={updateSetting} handleSave={handleSave} saving={saving} errors={errors} />
+          <VariantGrid structure={getCurrentStructure()} rows={discountCategories} settings={settings} setSettings={setSettings} updateSetting={updateSetting} handleSave={handleSave} saving={saving} errors={errors} isDiscountCategory={true} />
         )}
       </div>
     </div>

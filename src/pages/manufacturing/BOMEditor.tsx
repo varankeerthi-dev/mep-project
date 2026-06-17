@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useCombinedUnits } from '../../hooks/useCombinedUnits';
+import { toast } from '../../lib/logger';
 
 type BOMEditorProps = {
   onSuccess: () => void;
@@ -51,6 +52,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
   const [productSearchText, setProductSearchText] = useState('');
   const [openProductDropdown, setOpenProductDropdown] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const productDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -260,6 +262,34 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     }
   });
 
+  const deleteBOM = useMutation({
+    mutationFn: async () => {
+      if (!bomId) throw new Error('No BOM loaded');
+      const [jobCards, schedules] = await Promise.all([
+        supabase.from('job_cards').select('id', { count: 'exact', head: true }).eq('bom_id', bomId),
+        supabase.from('production_schedule_items').select('id', { count: 'exact', head: true }).eq('bom_id', bomId),
+      ]);
+      const jcCount = jobCards.count ?? 0;
+      const psCount = schedules.count ?? 0;
+      if (jcCount > 0 || psCount > 0) {
+        const parts: string[] = [];
+        if (jcCount > 0) parts.push(`${jcCount} job card${jcCount !== 1 ? 's' : ''}`);
+        if (psCount > 0) parts.push(`${psCount} production schedule${psCount !== 1 ? 's' : ''}`);
+        throw new Error(`Cannot delete: this BOM is used by ${parts.join(' and ')}. Remove them first.`);
+      }
+      const { error } = await supabase.from('bom_headers').delete().eq('id', bomId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      toast.success('BOM deleted');
+      onCancel();
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to delete BOM');
+    }
+  });
+
   const addItem = () => {
     const newIndex = items.length;
     setItems(prev => [...prev, { material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '', company_variant_id: '', variant_name: '', make: '', lead_time_days: 0, bom_level: 0 }]);
@@ -341,6 +371,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Define raw materials for a finished product</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {bomId && (
+            <button onClick={() => setShowDeleteModal(true)} disabled={deleteBOM.isPending}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#000000', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: deleteBOM.isPending ? 'not-allowed' : 'pointer', opacity: deleteBOM.isPending ? 0.6 : 1, transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (!deleteBOM.isPending) { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
+              onMouseLeave={e => { if (!deleteBOM.isPending) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}}>
+              <Trash2 size={13} /> Delete
+            </button>
+          )}
           <button onClick={onCancel} style={{ padding: '6px 14px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
             onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
@@ -578,6 +616,42 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           </div>
         </div>
       </div>
+
+      {/* ─── Delete Confirmation Modal ─── */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => !deleteBOM.isPending && setShowDeleteModal(false)}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '90%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 size={20} color="#e11d48" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#18181b' }}>Delete this BOM?</h3>
+            </div>
+            <p style={{ margin: '0 0 4px', fontSize: '13px', color: '#3f3f46', lineHeight: '18px' }}>
+              <strong>{formData.bom_code || 'This BOM'}</strong> · {formData.product_name || 'Unnamed product'}
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#71717a', lineHeight: '18px' }}>
+              This will permanently remove the BOM and all its material rows. Job cards or production schedules that reference this BOM will block the delete. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowDeleteModal(false)} disabled={deleteBOM.isPending}
+                style={{ height: '36px', padding: '0 16px', border: '1px solid #e4e4e7', background: '#fff', color: '#52525b', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!deleteBOM.isPending) e.currentTarget.style.background = '#fafafa'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}>
+                Cancel
+              </button>
+              <button onClick={() => deleteBOM.mutate()} disabled={deleteBOM.isPending}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', border: 'none', background: '#e11d48', color: '#fff', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: deleteBOM.isPending ? 'not-allowed' : 'pointer', opacity: deleteBOM.isPending ? 0.6 : 1, transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!deleteBOM.isPending) e.currentTarget.style.background = '#be123c'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#e11d48'; }}>
+                {deleteBOM.isPending ? 'Deleting...' : 'Delete BOM'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

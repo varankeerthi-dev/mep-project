@@ -2,8 +2,8 @@ import { getReminderStage } from './escalation-engine';
 import { daysUntil, isValidityExpiringSoon } from './date-format';
 import { matchesAssigneeFilter } from './followup-utils';
 import { ACTIVE_STATUSES } from './quotation-workflow';
+import type { Lead } from '../../types/leads';
 import type {
-  FollowUpTab,
   InvoiceFollowUp,
   PodcBacklogItem,
   PriorityQueueItem,
@@ -80,6 +80,37 @@ function scoreInvoice(inv: InvoiceFollowUp): { score: number; reason: string } {
   return { score, reason: reasons.slice(0, 2).join(' · ') || 'Payment follow-up' };
 }
 
+function scoreLead(lead: Lead): { score: number; reason: string } {
+  let score = 35;
+  const reasons: string[] = [];
+
+  if (lead.next_action_at) {
+    const ageMs = Date.now() - new Date(lead.next_action_at).getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    if (ageDays >= 0) {
+      score += Math.min(ageDays * 3, 30);
+      if (ageDays >= 7) reasons.push(`${Math.round(ageDays)}d no contact`);
+      else if (ageDays >= 1) reasons.push('Action overdue');
+    }
+  } else {
+    score += 8;
+    reasons.push('No next action set');
+  }
+
+  if (lead.expected_close_date) {
+    const closeMs = new Date(lead.expected_close_date).getTime() - Date.now();
+    const closeDays = closeMs / (1000 * 60 * 60 * 24);
+    if (closeDays >= 0 && closeDays <= 14) {
+      score += 12;
+      reasons.push(`Closes in ${Math.round(closeDays)}d`);
+    }
+  }
+
+  score += valueScore(lead.estimated_value);
+
+  return { score, reason: reasons.slice(0, 2).join(' · ') || 'Open lead' };
+}
+
 function priorityBand(score: number): PriorityQueueItem['priority_band'] {
   if (score >= 85) return 'critical';
   if (score >= 70) return 'high';
@@ -90,9 +121,30 @@ function priorityBand(score: number): PriorityQueueItem['priority_band'] {
 export function buildPriorityQueue(
   quotations: QuotationFollowUp[],
   podc: PodcBacklogItem[],
-  invoices: InvoiceFollowUp[]
+  invoices: InvoiceFollowUp[],
+  leads: Lead[] = []
 ): PriorityQueueItem[] {
   const items: PriorityQueueItem[] = [];
+
+  for (const lead of leads) {
+    if (!['New', 'Qualified'].includes(lead.status)) continue;
+    const { score, reason } = scoreLead(lead);
+    items.push({
+      id: `l-${lead.id}`,
+      source_tab: 'lead',
+      source_id: lead.id,
+      reference_label: lead.company_name || lead.contact_name,
+      client_name: lead.client_name || lead.contact_name,
+      project_name: lead.project_name,
+      amount: lead.estimated_value,
+      priority_score: Math.round(score),
+      priority_band: priorityBand(score),
+      urgency_label: lead.next_action_label || 'No next action',
+      reason,
+      assignee_user_id: lead.owner_user_id,
+      assignee_name: lead.owner_name ?? null,
+    });
+  }
 
   for (const q of quotations) {
     if (!ACTIVE_STATUSES.includes(q.status)) continue;
@@ -212,8 +264,9 @@ export function computeQueueMetrics(items: PriorityQueueItem[]) {
   return { total: items.length, critical, high, totalExposure, topClient };
 }
 
-export const SOURCE_TAB_LABELS: Record<Exclude<FollowUpTab, 'activity' | 'queue'>, string> = {
+export const SOURCE_TAB_LABELS: Record<PriorityQueueItem['source_tab'], string> = {
   quotation: 'Quotation',
   podc: 'PO/DC',
   invoice: 'Invoice',
+  lead: 'Lead',
 };

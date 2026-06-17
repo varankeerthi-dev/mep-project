@@ -323,7 +323,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                 item_id: item.item_id,
                 company_variant_id: itemVariantId,
                 warehouse_id: itemWarehouseId,
-                current_stock: quantity
+                current_stock: quantity,
+                organisation_id: organisation?.id
               }),
               'Material inward stock create',
             );

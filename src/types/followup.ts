@@ -1,12 +1,14 @@
 // Follow-Up Centre — unified types
 
-export type FollowUpTab = 'queue' | 'quotation' | 'podc' | 'invoice' | 'activity';
+export type FollowUpTab = 'queue' | 'quotation' | 'podc' | 'invoice' | 'activity' | 'lead';
 
 export type PriorityBand = 'critical' | 'high' | 'medium' | 'low';
 
+export type QueueSourceTab = Exclude<FollowUpTab, 'activity' | 'queue'> | 'lead';
+
 export interface PriorityQueueItem {
   id: string;
-  source_tab: Exclude<FollowUpTab, 'activity' | 'queue'>;
+  source_tab: QueueSourceTab;
   source_id: string;
   reference_label: string;
   client_name: string;

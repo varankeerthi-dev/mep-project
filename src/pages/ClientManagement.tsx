@@ -163,15 +163,15 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
     staleTime: 10 * 60 * 1000
   });
 
-  const variantsQuery = useQuery({
-    queryKey: ['companyVariants', organisation?.id],
+  const discountCategoriesQuery = useQuery({
+    queryKey: ['discountCategories', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('company_variants')
+        .from('discount_categories')
         .select('*')
-        .eq('organisation_id', organisation?.id)
+        .or(`organisation_id.eq.${organisation?.id},organisation_id.is.null`)
         .eq('is_active', true)
-        .order('variant_name');
+        .order('name');
       if (error) throw error;
       return data || [];
     },
@@ -181,7 +181,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
 
   const pricelists = pricelistsQuery.data || [];
   const structures = structuresQuery.data || [];
-  const variants = variantsQuery.data || [];
+  const discountCategories = discountCategoriesQuery.data || [];
 
   useEffect(() => {
     if (formData.custom_discounts && typeof formData.custom_discounts === 'object') {
@@ -198,16 +198,18 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
   }, [formData.discount_type, structures]);
 
   const previewQuery = useQuery({
-    queryKey: ['discountVariantSettings', selectedStructureId],
+    queryKey: ['discountVariantSettings', selectedStructureId, organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('discount_variant_settings')
-        .select('*, variant:company_variants(variant_name)')
-        .eq('structure_id', selectedStructureId);
+        .select('*, discount_category:discount_categories(name)')
+        .eq('structure_id', selectedStructureId)
+        .eq('organisation_id', organisation?.id)
+        .not('discount_category_id', 'is', null);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!selectedStructureId
+    enabled: !!selectedStructureId && !!organisation?.id
   });
 
   const previewSettings = previewQuery.data || [];
@@ -242,77 +244,102 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
     }
   };
 
+  const sectionHeadStyle: React.CSSProperties = {
+    fontWeight: 600, fontSize: '11px', color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px'
+  };
+
+  const labelStyle: React.CSSProperties = {
+    minWidth: '70px', maxWidth: '70px',
+    fontWeight: 600, fontSize: '11px', color: '#374151'
+  };
+
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: isLast ? 0 : '8px' }}>
+      <span style={labelStyle}>{label}</span>
+      <div style={{ flex: 1 }}>{field}</div>
+    </div>
+  );
+
+  const primaryBtnStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '4px',
+    padding: '6px 14px', background: '#185FA5',
+    border: '1px solid #185FA5', color: '#fff',
+    borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: saving || !formData.id ? 'not-allowed' : 'pointer',
+    opacity: saving || !formData.id ? 0.6 : 1,
+    transition: 'all 0.15s'
+  };
+
   return (
-    <div className="space-y-16 py-4">
-      {/* Strategy Selector */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingTop: '16px' }}>
+      {/* Billing & Tax Details */}
       <section>
-<SectionHeading>Billing & Tax Details</SectionHeading>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl">
-          <FieldGroup label="Pricing Tier" required>
-            <div className="relative">
-               <select
-                 className={selectCn}
-                 value={formData.discount_type || 'Special'}
-                 onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
-                 disabled={!isAdmin}
-               >
-                 <option value="Standard">Standard Matrix (Price List)</option>
-                 <option value="Premium">Premium Schema (Variant Match)</option>
-                 <option value="Bulk">Bulk Schema (Variant Match)</option>
-                 <option value="Special">Special Schema (Variant Match)</option>
-               </select>
-               <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-               </div>
-            </div>
-          </FieldGroup>
-          {formData.discount_type === 'Standard' && (
-            <FieldGroup label="Active Price List" required>
-               <div className="relative">
+        <div style={sectionHeadStyle}>Billing & Tax Details</div>
+        <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {renderHeaderField('Pricing Tier:', (
+                <div className="relative">
                   <select
-                    className={cn(selectCn, "bg-[#f1f5f9] border-indigo-200/60")}
-                    value={formData.standard_pricelist_id || ''}
-                    onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
-                    required
+                    className={selectCn}
+                    value={formData.discount_type || 'Special'}
+                    onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
                     disabled={!isAdmin}
+                    style={{ padding: '4px 8px', fontSize: '12px' }}
                   >
-                    <option value="">-- Assign a List --</option>
-                    {pricelists.map((pl: any) => (
-                      <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}% Baseline)</option>
-                    ))}
+                    <option value="Standard">Standard Matrix (Price List)</option>
+                    <option value="Premium">Premium Schema (Variant Match)</option>
+                    <option value="Bulk">Bulk Schema (Variant Match)</option>
+                    <option value="Special">Special Schema (Variant Match)</option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              ))}
+            </div>
+            {formData.discount_type === 'Standard' && (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {renderHeaderField('Price List:', (
+                  <div className="relative">
+                    <select
+                      className={cn(selectCn, "bg-[#f1f5f9] border-indigo-200/60")}
+                      value={formData.standard_pricelist_id || ''}
+                      onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
+                      required
+                      disabled={!isAdmin}
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                    >
+                      <option value="">-- Assign a List --</option>
+                      {pricelists.map((pl: any) => (
+                        <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}% Baseline)</option>
+                      ))}
+                    </select>
                   </div>
-               </div>
-            </FieldGroup>
-          )}
+                ), true)}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Custom Overrides */}
+      {/* Customized Discounts */}
       <section>
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-5 border-b border-zinc-100 gap-4">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e5e7eb', gap: '16px' }}>
           <div>
-            <h3 className="text-[17px] font-bold text-zinc-900 tracking-tight flex items-center gap-2">
-               <Settings className="w-5 h-5 text-indigo-500" />
-               Customized Discounts
-            </h3>
-            <p className="text-[13px] text-zinc-500 mt-1 font-medium">Override default discounts for specific variants.</p>
+            <div style={sectionHeadStyle}>Customized Discounts</div>
+            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#9ca3af' }}>Override default discounts per category.</p>
           </div>
-          <Button 
+          <button
             type="button"
-            className="h-11 rounded-xl bg-zinc-900 px-6 text-white text-[14px] font-semibold hover:bg-zinc-800 focus:ring-4 focus:ring-zinc-900/10 shadow-lg shadow-zinc-900/20" 
-            onClick={handleSaveCustomDiscounts} 
+            style={primaryBtnStyle}
+            onClick={handleSaveCustomDiscounts}
             disabled={saving || !formData.id}
+            onMouseEnter={e => { if (!saving && formData.id) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+            onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
           >
-            {saving ? 'Synchronizing...' : (
-               <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Discount Map
-               </>
+            {saving ? 'Saving...' : (
+              <><Save size={13} /> Save Discount Map</>
             )}
-          </Button>
+          </button>
         </div>
 
         {saveMessage.text && (
@@ -325,28 +352,28 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
           </div>
         )}
 
-        <div className="rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden bg-white">
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', background: '#fff', overflow: 'hidden' }}>
           <div className="max-h-[380px] overflow-auto">
             <Table>
-              <TableHeader className="bg-zinc-50/80 sticky top-0 z-10 backdrop-blur-md">
+              <TableHeader className="bg-zinc-50/80 sticky top-0 z-10">
                 <TableRow className="border-b-zinc-200/80">
-                  <TableHead className="w-[60%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4">Variant Name</TableHead>
-                  <TableHead className="w-[40%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-right">Discount %</TableHead>
+                  <TableHead className="w-[60%] font-bold text-zinc-600 uppercase tracking-wider">Category Name</TableHead>
+                  <TableHead className="w-[40%] font-bold text-zinc-600 uppercase tracking-wider text-right">Discount %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {variants.length === 0 ? (
-                  <TableRow><td colSpan={2} className="px-6 py-12 text-center text-[14px] text-zinc-400 font-medium">System has no variants configured.</td></TableRow>
+                {discountCategories.length === 0 ? (
+                  <TableRow><td colSpan={2} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af' }}>No discount categories configured.</td></TableRow>
                 ) : (
-                  variants.map((v: any) => (
-                    <TableRow key={v.id} className="border-b-zinc-100 hover:bg-zinc-50/50 transition-colors">
-                      <TableCell className="font-semibold text-zinc-700 py-3.5 px-4">{v.variant_name}</TableCell>
-                      <TableCell className="py-3.5 px-4 text-right">
+                  discountCategories.map((dc: any) => (
+                    <TableRow key={dc.id} className="border-b-zinc-100 hover:bg-zinc-50/50 transition-colors">
+                      <TableCell className="font-semibold text-zinc-700">{dc.name}</TableCell>
+                      <TableCell className="text-right">
                         <CompactInput
                           type="number"
                           className="h-10 w-28 rounded-lg border-zinc-200 bg-white px-3 text-right text-[14px] font-semibold text-indigo-700 shadow-inner ml-auto"
-                          value={customDiscounts[v.id] || 0}
-                          onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
+                          value={customDiscounts[dc.id] || 0}
+                          onChange={(e) => handleCustomDiscountChange(dc.id, e.target.value)}
                           min="0"
                           max="100"
                           step="0.01"
@@ -361,51 +388,43 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
         </div>
       </section>
 
-      {/* Projection Matrix */}
-      <section className="pt-2">
-         <SectionHeading icon={<Archive className="w-5 h-5" />}>
-            Discount Matrix Preview
-         </SectionHeading>
-
+      {/* Discount Matrix Preview */}
+      <section>
+        <div style={sectionHeadStyle}>Discount Matrix Preview</div>
         <div className="max-w-4xl">
          {formData.discount_type === 'Standard' ? (
-            <div className="rounded-2xl bg-indigo-50/50 border border-indigo-100/60 px-8 py-8 shadow-sm text-center">
-             <Info className="w-8 h-8 text-indigo-400 mx-auto mb-4" />
-             <h4 className="text-[17px] font-bold text-zinc-900 tracking-tight">Active Matrix Enforced</h4>
-             <p className="text-[14px] text-zinc-600 mt-2 max-w-lg mx-auto">
-               This client is tethered to a fixed standard pricing list. They will receive <strong className="text-indigo-700">{pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}%</strong> baseline off list price across all variant items universally.
+           <div style={{ background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px', textAlign: 'center' }}>
+             <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+               Standard pricing active — <strong>{pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}%</strong> baseline across all categories.
              </p>
            </div>
          ) : (
-           <div className="rounded-2xl border border-zinc-200/80 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] overflow-hidden bg-white">
+           <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', background: '#fff', overflow: 'hidden' }}>
              <Table>
-               <TableHeader className="bg-zinc-50/80">
-                 <TableRow className="border-b-zinc-200/80">
-                   <TableHead className="w-[40%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4">Linked Variant</TableHead>
-                   <TableHead className="w-[20%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-center">Default</TableHead>
-                   <TableHead className="w-[20%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-center">Min Floor</TableHead>
-                   <TableHead className="w-[20%] text-[13px] font-bold text-zinc-600 uppercase tracking-wider py-4 text-center">Max Ceiling</TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {loading ? (
-                   <TableRow><td colSpan={4} className="px-6 py-12 text-center text-[14px] font-medium text-zinc-400">Loading projection models...</td></TableRow>
-                 ) : previewSettings.length === 0 ? (
-                   <TableRow><td colSpan={4} className="px-6 py-16 flex flex-col items-center justify-center text-center">
-                     <Archive className="h-10 w-10 text-zinc-200 mb-3" />
-                     <p className="text-[14px] font-medium text-zinc-500">No rule limits found for this structure.</p>
-                   </td></TableRow>
-                 ) : (
-                   previewSettings.map((s: any) => (
-                     <TableRow key={s.id} className="border-b-zinc-100/60">
-                       <TableCell className="font-semibold text-zinc-700 py-4 text-[14px]">{s.variant?.variant_name}</TableCell>
-                       <TableCell className="text-center font-medium py-4 text-[14px] bg-zinc-50/30">{s.default_discount_percent}%</TableCell>
-                       <TableCell className="text-center font-medium py-4 text-[14px] text-zinc-500">{s.min_discount_percent}%</TableCell>
-                       <TableCell className="text-center font-bold py-4 text-[14px] text-indigo-700">{s.max_discount_percent}%</TableCell>
-                     </TableRow>
-                   ))
-                 )}
-               </TableBody>
+                <TableHeader style={{ background: '#f9fafb' }}>
+                  <TableRow>
+                    <TableHead className="w-[40%] font-bold text-zinc-600 uppercase tracking-wider">Category</TableHead>
+                    <TableHead className="w-[20%] font-bold text-zinc-600 uppercase tracking-wider text-center">Default</TableHead>
+                    <TableHead className="w-[20%] font-bold text-zinc-600 uppercase tracking-wider text-center">Min</TableHead>
+                    <TableHead className="w-[20%] font-bold text-zinc-600 uppercase tracking-wider text-center">Max</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><td colSpan={4} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af' }}>Loading...</td></TableRow>
+                  ) : previewSettings.length === 0 ? (
+                    <TableRow><td colSpan={4} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af' }}>No settings found for this structure.</td></TableRow>
+                  ) : (
+                    previewSettings.map((s: any) => (
+                       <TableRow key={s.id} className="border-b-zinc-100/60">
+                         <TableCell className="font-semibold text-zinc-700">{s.discount_category?.name || 'Unknown Category'}</TableCell>
+                        <TableCell className="text-center font-medium bg-zinc-50/30">{s.default_discount_percent}%</TableCell>
+                        <TableCell className="text-center font-medium text-zinc-500">{s.min_discount_percent}%</TableCell>
+                        <TableCell className="text-center font-bold text-indigo-700">{s.max_discount_percent}%</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
              </Table>
            </div>
          )}
@@ -434,6 +453,30 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   });
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const primaryBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '4px',
+    padding: '6px 14px', background: '#185FA5',
+    border: '1px solid #185FA5', color: '#fff',
+    borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: 'pointer', transition: 'all 0.15s'
+  };
+
+  const secondaryBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '4px',
+    padding: '6px 14px', background: '#fff',
+    border: '1px solid #d1d5db', color: '#374151',
+    borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: 'pointer', transition: 'all 0.15s'
+  };
+
+  const destructiveBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '4px',
+    padding: '6px 14px', background: '#fff',
+    border: '1px solid #d1d5db', color: '#000',
+    borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: 'pointer', transition: 'all 0.15s'
+  };
 
   useEffect(() => {
     if (clientData) {
@@ -654,8 +697,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
             <h1 className="text-lg font-semibold text-zinc-800">{editMode ? 'Edit Client' : 'New Client'}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={onCancel as any}>Cancel</Button>
-            <Button onClick={handleSubmit as any} disabled={saving}>Save Client</Button>
+            <button type="button" style={secondaryBtn}
+              onClick={onCancel as any}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+            >Cancel</button>
+            <button type="submit" style={{...primaryBtn, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer'}}
+              onClick={handleSubmit as any} disabled={saving}
+              onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+              onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+            >{saving ? 'Saving...' : (editMode ? 'Update Client' : 'Save Client')}</button>
           </div>
         </div>
 
@@ -958,19 +1009,30 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 {/* Main Action Footer */}
                 <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-6 py-4 gap-4">
                   <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-5 text-[14px] font-semibold" onClick={onCancel as any}>
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Back
-                    </Button>
+                    <button type="button" style={secondaryBtn}
+                      onClick={onCancel as any}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+                    ><ChevronLeft size={13} /> Back</button>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-6 text-[14px] font-semibold hover:bg-zinc-100" onClick={onCancel} disabled={saving}>Cancel</Button>
+                    <button type="button" style={{...secondaryBtn, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1}}
+                      onClick={onCancel} disabled={saving}
+                      onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+                    >Cancel</button>
                     {editMode && (
-                      <Button type="button" variant="danger" className="h-11 rounded-xl px-6 text-[14px] font-semibold" onClick={deleteClient} disabled={saving}>Delete Client</Button>
+                      <button type="button" style={{...destructiveBtn, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1}}
+                        onClick={deleteClient} disabled={saving}
+                        onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
+                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+                      ><Trash2 size={13} /> Delete Client</button>
                     )}
-                    <Button type="submit" className="h-11 rounded-xl px-8 text-[14px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white" disabled={saving}>
-                      {saving ? 'Saving...' : editMode ? 'Update Client' : 'Save Client'}
-                    </Button>
+                    <button type="submit" style={{...primaryBtn, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer'}}
+                      disabled={saving}
+                      onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+                    >{saving ? 'Saving...' : editMode ? 'Update Client' : 'Save Client'}</button>
                   </div>
                 </div>
 

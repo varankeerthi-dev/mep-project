@@ -189,7 +189,7 @@ const isMissingRelationError = (error) => {
 
 const getMaterialsTabFromSearch = (search = '') => {
   const tab = new URLSearchParams(search || '').get('tab');
-  const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants']);
+  const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants', 'discount-categories']);
   return allowedTabs.has(tab) ? tab : 'items';
 };
 
@@ -278,7 +278,7 @@ function ItemsTab() {
     item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-    uses_variant: false, track_inventory: false,
+    uses_variant: false, track_inventory: false, discount_category_id: null,
     dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
     item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false
   });
@@ -364,6 +364,7 @@ function ItemsTab() {
   const variants = pageData?.variants ?? [];
   const warehouses = pageData?.warehouses ?? [];
   const clients = pageData?.clients ?? [];
+  const discountCategories = pageData?.discountCategories ?? [];
   
   const categoryOptions = categories.length > 0 ? categories.map((c) => c.category_name) : MAIN_CATEGORIES;
   const materialsError = error instanceof Error ? error.message : '';
@@ -1057,7 +1058,21 @@ function ItemsTab() {
 
     if (materialSavePending) return;
     setMaterialSavePending(true);
-    
+
+    if (!editingMaterial) {
+      const { data: existing } = await supabase
+        .from('materials')
+        .select('id, name')
+        .eq('organisation_id', organisation?.id)
+        .ilike('name', formData.item_name.trim())
+        .maybeSingle();
+      if (existing) {
+        alert(`"${formData.item_name}" already exists. Duplicate names are not allowed.`);
+        setMaterialSavePending(false);
+        return;
+      }
+    }
+
     if (formData.uses_variant && variantPricing.length === 0) {
       alert('Please add at least one variant pricing before saving.');
       setMaterialSavePending(false);
@@ -1088,6 +1103,7 @@ function ItemsTab() {
       gst_rate: formData.gst_rate || null,
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
+      discount_category_id: formData.discount_category_id || null,
       dimension: formData.dimension || null,
       dimension_unit: formData.dimension_unit || 'cm',
       weight: formData.weight ? parseFloat(formData.weight) : null,
@@ -1300,7 +1316,7 @@ function ItemsTab() {
       item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
       size: '', pressure_class: '', make: '', material: '', end_connection: '',
       unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-      uses_variant: false, track_inventory: false
+      uses_variant: false, track_inventory: false, discount_category_id: null
     });
     setVariantPricing([]);
     setVendorMappings([]);
@@ -1355,6 +1371,7 @@ function ItemsTab() {
       gst_rate: material.gst_rate || 18,
       is_active: material.is_active !== false,
       uses_variant: material.uses_variant || false,
+      discount_category_id: material.discount_category_id || null,
       track_inventory: hasStock,
       dimension: material.dimension || '',
       dimension_unit: material.dimension_unit || 'cm',
@@ -1924,14 +1941,16 @@ function ItemsTab() {
   return (
     <div className="h-full flex flex-col" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: '12px', lineHeight: '1.5' }}>
       <style>{`
-        .items-tab * { font-family: 'Inter', system-ui, sans-serif !important; }
-        .items-tab table { font-size: 12px !important; }
-        .items-tab th { font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.03em !important; }
-        .items-tab td { font-size: 12px !important; }
-        .items-tab input, .items-tab select, .items-tab textarea { font-size: 12px !important; }
-        .items-tab button { font-size: 12px !important; }
-        .items-tab label { font-size: 12px !important; }
+        .items-tab * { fontFamily: 'Inter', system-ui, sans-serif !important; }
+        .items-tab table { fontSize: 12px !important; }
+        .items-tab th { fontSize: 11px !important; fontWeight: 600 !important; letterSpacing: 0.03em !important; }
+        .items-tab td { fontSize: 12px !important; }
+        .items-tab input, .items-tab select, .items-tab textarea { fontSize: 12px !important; }
+        .items-tab button { fontSize: 12px !important; }
+        .items-tab label { fontSize: 12px !important; }
       `}</style>
+
+      <div className="h-full flex flex-col" style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: '12px', lineHeight: '1.5' }}>
       {/* Sequential Saving Progress Overlay */}
       {isSavingSequentially && (
         <div className="modal-overlay open" style={{ zIndex: 10000, background: 'rgba(255,255,255,0.9)' }}>
@@ -2726,8 +2745,8 @@ function ItemsTab() {
             if (e.target === e.currentTarget) resetForm();
           }}
         >
-          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
-            <div className="modal-header">
+          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '640px', maxHeight: '92vh', display: 'flex', flexDirection: 'column', background: '#fff' }}>
+            <div className="modal-header" style={{ flexShrink: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                 <div>
                   <div className="modal-title">{editingMaterial ? 'Edit Item' : 'Add Item'}</div>
@@ -2739,8 +2758,8 @@ function ItemsTab() {
               </div>
             </div>
 
-            <div className="modal-body">
-            <form onSubmit={handleSubmit}>
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
+            <form id="item-form" onSubmit={handleSubmit}>
               <div className="item-form-section">
                 <div className="item-form-section-header">
                   <h4 className="item-form-section-title">Basic Information</h4>
@@ -2756,10 +2775,10 @@ function ItemsTab() {
                           key={opt.value}
                           type="button"
                           onClick={() => setItemClassification(opt.value)}
-                          className={`min-w-0 rounded-md border px-2.5 py-2 text-left transition-all duration-200 ${
+                          className={`min-w-0 rounded-md border px-2.5 py-2 text-left transition-all duration-200 group ${
                             isSelected
                               ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                              : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300'
+                              : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -2768,7 +2787,7 @@ function ItemsTab() {
                                 {opt.label}
                               </div>
                               <div className="mt-0.5 text-[8px] leading-3 transition-all duration-200">
-                                <span className={isSelected ? 'text-emerald-600' : 'text-zinc-400'}>
+                                <span className={isSelected ? 'text-emerald-600' : 'text-zinc-400 group-hover:text-zinc-500'}>
                                   {opt.desc}
                                 </span>
                               </div>
@@ -2980,6 +2999,17 @@ function ItemsTab() {
                     <input type="number" className="form-input" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} step="0.01" />
                   </div>
                 </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Discount Category</label>
+                    <select className="form-select" value={formData.discount_category_id || ''} onChange={e => setFormData({...formData, discount_category_id: e.target.value || null})}>
+                      <option value="">No Discount Category</option>
+                      {discountCategories.map(dc => (
+                        <option key={dc.id} value={dc.id}>{dc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="item-form-section-footer" style={{ display: 'flex', gap: '24px', padding: '8px 0 0 0', borderTop: '1px solid #e5e7eb', marginTop: '12px' }}>
@@ -3012,7 +3042,7 @@ function ItemsTab() {
                       }
                     }}
                   />
-                  This item uses Discount Category pricing
+                  This item uses Variant Pricing
                 </label>
               </div>
 
@@ -3020,7 +3050,7 @@ function ItemsTab() {
                 <div className="item-form-section">
                   <div className="item-form-section-header">
                     <div>
-                      <h4 className="item-form-section-title">Discount Category Pricing</h4>
+                      <h4 className="item-form-section-title">Variant Pricing</h4>
                       <div className="item-form-section-hint">By category &amp; make (brand)</div>
                     </div>
                     <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Row</button>
@@ -3028,7 +3058,7 @@ function ItemsTab() {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Discount Category</th>
+                        <th>Variant</th>
                         <th>MAKE (Brand)</th>
                         <th>Sale Price</th>
                         <th>Purchase Price</th>
@@ -3578,15 +3608,15 @@ function ItemsTab() {
                 )}
               </div>
 
-              <div className="item-form-footer">
-                <button type="submit" className="btn btn-primary" disabled={materialSavePending}>
-                  {materialSavePending ? 'Saving...' : (editingMaterial ? 'Update Item' : 'Save Item')}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={resetForm} disabled={materialSavePending}>
-                  Cancel
-                </button>
-              </div>
             </form>
+            </div>
+            <div style={{ position: 'sticky', bottom: 0, zIndex: 10, display: 'flex', gap: '12px', padding: '16px 24px', borderTop: '1px solid #e5e7eb', background: '#fff', boxShadow: '0 -2px 8px rgba(0,0,0,0.06)', flexShrink: 0 }}>
+              <button type="button" className="btn btn-primary" style={{ flex: 1 }} disabled={materialSavePending} onClick={handleSubmit}>
+                {materialSavePending ? 'Saving...' : (editingMaterial ? 'Update Item' : 'Save Item')}
+              </button>
+              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={resetForm} disabled={materialSavePending}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -3913,6 +3943,7 @@ function ItemsTab() {
                         item_id: createdItem.id,
                         warehouse_id: wh.id,
                         current_stock: parseFloat(stockValue),
+                        organisation_id: organisationId,
                         created_at: nowIso,
                         updated_at: nowIso,
                       });
@@ -3976,7 +4007,7 @@ function ItemsTab() {
                       if (existingStock) {
                         await supabase.from('item_stock').update({ current_stock: change.newValue, updated_at: nowIso }).eq('id', existingStock.id);
                       } else {
-                        await supabase.from('item_stock').insert({ item_id: baseItemId, warehouse_id: warehouse.id, current_stock: change.newValue, created_at: nowIso, updated_at: nowIso });
+                        await supabase.from('item_stock').insert({ item_id: baseItemId, warehouse_id: warehouse.id, current_stock: change.newValue, organisation_id: organisationId, created_at: nowIso, updated_at: nowIso });
                       }
                     }
                   } else if (isVariantRow && (change.field === 'Sale Price' || change.field === 'Purchase Price')) {
@@ -4120,6 +4151,7 @@ function ItemsTab() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
@@ -5262,6 +5294,105 @@ function VariantsTab() {
   );
 }
 
+function DiscountCategoriesTab() {
+  const { organisation } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: discountCategories = [], isLoading } = useQuery({
+    queryKey: ['discountCategories', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase.from('discount_categories').select('*').or(`organisation_id.eq.${organisation.id},organisation_id.is.null`).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [formData, setFormData] = useState({ name: '', default_discount_percent: 0, min_discount_percent: 0, max_discount_percent: 100, is_active: true });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (editing) {
+      await supabase.from('discount_categories').update({ ...formData, updated_at: new Date().toISOString() }).eq('id', editing.id);
+    } else {
+      await supabase.from('discount_categories').insert({ ...formData, organisation_id: organisation?.id });
+    }
+    resetForm();
+    queryClient.invalidateQueries({ queryKey: ['discountCategories'] });
+  };
+
+  const resetForm = () => { setShowForm(false); setEditing(null); setFormData({ name: '', default_discount_percent: 0, min_discount_percent: 0, max_discount_percent: 100, is_active: true }); };
+
+  const editItem = (item) => { setEditing(item); setFormData({ name: item.name, default_discount_percent: item.default_discount_percent ?? 0, min_discount_percent: item.min_discount_percent ?? 0, max_discount_percent: item.max_discount_percent ?? 100, is_active: item.is_active !== false }); setShowForm(true); };
+  const deleteItem = async (id) => { if (confirm('Delete this discount category?')) { await supabase.from('discount_categories').delete().eq('id', id); queryClient.invalidateQueries({ queryKey: ['discountCategories'] }); }};
+
+  const filtered = discountCategories.filter(c => c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  return (
+    <div>
+      <div className="page-header"><h1 className="page-title">Discount Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Discount Category</button></div>
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <p style={{ color: '#666', marginBottom: '10px' }}>Discount categories group items for bulk discounting in quotations. Each category has configurable min/max discount limits.</p>
+        <input type="text" className="form-input" placeholder="Search discount categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+      </div>
+      <div className="bg-white border border-zinc-200 rounded-xl" style={{ padding: '24px' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full" style={{ fontSize: '12px' }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '12px 24px', textAlign: 'left', fontWeight: 600, fontSize: '11px', color: '#6b7280' }}>Name</th>
+                <th style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 600, fontSize: '11px', color: '#6b7280' }}>Default Disc %</th>
+                <th style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 600, fontSize: '11px', color: '#6b7280' }}>Min Disc %</th>
+                <th style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 600, fontSize: '11px', color: '#6b7280' }}>Max Disc %</th>
+                <th style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 600, fontSize: '11px', color: '#6b7280' }}>Active</th>
+                <th style={{ padding: '12px 24px', textAlign: 'right', fontWeight: 600, fontSize: '11px', color: '#6b7280', minWidth: '100px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <tr key={c.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
+                  <td style={{ padding: '12px 24px', textAlign: 'left', fontWeight: 600, fontSize: '12px', color: '#374151', whiteSpace: 'nowrap' }}>{c.name}</td>
+                  <td style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>{c.default_discount_percent ?? '-'}%</td>
+                  <td style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>{c.min_discount_percent ?? '-'}%</td>
+                  <td style={{ padding: '12px 24px', textAlign: 'center', fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>{c.max_discount_percent ?? '-'}%</td>
+                  <td style={{ padding: '12px 24px', textAlign: 'center' }}>
+                    <span style={{ padding: '4px 8px', borderRadius: '9999px', fontSize: '11px', fontWeight: 600, background: c.is_active ? '#f0fdf4' : '#f4f4f5', color: c.is_active ? '#166534' : '#52525b' }}>
+                      {c.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 24px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '15px' }}>
+                      <Button size="sm" variant="outline" onClick={() => editItem(c)} style={{ fontSize: '11px' }}>Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => deleteItem(c.id)} style={{ fontSize: '11px' }}>Delete</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {showForm && (
+        <div className="modal-overlay open" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editing ? 'Edit Discount Category' : 'Add Discount Category'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group"><label className="form-label">Name *</label><input type="text" className="form-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g., Pipe Discount, Hardware Discount" required /></div>
+              <div className="form-group"><label className="form-label">Default Discount %</label><input type="number" className="form-input" value={formData.default_discount_percent} onChange={e => setFormData({...formData, default_discount_percent: parseFloat(e.target.value) || 0})} step="0.01" min="0" max="100" /></div>
+              <div className="form-group"><label className="form-label">Min Discount %</label><input type="number" className="form-input" value={formData.min_discount_percent} onChange={e => setFormData({...formData, min_discount_percent: parseFloat(e.target.value) || 0})} step="0.01" min="0" max="100" /></div>
+              <div className="form-group"><label className="form-label">Max Discount %</label><input type="number" className="form-input" value={formData.max_discount_percent} onChange={e => setFormData({...formData, max_discount_percent: parseFloat(e.target.value) || 0})} step="0.01" min="0" max="100" /></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editing ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Helper function to generate template with selected fields
 function generateSelectiveTemplate(selectedFields: string[]) {
   const columns = [
@@ -5343,7 +5474,8 @@ export default function MaterialsList() {
         <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>
         <TabButton active={activeTab === 'unit'} onClick={() => changeTab('unit')}>Unit</TabButton>
         <TabButton active={activeTab === 'warehouses'} onClick={() => changeTab('warehouses')}>Warehouses</TabButton>
-        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Discount Categories</TabButton>
+        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Variants</TabButton>
+        <TabButton active={activeTab === 'discount-categories'} onClick={() => changeTab('discount-categories')}>Discount Categories</TabButton>
       </div>
 
       {activeTab === 'items' && <ItemsTab />}
@@ -5352,6 +5484,7 @@ export default function MaterialsList() {
       {activeTab === 'unit' && <UnitTab />}
       {activeTab === 'warehouses' && <WarehousesTab />}
       {activeTab === 'variants' && <VariantsTab />}
+      {activeTab === 'discount-categories' && <DiscountCategoriesTab />}
     </div>
   );
 }

@@ -169,20 +169,22 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
       ) : (
         <div
           onClick={() => setIsEditing(true)}
+          title="Add description"
           style={{
-            fontSize: '11px',
-            color: '#a3a3a3',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '20px',
+            height: '20px',
             cursor: 'pointer',
-            fontStyle: 'italic',
-            padding: '8px 8px',
-            border: '1px dashed #e5e7eb',
-            borderRadius: '4px',
-            background: '#fafafa',
+            borderRadius: '3px',
+            color: '#a3a3a3',
+            transition: 'all 0.15s',
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#3b82f6'; (e.currentTarget as HTMLElement).style.color = '#3b82f6'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLElement).style.color = '#a3a3a3'; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#f3f4f6'; (e.currentTarget as HTMLElement).style.color = '#525252'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#a3a3a3'; }}
         >
-          Add description...
+          <Pencil size={12} />
         </div>
       )}
     </div>

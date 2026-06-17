@@ -30,6 +30,16 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
   const { data: warehouses = [] } = useWarehouses();
   const { data: variants = [] } = useVariants();
   const { data: units = [] } = useUnits();
+  const { data: discountCategories = [] } = useQuery({
+    queryKey: ['discountCategories', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase.from('discount_categories').select('*').or(`organisation_id.eq.${organisation.id},organisation_id.is.null`).eq('is_active', true).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
 
   const [materialSavePending, setMaterialSavePending] = useState(false);
   const [formData, setFormData] = useState({
@@ -37,7 +47,8 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
     uses_variant: false, track_inventory: false,
-    item_classification: 'goods_sold'
+    item_classification: 'goods_sold',
+    discount_category_id: null
   });
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
@@ -51,7 +62,9 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
       size: '', pressure_class: '', make: '', material: '', end_connection: '',
       unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-      uses_variant: false, track_inventory: false
+      uses_variant: false, track_inventory: false,
+      item_classification: 'goods_sold',
+      discount_category_id: null
     });
     setVariantPricing([]);
     
@@ -98,7 +111,19 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
 
     if (materialSavePending) return;
     setMaterialSavePending(true);
-    
+
+    const { data: existing } = await supabase
+      .from('materials')
+      .select('id, name')
+      .eq('organisation_id', organisation?.id)
+      .ilike('name', formData.item_name.trim())
+      .maybeSingle();
+    if (existing) {
+      alert(`"${formData.item_name}" already exists. Duplicate names are not allowed.`);
+      setMaterialSavePending(false);
+      return;
+    }
+
     if (formData.uses_variant && variantPricing.length === 0) {
       alert('Please add at least one variant pricing before saving.');
       setMaterialSavePending(false);
@@ -135,6 +160,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       is_manufactured: false,
       item_classification: 'goods_sold',
       item_type: 'product',
+      discount_category_id: formData.discount_category_id || null,
       organisation_id: organisation?.id
     };
 
@@ -263,7 +289,8 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
         </div>
 
         {/* Form Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ padding: '30px 30px 0' }}>
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               
@@ -370,10 +397,24 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                 </div>
               </section>
 
-              {/* Variants */}
+              {/* Discount Category & Variant Pricing */}
               <section>
+                <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Category &amp; Pricing</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Discount Category</label>
+                  <select
+                    style={{ padding: '10px 14px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', outline: 'none', background: '#fff' }}
+                    value={formData.discount_category_id || ''}
+                    onChange={e => setFormData({...formData, discount_category_id: e.target.value || null})}
+                  >
+                    <option value="">No Discount Category</option>
+                    {discountCategories.map(dc => (
+                      <option key={dc.id} value={dc.id}>{dc.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Category Configuration</h4>
+                  <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Variant Pricing</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="checkbox"
@@ -395,7 +436,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                           value={row.company_variant_id}
                           onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
                         >
-                          <option value="">Discount Category</option>
+                          <option value="">Select Variant</option>
                           {variants.map(v => (
                             <option key={v.id} value={v.id}>{v.variant_name}</option>
                           ))}
@@ -529,15 +570,19 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
               </section>
             </div>
           </form>
-        </div>
+          </div>
 
         {/* Footer Actions */}
         <div style={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10,
           display: 'flex',
           gap: '12px',
           padding: '24px 30px',
           borderTop: '1px solid #e5e5e5',
           background: '#fff',
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
         }}>
           <button
             type="button"
@@ -581,6 +626,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
           >
             {materialSavePending ? 'Saving...' : 'Save Item'}
           </button>
+        </div>
         </div>
       </div>
     </div>

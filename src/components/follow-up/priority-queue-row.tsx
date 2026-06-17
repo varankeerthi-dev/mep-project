@@ -23,6 +23,7 @@ const SOURCE_STYLES: Record<PriorityQueueItem['source_tab'], string> = {
   quotation: 'bg-indigo-50 text-indigo-700',
   podc: 'bg-emerald-50 text-emerald-800',
   invoice: 'bg-sky-50 text-sky-800',
+  lead: 'bg-violet-50 text-violet-800',
 };
 
 type PriorityQueueRowProps = {

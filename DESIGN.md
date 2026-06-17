@@ -195,3 +195,149 @@ When multiple dropdowns exist in a table (e.g., BOM rows), use:
 ## Container class
 
 `.dropdown-container` is added to the wrapper `div` for click-outside detection.
+
+---
+
+# Buttons
+
+The button system has three intent levels: **primary**, **secondary**, and **destructive**. All buttons share the same core geometry; only color tokens differ.
+
+## Core tokens (shared by every button)
+
+| Token | Value |
+|---|---|
+| Padding (vertical / horizontal) | `6px` / `12px` (header) — `7px 16px` (modal) |
+| Border | `1px solid <intent-border>` |
+| Border-radius | `6px` (header) — `8px / rounded-lg` (modal) |
+| Font size / weight | `12px` / `500` (header) — `12px` / `600` (modal primary) |
+| Cursor | `pointer` — `not-allowed` when disabled |
+| Disabled opacity | `0.6` |
+| Transition | `all 0.15s` |
+| Layout | `display: 'flex', alignItems: 'center', gap: '4px'` |
+
+## Primary (Save / Confirm)
+
+Used for the main action in a screen or modal.
+
+```tsx
+{
+  padding: '6px 14px',
+  background: '#185FA5',      // brand blue
+  border: '1px solid #185FA5',
+  color: '#fff',
+}
+onMouseEnter: background → '#0C447C', borderColor → '#0C447C'
+onMouseLeave: revert
+```
+
+## Secondary (Cancel / Close)
+
+Used for the dismiss action next to a primary button.
+
+```tsx
+{
+  padding: '6px 14px',
+  border: '1px solid #d1d5db',
+  background: '#fff',
+  color: '#374151',           // zinc-700
+}
+onMouseEnter: background → '#f3f4f6', borderColor → '#9ca3af'
+onMouseLeave: revert
+```
+
+## Destructive (Delete)
+
+Used for delete actions in headers, action menus, and confirmation modals. **Icon and text color are black** (neutral, not red) — the danger signal is carried by the *action it triggers* (confirmation modal) and the *icon shape* (`Trash2`), not by red text.
+
+```tsx
+// Header delete button (e.g. BOMEditor)
+{
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',                // icon ↔ text
+  padding: '6px 12px',
+  border: '1px solid #d1d5db',   // neutral border (NOT red)
+  background: '#fff',
+  color: '#000000',              // black text + black icon (NOT red)
+  borderRadius: '6px',
+  fontSize: '12px',
+  fontWeight: 500,
+}
+onMouseEnter: background → '#f3f4f6', borderColor → '#9ca3af'
+onMouseLeave: revert
+```
+
+```tsx
+<button>
+  <Trash2 size={13} /> Delete
+</button>
+```
+
+| Token | Value |
+|---|---|
+| Icon | `lucide-react` `Trash2`, **13px** |
+| Gap icon ↔ text | **4px** |
+| Padding | **6px / 12px** |
+| Border | `1px solid #d1d5db` (zinc-300) |
+| Border-radius | **6px** |
+| Text + icon color | `#000000` (black) |
+| Background | `#fff` → `#f3f4f6` on hover |
+| Hover border | `#9ca3af` |
+
+## Action-menu delete item (BOMList row menu)
+
+The delete item inside a dropdown action menu follows the same neutral color rule. It is separated from non-destructive items by a thin divider.
+
+```tsx
+<button
+  className="
+    flex w-full items-center gap-2
+    rounded-lg px-3 py-2
+    text-sm text-zinc-700
+    hover:text-zinc-900 hover:bg-zinc-50
+    transition-all
+  "
+>
+  <Trash2 className="w-3.5 h-3.5" /> Delete BOM
+</button>
+```
+
+| Token | Value |
+|---|---|
+| Icon | `Trash2`, **14×14px** |
+| Gap icon ↔ text | **8px** |
+| Padding | **8px / 12px** |
+| Border-radius | **8px** |
+| Text + icon color | `#3f3f46` (zinc-700) — NOT red |
+| Hover bg | `#fafafa` (zinc-50) |
+| Divider above | `my-1 border-t border-zinc-100` |
+
+## Confirmation modal
+
+A destructive action always opens a confirmation modal. The modal itself uses **red** for the danger icon badge and the confirm button — this is where the danger signal lives, not on the trigger button.
+
+| Element | Token |
+|---|---|
+| Backdrop | `bg-black/40` |
+| Card | `bg-white`, `rounded-2xl` (16px), `p-6` (24px), `max-w-[420px]`, `shadow-2xl` |
+| Icon badge | `w-10 h-10`, `rounded-xl` (12px), `bg-rose-50` |
+| Icon | `Trash2`, `w-5 h-5` (20×20), `text-rose-600` |
+| Title | `text-[15px] font-semibold text-zinc-900` |
+| Title row gap | `gap-3` (12px) — badge ↔ title |
+| Title ↔ body | `mb-3` (12px) |
+| Body line-height | `leading-[18px]` |
+| Body ↔ buttons | `mb-5` (20px) |
+| Buttons row gap | `gap-2` (8px), `justify-end` |
+| Button height | `h-9` (36px) |
+| Button h-padding | `px-4` (16px) |
+| Cancel button | white, `border-zinc-200`, `text-zinc-600`, `rounded-lg` |
+| Confirm button | `bg-rose-600`, `text-white`, `rounded-lg`, `font-semibold`, hover `bg-rose-700` |
+| Icon in confirm button (while pending) | `Loader2 w-3.5 h-3.5 animate-spin`, gap `1.5` (6px) |
+
+## Rules
+
+1. **Trigger buttons (header / menu) use black text** for destructive actions — no red text on the trigger itself.
+2. **The confirmation modal is the only place that uses red** (icon badge + confirm button).
+3. The danger icon is always `Trash2` from `lucide-react` — never an alternative icon.
+4. Destructive trigger buttons in action menus are separated from non-destructive items with a `border-t border-zinc-100` divider and 4px vertical margin.
+5. Disabled state during in-flight mutation: `opacity: 0.6`, `cursor: 'not-allowed'`, hover handlers guarded.

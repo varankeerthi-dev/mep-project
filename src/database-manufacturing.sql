@@ -788,7 +788,11 @@ BEGIN
       'job_card', NEW.id, NEW.status,
       jsonb_build_object('old_status', OLD.status, 'new_status', NEW.status),
       auth.uid(), 
-      COALESCE((SELECT full_name FROM profiles WHERE id = auth.uid()), 'Unknown'),
+      COALESCE(
+        (SELECT full_name FROM user_profiles WHERE user_id = auth.uid() LIMIT 1),
+        (SELECT full_name FROM user_profiles WHERE id = auth.uid() LIMIT 1),
+        'Unknown'
+      ),
       NEW.organisation_id
     );
   END IF;
@@ -819,7 +823,11 @@ BEGIN
       'output_unit', NEW.output_unit
     ),
     auth.uid(),
-    COALESCE((SELECT full_name FROM profiles WHERE id = auth.uid()), 'Unknown'),
+    COALESCE(
+      (SELECT full_name FROM user_profiles WHERE user_id = auth.uid() LIMIT 1),
+      (SELECT full_name FROM user_profiles WHERE id = auth.uid() LIMIT 1),
+      'Unknown'
+    ),
     NEW.organisation_id
   );
   RETURN NEW;
@@ -848,7 +856,11 @@ BEGIN
       'schedule_date', NEW.schedule_date
     ),
     auth.uid(),
-    COALESCE((SELECT full_name FROM profiles WHERE id = auth.uid()), 'Unknown'),
+    COALESCE(
+      (SELECT full_name FROM user_profiles WHERE user_id = auth.uid() LIMIT 1),
+      (SELECT full_name FROM user_profiles WHERE id = auth.uid() LIMIT 1),
+      'Unknown'
+    ),
     NEW.organisation_id
   );
   RETURN NEW;

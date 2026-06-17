@@ -225,6 +225,7 @@ const menuData: MenuSection[] = [
         label: 'Manufacturing', 
         submenu: [
           { id: 'mfg-dashboard', label: 'Dashboard', path: '/manufacturing' },
+          { id: 'mfg-inventory', label: 'Inventory', path: '/manufacturing/inventory' },
           { id: 'mfg-boms', label: 'BOMs', path: '/manufacturing/boms' },
           { id: 'mfg-schedules', label: 'Production Schedules', path: '/manufacturing/schedules' },
           { id: 'mfg-job-cards', label: 'Job Cards', path: '/manufacturing/job-cards' },
