@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, RefreshCw, Loader2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Loader2, RotateCcw, AlertTriangle } from 'lucide-react';
 
 
 type JobCardDetailProps = {
@@ -182,6 +182,11 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
     }
     return map;
   }, [stockByMaterial, whIds]);
+
+  const hasShortage = useMemo(() => {
+    if (jobCard?.status !== 'draft' || !materials) return false;
+    return materials.some(mat => (mainStoreStockByMaterial[mat.material_id] || 0) < mat.planned_qty);
+  }, [jobCard?.status, materials, mainStoreStockByMaterial]);
 
   const issueMaterials = useMutation({
     mutationFn: async () => {
@@ -569,7 +574,7 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
       </div>
 
       {/* Main Content Area */}
-      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: '24px', maxWidth: '1200px' }}>
         
         {issueError && (
           <div style={{ marginBottom: '16px', padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b', fontSize: '12px', fontWeight: 500 }}>
@@ -581,6 +586,18 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
+            {hasShortage && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
+                <AlertTriangle size={20} color="#dc2626" style={{ marginTop: '2px' }} />
+                <div>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: '#991b1b' }}>Material Shortage Detected</h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#b91c1c' }}>
+                    There is insufficient stock in the Main Store to issue this job card. Check the materials list below for items marked in red.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Card 1: Job Card Details */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px', transition: 'border-color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = '#93c5fd'}
@@ -679,6 +696,7 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
                         <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Operator</th>
                         <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Machine</th>
                         <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Notes / Scrap</th>
+                        <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', width: '60px' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -692,6 +710,18 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
                           <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{entry.machine_name || '—'}</td>
                           <td style={{ padding: '10px 12px', fontSize: '11px', color: '#6b7280', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.notes || entry.scrap_byproducts || ''}>
                             {entry.notes || entry.scrap_byproducts || '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            {(!entry.status || entry.status === 'active') && (
+                              <button
+                                onClick={() => onNavigate(`/manufacturing/production/create?edit=${entry.id}`)}
+                                style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 500, color: '#185FA5', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', cursor: 'pointer' }}
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {entry.status === 'edited' && <span style={{ fontSize: '10px', color: '#9ca3af', fontStyle: 'italic' }}>Edited</span>}
+                            {entry.status === 'reversal' && <span style={{ fontSize: '10px', color: '#ef4444', fontStyle: 'italic' }}>Reversal</span>}
                           </td>
                         </tr>
                       ))}

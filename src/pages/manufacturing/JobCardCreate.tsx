@@ -276,7 +276,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
       </div>
 
       {/* Main Content Area */}
-      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: '24px', maxWidth: '1200px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '24px' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

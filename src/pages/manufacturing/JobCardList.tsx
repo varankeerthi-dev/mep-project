@@ -117,7 +117,7 @@ export default function JobCardList({ onNavigate }: JobCardListProps) {
       </div>
 
       {/* Main Content Area */}
-      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: '24px', maxWidth: '1200px' }}>
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
           
           {/* Filters Bar */}
