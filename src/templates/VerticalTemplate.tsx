@@ -1,4 +1,5 @@
 import React from "react";
+import DOMPurify from 'dompurify';
 import { formatCurrency, formatDate } from "../utils/formatters";
 
 /* ---------------- HELPERS ---------------- */
@@ -623,7 +624,7 @@ export default function VerticalTemplate({
         
         <div className="mt-4 flex-1 text-[11px] leading-relaxed txt-zinc-700 font-medium">
           <div dangerouslySetInnerHTML={{ 
-            __html: (() => {
+            __html: DOMPurify.sanitize((() => {
               let termsText = '';
               
               // Handle new Terms & Conditions format
@@ -687,7 +688,7 @@ export default function VerticalTemplate({
               
               console.log('Final termsText:', termsText);
               return termsText.replace(/\n/g, '<br/>');
-            })()
+            })())
           }} />
         </div>
 

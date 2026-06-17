@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } fro
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
@@ -203,6 +203,13 @@ type QuickAction =
   | 'remind'
   | 'search'
   | 'export';
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { organisation, organisations } = useAuth();
+  const currentOrg = organisations.find(o => o.organisation?.id === organisation?.id);
+  if (currentOrg?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
 
 export default function App() {
   const location = useLocation();
@@ -446,8 +453,8 @@ export default function App() {
       case '/settings/quick-quote': return <QuickQuoteSettings />;
       case '/settings/terms-conditions': return <TermsConditionsSettings />;
       case '/settings/document-series': return <TransactionNumberSeries />;
-      case '/settings/organisation': return <OrganisationSettings organisation={organisation} userId={user?.id} />;
-      case '/settings/access-control': return <AccessControlPage />;
+      case '/settings/organisation': return <AdminRoute><OrganisationSettings organisation={organisation} userId={user?.id} /></AdminRoute>;
+      case '/settings/access-control': return <AdminRoute><AccessControlPage /></AdminRoute>;
       case '/approval-settings': return <ApprovalSettings />;
       case '/finance/payments': return <PaymentsHub />;
       default:

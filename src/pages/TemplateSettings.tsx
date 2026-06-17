@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
+import DOMPurify from 'dompurify';
 
 import { PortraitTemplate } from '../templates/PortraitTemplate';
 
@@ -1512,7 +1513,7 @@ export default function TemplateSettings() {
                 <button onClick={() => setShowPreview(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
               </div>
               <div className="modal-body" style={{ overflowY: 'auto', background: '#f3f4f6', padding: '40px 20px' }}>
-                <div dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatePreviewHTML()) }} />
               </div>
               <div className="modal-footer">
                 <button className="btn btn-primary" onClick={() => setShowPreview(false)}>Close Preview</button>

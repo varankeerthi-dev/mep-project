@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { fetchDeliveryChallans, deleteDeliveryChallan } from '../api';
@@ -1066,7 +1067,7 @@ export default function DCList() {
             <div className="flex-1 overflow-auto bg-zinc-50 p-10">
               <div 
                 className="preview-content shadow-2xl"
-                dangerouslySetInnerHTML={{ __html: previewHtml }} 
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHtml) }} 
               />
             </div>
           </div>

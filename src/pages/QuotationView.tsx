@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -2155,7 +2156,7 @@ export default function QuotationView() {
                 id="preview-modal-content"
                 className="bg-white mx-auto shadow-lg"
                 style={{ width: '210mm', minHeight: '297mm' }}
-                dangerouslySetInnerHTML={{ __html: previewHTML }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHTML) }}
               />
             )}
           </div>
