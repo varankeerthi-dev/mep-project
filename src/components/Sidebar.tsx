@@ -90,6 +90,13 @@ const menuData: MenuSection[] = [
     ]
   },
   {
+    section: 'Accounting',
+    items: [
+      { id: 'chart-of-accounts', label: 'Chart of Accounts', path: '/accounting/chart-of-accounts' },
+      { id: 'day-book', label: 'Day Book', path: '/accounting/day-book' }
+    ]
+  },
+  {
     section: 'Client',
     items: [
       {
@@ -356,6 +363,9 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'purchase-payment-queue': 'ClockIcon',
   procurement: 'ClipboardDocumentListIcon',
   manufacturing: 'Cog6ToothIcon',
+  accounting: 'CalculatorIcon',
+  'chart-of-accounts': 'RectangleGroupIcon',
+  'day-book': 'BookOpenIcon',
   dc: 'TruckIcon',
   'non-billable-dc': 'TruckIcon',
   reports: 'ChartBarIcon',

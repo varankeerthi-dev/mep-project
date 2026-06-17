@@ -98,6 +98,8 @@ const ProcurementDetail = lazyAny(() => import('./pages/ProcurementDetail'));
 const HandoverList = lazyAny(() => import('./pages/HandoverList'));
 const ProjectOverview = lazyAny(() => import('./pages/ProjectOverview'));
 const Projects = lazyAny(() => import('./pages/Projects'));
+const DayBook = lazyAny(() => import('./pages/accounting/DayBook'));
+const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts'));
 
 // Lazy load internally moved pages
 const Dashboard = lazyAny(() => import('./pages/Dashboard'));
@@ -457,6 +459,8 @@ export default function App() {
       case '/settings/access-control': return <AdminRoute><AccessControlPage /></AdminRoute>;
       case '/approval-settings': return <ApprovalSettings />;
       case '/finance/payments': return <PaymentsHub />;
+      case '/accounting/day-book': return <DayBook />;
+      case '/accounting/chart-of-accounts': return <ChartOfAccounts />;
       default:
         if (pathKey.startsWith('/issue/')) {
           // Match /issue/<id> but not /issue/new
