@@ -41,6 +41,26 @@ export async function hasPermission(userId: string, organisationId: string, perm
   return !!permission;
 }
 
+export async function listMyPermissions(userId: string, organisationId: string): Promise<PermissionKey[]> {
+  const { data: orgMember } = await supabase
+    .from('org_members')
+    .select('role, role_id')
+    .eq('user_id', userId)
+    .eq('organisation_id', organisationId)
+    .single();
+
+  if (!orgMember) return [];
+  if (orgMember.role === 'admin') return ['admin_all_access'] as any;
+  if (!orgMember.role_id) return [];
+
+  const { data: permissions } = await supabase
+    .from('role_permissions')
+    .select('permission_key')
+    .eq('role_id', orgMember.role_id);
+
+  return (permissions || []).map((p: any) => p.permission_key as PermissionKey);
+}
+
 export type PublicOrganisation = {
   id: string;
   name: string;

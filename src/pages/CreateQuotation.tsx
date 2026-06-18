@@ -1178,6 +1178,24 @@ const loadQuoteNoPreview = useCallback(async () => {
           struct = data;
         }
 
+        // Load all active discount categories
+        const { data: dcList } = await supabase
+          .from('discount_categories')
+          .select('id, default_discount_percent')
+          .or(`organisation_id.eq.${organisation?.id},organisation_id.is.null`)
+          .eq('is_active', true);
+
+        // Pre-populate with global default or client custom override
+        (dcList || []).forEach(dc => {
+          const customDisc = customDiscounts[dc.id];
+          discounts[dc.id] = customDisc !== undefined ? parseFloat(customDisc) || 0 : parseFloat(dc.default_discount_percent) || 0;
+          settings[dc.id] = {
+            default: parseFloat(dc.default_discount_percent) || 0,
+            min: 0,
+            max: 100
+          };
+        });
+
         if (struct) {
           const { data: dcSettings } = await supabase
             .from('discount_variant_settings')
@@ -1189,8 +1207,10 @@ const loadQuoteNoPreview = useCallback(async () => {
           dcSettings?.forEach(s => {
             const dcId = s.discount_category_id;
             if (!dcId) return;
-            const customDisc = customDiscounts[dcId] !== undefined ? customDiscounts[dcId] : parseFloat(s.default_discount_percent) || 0;
-            discounts[dcId] = customDisc;
+            // Use structure default if no client custom override exists
+            if (customDiscounts[dcId] === undefined) {
+              discounts[dcId] = parseFloat(s.default_discount_percent) || 0;
+            }
             settings[dcId] = {
               default: parseFloat(s.default_discount_percent) || 0,
               min: parseFloat(s.min_discount_percent) || 0,
@@ -1204,7 +1224,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
 
     return { discounts, settings };
-  }, [clients]);
+  }, [clients, organisation?.id]);
 
   const loadQuotation = async (id, isDuplicate = false) => {
     let data;
@@ -1313,11 +1333,10 @@ const loadQuoteNoPreview = useCallback(async () => {
       if (portfolio.settings && Object.keys(portfolio.settings).length > 0) {
         setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
       }
+      setHeaderDiscounts(prev => ({ ...portfolio.discounts, ...prev }));
       
-      // Load variant discounts for saved quotations
-      if (!isDuplicate) {
-        await loadVariantDiscounts(id);
-      }
+      // Load variant discounts for saved quotations or duplicates
+      await loadVariantDiscounts(id);
       
       if (isDuplicate) {
         await loadQuoteNoPreview();

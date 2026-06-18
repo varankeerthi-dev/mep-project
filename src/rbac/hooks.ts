@@ -6,6 +6,7 @@ import {
   createRoleWithPermissions,
   listEmployees,
   listMyAccessRequests,
+  listMyPermissions,
   listOrgAccessRequests,
   listPublicOrganisations,
   listRolePermissions,
@@ -33,6 +34,16 @@ export function useMyAccessRequests(userId?: string | null) {
     queryFn: () => listMyAccessRequests(userId ?? ''),
     enabled: Boolean(userId),
     staleTime: 15 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useMyPermissions(userId?: string | null, organisationId?: string | null) {
+  return useQuery({
+    queryKey: ['rbac', 'my-permissions', userId, organisationId],
+    queryFn: () => listMyPermissions(userId ?? '', organisationId ?? ''),
+    enabled: Boolean(userId && organisationId),
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }

@@ -5,6 +5,7 @@ import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
+import { PermissionGuard } from '../rbac';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { ApprovalAPI } from '../approvals/api';
 import { jsPDF } from 'jspdf';
@@ -608,13 +609,15 @@ export default function QuotationList() {
         </div>
 
         <div className="flex items-center gap-[10px]">
-          <button
-            onClick={() => navigate('/quotation/create')}
-            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
-            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-          >
-            Create Quotation
-          </button>
+          <PermissionGuard permission="quotations.create">
+            <button
+              onClick={() => navigate('/quotation/create')}
+              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+            >
+              Create Quotation
+            </button>
+          </PermissionGuard>
 
           {/* Column Customizer */}
           <div className="relative" ref={columnCustomizerRef}>

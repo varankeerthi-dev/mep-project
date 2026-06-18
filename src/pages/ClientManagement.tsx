@@ -5,6 +5,7 @@ import { useAuth } from '../App';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ensureValidSession } from '../queryClient';
 import { withTimeout } from '../utils/queryTimeout';
+import { z } from 'zod';
 import {
   Button,
   Input,
@@ -131,6 +132,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
   const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: string; text: string }>({ type: '', text: '' });
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const pricelistsQuery = useQuery({
     queryKey: ['discountPricelists', organisation?.id],
@@ -154,10 +156,9 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
         .from('discount_structures')
         .select('*')
         .eq('organisation_id', organisation?.id)
-        .eq('is_active', true)
-        .neq('structure_name', 'Standard');
+        .eq('is_active', true);
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((s: any) => s.structure_name === 'Bulk');
     },
     enabled: !!organisation?.id,
     staleTime: 10 * 60 * 1000
@@ -216,9 +217,51 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
   const loading = previewQuery.isFetching;
 
   const handleCustomDiscountChange = (variantId: string | number, value: string) => {
+    if (value === '') {
+      setCustomDiscounts((prev: any) => ({
+        ...prev,
+        [variantId]: '' as any
+      }));
+      setValidationErrors(prev => {
+        const copy = { ...prev };
+        delete copy[variantId];
+        return copy;
+      });
+      return;
+    }
+
+    const num = parseFloat(value);
+    if (isNaN(num)) return;
+
+    let clampedNum = num;
+    if (num > 100) {
+      clampedNum = 100;
+    } else if (num < 0) {
+      clampedNum = 0;
+    }
+
+    // Validate with Zod schema
+    const result = z.number()
+      .min(0, { message: 'Discount cannot be negative' })
+      .max(100, { message: 'Discount cannot exceed 100%' })
+      .safeParse(clampedNum);
+      
+    if (!result.success) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [variantId]: result.error.errors[0].message
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const copy = { ...prev };
+        delete copy[variantId];
+        return copy;
+      });
+    }
+
     setCustomDiscounts((prev: any) => ({
       ...prev,
-      [variantId]: parseFloat(value) || 0
+      [variantId]: clampedNum
     }));
   };
 
@@ -227,15 +270,32 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
       setSaveMessage({ type: 'error', text: 'Please save the client general profile first before saving customized discounts.' });
       return;
     }
+
+    // Double check all validations using Zod
+    const validatedDiscounts: Record<string, number> = {};
+    for (const [id, val] of Object.entries(customDiscounts)) {
+      const num = val === '' ? 0 : (typeof val === 'string' ? parseFloat(val) : val);
+      const result = z.number()
+        .min(0, { message: 'Discount cannot be negative' })
+        .max(100, { message: 'Discount cannot exceed 100%' })
+        .safeParse(isNaN(num) ? 0 : num);
+      if (!result.success) {
+        const catName = discountCategories.find(dc => dc.id === id)?.name || 'Unknown Category';
+        setSaveMessage({ type: 'error', text: `Validation failed: "${catName}" ${result.error.errors[0].message}` });
+        return;
+      }
+      validatedDiscounts[id] = isNaN(num) ? 0 : num;
+    }
+
     setSaving(true);
     setSaveMessage({ type: '', text: '' });
     try {
       const { error } = await supabase
         .from('clients')
-        .update({ custom_discounts: customDiscounts })
+        .update({ custom_discounts: validatedDiscounts })
         .eq('id', formData.id);
       if (error) throw error;
-      setFormData((prev: any) => ({ ...prev, custom_discounts: customDiscounts }));
+      setFormData((prev: any) => ({ ...prev, custom_discounts: validatedDiscounts }));
       setSaveMessage({ type: 'success', text: 'Discounts securely deployed to database.' });
     } catch (err: any) {
       setSaveMessage({ type: 'error', text: 'Encountered an exception while saving: ' + (err?.message || err) });
@@ -261,13 +321,16 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
     </div>
   );
 
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const isSaveDisabled = saving || !formData.id || formData.discount_type === 'Standard' || hasValidationErrors;
+
   const primaryBtnStyle: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: '4px',
     padding: '6px 14px', background: '#185FA5',
     border: '1px solid #185FA5', color: '#fff',
     borderRadius: '6px', fontSize: '12px', fontWeight: 500,
-    cursor: saving || !formData.id ? 'not-allowed' : 'pointer',
-    opacity: saving || !formData.id ? 0.6 : 1,
+    cursor: isSaveDisabled ? 'not-allowed' : 'pointer',
+    opacity: isSaveDisabled ? 0.6 : 1,
     transition: 'all 0.15s'
   };
 
@@ -283,15 +346,13 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
                 <div className="relative">
                   <select
                     className={selectCn}
-                    value={formData.discount_type || 'Special'}
+                    value={formData.discount_type || 'Standard'}
                     onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
                     disabled={!isAdmin}
                     style={{ padding: '4px 8px', fontSize: '12px' }}
                   >
                     <option value="Standard">Standard Matrix (Price List)</option>
-                    <option value="Premium">Premium Schema (Variant Match)</option>
                     <option value="Bulk">Bulk Schema (Variant Match)</option>
-                    <option value="Special">Special Schema (Variant Match)</option>
                   </select>
                 </div>
               ))}
@@ -322,71 +383,84 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
       </section>
 
       {/* Customized Discounts */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e5e7eb', gap: '16px' }}>
-          <div>
-            <div style={sectionHeadStyle}>Customized Discounts</div>
-            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#9ca3af' }}>Override default discounts per category.</p>
+      {formData.discount_type !== 'Standard' && (
+        <section>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e5e7eb', gap: '16px' }}>
+            <div>
+              <div style={sectionHeadStyle}>Customized Discounts</div>
+              <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#9ca3af' }}>Override default discounts per category.</p>
+            </div>
+            <button
+              type="button"
+              style={primaryBtnStyle}
+              onClick={handleSaveCustomDiscounts}
+              disabled={isSaveDisabled}
+              onMouseEnter={e => { if (!isSaveDisabled) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+              onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+            >
+              {saving ? 'Saving...' : (
+                <><Save size={13} /> Save Discount Map</>
+              )}
+            </button>
           </div>
-          <button
-            type="button"
-            style={primaryBtnStyle}
-            onClick={handleSaveCustomDiscounts}
-            disabled={saving || !formData.id}
-            onMouseEnter={e => { if (!saving && formData.id) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
-            onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-          >
-            {saving ? 'Saving...' : (
-              <><Save size={13} /> Save Discount Map</>
-            )}
-          </button>
-        </div>
 
-        {saveMessage.text && (
-          <div className={cn(
-            'mb-6 rounded-xl px-5 py-4 text-[14px] font-medium leading-relaxed flex items-center gap-3',
-            saveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-l-4 border-emerald-500' : 'bg-rose-50 text-rose-800 border-l-4 border-rose-500'
-          )}>
-            <Info className="w-5 h-5 shrink-0" />
-            {saveMessage.text}
-          </div>
-        )}
+          {saveMessage.text && (
+            <div className={cn(
+              'mb-6 rounded-xl px-5 py-4 text-[14px] font-medium leading-relaxed flex items-center gap-3',
+              saveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-l-4 border-emerald-500' : 'bg-rose-50 text-rose-800 border-l-4 border-rose-500'
+            )}>
+              <Info className="w-5 h-5 shrink-0" />
+              {saveMessage.text}
+            </div>
+          )}
 
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', background: '#fff', overflow: 'hidden' }}>
-          <div className="max-h-[380px] overflow-auto">
-            <Table>
-              <TableHeader className="bg-zinc-50/80 sticky top-0 z-10">
-                <TableRow className="border-b-zinc-200/80">
-                  <TableHead className="w-[60%] font-bold text-zinc-600 uppercase tracking-wider">Category Name</TableHead>
-                  <TableHead className="w-[40%] font-bold text-zinc-600 uppercase tracking-wider text-right">Discount %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {discountCategories.length === 0 ? (
-                  <TableRow><td colSpan={2} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af' }}>No discount categories configured.</td></TableRow>
-                ) : (
-                  discountCategories.map((dc: any) => (
-                    <TableRow key={dc.id} className="border-b-zinc-100 hover:bg-zinc-50/50 transition-colors">
-                      <TableCell className="font-semibold text-zinc-700">{dc.name}</TableCell>
-                      <TableCell className="text-right">
-                        <CompactInput
-                          type="number"
-                          className="h-10 w-28 rounded-lg border-zinc-200 bg-white px-3 text-right text-[14px] font-semibold text-indigo-700 shadow-inner ml-auto"
-                          value={customDiscounts[dc.id] || 0}
-                          onChange={(e) => handleCustomDiscountChange(dc.id, e.target.value)}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', background: '#fff', overflow: 'hidden' }}>
+            <div className="max-h-[380px] overflow-auto">
+              <Table>
+                <TableHeader className="bg-zinc-50/80 sticky top-0 z-10">
+                  <TableRow className="border-b-zinc-200/80">
+                    <TableHead className="w-[60%] font-bold text-zinc-600 uppercase tracking-wider">Category Name</TableHead>
+                    <TableHead className="w-[40%] font-bold text-zinc-600 uppercase tracking-wider text-right">Discount %</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {discountCategories.length === 0 ? (
+                    <TableRow><td colSpan={2} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af' }}>No discount categories configured.</td></TableRow>
+                  ) : (
+                    discountCategories.map((dc: any) => (
+                      <TableRow key={dc.id} className="border-b-zinc-100 hover:bg-zinc-50/50 transition-colors">
+                        <TableCell className="font-semibold text-zinc-700">{dc.name}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <CompactInput
+                              type="number"
+                              className={cn(
+                                "h-10 w-28 rounded-lg border-zinc-200 bg-white px-3 text-right text-[14px] font-semibold text-indigo-700 shadow-inner ml-auto",
+                                validationErrors[dc.id] && "border-red-500 focus-visible:ring-red-500/15 focus-visible:border-red-500"
+                              )}
+                              value={customDiscounts[dc.id] ?? 0}
+                              onChange={(e) => handleCustomDiscountChange(dc.id, e.target.value)}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              disabled={formData.discount_type === 'Standard' || !isAdmin}
+                            />
+                            {validationErrors[dc.id] && (
+                              <span className="text-[10px] text-red-500 font-medium">
+                                {validationErrors[dc.id]}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Discount Matrix Preview */}
       <section>
@@ -447,7 +521,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     contact_person: '', contact_designation: '', contact_person_email: '',
     contact_person_2: '', contact_designation_2: '', contact_person_2_contact: '', contact_person_2_email: '',
     purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
-    about_client: '', discount_type: 'Special', standard_pricelist_id: null,
+    about_client: '', discount_type: 'Standard', standard_pricelist_id: null,
     msme_register_type: '', msme_number: '',
     gst_treatment: ''
   });

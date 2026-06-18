@@ -197,11 +197,12 @@ export default function DiscountSettings() {
         supabase.from('discount_categories').select('*').or(`organisation_id.eq.${organisation.id},organisation_id.is.null`).eq('is_active', true).order('name')
       ]);
 
-      setStructures(structuresData.data?.length ? structuresData.data : [
+      const filteredStructures = (structuresData.data || []).filter(
+        (s: any) => s.structure_name !== 'Premium' && s.structure_name !== 'Special'
+      );
+      setStructures(filteredStructures.length ? filteredStructures : [
         { id: '1', structure_number: 1, structure_name: 'Standard', description: 'Default standard discount' },
-        { id: '2', structure_number: 2, structure_name: 'Premium', description: 'Premium discount for valued clients' },
-        { id: '3', structure_number: 3, structure_name: 'Bulk', description: 'Bulk order discount' },
-        { id: '4', structure_number: 4, structure_name: 'Special', description: 'Special discount structure' }
+        { id: '3', structure_number: 3, structure_name: 'Bulk', description: 'Bulk order discount' }
       ]);
       setVariants(variantsData.data?.length ? variantsData.data : []);
       setDiscountCategories(discountCatsData.data?.length ? discountCatsData.data : []);
