@@ -202,6 +202,7 @@ export default function InvoiceView() {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
     if (!confirm('This action cannot be undone. Continue?')) return;
     try {
+      await supabase.from('approvals').delete().eq('reference_id', selectedInvoice.id);
       await supabase.from('invoices').delete().eq('id', selectedInvoice.id);
       navigate('/invoices');
     } catch (err: any) {

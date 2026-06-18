@@ -3384,7 +3384,8 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
 
   const handleDeletePayment = async (id: string) => {
     if (!confirm('Are you sure you want to delete this payment?')) return;
-    await supabase.from('subcontractor_payments').delete().eq('id', id);
+    await supabase.from('approvals').delete().eq('reference_id', id);
+      await supabase.from('subcontractor_payments').delete().eq('id', id);
     setPayments(payments.filter(p => p.id !== id));
   };
 

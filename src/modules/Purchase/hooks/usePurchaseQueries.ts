@@ -444,6 +444,7 @@ export const useDeletePO = () => {
 
   return useMutation({
     mutationFn: withSessionCheck(async ({ id, organisationId }: { id: string; organisationId: string }) => {
+      await supabase.from('approvals').delete().eq('reference_id', id);
       const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
       if (error) throw error;
       return { id, organisationId };

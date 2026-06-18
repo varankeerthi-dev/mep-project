@@ -1669,7 +1669,7 @@ body {
 }
 
 .grid-table th.col-rate-after-disc {
-  width: 145px;
+  width: 95px;
   text-align: right;
 }
 
@@ -1693,7 +1693,13 @@ body {
 }
 
 .grid-table th.col-make {
-  width: 130px;
+  width: 80px;
+}
+.grid-table .col-make-cell {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .grid-table td {
@@ -1788,13 +1794,6 @@ body {
   font-size: 13px;
 }
 
-.grid-table .amount-value::before {
-  content: '₹ ';
-  margin-right: 2px;
-  color: #6b7280;
-  font-weight: 500;
-}
-
 .grid-table .avail-value {
   color: #059669;
   font-weight: 500;
@@ -1836,6 +1835,10 @@ body {
 .grid-table .col-shrink {
   width: 1%;
   white-space: nowrap;
+}
+.grid-table .col-custom {
+  min-width: 120px;
+  width: 140px;
 }
 
 .grid-table .delete-cell {

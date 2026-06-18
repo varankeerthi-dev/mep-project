@@ -131,7 +131,7 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
         onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
         style={{
           padding: '4px 8px',
-          cursor: 'pointer',
+          cursor: 'default',
           fontSize: '12px',
           color: selected ? '#1e293b' : '#94a3b8',
           background: '#fff',

@@ -13,6 +13,7 @@ import { generateQuotationPdf } from '../pdf/enterpriseQuotationPdf';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
+import { generateZohoTemplate } from './ZohoTemplate';
 import { generateGridMinimalQuotationPdfBlobWithTerms } from '../pdf/grid-minimal/quotation-with-terms';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import SaaSTemplate from '../templates/SaaSTemplate';
@@ -305,6 +306,7 @@ export default function QuotationView() {
     if (!confirm('Are you sure you want to delete this quotation? This cannot be undone.')) return;
 
     try {
+      await supabase.from('approvals').delete().eq('reference_id', quotationId);
       await supabase
         .from('quotation_header')
         .delete()
@@ -445,12 +447,14 @@ export default function QuotationView() {
 
       if (action === 'preview') {
         previewQuotation(template);
+      } else if (action === 'preview-tab') {
+        await downloadPDF(template, 'preview-tab');
       } else if (action === 'download') {
-        await downloadPDF(template);
+        await downloadPDF(template, 'download');
       } else if (action === 'email') {
         alert('Email feature coming soon!');
       } else if (action === 'print') {
-        await downloadPDF(template); // Fallback to download for default print
+        await downloadPDF(template, 'print');
       }
 
       setShowPrintMenu(false);
@@ -736,13 +740,35 @@ export default function QuotationView() {
     printWindow.document.close();
   };
 
-  const downloadPDF = async (template) => {
+  const downloadPDF = async (template, action = 'download') => {
     try {
       if (!quotation) throw new Error('Quotation data is missing');
 
       const safeFileName = String(quotation.quotation_no || 'quotation')
         .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
         .replace(/\s+/g, '_');
+
+      const handleOutput = (blob) => {
+        const url = URL.createObjectURL(blob);
+        if (action === 'preview-tab') {
+          window.open(url, '_blank');
+        } else if (action === 'print') {
+          const printWindow = window.open(url, '_blank');
+          if (printWindow) {
+            printWindow.onload = () => {
+              printWindow.print();
+            };
+          }
+        } else {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${safeFileName}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+      };
 
       // Handle HTML templates
       if (template.template_type === 'html') {
@@ -827,7 +853,8 @@ export default function QuotationView() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
 
-        renderTemplateToPdf(template.template_content || '', htmlData, `${safeFileName}.pdf`);
+        const blob = await renderTemplateToPdf(template.template_content || '', htmlData, `${safeFileName}.pdf`);
+        handleOutput(blob);
         return;
       }
 
@@ -864,7 +891,8 @@ export default function QuotationView() {
 
           // Wait longer for fonts and layout
           await new Promise(resolve => setTimeout(resolve, 2000));
-          await htmlToPdf(container, `${safeFileName}.pdf`);
+          const blob = await htmlToPdf(container, `${safeFileName}.pdf`);
+          handleOutput(blob);
         } catch (captureErr) {
           console.error('SaaS PDF Capture Error:', captureErr);
           throw captureErr;
@@ -908,7 +936,8 @@ export default function QuotationView() {
 
           // Wait longer for fonts and layout
           await new Promise(resolve => setTimeout(resolve, 3000));
-          await htmlToPdf(container, `${safeFileName}.pdf`);
+          const blob = await htmlToPdf(container, `${safeFileName}.pdf`);
+          handleOutput(blob);
         } catch (captureErr) {
           console.error('Vertical PDF Capture Error:', captureErr);
           throw captureErr;
@@ -921,9 +950,18 @@ export default function QuotationView() {
 
       // Special handling for Zoho Template
       if (template.template_code === 'QTN_ZOHO') {
-        // Zoho template not implemented yet, fallback to default
-        console.warn('Zoho template not implemented, using default');
-        return;
+        try {
+          const quotationWithTerms = {
+            ...quotation,
+            terms_conditions: termsConditionsQuery.data?.custom_content || null
+          };
+          const zohoDoc = generateZohoTemplate(quotationWithTerms, organisation, template);
+          handleOutput(zohoDoc.output('blob'));
+          return;
+        } catch (error) {
+          console.error('Error generating Zoho template:', error);
+          throw error;
+        }
       }
 
       // Special handling for Classic Template
@@ -941,7 +979,7 @@ export default function QuotationView() {
           const safeFileName = String(quotation.quotation_no || 'quotation')
             .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
             .replace(/\s+/g, '_');
-          classicDoc.save(`${safeFileName}.pdf`);
+          handleOutput(classicDoc.output('blob'));
           return;
         } catch (error) {
           console.error('Error generating Classic template:', error);
@@ -962,7 +1000,7 @@ export default function QuotationView() {
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
-        gridDoc.save(`${safeFileName}.pdf`);
+        handleOutput(gridDoc.output('blob'));
         return;
       }
 
@@ -1062,7 +1100,7 @@ export default function QuotationView() {
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
-        enterpriseDoc.save(`${safeFileName}.pdf`);
+        handleOutput(enterpriseDoc.output('blob'));
         return;
       }
 
@@ -1274,7 +1312,7 @@ export default function QuotationView() {
         doc.text(selectedSignatory?.name || 'Authorized Signature', 140, signStart + 20);
       }
 
-      doc.save(`${safeFileName}.pdf`);
+      handleOutput(doc.output('blob'));
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('PDF export failed. Please check template settings and try again.');
@@ -1636,7 +1674,7 @@ export default function QuotationView() {
                   {printMenuView === 'main' ? (
                     <>
                       <button 
-                        onClick={() => handlePrintAction('preview')}
+                        onClick={() => handlePrintAction('preview-tab')}
                         className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                         style={{ padding: '12px' }}
                       >

@@ -436,6 +436,7 @@ export async function deleteDeliveryChallan(id: string): Promise<{ success: bool
     .from('delivery_challans')
     .delete()
     .eq('id', id);
+  await supabase.from('approvals').delete().eq('reference_id', id);
   if (error) throw error;
   return { success: true };
 }

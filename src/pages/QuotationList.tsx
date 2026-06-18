@@ -1147,7 +1147,7 @@ export default function QuotationList() {
                                 e.stopPropagation();
                                 setOpenMenuId(null);
                                 if (confirm('Are you sure you want to delete this quotation?')) {
-                                  supabase.from('quotation_header').delete().eq('id', q.id).then(() => {
+                                  supabase.from('approvals').delete().eq('reference_id', q.id).then(() => supabase.from('quotation_header').delete().eq('id', q.id)).then(() => {
                                     queryClient.invalidateQueries({ queryKey: ['quotations'] });
                                   });
                                 }

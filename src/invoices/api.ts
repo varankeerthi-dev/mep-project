@@ -361,6 +361,7 @@ export async function createInvoice(input: InvoiceInput & { organisation_id: str
     return getInvoiceById(insertedInvoiceId, organisationId);
   } catch (error) {
     if (invoiceId) {
+      await supabase.from('approvals').delete().eq('reference_id', invoiceId);
       await supabase.from('invoices').delete().eq('id', invoiceId);
     }
     throw error;
@@ -440,6 +441,7 @@ export async function deleteInvoice(id: string, organisationId: string): Promise
     // Continue with deletion even if reversal fails
   }
 
+  await supabase.from('approvals').delete().eq('reference_id', id);
   const { error } = await supabase.from('invoices').delete().eq('id', id).eq('organisation_id', organisationId);
   if (error) throw error;
 }

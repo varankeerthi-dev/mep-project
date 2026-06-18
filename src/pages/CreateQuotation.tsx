@@ -575,6 +575,7 @@ export default function CreateQuotation() {
         rate: 0,
         discount_percent: 0,
         discount_amount: 0,
+        discount_type: 'percent',
         tax_percent: 0,
         tax_amount: 0,
         line_total: 0,
@@ -627,6 +628,7 @@ export default function CreateQuotation() {
         tax_percent: item.tax_percent || 0,
         uom: item.uom,
         discount_percent: 0,
+        discount_type: 'percent',
         line_total: item.qty * item.rate,
       }));
       setItems(newItems);
@@ -1292,6 +1294,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             qty: parseFloat(item.qty) || 0,
             rate: parseFloat(item.rate) || 0,
             discount_percent: parseFloat(item.discount_percent) || 0,
+            discount_type: item.discount_type || 'percent',
             tax_percent: parseFloat(item.tax_percent) || 0,
             line_total: parseFloat(item.line_total) || 0
           };
@@ -1552,6 +1555,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         uom: material.unit,
         tax_percent: material.gst_rate || 0,
         discount_percent: 0,
+        discount_type: 'percent',
         description: ''
       }]);
     }
@@ -1588,6 +1592,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       uom: newItem.unit,
       tax_percent: newItem.gst_rate || 0,
       discount_percent: 0,
+      discount_type: 'percent',
       description: newItem.display_name || newItem.name,
       hsn_code: newItem.hsn_code || '',
       make: '',
@@ -1665,6 +1670,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         rate: finalRate,
         discount_percent: headerDiscount,
         discount_amount: 0,
+        discount_type: 'percent',
         tax_percent: p.tax_percent,
         tax_amount: 0,
         line_total: 0,
@@ -1738,6 +1744,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         rate: finalRate,
         discount_percent: headerDiscount,
         discount_amount: 0,
+        discount_type: 'percent',
         tax_percent: row.tax_percent,
         tax_amount: 0,
         line_total: 0,
@@ -1865,9 +1872,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         const updates = { [field]: value };
 
         if (field === 'discount_percent') {
-          const mat = item.material || materials.find(m => m.id === item.item_id);
-          const dcId = item.discount_category_id || mat?.discount_category_id;
-          const headerDiscount = dcId ? (headerDiscounts[dcId] || headerDiscounts[item.variant_id] || 0) : (item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0);
+          const headerDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
           const newDiscount = parseFloat(value) || 0;
           updates.is_override = newDiscount !== headerDiscount;
           updates.applied_discount_percent = newDiscount;
@@ -1984,6 +1989,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         rate: 0,
         discount_percent: headerVariantDiscount,
         discount_amount: 0,
+        discount_type: 'percent',
         tax_percent: 0,
         tax_amount: 0,
         line_total: 0,
@@ -2029,6 +2035,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         rate: 0,
         discount_percent: 0,
         discount_amount: 0,
+        discount_type: 'percent',
         tax_percent: 0,
         tax_amount: 0,
         line_total: 0,
@@ -2053,6 +2060,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         rate: 0,
         discount_percent: 0,
         discount_amount: 0,
+        discount_type: 'percent',
         tax_percent: 0,
         tax_amount: 0,
         line_total: 0,
@@ -2311,6 +2319,7 @@ const itemsToInsert = items.map(item => ({
           original_discount_percent: parseFloat(item.original_discount_percent) || 0,
           discount_percent: parseFloat(item.discount_percent) || 0,
           discount_amount: item.discount_amount || 0,
+          discount_type: item.discount_type || 'percent',
           tax_percent: parseFloat(item.tax_percent) || 0,
           tax_amount: item.tax_amount || 0,
           line_total: item.line_total || 0,
@@ -2586,7 +2595,7 @@ const itemsToInsert = items.map(item => ({
 
     return (
       <>
-        <div ref={ref} onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+        <div ref={ref} onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           onMouseEnter={e => { (e.currentTarget).style.borderColor = '#3b82f6'; }}
           onMouseLeave={e => { (e.currentTarget).style.borderColor = 'transparent'; }}
         >
@@ -2895,10 +2904,9 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </select>)}
               {/* Discounts */}
               <div style={{ marginTop: '4px' }}>
-                <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>Discounts</div>
                 {activeTab === 'items' ? (
                   <div>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', marginBottom: '4px' }}>Discount categories</div>
+                    <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>Discount categories</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {(() => {
                       const dcItems = Object.values(discountCategoryMap);
@@ -3097,18 +3105,18 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 {(templateSettings?.column_settings?.optional?.variant !== false) && (
                   <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
                 )}
-                <th className="col-disc-cat" style={{ fontSize: '11px', padding: '6px', textAlign: 'center', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>DISC CAT</th>
+                <th className="col-disc-cat" style={{ fontSize: '10px', padding: '6px', textAlign: 'center', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap', lineHeight: '1.3' }}>Discount<br/>category</th>
                 <th className="col-qty">QTY</th>
                 <th className="col-unit">UNIT</th>
                 <th className="col-rate">RATE</th>
                 <th className="col-disc">DISC %</th>
                 <th className="col-rate-after-disc">RATE AFTER DISC</th>
                 <th className="col-gst">GST %</th>
-                {templateSettings?.column_settings?.optional?.custom1 && (
-                  <th className="col-shrink">{templateSettings.column_settings.labels?.custom1 || 'Custom 1'}</th>
+                {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
+                  <th className="col-custom">{templateSettings.column_settings.labels.custom1 || 'Custom 1'}</th>
                 )}
-                {templateSettings?.column_settings?.optional?.custom2 && (
-                  <th className="col-shrink">{templateSettings.column_settings.labels?.custom2 || 'Custom 2'}</th>
+                {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
+                  <th className="col-custom">{templateSettings.column_settings.labels.custom2 || 'Custom 2'}</th>
                 )}
                 <th className="col-amount">AMOUNT</th>
                 <th className="col-shrink"></th>
@@ -3375,7 +3383,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                         <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" style={{appearance: 'textfield'}} />
                       </td>
                       <td className="col-shrink">
-                        <input type="text" className="cell-input text-center" value={item.uom} onChange={(e) => updateItem(item.id, 'uom', e.target.value)} />
+                        <input type="text" className="cell-input text-center" value={item.uom} readOnly style={{ background: '#f8fafc', cursor: 'default' }} />
                       </td>
                       <td className="col-shrink" style={{ position: 'relative' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingRight: '4px' }}>
@@ -3515,20 +3523,20 @@ className="text-center cell-static col-shrink row-drag-handle"
                       <td className="col-shrink">
                         <input type="number" className="cell-input text-right" value={item.tax_percent} onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)} />
                       </td>
-                      {templateSettings?.column_settings?.optional?.custom1 && (
-                        <td className="col-shrink">
-                          <input type="text" className="cell-input" value={item.custom1 || ''} onChange={(e) => updateItem(item.id, 'custom1', e.target.value)} />
+                      {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels != null && (
+                        <td className="col-custom">
+                          <input type="text" className="cell-input" value={item.custom1 || ''} onChange={(e) => updateItem(item.id, 'custom1', e.target.value)} style={{ width: '100%' }} />
                         </td>
                       )}
-                      {templateSettings?.column_settings?.optional?.custom2 && (
-                        <td className="col-shrink">
-                          <input type="text" className="cell-input" value={item.custom2 || ''} onChange={(e) => updateItem(item.id, 'custom2', e.target.value)} />
+                      {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels != null && (
+                        <td className="col-custom">
+                          <input type="text" className="cell-input" value={item.custom2 || ''} onChange={(e) => updateItem(item.id, 'custom2', e.target.value)} style={{ width: '100%' }} />
                         </td>
                       )}
                       <td className="col-shrink cell-static text-right amount-value">
                         {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                       </td>
-                      <td className="delete-cell col-shrink">
+                      <td className="delete-cell col-shrink" style={{ paddingLeft: '8px' }}>
                         <button 
                           type="button" 
                           className="btn-delete" 
@@ -3557,7 +3565,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                 <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>
                   {items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0).toFixed(2)}
                 </td>
-                <td colSpan={templateSettings?.column_settings?.optional?.custom1 && templateSettings?.column_settings?.optional?.custom2 ? 7 : templateSettings?.column_settings?.optional?.custom1 || templateSettings?.column_settings?.optional?.custom2 ? 6 : 5}></td>
+                <td colSpan={templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels != null ? 7 : templateSettings?.column_settings?.optional?.custom1 !== false || templateSettings?.column_settings?.optional?.custom2 !== false ? (templateSettings?.column_settings?.labels != null ? 6 : 5) : 5}></td>
                 <td className="total-value">
                   {formatCurrency(items.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0))}
                 </td>
@@ -3587,10 +3595,10 @@ className="text-center cell-static col-shrink row-drag-handle"
             </div>
             <textarea 
               className="form-input" 
-              style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
+              style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
               placeholder="Enter internal notes or additional instructions..."
               value={formData.remarks || ''}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, remarks: e.target.value }); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
             />
           </div>
         </div>
@@ -3624,18 +3632,18 @@ className="text-center cell-static col-shrink row-drag-handle"
             {formData.terms_conditions || formData.terms_text ? (
               <textarea
                 className="form-input"
-                style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
+                style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
                 placeholder="Type terms & conditions here, or use the drawer to add from a template..."
                 value={formData.terms_text || ''}
-                onChange={(e) => setFormData({ ...formData, terms_text: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, terms_text: e.target.value }); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
               />
             ) : (
               <textarea
                 className="form-input"
-                style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '13px', resize: 'none' }}
+                style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
                 placeholder="Type terms & conditions here, or use the drawer to add from a template..."
                 value={formData.terms_text || ''}
-                onChange={(e) => setFormData({ ...formData, terms_text: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, terms_text: e.target.value }); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
               />
             )}
           </div>
@@ -3782,90 +3790,91 @@ className="text-center cell-static col-shrink row-drag-handle"
       </div>
       
       {showCustomLabelEditor && (
-        <div className="modal-overlay open" onClick={() => setShowCustomLabelEditor(false)}>
-          <div className="modal-content" style={{ maxWidth: '450px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Template Column Settings</h3>
-              <button className="btn-close" onClick={() => setShowCustomLabelEditor(false)}>×</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowCustomLabelEditor(false)}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#18181b' }}>Column Settings</h3>
+              <button onClick={() => setShowCustomLabelEditor(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>×</button>
             </div>
-            <div className="modal-body">
-              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
-                Toggle columns to show/hide on the printed document. You can also customize their display labels.
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[
-                  { key: 'item', label: 'Item Name' },
-                  { key: 'item_code', label: 'Internal Part No' },
-                  { key: 'client_part_no', label: 'Client Part No' },
-                  { key: 'hsn_code', label: 'HSN/SAC' },
-                  { key: 'make', label: 'Make/Brand' },
-                  { key: 'variant', label: 'Category Details' },
-                  { key: 'description', label: 'Description' },
-                  { key: 'client_description', label: 'Client Description' },
-                  { key: 'custom1', label: 'Custom Column 1' },
-                  { key: 'custom2', label: 'Custom Column 2' }
-                ].map(col => {
-                  const isEnabled = templateSettings?.column_settings?.optional?.[col.key] !== false;
-                  const customLabel = templateSettings?.column_settings?.labels?.[col.key] || '';
-                  
-                  return (
-                    <div key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', border: '1px solid #f3f4f6', borderRadius: '8px' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={isEnabled}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setTemplateSettings(prev => {
-                            const updated = {
-                              ...prev,
-                              column_settings: {
-                                ...prev.column_settings,
-                                optional: {
-                                  ...prev.column_settings?.optional,
-                                  [col.key]: checked
-                                }
+            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
+              Toggle columns to show/hide on the printed document. You can also customize their display labels.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                { key: 'item', label: 'Item Name' },
+                { key: 'item_code', label: 'Internal Part No' },
+                { key: 'client_part_no', label: 'Client Part No' },
+                { key: 'hsn_code', label: 'HSN/SAC' },
+                { key: 'make', label: 'Make/Brand' },
+                { key: 'variant', label: 'Category Details' },
+                { key: 'description', label: 'Description' },
+                { key: 'client_description', label: 'Client Description' },
+                { key: 'custom1', label: 'Custom Column 1' },
+                { key: 'custom2', label: 'Custom Column 2' }
+              ].map(col => {
+                const isEnabled = templateSettings?.column_settings?.optional?.[col.key] !== false;
+                const customLabel = templateSettings?.column_settings?.labels?.[col.key] || '';
+                
+                return (
+                  <div key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={isEnabled}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setTemplateSettings(prev => {
+                          const updated = {
+                            ...prev,
+                            column_settings: {
+                              ...prev.column_settings,
+                              optional: {
+                                ...prev.column_settings?.optional,
+                                [col.key]: checked
                               }
-                            };
-                            updateTemplateSettingsInDb(updated);
-                            return updated;
-                          });
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{col.label}</div>
-                        <input 
-                          type="text"
-                          placeholder="Custom Label (optional)"
-                          className="form-input"
-                          style={{ marginTop: '4px', height: '36px', fontSize: '13px' }}
-                          value={customLabel}
-                          onChange={(e) => {
-                            const newLabel = e.target.value;
-                            setTemplateSettings(prev => {
-                              const updated = {
-                                ...prev,
-                                column_settings: {
-                                  ...prev.column_settings,
-                                  labels: {
-                                    ...prev.column_settings?.labels,
-                                    [col.key]: newLabel
-                                  }
-                                }
-                              };
-                              updateTemplateSettingsInDb(updated);
-                              return updated;
-                            });
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                            }
+                          };
+                          updateTemplateSettingsInDb(updated);
+                          return updated;
+                        });
+                      }}
+                      style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                    />
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#18181b', minWidth: '100px' }}>{col.label}</div>
+                    <input 
+                      type="text"
+                      placeholder="Custom label"
+                      className="form-input"
+                      style={{ flex: 1, height: '28px', fontSize: '11px', padding: '2px 6px' }}
+                      value={customLabel}
+                      onChange={(e) => {
+                        const newLabel = e.target.value;
+                        setTemplateSettings(prev => {
+                          const updated = {
+                            ...prev,
+                            column_settings: {
+                              ...prev.column_settings,
+                              labels: {
+                                ...prev.column_settings?.labels,
+                                [col.key]: newLabel
+                              }
+                            }
+                          };
+                          updateTemplateSettingsInDb(updated);
+                          return updated;
+                        });
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => setShowCustomLabelEditor(false)}>Done</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+                onClick={() => setShowCustomLabelEditor(false)}
+              >Done</button>
             </div>
           </div>
         </div>
