@@ -251,6 +251,7 @@ export default function CreateQuotation() {
   
   const [discountSettings, setDiscountSettings] = useState({});
   const [discountCategoryMap, setDiscountCategoryMap] = useState({});
+  const [clientShippingAddresses, setClientShippingAddresses] = useState<any[]>([]);
   const [approvalStatus, setApprovalStatus] = useState({});
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
@@ -381,6 +382,7 @@ export default function CreateQuotation() {
     client_id: '',
     project_id: '',
     billing_address: '',
+    shipping_address: '',
     gstin: '',
     state: '',
     date: new Date().toISOString().split('T')[0],
@@ -656,6 +658,29 @@ export default function CreateQuotation() {
     setVariantPricing(pricingMap);
     setItemMakes(finalMakesMap);
   }, [initQuery.data, materials]);
+
+  useEffect(() => {
+    if (!formData.client_id) {
+      setClientShippingAddresses([]);
+      return;
+    }
+    const fetchShippingAddresses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('client_shipping_addresses')
+          .select('*')
+          .eq('client_id', formData.client_id)
+          .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
+          .order('is_default', { ascending: false });
+        if (!error && data) {
+          setClientShippingAddresses(data);
+        }
+      } catch (err) {
+        console.error('Error fetching client shipping addresses:', err);
+      }
+    };
+    fetchShippingAddresses();
+  }, [formData.client_id, organisation?.id]);
 
   useEffect(() => {
     if (!initQuery.data) return;
@@ -1378,7 +1403,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         // Pre-populate with global default or client custom override
         (dcList || []).forEach(dc => {
           const customDisc = customDiscounts[dc.id];
-          discounts[dc.id] = customDisc !== undefined ? parseFloat(customDisc) || 0 : parseFloat(dc.default_discount_percent) || 0;
+          discounts[dc.id] = customDisc !== undefined ? parseFloat(customDisc) || 0 : 0;
           settings[dc.id] = {
             default: parseFloat(dc.default_discount_percent) || 0,
             min: 0,
@@ -1442,6 +1467,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         client_id: data.client_id || '',
         project_id: data.project_id || '',
         billing_address: data.billing_address || '',
+        shipping_address: data.shipping_address || '',
         gstin: data.gstin || '',
         state: data.state || '',
         date: isDuplicate ? new Date().toISOString().split('T')[0] : (data.date || ''),
@@ -1661,7 +1687,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     setArcPricingMap({});
 
     if (!clientId) {
-      setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '', client_contact: '' });
+      setFormData({ ...formData, client_id: '', billing_address: '', shipping_address: '', gstin: '', state: '', client_contact: '' });
       setHeaderDiscounts({});
       return;
     }
@@ -1673,10 +1699,32 @@ const loadQuoteNoPreview = useCallback(async () => {
         .join(', ');
 
       const contacts = buildClientContacts(client);
+      
+      // Fetch default shipping address for the client if exists
+      let defaultShipAddr = '';
+      try {
+        const { data: shipAddrs } = await supabase
+          .from('client_shipping_addresses')
+          .select('*')
+          .eq('client_id', clientId)
+          .eq('is_default', true)
+          .limit(1);
+
+        if (shipAddrs && shipAddrs.length > 0) {
+          const addr = shipAddrs[0];
+          defaultShipAddr = [addr.address_line1, addr.address_line2, addr.city, addr.state, addr.pincode]
+            .filter(Boolean)
+            .join(', ');
+        }
+      } catch (err) {
+        console.error('Error loading default shipping address:', err);
+      }
+
       setFormData({
         ...formData,
         client_id: clientId,
         billing_address: billingAddress,
+        shipping_address: defaultShipAddr,
         gstin: client.gstin || '',
         state: client.state || '',
         client_contact: contacts[0]?.value || ''
@@ -2418,6 +2466,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         client_id: formData.client_id,
         project_id: formData.project_id || null,
         billing_address: formData.billing_address,
+        shipping_address: formData.shipping_address || null,
         gstin: formData.gstin,
         state: formData.state,
         date: formData.date,
@@ -3114,6 +3163,41 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
             {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
             {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{formData.billing_address || 'Auto-populated from client'}</div>)}
+            
+            {formData.client_id && clientShippingAddresses.length > 0 && renderHeaderField('Ship To:', (
+              <select 
+                className="form-select" 
+                style={inputStyle}
+                onChange={(e) => {
+                  const addrId = e.target.value;
+                  const addr = clientShippingAddresses.find(a => a.id === addrId);
+                  if (addr) {
+                    const formatted = [addr.address_line1, addr.address_line2, addr.city, addr.state, addr.pincode]
+                      .filter(Boolean)
+                      .join(', ');
+                    setFormData({ ...formData, shipping_address: formatted });
+                  }
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>Select shipping address...</option>
+                {clientShippingAddresses.map(addr => (
+                  <option key={addr.id} value={addr.id}>
+                    {addr.address_name || `${addr.address_line1?.substring(0, 20)}...`} {addr.is_default ? '(Default)' : ''}
+                  </option>
+                ))}
+              </select>
+            ))}
+            
+            {formData.client_id && renderHeaderField('Shipping:', (
+              <textarea 
+                className="form-input" 
+                style={{ ...inputStyle, minHeight: '36px', height: '36px', resize: 'vertical', fontFamily: 'inherit' }}
+                value={formData.shipping_address || ''} 
+                onChange={(e) => setFormData({ ...formData, shipping_address: e.target.value })} 
+                placeholder="Enter shipping address details..."
+              />
+            ))}
             {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
             {renderHeaderField('Default variant:', <select className="form-select" style={inputStyle} value={formData.variant_id || ''} onChange={(e) => {
               const newVariantId = e.target.value;
