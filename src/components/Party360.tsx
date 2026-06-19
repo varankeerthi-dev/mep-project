@@ -1,8 +1,24 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Loader2, ExternalLink } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Loader2, ExternalLink, MessageSquare, Phone, Mail, Smartphone, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  incoming: Phone,
+  outgoing: Phone,
+  whatsapp: Smartphone,
+  email: Mail,
+  meeting: Users,
+};
+
+const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
+  incoming: { bg: '#ecfdf5', text: '#059669' },
+  outgoing: { bg: '#eff6ff', text: '#2563eb' },
+  whatsapp: { bg: '#f0fdf4', text: '#16a34a' },
+  email: { bg: '#fef3c7', text: '#d97706' },
+  meeting: { bg: '#f3e8ff', text: '#7c3aed' },
+};
 
 function formatCurrency(n: number) {
   return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -17,7 +33,7 @@ type Party360Props = {
 
 export const Party360: React.FC<Party360Props> = ({ partyName, vendorId, clientId, onClose }) => {
   const { organisation } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'receivables' | 'payables'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'receivables' | 'payables' | 'communications'>('overview');
 
   // Fetch client-side transactions (receivables)
   const clientTransactions = useQuery({
@@ -65,6 +81,25 @@ export const Party360: React.FC<Party360Props> = ({ partyName, vendorId, clientI
   const payables = vendorTransactions.data?.total ?? 0;
   const netPosition = receivables - payables;
 
+  // Fetch communications for this party
+  const communicationsQuery = useQuery({
+    queryKey: ['party360', 'communications', clientId, vendorId],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      let query = supabase
+        .from('client_communication')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .order('created_at', { ascending: false });
+      if (clientId) query = query.eq('client_id', clientId);
+      else if (vendorId) query = query.eq('vendor_id', vendorId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && (!!clientId || !!vendorId),
+  });
+
   const isLoading = clientTransactions.isLoading || vendorTransactions.isLoading;
 
   const navigateToClient = useCallback(() => {
@@ -91,7 +126,7 @@ export const Party360: React.FC<Party360Props> = ({ partyName, vendorId, clientI
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e5e5', padding: '0 24px' }}>
-          {(['overview', 'receivables', 'payables'] as const).map(tab => (
+          {(['overview', 'receivables', 'payables', 'communications'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -100,7 +135,7 @@ export const Party360: React.FC<Party360Props> = ({ partyName, vendorId, clientI
                 color: activeTab === tab ? '#2563eb' : '#737373', background: 'transparent', cursor: 'pointer', textTransform: 'capitalize',
               }}
             >
-              {tab}
+              {tab === 'communications' ? 'Communications' : tab}
             </button>
           ))}
         </div>
@@ -258,6 +293,46 @@ export const Party360: React.FC<Party360Props> = ({ partyName, vendorId, clientI
                           ))}
                         </>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'communications' && (
+                <div>
+                  {communicationsQuery.isLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', color: '#a3a3a3' }}>
+                      <Loader2 size={20} className="animate-spin" />
+                      <span style={{ marginLeft: '8px' }}>Loading communications...</span>
+                    </div>
+                  ) : (communicationsQuery.data?.length ?? 0) === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#a3a3a3', fontSize: '13px' }}>
+                      <MessageSquare size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+                      No communications logged yet
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {communicationsQuery.data?.map((comm: any) => {
+                        const Icon = CATEGORY_ICONS[comm.call_category] || MessageSquare;
+                        const colors = CATEGORY_COLORS[comm.call_category] || { bg: '#f5f5f5', text: '#737373' };
+                        return (
+                          <div key={comm.id} style={{ display: 'flex', gap: '12px', padding: '10px 12px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.text, flexShrink: 0 }}>
+                              <Icon size={16} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>{comm.call_brief || 'No brief'}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', background: comm.status === 'Open' || comm.status === 'open' ? '#fef3c7' : comm.status === 'Resolved' || comm.status === 'resolved' ? '#ecfdf5' : '#f3f4f6', color: comm.status === 'Open' || comm.status === 'open' ? '#d97706' : comm.status === 'Resolved' || comm.status === 'resolved' ? '#059669' : '#6b7280' }}>{comm.status}</span>
+                              </div>
+                              {comm.next_action && (
+                                <div style={{ fontSize: '11px', color: '#737373', marginBottom: '4px' }}>Next: {comm.next_action}</div>
+                              )}
+                              <div style={{ fontSize: '11px', color: '#a3a3a3' }}>{new Date(comm.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {new Date(comm.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
