@@ -285,6 +285,7 @@ export default function CreateQuotation() {
   const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const [isSigDropdownOpen, setIsSigDropdownOpen] = useState(false);
 
   const getVisibleColumnCount = () => {
     let count = 1;
@@ -331,6 +332,9 @@ export default function CreateQuotation() {
       const target = event.target as HTMLElement;
       if (!target.closest('.client-dropdown-container')) {
         setIsClientDropdownOpen(false);
+      }
+      if (!target.closest('.sig-dropdown-container')) {
+        setIsSigDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -3113,90 +3117,45 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
               </div>
             </div>
 
-            {formData.client_id && (
-              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-                <span style={labelColStyle}>Pricing:</span>
-                <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ArcPricingToggle
-                      clientId={formData.client_id}
-                      enabled={useArcPricing}
-                      onChange={(enabled) => {
-                        if (enabled && items.filter(i => !i.is_header && !i.is_subtotal).length > 0) {
-                          setArcPricingConfirmOpen(true);
-                        } else {
-                          setUseArcPricing(enabled);
-                          if (!enabled) {
-                            setArcPricingMap({});
-                            setItems(prev => prev.map(item => {
-                              if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
-                              if (!item.item_id) return item;
-                              const mat = materials.find(m => m.id === item.item_id);
-                              if (!mat) return item;
-                              const stdRate = getRateForMaterialVariant(mat, item.variant_id, item.make);
-                              const discountPercent = parseFloat(item.discount_percent) || 0;
-                              const finalRate = calculateVariantDiscountedRate(stdRate, discountPercent);
-                              return {
-                                ...item,
-                                base_rate_snapshot: stdRate,
-                                rate: finalRate,
-                                final_rate_snapshot: finalRate,
-                                applied_discount_percent: discountPercent
-                              };
-                            }));
-                          }
-                        }
-                      }}
-                    />
-                    <ArcPricingStatusBadge
-                      totalItems={items.filter(i => !i.is_header && !i.is_subtotal).length}
-                      itemsWithArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && arcPricingMap[i.item_id]?.length > 0).length}
-                      itemsWithoutArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && (!arcPricingMap[i.item_id] || arcPricingMap[i.item_id].length === 0)).length}
-                    />
-                  </div>
-                  {useArcPricing && arcPricingQuery.isLoading && (
-                    <span style={{ fontSize: '11px', color: '#737373', display: 'block' }}>Loading ARC rates...</span>
-                  )}
-                </div>
-              </div>
-            )}
+
 
             {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
             {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{formData.billing_address || 'Auto-populated from client'}</div>)}
             
-            {formData.client_id && clientShippingAddresses.length > 0 && renderHeaderField('Ship To:', (
-              <select 
-                className="form-select" 
-                style={inputStyle}
-                onChange={(e) => {
-                  const addrId = e.target.value;
-                  const addr = clientShippingAddresses.find(a => a.id === addrId);
-                  if (addr) {
-                    const formatted = [addr.address_line1, addr.address_line2, addr.city, addr.state, addr.pincode]
-                      .filter(Boolean)
-                      .join(', ');
-                    setFormData({ ...formData, shipping_address: formatted });
-                  }
-                }}
-                defaultValue=""
-              >
-                <option value="" disabled>Select shipping address...</option>
-                {clientShippingAddresses.map(addr => (
-                  <option key={addr.id} value={addr.id}>
-                    {addr.address_name || `${addr.address_line1?.substring(0, 20)}...`} {addr.is_default ? '(Default)' : ''}
-                  </option>
-                ))}
-              </select>
-            ))}
-            
             {formData.client_id && renderHeaderField('Shipping:', (
-              <textarea 
-                className="form-input" 
-                style={{ ...inputStyle, minHeight: '36px', height: '36px', resize: 'vertical', fontFamily: 'inherit' }}
-                value={formData.shipping_address || ''} 
-                onChange={(e) => setFormData({ ...formData, shipping_address: e.target.value })} 
-                placeholder="Enter shipping address details..."
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {clientShippingAddresses.length > 0 && (
+                  <select 
+                    className="form-select" 
+                    style={{ ...inputStyle, width: '100%' }}
+                    onChange={(e) => {
+                      const addrId = e.target.value;
+                      const addr = clientShippingAddresses.find(a => a.id === addrId);
+                      if (addr) {
+                        const formatted = [addr.address_line1, addr.address_line2, addr.city, addr.state, addr.pincode]
+                          .filter(Boolean)
+                          .join(', ');
+                        setFormData({ ...formData, shipping_address: formatted });
+                      }
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select pre-saved address...</option>
+                    {clientShippingAddresses.map(addr => (
+                      <option key={addr.id} value={addr.id}>
+                        {addr.address_name || `${addr.address_line1?.substring(0, 20)}...`} {addr.is_default ? '(Default)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <textarea 
+                  className="form-input" 
+                  style={{ ...inputStyle, minHeight: '36px', height: '36px', resize: 'vertical', fontFamily: 'inherit' }}
+                  value={formData.shipping_address || ''} 
+                  onChange={(e) => setFormData({ ...formData, shipping_address: e.target.value })} 
+                  placeholder="Enter shipping address details..."
+                />
+              </div>
             ))}
             {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
             {renderHeaderField('Default variant:', <select className="form-select" style={inputStyle} value={formData.variant_id || ''} onChange={(e) => {
@@ -3259,7 +3218,55 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
               ))}
             </select>)}
-            
+
+            {formData.client_id && (
+              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+                <span style={labelColStyle}>Pricing:</span>
+                <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ArcPricingToggle
+                      clientId={formData.client_id}
+                      enabled={useArcPricing}
+                      onChange={(enabled) => {
+                        if (enabled && items.filter(i => !i.is_header && !i.is_subtotal).length > 0) {
+                          setArcPricingConfirmOpen(true);
+                        } else {
+                          setUseArcPricing(enabled);
+                          if (!enabled) {
+                            setArcPricingMap({});
+                            setItems(prev => prev.map(item => {
+                              if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                              if (!item.item_id) return item;
+                              const mat = materials.find(m => m.id === item.item_id);
+                              if (!mat) return item;
+                              const stdRate = getRateForMaterialVariant(mat, item.variant_id, item.make);
+                              const discountPercent = parseFloat(item.discount_percent) || 0;
+                              const finalRate = calculateVariantDiscountedRate(stdRate, discountPercent);
+                              return {
+                                ...item,
+                                base_rate_snapshot: stdRate,
+                                rate: finalRate,
+                                final_rate_snapshot: finalRate,
+                                applied_discount_percent: discountPercent
+                              };
+                            }));
+                          }
+                        }
+                      }}
+                    />
+                    <ArcPricingStatusBadge
+                      totalItems={items.filter(i => !i.is_header && !i.is_subtotal).length}
+                      itemsWithArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && arcPricingMap[i.item_id]?.length > 0).length}
+                      itemsWithoutArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && (!arcPricingMap[i.item_id] || arcPricingMap[i.item_id].length === 0)).length}
+                    />
+                  </div>
+                  {useArcPricing && arcPricingQuery.isLoading && (
+                    <span style={{ fontSize: '11px', color: '#737373', display: 'block' }}>Loading ARC rates...</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Discounts / Pricing Rules */}
             <div style={{ marginTop: '4px', flex: 1, display: 'flex', flexDirection: 'column' }}>
               {activeTab === 'items' ? (
@@ -4271,42 +4278,80 @@ className="text-center cell-static col-shrink row-drag-handle"
                 step="0.01" 
               />
             </div>
+            {/* Grand Total Display */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '10px', borderTop: '2px solid #e5e7eb' }}>
+              <span style={{ fontWeight: 700, color: '#1f2937', fontSize: '13px' }}>Grand Total</span>
+              <span style={{ fontWeight: 800, color: '#185FA5', fontSize: '15px' }}>{formatCurrency(calculations.grandTotal)}</span>
+            </div>
+
             <div style={{ marginTop: '12px', padding: '12px', borderTop: '1px solid #e5e7eb', fontFamily: 'Inter, sans-serif' }}>
-              <div className="flex items-center gap-3 bg-white border border-zinc-200 rounded-none px-3 py-2 shadow-sm">
-                <div className="w-7 h-7 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 flex-shrink-0">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                </div>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
-                  <select 
-                    className="bg-transparent border-none p-0 text-xs font-bold text-zinc-800 focus:ring-0 cursor-pointer w-full"
-                    value={formData.authorized_signatory_id ?? ''} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFormData({ ...formData, authorized_signatory_id: val || '' });
-                    }}
-                  >
-                    <option value="">Select Signatory...</option>
-                    {(organisation?.signatures || []).length > 0 ? (
-                      (organisation?.signatures || []).map((sig) => (
-                        <option key={String(sig.id)} value={String(sig.id)}>{sig.name}</option>
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Authorized Signatory</div>
+              <div 
+                className="sig-dropdown-container relative cursor-pointer flex items-center justify-between px-3 py-1.5 border border-zinc-300 rounded-md bg-white text-zinc-700 text-xs font-medium hover:bg-zinc-50 hover:border-zinc-400 transition-all shadow-sm"
+                onClick={() => setIsSigDropdownOpen(!isSigDropdownOpen)}
+              >
+                <span>
+                  {formData.authorized_signatory_id
+                    ? ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === String(formData.authorized_signatory_id))?.name || 'Select Signatory...'
+                    : 'Select Signatory...'}
+                </span>
+                <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${isSigDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+
+                {isSigDropdownOpen && (
+                  <div style={{
+                    position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '4px',
+                    zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                    maxHeight: '200px', overflowY: 'auto'
+                  }} onClick={e => e.stopPropagation()}>
+                    <div 
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6', fontWeight: 500 }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                      onClick={() => {
+                        setFormData({ ...formData, authorized_signatory_id: '' });
+                        setIsSigDropdownOpen(false);
+                      }}
+                    >
+                      Select Signatory...
+                    </div>
+                    {((organisation as any)?.signatures || []).length > 0 ? (
+                      ((organisation as any)?.signatures || []).map((sig: any) => (
+                        <div 
+                          key={String(sig.id)} 
+                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                          onClick={() => {
+                            setFormData({ ...formData, authorized_signatory_id: String(sig.id) });
+                            setIsSigDropdownOpen(false);
+                          }}
+                        >
+                          {sig.name}
+                        </div>
                       ))
                     ) : (
-                      <option disabled>No signatures - Add in Settings → Organisation</option>
+                      <div style={{ padding: '8px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>
+                        No signatures - Add in Settings → Organisation
+                      </div>
                     )}
-                  </select>
-                  {(organisation?.signatures || []).length === 0 && (
-                    <a href="/settings" target="_blank" className="text-[10px] text-blue-600 underline">Add signatures here</a>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+              {((organisation as any)?.signatures || []).length === 0 && (
+                <div style={{ marginTop: '4px', textAlign: 'right' }}>
+                  <a href="/settings" target="_blank" className="text-[10px] text-blue-600 underline">Add signatures here</a>
+                </div>
+              )}
               {formData.authorized_signatory_id && formData.authorized_signatory_id !== null && (
-                <div className="bg-white border border-zinc-200 rounded-none px-3 py-2 shadow-sm mt-2">
+                <div className="bg-white border border-zinc-200 rounded-lg px-3 py-2 shadow-sm mt-2">
                   <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-1">Signature Preview</div>
                   <div className="h-8 flex items-center">
                     {(() => {
                       const sigId = String(formData.authorized_signatory_id);
-                      const selectedSig = (organisation?.signatures || []).find(s => String(s.id) === sigId);
+                      const selectedSig = ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === sigId);
                       if (selectedSig?.url) {
                         return <img src={selectedSig.url} alt={selectedSig.name} className="max-h-7 max-w-[120px] object-contain" />;
                       }
