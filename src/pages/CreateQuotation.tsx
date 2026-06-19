@@ -19,7 +19,7 @@ import { useConvertDocument, useConversionStatus, getSourceTableName } from '../
 import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
-import { FileText, Plus, Mail, Info } from 'lucide-react';
+import { FileText, Plus, Mail, Info, User, Briefcase } from 'lucide-react';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
 import { SearchableItemSelect } from '../components/SearchableItemSelect';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
@@ -2560,7 +2560,7 @@ const itemsToInsert = items.map(item => ({
 
   const compactFieldStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '12px' };
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
-  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const labelColStyle = { minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
   const sectionHeaderStyle = { fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '2px' };
   const inputStyle = { padding: '4px 8px', fontSize: '12px' };
@@ -2840,161 +2840,168 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
           </div>
         </div>
       </div>
-      <div style={{ paddingTop: headerHeight }}>
-      <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
-        </div>
-
+      <div style={{ paddingTop: headerHeight, background: '#f8fafc', padding: '16px', minHeight: 'calc(100vh - 64px)' }}>
         {/* Document Details Grid */}
-        <div style={{ background: '#f8f9fa', padding: '10px', marginBottom: '10px', borderRadius: '6px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
 
-            {/* Column 1: CLIENT & DOCUMENT */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={sectionHeaderStyle}>Client</div>
+          {/* Column 1: CLIENT CARD */}
+          <div className="bg-white border border-zinc-200 p-4 shadow-sm" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
+              <User size={14} style={{ color: '#2563eb' }} /> Client
+            </div>
+            
+            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+              <span style={labelColStyle}>Client *:</span>
+              <div style={{ ...fieldColStyle, position: 'relative' }} className="client-dropdown-container">
+                <input
+                  type="text"
+                  className="form-input"
+                  style={inputStyle}
+                  placeholder="Search or select client..."
+                  value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
+                  onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
+                  onClick={() => setIsClientDropdownOpen(true)}
+                  onFocus={() => setIsClientDropdownOpen(true)}
+                />
+                {isClientDropdownOpen && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                    {clients
+                      .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(c => (
+                        <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                          onClick={() => { handleClientChange(c.id); setClientSearch(c.client_name); setIsClientDropdownOpen(false); setClientSearch(''); }}
+                        >{c.client_name}</div>
+                      ))}
+                    {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No clients found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {formData.client_id && (
               <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-                <span style={labelColStyle}>Client:</span>
-                <div style={{ ...fieldColStyle, position: 'relative' }} className="client-dropdown-container">
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={inputStyle}
-                    placeholder="Search or select..."
-                    value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
-                    onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
-                    onClick={() => setIsClientDropdownOpen(true)}
-                    onFocus={() => setIsClientDropdownOpen(true)}
-                  />
-                  {isClientDropdownOpen && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
-                      {clients
-                        .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
-                        .map(c => (
-                          <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                            onClick={() => { handleClientChange(c.id); setClientSearch(c.client_name); setIsClientDropdownOpen(false); setClientSearch(''); }}
-                          >{c.client_name}</div>
-                        ))}
-                      {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                        <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No clients found</div>
-                      )}
-                    </div>
+                <span style={labelColStyle}>Pricing:</span>
+                <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ArcPricingToggle
+                      clientId={formData.client_id}
+                      enabled={useArcPricing}
+                      onChange={(enabled) => {
+                        if (enabled && items.filter(i => !i.is_header && !i.is_subtotal).length > 0) {
+                          setArcPricingConfirmOpen(true);
+                        } else {
+                          setUseArcPricing(enabled);
+                          if (!enabled) {
+                            setArcPricingMap({});
+                            setItems(prev => prev.map(item => {
+                              if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                              if (!item.item_id) return item;
+                              const mat = materials.find(m => m.id === item.item_id);
+                              if (!mat) return item;
+                              const stdRate = getRateForMaterialVariant(mat, item.variant_id, item.make);
+                              const discountPercent = parseFloat(item.discount_percent) || 0;
+                              const finalRate = calculateVariantDiscountedRate(stdRate, discountPercent);
+                              return {
+                                ...item,
+                                base_rate_snapshot: stdRate,
+                                rate: finalRate,
+                                final_rate_snapshot: finalRate,
+                                applied_discount_percent: discountPercent
+                              };
+                            }));
+                          }
+                        }
+                      }}
+                    />
+                    <ArcPricingStatusBadge
+                      totalItems={items.filter(i => !i.is_header && !i.is_subtotal).length}
+                      itemsWithArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && arcPricingMap[i.item_id]?.length > 0).length}
+                      itemsWithoutArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && (!arcPricingMap[i.item_id] || arcPricingMap[i.item_id].length === 0)).length}
+                    />
+                  </div>
+                  {useArcPricing && arcPricingQuery.isLoading && (
+                    <span style={{ fontSize: '11px', color: '#737373', display: 'block' }}>Loading ARC rates...</span>
                   )}
                 </div>
               </div>
-              {formData.client_id && (
-                <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-                  <span style={labelColStyle}>Pricing:</span>
-                  <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <ArcPricingToggle
-                        clientId={formData.client_id}
-                        enabled={useArcPricing}
-                        onChange={(enabled) => {
-                          if (enabled && items.filter(i => !i.is_header && !i.is_subtotal).length > 0) {
-                            setArcPricingConfirmOpen(true);
-                          } else {
-                            setUseArcPricing(enabled);
-                            if (!enabled) {
-                              setArcPricingMap({});
-                              setItems(prev => prev.map(item => {
-                                if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
-                                if (!item.item_id) return item;
-                                const mat = materials.find(m => m.id === item.item_id);
-                                if (!mat) return item;
-                                const stdRate = getRateForMaterialVariant(mat, item.variant_id, item.make);
-                                const discountPercent = parseFloat(item.discount_percent) || 0;
-                                const finalRate = calculateVariantDiscountedRate(stdRate, discountPercent);
-                                return {
-                                  ...item,
-                                  base_rate_snapshot: stdRate,
-                                  rate: finalRate,
-                                  final_rate_snapshot: finalRate,
-                                  applied_discount_percent: discountPercent
-                                };
-                              }));
-                            }
-                          }
-                        }}
-                      />
-                      <ArcPricingStatusBadge
-                        totalItems={items.filter(i => !i.is_header && !i.is_subtotal).length}
-                        itemsWithArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && arcPricingMap[i.item_id]?.length > 0).length}
-                        itemsWithoutArcRate={items.filter(i => !i.is_header && !i.is_subtotal && i.item_id && (!arcPricingMap[i.item_id] || arcPricingMap[i.item_id].length === 0)).length}
-                      />
-                    </div>
-                    {useArcPricing && arcPricingQuery.isLoading && (
-                      <span style={{ fontSize: '11px', color: '#737373', display: 'block' }}>Loading ARC rates...</span>
-                    )}
-                  </div>
-                </div>
-              )}
-              {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
-              {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{formData.billing_address || 'Auto-populated from client'}</div>)}
-              {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
-              {renderHeaderField('Default variant:', <select className="form-select" style={inputStyle} value={formData.variant_id || ''} onChange={(e) => {
-                const newVariantId = e.target.value;
-                setFormData({ ...formData, variant_id: newVariantId });
-                if (items.length > 0) {
-                  setItems(prev => prev.map(item => {
-                    if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
-                    const mat = materials.find(m => m.id === item.item_id);
-                    if (!mat) return item;
-                    
-                    // Only update the variant if the material supports it (Standard/empty variant is always supported)
-                    const hasNewVariant = !newVariantId || (variantPricing[mat.id] && variantPricing[mat.id][newVariantId]);
-                    if (!hasNewVariant) {
-                      return item;
-                    }
-                    
-                    const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
-                    const dcId = item.discount_category_id || mat.discount_category_id;
-                    const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
-                    const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
-                    return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: categoryDiscount, applied_discount_percent: categoryDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
-                  }));
-                }
-              }}>
-                <option value="">Standard</option>
-                {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-              </select>)}
-            </div>
+            )}
 
-            {/* Column 2: DOCUMENT */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={sectionHeaderStyle}>Document</div>
-              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-                <span style={labelColStyle}>Quote No:</span>
-                <div style={{ flex: 1, display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', width: '45%' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>
-                  <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', minWidth: '40px' }}>Date:</span>
-                  <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
-                </div>
+            {renderHeaderField('Contact:', <input type="text" className="form-input" style={inputStyle} value={formData.client_contact} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} placeholder="+91 98765 43210" />)}
+            {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{formData.billing_address || 'Auto-populated from client'}</div>)}
+            {renderHeaderField('GSTIN:', <input type="text" className="form-input" style={inputStyle} value={formData.gstin} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCU9603R1ZX" />)}
+            {renderHeaderField('Default variant:', <select className="form-select" style={inputStyle} value={formData.variant_id || ''} onChange={(e) => {
+              const newVariantId = e.target.value;
+              setFormData({ ...formData, variant_id: newVariantId });
+              if (items.length > 0) {
+                setItems(prev => prev.map(item => {
+                  if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
+                  const mat = materials.find(m => m.id === item.item_id);
+                  if (!mat) return item;
+                  
+                  // Only update the variant if the material supports it (Standard/empty variant is always supported)
+                  const hasNewVariant = !newVariantId || (variantPricing[mat.id] && variantPricing[mat.id][newVariantId]);
+                  if (!hasNewVariant) {
+                    return item;
+                  }
+                  
+                  const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
+                  const dcId = item.discount_category_id || mat.discount_category_id;
+                  const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+                  const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+                  return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: categoryDiscount, applied_discount_percent: categoryDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
+                }));
+              }
+            }}>
+              <option value="">Standard</option>
+              {variants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+            </select>)}
+          </div>
+
+          {/* Column 2: DOCUMENT CARD */}
+          <div className="bg-white border border-zinc-200 p-4 shadow-sm" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
+              <FileText size={14} style={{ color: '#2563eb' }} /> Document
+            </div>
+            
+            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+              <span style={labelColStyle}>Quote No:</span>
+              <div style={{ flex: 1, display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', width: '45%' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>
+                <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', minWidth: '40px', textAlign: 'right' }}>Date:</span>
+                <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
               </div>
-              {renderHeaderField('Prepared By:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent' }}>{formData.prepared_by || 'Set on creation'}</div>)}
-              {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
-              {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
-              {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
             </div>
+            {renderHeaderField('Prepared By:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent' }}>{formData.prepared_by || 'Set on creation'}</div>)}
+            {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
+            {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
+            {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
+          </div>
 
-            {/* Column 3: PROJECT & DISCOUNTS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={sectionHeaderStyle}>Project</div>
-              {renderHeaderField('Project:', <select className="form-select" style={inputStyle} value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}>
-                <option value="">Select project...</option>
-                {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
-                  <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
-                ))}
-              </select>)}
-              {/* Discounts */}
-              <div style={{ marginTop: '4px' }}>
-                {activeTab === 'items' ? (
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>Discount categories</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {/* Column 3: PROJECT CARD */}
+          <div className="bg-white border border-zinc-200 p-4 shadow-sm" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
+              <Briefcase size={14} style={{ color: '#2563eb' }} /> Project
+            </div>
+            
+            {renderHeaderField('Project:', <select className="form-select" style={inputStyle} value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}>
+              <option value="">Select project...</option>
+              {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
+                <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
+              ))}
+            </select>)}
+            
+            {/* Discounts / Pricing Rules */}
+            <div style={{ marginTop: '4px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {activeTab === 'items' ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontWeight: 600, fontSize: '11px', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Pricing Rules (Discount Categories)</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
                     {(() => {
                       const dcItems = Object.values(discountCategoryMap);
-                      const hasErection = formData.include_erection_charges;
                       return (
                         <>
                           {(dcItems as any[]).length > 0 ? (dcItems as any[]).map((dc) => {
@@ -3020,42 +3027,65 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                               </div>
                             );
                           }) : <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>No discount categories configured.</div>}
-                          {hasErection && (
-                            <div key="erection" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'white', padding: '5px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px', minHeight: '32px' }}>
-                              <span style={{ fontWeight: 600, color: '#374151', fontSize: '11px', flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Erection charges</span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
-                                <input type="number" style={{ width: '42px', padding: '3px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #d1d5db', borderRadius: '3px' }}
-                                  value={headerDiscounts['erection'] || 0}
-                                  onChange={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setHeaderDiscounts(prev => ({ ...prev, erection: val })); }}
-                                  onBlur={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); handleHeaderDiscountChange('erection', val, 'erection'); }}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                                  min="0" max="100" step="0.01"
+                          
+                          {/* Erection charges inline row with toggle switch as requested */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', background: 'white', padding: '5px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px', minHeight: '32px' }}>
+                            <span style={{ fontWeight: 600, color: '#374151', fontSize: '11px', flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Erection charges</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              <div
+                                onClick={() => setFormData({ ...formData, include_erection_charges: !formData.include_erection_charges })}
+                                style={{
+                                  position: 'relative',
+                                  width: '32px',
+                                  height: '18px',
+                                  borderRadius: '9999px',
+                                  backgroundColor: formData.include_erection_charges ? '#2563eb' : '#d4d4d8',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.2s',
+                                }}
+                                className="arc-toggle-oval"
+                              >
+                                <span
+                                  style={{
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: '2px',
+                                    width: '14px',
+                                    height: '14px',
+                                    backgroundColor: 'white',
+                                    borderRadius: '9999px',
+                                    transform: formData.include_erection_charges ? 'translateX(14px)' : 'translateX(0)',
+                                    transition: 'transform 0.2s',
+                                  }}
                                 />
-                                <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>%</span>
                               </div>
+                              {formData.include_erection_charges ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                  <input type="number" style={{ width: '42px', padding: '3px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                                    value={headerDiscounts['erection'] || 0}
+                                    onChange={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setHeaderDiscounts(prev => ({ ...prev, erection: val })); }}
+                                    onBlur={(e) => { const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); handleHeaderDiscountChange('erection', val, 'erection'); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                    min="0" max="100" step="0.01"
+                                  />
+                                  <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>%</span>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, paddingRight: '4px' }}>0%</span>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </>
                       );
                     })()}
-                    </div>
                   </div>
-                ) : (
-                  <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>Approval history shown below.</div>
-                )}
-              </div>
-
-              {/* Erection toggle */}
-              <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input type="checkbox" className="form-checkbox" style={{ width: '14px', height: '14px' }}
-                  checked={formData.include_erection_charges}
-                  onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
-                />
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', letterSpacing: '0.05em' }}>Erection charges</span>
-              </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>Approval history shown below.</div>
+              )}
             </div>
-
           </div>
+
         </div>
 
       {/* Multi-DC Allocation Section */}
