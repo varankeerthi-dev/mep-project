@@ -77,35 +77,64 @@ export function ArcPricingToggle({
           onChange(!enabled);
         }
       }}
-      className={`
-        inline-flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-all select-none
-        ${className}
-        ${enabled
-          ? 'bg-green-50 border-green-300 text-green-800'
-          : 'bg-zinc-50 border-zinc-200 text-zinc-600'
-        }
-        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-zinc-300 active:scale-[0.98]'}
-      `}
+      className={`arc-toggle-oval ${className}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '6px 16px',
+        borderRadius: '9999px',
+        border: '1px solid',
+        borderColor: enabled ? '#86efac' : '#e4e4e7',
+        backgroundColor: enabled ? '#f0fdf4' : '#fafafa',
+        color: enabled ? '#166534' : '#52525b',
+        cursor: isDisabled ? 'not-allowed' : 'pointer',
+        transition: 'all 0.2s',
+        userSelect: 'none',
+        opacity: isDisabled ? 0.5 : 1,
+      }}
       title={isDisabled ? disabledReason : ''}
     >
       <div
-        className={`
-          relative w-9 h-5 rounded-full transition-colors duration-200
-          ${enabled ? 'bg-green-600' : 'bg-zinc-300'}
-        `}
+        style={{
+          position: 'relative',
+          width: '36px',
+          height: '20px',
+          borderRadius: '9999px',
+          backgroundColor: enabled ? '#16a34a' : '#d4d4d8',
+          transition: 'background-color 0.2s',
+        }}
       >
         <span
-          className={`
-            absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
-            ${enabled ? 'translate-x-4' : 'translate-x-0'}
-          `}
+          style={{
+            position: 'absolute',
+            top: '2px',
+            left: '2px',
+            width: '16px',
+            height: '16px',
+            backgroundColor: 'white',
+            borderRadius: '9999px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            transform: enabled ? 'translateX(16px)' : 'translateX(0)',
+            transition: 'transform 0.2s',
+          }}
         />
       </div>
-      <span className="text-xs font-semibold whitespace-nowrap">
+      <span style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
         Use ARC Pricing
       </span>
       {enabled && (
-        <span className="text-[10px] px-1.5 py-0.5 bg-green-600 text-white rounded font-bold leading-none">
+        <span
+          style={{
+            fontSize: '10px',
+            padding: '2px 6px',
+            backgroundColor: '#16a34a',
+            color: 'white',
+            borderRadius: '9999px',
+            fontWeight: 'bold',
+            lineHeight: 1,
+          }}
+        >
           ON
         </span>
       )}

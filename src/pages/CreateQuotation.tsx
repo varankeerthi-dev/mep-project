@@ -154,6 +154,18 @@ export default function CreateQuotation() {
     return count;
   };
 
+  const getColsBeforeQty = () => {
+    let count = 2; // S.No (#) and Discount Category are always visible
+    const optional = templateSettings?.column_settings?.optional || {};
+    if (optional.hsn_code !== false) count++;
+    if (optional.item !== false) count++;
+    if (optional.client_part_no === true) count++;
+    if (optional.client_description === true) count++;
+    if (optional.make !== false) count++;
+    if (optional.variant !== false) count++;
+    return count;
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -1080,6 +1092,25 @@ const loadQuoteNoPreview = useCallback(async () => {
     });
   }, [discountPopup, items, materials]);
 
+  const getTableMinWidth = useCallback(() => {
+    let width = 835;
+    const optional = templateSettings?.column_settings?.optional || {};
+    
+    if (optional.hsn_code !== false) width += 80;
+    if (optional.client_part_no === true) width += 100;
+    if (optional.client_description === true) width += 250;
+    if (optional.make !== false) width += 80;
+    if (optional.variant !== false) width += 110;
+    if (optional.discount_percent !== false) width += 70;
+    if (optional.rate_after_discount !== false) width += 95;
+    if (optional.tax_percent !== false) width += 60;
+    
+    if (optional.custom1 !== false && templateSettings?.column_settings?.labels != null) width += 140;
+    if (optional.custom2 !== false && templateSettings?.column_settings?.labels != null) width += 140;
+    
+    return `${width}px`;
+  }, [templateSettings]);
+
   const roundRate = useCallback((rate: number): number => {
     return organisation?.round_off_enabled !== false ? Math.round(rate) : rate;
   }, [organisation?.round_off_enabled]);
@@ -1674,13 +1705,15 @@ const loadQuoteNoPreview = useCallback(async () => {
     const newItems = pickerItems.map((p, idx) => {
       const baseRate = p.rate;
       const variantId = p.variant_id || null;
-      const headerDiscount = variantId ? (headerDiscounts[variantId] || 0) : 0;
+      const dcId = p.material?.discount_category_id || null;
+      const headerDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
       const finalRate = calculateVariantDiscountedRate(baseRate, headerDiscount);
       
       return {
         id: Date.now() + idx,
         item_id: p.item_id,
         variant_id: variantId,
+        discount_category_id: dcId,
         material: p.material,
         hsn_code: p.material?.hsn_code || null,
         description: p.description,
@@ -1694,7 +1727,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         tax_amount: 0,
         line_total: 0,
         override_flag: false,
-        original_discount_percent: p.discount_percent,
+        original_discount_percent: headerDiscount,
         base_rate_snapshot: baseRate,
         applied_discount_percent: headerDiscount,
         is_override: false,
@@ -1747,7 +1780,8 @@ const loadQuoteNoPreview = useCallback(async () => {
     const currentItemsLength = items.length;
     const newItems = generated.map((row, idx) => {
       const variantId = row.variant_id || null;
-      const headerDiscount = variantId ? (headerDiscounts[variantId] || 0) : 0;
+      const dcId = row.material?.discount_category_id || null;
+      const headerDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
       const baseRate = Number(row.rate) || 0;
       const finalRate = calculateVariantDiscountedRate(baseRate, headerDiscount);
 
@@ -1755,6 +1789,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         id: Date.now() + idx,
         item_id: row.material.id,
         variant_id: variantId,
+        discount_category_id: dcId,
         material: row.material,
         hsn_code: row.material.hsn_code || '',
         description: row.description,
@@ -1884,58 +1919,80 @@ const loadQuoteNoPreview = useCallback(async () => {
     return Array.isArray(globalLatestRows) ? globalLatestRows[0] || null : null;
   }
 
-  const updateItem = (id, field, value) => {
+  const updateItem = (id, fieldOrUpdates, value = undefined) => {
+    const isBulk = typeof fieldOrUpdates === 'object' && fieldOrUpdates !== null;
     setItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id !== id) return item;
-        const updates = { [field]: value };
+        
+        let updates = {};
+        if (isBulk) {
+          updates = { ...fieldOrUpdates };
+        } else {
+          updates = { [fieldOrUpdates]: value };
 
-        if (field === 'discount_percent') {
-          const headerDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
-          const newDiscount = parseFloat(value) || 0;
-          updates.is_override = newDiscount !== headerDiscount;
-          updates.applied_discount_percent = newDiscount;
-          const baseRate = parseFloat(item.base_rate_snapshot) || 0;
-          const finalRate = calculateVariantDiscountedRate(baseRate, newDiscount);
-          updates.final_rate_snapshot = finalRate;
-          updates.rate = finalRate;
-        }
-
-        if (field === 'discount_percent' && formData.negotiation_mode) {
-          const original = item.original_discount_percent || 0;
-          updates.override_flag = value !== original;
-        }
-        if (field === 'rate' && formData.negotiation_mode) {
-          updates.override_flag = true;
-        }
-
-        if (field === 'item_id' || field === 'variant_id') {
-          const mat = field === 'item_id' 
-            ? materials.find(m => m.id === value) 
-            : materials.find(m => m.id === item.item_id);
-          
-          if (mat) {
-            const nextVariant = field === 'variant_id' ? value : item.variant_id;
-            const nextMake = item.make || '';
-            const newRate = getRateForMaterialVariant(mat, nextVariant, nextMake);
-            updates.base_rate_snapshot = newRate;
-            updates.uom = mat.unit || '';
-            updates.tax_percent = mat.gst_rate || 0;
-            
-            const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-            updates.applied_discount_percent = variantDiscount;
-            updates.discount_percent = variantDiscount;
-            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+          if (fieldOrUpdates === 'discount_percent') {
+            let headerDiscount = 0;
+            if (item.section === 'erection') {
+              headerDiscount = headerDiscounts['erection'] || 0;
+            } else {
+              const mat = item.material || materials.find(m => m.id === item.item_id);
+              const dcId = item.discount_category_id || mat?.discount_category_id;
+              headerDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+            }
+            const newDiscount = parseFloat(value) || 0;
+            updates.is_override = newDiscount !== headerDiscount;
+            updates.applied_discount_percent = newDiscount;
+            const baseRate = parseFloat(item.base_rate_snapshot) || 0;
+            const finalRate = calculateVariantDiscountedRate(baseRate, newDiscount);
             updates.final_rate_snapshot = finalRate;
-            updates.is_override = false;
             updates.rate = finalRate;
+          }
+
+          if (fieldOrUpdates === 'discount_percent' && formData.negotiation_mode) {
+            const original = item.original_discount_percent || 0;
+            updates.override_flag = value !== original;
+          }
+          if (fieldOrUpdates === 'rate' && formData.negotiation_mode) {
+            updates.override_flag = true;
+          }
+
+          if (fieldOrUpdates === 'item_id' || fieldOrUpdates === 'variant_id') {
+            const mat = fieldOrUpdates === 'item_id' 
+              ? materials.find(m => m.id === value) 
+              : materials.find(m => m.id === item.item_id);
+            
+            if (mat) {
+              const nextVariant = fieldOrUpdates === 'variant_id' ? value : item.variant_id;
+              const nextMake = item.make || '';
+              const newRate = getRateForMaterialVariant(mat, nextVariant, nextMake);
+              updates.base_rate_snapshot = newRate;
+              updates.uom = mat.unit || '';
+              updates.tax_percent = mat.gst_rate || 0;
+              
+              const dcId = mat.discount_category_id || null;
+              updates.discount_category_id = dcId;
+              const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+              
+              updates.applied_discount_percent = categoryDiscount;
+              updates.discount_percent = categoryDiscount;
+              const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+              updates.final_rate_snapshot = finalRate;
+              updates.is_override = false;
+              updates.rate = finalRate;
+            }
           }
         }
 
         const updatedItem = { ...item, ...updates };
 
         // Trigger erection charge creation/update for material changes
-        if (field === 'qty' || field === 'uom' || field === 'description' || field === 'item_id') {
+        const triggerFields = ['qty', 'uom', 'description', 'item_id'];
+        const hasTrigger = isBulk 
+          ? triggerFields.some(f => f in fieldOrUpdates)
+          : triggerFields.includes(fieldOrUpdates);
+
+        if (hasTrigger) {
           // Only trigger if this is a material item (not erection)
           if (item.section !== 'erection') {
             autoCreateOrUpdateErection({
@@ -2882,11 +2939,19 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                   setItems(prev => prev.map(item => {
                     if (item.is_header || item.is_subtotal || item.section === 'erection') return item;
                     const mat = materials.find(m => m.id === item.item_id);
-                    if (!mat) return { ...item, variant_id: newVariantId || null };
+                    if (!mat) return item;
+                    
+                    // Only update the variant if the material supports it (Standard/empty variant is always supported)
+                    const hasNewVariant = !newVariantId || (variantPricing[mat.id] && variantPricing[mat.id][newVariantId]);
+                    if (!hasNewVariant) {
+                      return item;
+                    }
+                    
                     const newRate = getRateForMaterialVariant(mat, newVariantId || null, item.make || '');
-                    const variantDiscount = newVariantId ? (headerDiscounts[newVariantId] || 0) : 0;
-                    const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                    return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: variantDiscount, applied_discount_percent: variantDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
+                    const dcId = item.discount_category_id || mat.discount_category_id;
+                    const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+                    const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+                    return { ...item, variant_id: newVariantId || null, base_rate_snapshot: newRate, discount_percent: categoryDiscount, applied_discount_percent: categoryDiscount, rate: finalRate, final_rate_snapshot: finalRate, is_override: false };
                   }));
                 }
               }}>
@@ -3100,7 +3165,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         </div>
 
         <div className="grid-table-container">
-          <table className={`grid-table cq-editable ${activeSection === 'erection' ? 'erection-section' : ''}`}>
+          <table className={`grid-table cq-editable ${activeSection === 'erection' ? 'erection-section' : ''}`} style={{ minWidth: getTableMinWidth() }}>
             <thead>
               <tr>
                 <th className="col-shrink">#</th>
@@ -3260,20 +3325,43 @@ className="text-center cell-static col-shrink row-drag-handle"
                           value={item.item_id}
                           materials={materials}
                           onChange={(materialId, mat) => {
-                            updateItem(item.id, 'item_id', materialId);
                             if (mat) {
-                              updateItem(item.id, 'material', mat);
-                              updateItem(item.id, 'hsn_code', mat.hsn_code || '');
-                              updateItem(item.id, 'description', '');
-                              updateItem(item.id, 'tax_percent', mat.gst_rate || 0);
-                              updateItem(item.id, 'discount_category_id', mat.discount_category_id || null);
                               const makes = itemMakes[mat.id] || [];
                               const autoMake = makes.length === 1 ? makes[0] : '';
-                              updateItem(item.id, 'make', autoMake);
                               const newRate = getRateForMaterialVariant(mat, item.variant_id || null, autoMake);
-                              updateItem(item.id, 'base_rate_snapshot', newRate);
-                              const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
-                              updateItem(item.id, 'rate', finalRate);
+                              const dcId = mat.discount_category_id || null;
+                              const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+                              const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+                              
+                              updateItem(item.id, {
+                                item_id: materialId,
+                                material: mat,
+                                hsn_code: mat.hsn_code || '',
+                                description: '',
+                                tax_percent: mat.gst_rate || 0,
+                                discount_category_id: dcId,
+                                make: autoMake,
+                                base_rate_snapshot: newRate,
+                                discount_percent: categoryDiscount,
+                                applied_discount_percent: categoryDiscount,
+                                is_override: false,
+                                rate: finalRate
+                              });
+                            } else {
+                              updateItem(item.id, {
+                                item_id: '',
+                                material: null,
+                                hsn_code: '',
+                                description: '',
+                                tax_percent: 0,
+                                discount_category_id: null,
+                                make: '',
+                                base_rate_snapshot: 0,
+                                discount_percent: 0,
+                                applied_discount_percent: 0,
+                                is_override: false,
+                                rate: 0
+                              });
                             }
                           }}
                         />
@@ -3356,14 +3444,22 @@ className="text-center cell-static col-shrink row-drag-handle"
                             value={item.make || ''}
                             makes={itemMakes[item.item_id] || []}
                             onChange={(nextMake) => {
-                              updateItem(item.id, 'make', nextMake);
                               const mat = materials.find(m => m.id === item.item_id);
                               if (mat) {
                                 const newRate = getRateForMaterialVariant(mat, item.variant_id || null, nextMake);
-                                const variant_discount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
-                                const finalRate = calculateVariantDiscountedRate(newRate, variant_discount);
-                                updateItem(item.id, 'base_rate_snapshot', newRate);
-                                updateItem(item.id, 'rate', finalRate);
+                                const dcId = item.discount_category_id || mat.discount_category_id || null;
+                                const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+                                updateItem(item.id, {
+                                  make: nextMake,
+                                  base_rate_snapshot: newRate,
+                                  discount_percent: categoryDiscount,
+                                  applied_discount_percent: categoryDiscount,
+                                  is_override: false,
+                                  rate: finalRate
+                                });
+                              } else {
+                                updateItem(item.id, 'make', nextMake);
                               }
                             }}
                           />
@@ -3377,14 +3473,22 @@ className="text-center cell-static col-shrink row-drag-handle"
                             itemId={item.item_id}
                             variantPricing={variantPricing}
                             onChange={(nextVariant) => {
-                              updateItem(item.id, 'variant_id', nextVariant);
                               const mat = materials.find(m => m.id === item.item_id);
                               if (mat) {
                                 const newRate = getRateForMaterialVariant(mat, nextVariant, item.make || '');
-                                const variant_discount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-                                const finalRate = calculateVariantDiscountedRate(newRate, variant_discount);
-                                updateItem(item.id, 'base_rate_snapshot', newRate);
-                                updateItem(item.id, 'rate', finalRate);
+                                const dcId = item.discount_category_id || mat.discount_category_id || null;
+                                const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+                                updateItem(item.id, {
+                                  variant_id: nextVariant,
+                                  base_rate_snapshot: newRate,
+                                  discount_percent: categoryDiscount,
+                                  applied_discount_percent: categoryDiscount,
+                                  is_override: false,
+                                  rate: finalRate
+                                });
+                              } else {
+                                updateItem(item.id, 'variant_id', nextVariant);
                               }
                             }}
                           />
@@ -3580,15 +3684,25 @@ className="text-center cell-static col-shrink row-drag-handle"
               )}
               
               <tr className="total-row">
-                <td colSpan={4} className="total-label">TOTAL</td>
+                <td colSpan={getColsBeforeQty()} className="total-label text-right font-bold pr-4">TOTAL</td>
                 <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>
                   {items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0).toFixed(2)}
                 </td>
-                <td colSpan={templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels != null ? 7 : templateSettings?.column_settings?.optional?.custom1 !== false || templateSettings?.column_settings?.optional?.custom2 !== false ? (templateSettings?.column_settings?.labels != null ? 6 : 5) : 5}></td>
-                <td className="total-value">
+                <td className="cell-static"></td> {/* Unit */}
+                <td className="cell-static"></td> {/* Rate */}
+                <td className="cell-static"></td> {/* Disc % */}
+                <td className="cell-static"></td> {/* Rate After Disc */}
+                <td className="cell-static"></td> {/* GST % */}
+                {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
+                  <td className="cell-static"></td>
+                )}
+                {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
+                  <td className="cell-static"></td>
+                )}
+                <td className="text-right font-bold amount-value pr-4" style={{ fontSize: '15px', color: '#111827' }}>
                   {formatCurrency(items.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0))}
                 </td>
-                <td></td>
+                <td className="cell-static"></td> {/* Actions/Delete */}
               </tr>
             </tbody>
           </table>
@@ -4243,7 +4357,15 @@ className="text-center cell-static col-shrink row-drag-handle"
                 onClick={() => {
                   const { portfolio } = discountConfirm;
                   setItems(items.map(item => {
-                    const disc = portfolio.discounts[item.variant_id] || 0;
+                    if (item.is_header || item.is_subtotal) return item;
+                    let disc = 0;
+                    if (item.section === 'erection') {
+                      disc = portfolio.discounts['erection'] || 0;
+                    } else {
+                      const mat = item.material || materials.find(m => m.id === item.item_id);
+                      const dcId = item.discount_category_id || mat?.discount_category_id;
+                      disc = dcId ? (portfolio.discounts[dcId] || 0) : 0;
+                    }
                     const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
                     const finalRate = calculateVariantDiscountedRate(baseRate, disc);
                     return {

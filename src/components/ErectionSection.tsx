@@ -51,7 +51,7 @@ export function ErectionSection({ quotationId, items, onItemUpdate }: ErectionSe
       </div>
       
       <div className="grid-table-container">
-        <table className="grid-table erection-section">
+        <table className="grid-table erection-section" style={{ minWidth: '830px' }}>
           <thead>
             <tr>
               <th className="col-shrink">#</th>
