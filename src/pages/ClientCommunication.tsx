@@ -30,6 +30,7 @@ import {
   ArrowDownLeft,
   Smartphone,
   Users,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   format,
@@ -141,6 +142,23 @@ function formatFollowUpDate(dateStr: string | null | undefined): string {
   }
 }
 
+function getFollowUpStatus(dateStr: string | null | undefined): 'overdue' | 'today' | 'upcoming' {
+  if (!dateStr) return 'upcoming';
+  try {
+    const d = parseISO(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const followDate = new Date(d);
+    followDate.setHours(0, 0, 0, 0);
+
+    if (followDate.getTime() < today.getTime()) return 'overdue';
+    if (followDate.getTime() === today.getTime()) return 'today';
+    return 'upcoming';
+  } catch {
+    return 'upcoming';
+  }
+}
+
 function formatCommTime(dateStr: string): { time: string; date: string } {
   try {
     const d = parseISO(dateStr);
@@ -169,6 +187,7 @@ export function ClientCommunication() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [selectedParty, setSelectedParty] = useState<{ type: string; id: string; name: string } | null>(null);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -289,6 +308,58 @@ export function ClientCommunication() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: allFollowUps = [] } = useQuery({
+    queryKey: ['all-follow-ups', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_communication')
+        .select(`
+          *,
+          client:clients(id, client_name),
+          vendor:purchase_vendors(id, company_name),
+          subcontractor:subcontractors(id, company_name),
+          lead:leads(id, company_name, contact_name)
+        `)
+        .eq('organisation_id', organisation?.id)
+        .not('follow_up_date', 'is', null)
+        .in('status', ['Open', 'In Progress', 'open', 'in_progress'])
+        .order('follow_up_date', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: partyHistory = [], isLoading: isLoadingHistory } = useQuery({
+    queryKey: ['party-communication-history', selectedParty?.type, selectedParty?.id],
+    queryFn: async () => {
+      if (!selectedParty) return [];
+      let query = supabase
+        .from('client_communication')
+        .select(`
+          *,
+          client:clients(id, client_name),
+          vendor:purchase_vendors(id, company_name),
+          subcontractor:subcontractors(id, company_name),
+          lead:leads(id, company_name, contact_name)
+        `)
+        .eq('organisation_id', organisation?.id)
+        .order('created_at', { ascending: false });
+
+      if (selectedParty.type === 'client') query = query.eq('client_id', selectedParty.id);
+      else if (selectedParty.type === 'vendor') query = query.eq('vendor_id', selectedParty.id);
+      else if (selectedParty.type === 'lead') query = query.eq('lead_id', selectedParty.id);
+      else if (selectedParty.type === 'subcontractor') query = query.eq('subcontractor_id', selectedParty.id);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && !!selectedParty?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const { data: users = [] } = useQuery({
     queryKey: ['users', organisation?.id],
     queryFn: async () => {
@@ -330,6 +401,8 @@ export function ClientCommunication() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
+      queryClient.invalidateQueries({ queryKey: ['all-follow-ups'] });
+      queryClient.invalidateQueries({ queryKey: ['party-communication-history'] });
       setShowCreateModal(false);
       resetForm();
     },
@@ -349,6 +422,8 @@ export function ClientCommunication() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
+      queryClient.invalidateQueries({ queryKey: ['all-follow-ups'] });
+      queryClient.invalidateQueries({ queryKey: ['party-communication-history'] });
       setSelectedCommunication(null);
     },
   });
@@ -625,6 +700,27 @@ export function ClientCommunication() {
               </button>
             );
           })}
+          {/* Advanced Filters Toggle */}
+          <button
+            onClick={() => setShowMoreFilters(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '6px 14px',
+              border: `1.5px solid ${showMoreFilters ? '#4F46E5' : '#E2E8F0'}`,
+              borderRadius: '20px',
+              background: showMoreFilters ? '#EEF2FF' : '#fff',
+              color: showMoreFilters ? '#4F46E5' : '#64748B',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 150ms ease',
+            }}
+          >
+            <Filter size={13} />
+            Filters
+            {showMoreFilters ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
@@ -634,6 +730,97 @@ export function ClientCommunication() {
             </button>
           )}
         </div>
+
+        {/* Collapsible advanced filters */}
+        {showMoreFilters && (
+          <div style={{
+            maxWidth: '1440px',
+            margin: '10px auto 0 auto',
+            padding: '16px',
+            background: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '12px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+          }}>
+            {/* Communication Type */}
+            <div>
+              <label style={labelStyle}>Communication Type</label>
+              <select style={selectStyle} value={filters.callCategory} onChange={e => { setFilters(f => ({ ...f, callCategory: e.target.value })); setCurrentPage(1); }}>
+                {CALL_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+
+            {/* Regarding */}
+            <div>
+              <label style={labelStyle}>Regarding</label>
+              <select style={selectStyle} value={filters.callRegarding} onChange={e => { setFilters(f => ({ ...f, callRegarding: e.target.value })); setCurrentPage(1); }}>
+                {CALL_REGARDING.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label style={labelStyle}>Status</label>
+              <select style={selectStyle} value={filters.status} onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setCurrentPage(1); }}>
+                <option value="">All Statuses</option>
+                {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label style={labelStyle}>Priority</label>
+              <select style={selectStyle} value={filters.priority} onChange={e => { setFilters(f => ({ ...f, priority: e.target.value })); setCurrentPage(1); }}>
+                <option value="">All Priorities</option>
+                {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+
+            {/* Date Range */}
+            <div>
+              <label style={labelStyle}>Date From</label>
+              <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '7px', fontSize: '13px', color: '#334155', background: '#fff', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Date To</label>
+              <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '7px', fontSize: '13px', color: '#334155', background: '#fff', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            {/* Select specific parties (Client, Vendor, Lead, Subcontractor) */}
+            <div>
+              <label style={labelStyle}>Client</label>
+              <select style={selectStyle} value={filters.clientId} onChange={e => { setFilters(f => ({ ...f, clientId: e.target.value, partyType: e.target.value ? 'client' : f.partyType })); setCurrentPage(1); }}>
+                <option value="">All Clients</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Vendor</label>
+              <select style={selectStyle} value={filters.vendorId} onChange={e => { setFilters(f => ({ ...f, vendorId: e.target.value, partyType: e.target.value ? 'vendor' : f.partyType })); setCurrentPage(1); }}>
+                <option value="">All Vendors</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Subcontractor</label>
+              <select style={selectStyle} value={filters.subcontractorId} onChange={e => { setFilters(f => ({ ...f, subcontractorId: e.target.value, partyType: e.target.value ? 'subcontractor' : f.partyType })); setCurrentPage(1); }}>
+                <option value="">All Subcontractors</option>
+                {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Lead</label>
+              <select style={selectStyle} value={filters.leadId} onChange={e => { setFilters(f => ({ ...f, leadId: e.target.value, partyType: e.target.value ? 'lead' : f.partyType })); setCurrentPage(1); }}>
+                <option value="">All Leads</option>
+                {leads.map(l => <option key={l.id} value={l.id}>{l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ════ MAIN LAYOUT ════ */}
@@ -642,10 +829,9 @@ export function ClientCommunication() {
         margin: '0 auto',
         padding: '20px 24px',
         display: 'grid',
-        gridTemplateColumns: sidebarExpanded ? '1fr 272px' : '1fr 48px',
+        gridTemplateColumns: '1fr 350px',
         gap: '20px',
         alignItems: 'start',
-        transition: 'grid-template-columns 200ms ease',
       }}>
 
         {/* ── LEFT: TABLE AREA ── */}
@@ -759,13 +945,40 @@ export function ClientCommunication() {
                         <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>{timeInfo.date}</div>
                       </td>
                       {/* Party */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle' }}>
+                      <td
+                        onClick={e => {
+                          e.stopPropagation();
+                          const id = comm.client_id || comm.vendor_id || comm.lead_id || comm.subcontractor_id;
+                          if (id) {
+                            setSelectedParty({
+                              type: comm.party_type || 'client',
+                              id,
+                              name: partyName,
+                            });
+                          }
+                        }}
+                        style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', cursor: 'pointer' }}
+                      >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                           <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: avatar.bg, color: avatar.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
                             {initials}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px' }}>{partyName}</div>
+                            <div
+                              style={{
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                color: '#4F46E5',
+                                textDecoration: 'underline',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                maxWidth: '130px',
+                              }}
+                              title="Click to view conversation chain"
+                            >
+                              {partyName}
+                            </div>
                             <div style={{ fontSize: '11px', color: '#94A3B8' }}>{partyTypeLabel}</div>
                           </div>
                         </div>
@@ -877,143 +1090,263 @@ export function ClientCommunication() {
           )}
         </div>
 
-        {/* ── RIGHT: FILTERS SIDEBAR ── */}
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', position: 'sticky', top: '120px' }}>
-          {/* Header */}
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {sidebarExpanded && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Filter size={14} color="#4F46E5" />
-                <span style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A' }}>Filters</span>
-              </div>
-            )}
-            <button
-              onClick={() => setSidebarExpanded(v => !v)}
-              style={{ padding: '4px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', marginLeft: sidebarExpanded ? 'auto' : 'auto', display: 'flex' }}
-            >
-              {sidebarExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-          </div>
-
-          {sidebarExpanded && (
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-              {/* Search */}
-              <div>
-                <label style={labelStyle}>Search</label>
-                <div style={{ position: 'relative' }}>
-                  <Search size={13} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
-                  <input
-                    placeholder="Search in filters..."
-                    value={filters.search}
-                    onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                    style={{ width: '100%', padding: '7px 10px 7px 28px', border: '1px solid #E2E8F0', borderRadius: '7px', fontSize: '13px', color: '#334155', background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
-                  />
+        {/* ── RIGHT: SIDEBAR (FOLLOW-UPS / CONVERSATION CHAIN) ── */}
+        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', position: 'sticky', top: '100px', maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+          
+          {selectedParty ? (
+            /* STATE B: CONVERSATION HISTORY CHAIN */
+            <>
+              {/* Sidebar Header */}
+              <div style={{ padding: '16px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button 
+                  onClick={() => setSelectedParty(null)} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    border: 'none', 
+                    background: 'transparent', 
+                    color: '#4F46E5', 
+                    fontSize: '13px', 
+                    fontWeight: 600, 
+                    cursor: 'pointer',
+                    padding: 0,
+                    alignSelf: 'flex-start'
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  Back to Follow-ups
+                </button>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', margin: 0 }}>{selectedParty.name}</h3>
+                  <span style={{ 
+                    display: 'inline-block', 
+                    marginTop: '2px', 
+                    fontSize: '11px', 
+                    fontWeight: 600, 
+                    padding: '2px 8px', 
+                    background: PARTY_CHIPS.find(p => p.value === selectedParty.type)?.bg || '#F1F5F9',
+                    color: PARTY_CHIPS.find(p => p.value === selectedParty.type)?.color || '#475569',
+                    borderRadius: '12px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {selectedParty.type}
+                  </span>
                 </div>
               </div>
 
-              {/* Communication Type */}
-              <div>
-                <label style={labelStyle}>Communication Type</label>
-                <select style={selectStyle} value={filters.callCategory} onChange={e => { setFilters(f => ({ ...f, callCategory: e.target.value })); setCurrentPage(1); }}>
-                  {CALL_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+              {/* Sidebar Content (Timeline list) */}
+              <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+                {isLoadingHistory ? (
+                  <div style={{ padding: '24px 0', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>
+                    Loading history...
+                  </div>
+                ) : partyHistory.length === 0 ? (
+                  <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                    <MessageSquare size={32} style={{ color: '#CBD5E1', display: 'block', margin: '0 auto 10px' }} />
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', margin: 0 }}>No prior interactions</p>
+                    <p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>Log a communication to start the history chain.</p>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative', paddingLeft: '20px', borderLeft: '2px solid #E2E8F0', margin: '8px 4px 8px 12px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {partyHistory.map(item => {
+                      const itemTime = formatCommTime(item.created_at);
+                      const catKey = (item.call_category || '').toLowerCase();
+                      const typeInfo = TYPE_DISPLAY[catKey] || { label: item.call_category || '—', color: '#64748B', bgColor: '#F1F5F9', icon: <MessageSquare size={13} /> };
+                      
+                      return (
+                        <div 
+                          key={item.id} 
+                          onClick={() => setSelectedCommunication(item)}
+                          style={{ position: 'relative', cursor: 'pointer' }}
+                        >
+                          {/* Timeline dot */}
+                          <div style={{ 
+                            position: 'absolute', 
+                            left: '-27px', 
+                            top: '4px', 
+                            width: '12px', 
+                            height: '12px', 
+                            borderRadius: '50%', 
+                            background: typeInfo.color, 
+                            border: '3px solid #fff',
+                            boxShadow: '0 0 0 1px #E2E8F0',
+                          }} />
+                          
+                          {/* Card */}
+                          <div 
+                            style={{ 
+                              background: '#F8FAFC', 
+                              border: '1px solid #E2E8F0', 
+                              borderRadius: '8px', 
+                              padding: '10px 12px',
+                              transition: 'all 150ms ease',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.background = '#fff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#F8FAFC'; }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
+                              <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                {itemTime.date} at {itemTime.time}
+                              </span>
+                              <span style={{ fontSize: '9px', padding: '1px 5px', background: typeInfo.bgColor, color: typeInfo.color, borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                {typeInfo.label}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F172A', marginBottom: '2px', lineHeight: 1.3 }}>
+                              {item.subject || 'General Discussion'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {item.call_brief}
+                            </div>
+                            
+                            {item.next_action && (
+                              <div style={{ marginTop: '6px', fontSize: '10px', color: '#4F46E5', fontWeight: 500, display: 'flex', alignItems: 'flex-start', gap: '2px', borderTop: '1px dashed #E2E8F0', paddingTop: '4px' }}>
+                                <span style={{ flexShrink: 0 }}>Next:</span>
+                                <span style={{ color: '#475569', fontStyle: 'italic' }}>{item.next_action}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-
-              {/* Regarding */}
-              <div>
-                <label style={labelStyle}>Regarding</label>
-                <select style={selectStyle} value={filters.callRegarding} onChange={e => { setFilters(f => ({ ...f, callRegarding: e.target.value })); setCurrentPage(1); }}>
-                  {CALL_REGARDING.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label style={labelStyle}>Status</label>
-                <select style={selectStyle} value={filters.status} onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setCurrentPage(1); }}>
-                  <option value="">All Statuses</option>
-                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </div>
-
-              {/* Priority */}
-              <div>
-                <label style={labelStyle}>Priority</label>
-                <select style={selectStyle} value={filters.priority} onChange={e => { setFilters(f => ({ ...f, priority: e.target.value })); setCurrentPage(1); }}>
-                  <option value="">All Priorities</option>
-                  {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-
-              {/* Date Range */}
-              <div>
-                <label style={labelStyle}>Date Range</label>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
-                    style={{ flex: 1, padding: '7px 6px', border: '1px solid #E2E8F0', borderRadius: '7px', fontSize: '12px', color: '#334155', minWidth: 0, outline: 'none' }} />
-                  <span style={{ color: '#94A3B8', fontSize: '12px', flexShrink: 0 }}>-</span>
-                  <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
-                    style={{ flex: 1, padding: '7px 6px', border: '1px solid #E2E8F0', borderRadius: '7px', fontSize: '12px', color: '#334155', minWidth: 0, outline: 'none' }} />
+            </>
+          ) : (
+            /* STATE A: UPCOMING FOLLOW-UPS LIST */
+            <>
+              {/* Sidebar Header */}
+              <div style={{ padding: '16px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CalendarIcon size={16} color="#4F46E5" />
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Upcoming Follow-ups</h3>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: 0 }}>Communications requiring action</p>
                 </div>
               </div>
 
-              {/* More Filters toggle */}
-              <button
-                onClick={() => setShowMoreFilters(v => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 0', border: 'none', background: 'transparent', color: '#4F46E5', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
-              >
-                More Filters {showMoreFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
+              {/* Sidebar Content */}
+              <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {allFollowUps.length === 0 ? (
+                  <div style={{ padding: '40px 10px', textAlign: 'center' }}>
+                    <CalendarPlus size={32} style={{ color: '#CBD5E1', display: 'block', margin: '0 auto 10px' }} />
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#64748B', margin: 0 }}>No pending follow-ups</p>
+                    <p style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 0' }}>All clear! Log a communication with a follow-up date to see it here.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Overdue */}
+                    {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'overdue').length > 0 && (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444', letterSpacing: '0.05em' }}>OVERDUE</span>
+                          <span style={{ fontSize: '10px', background: '#FEE2E2', color: '#EF4444', padding: '1px 6px', borderRadius: '10px', fontWeight: 700 }}>
+                            {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'overdue').length}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'overdue').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => setSelectedCommunication(item)}
+                              style={{ padding: '10px 12px', border: '1px solid #FCA5A5', background: '#FFF5F5', borderRadius: '8px', cursor: 'pointer', transition: 'all 150ms' }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B' }}>{getPartyName(item)}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#EF4444' }}>{formatFollowUpDate(item.follow_up_date)}</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#7F1D1D', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.subject || 'Follow-up Call'}
+                              </div>
+                              {item.next_action && (
+                                <div style={{ fontSize: '10px', color: '#B91C1C', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+                                  {item.next_action}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-              {showMoreFilters && (
-                <>
-                  {/* Client filter */}
-                  <div>
-                    <label style={labelStyle}>Client</label>
-                    <select style={selectStyle} value={filters.clientId} onChange={e => { setFilters(f => ({ ...f, clientId: e.target.value, partyType: e.target.value ? 'client' : f.partyType })); setCurrentPage(1); }}>
-                      <option value="">All Clients</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-                    </select>
-                  </div>
-                  {/* Vendor filter */}
-                  <div>
-                    <label style={labelStyle}>Vendor</label>
-                    <select style={selectStyle} value={filters.vendorId} onChange={e => { setFilters(f => ({ ...f, vendorId: e.target.value, partyType: e.target.value ? 'vendor' : f.partyType })); setCurrentPage(1); }}>
-                      <option value="">All Vendors</option>
-                      {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-                    </select>
-                  </div>
-                  {/* Subcontractor filter */}
-                  <div>
-                    <label style={labelStyle}>Subcontractor</label>
-                    <select style={selectStyle} value={filters.subcontractorId} onChange={e => { setFilters(f => ({ ...f, subcontractorId: e.target.value, partyType: e.target.value ? 'subcontractor' : f.partyType })); setCurrentPage(1); }}>
-                      <option value="">All Subcontractors</option>
-                      {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
-                    </select>
-                  </div>
-                  {/* Lead filter */}
-                  <div>
-                    <label style={labelStyle}>Lead</label>
-                    <select style={selectStyle} value={filters.leadId} onChange={e => { setFilters(f => ({ ...f, leadId: e.target.value, partyType: e.target.value ? 'lead' : f.partyType })); setCurrentPage(1); }}>
-                      <option value="">All Leads</option>
-                      {leads.map(l => <option key={l.id} value={l.id}>{l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name}</option>)}
-                    </select>
-                  </div>
-                </>
-              )}
+                    {/* Today */}
+                    {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'today').length > 0 && (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#D97706', letterSpacing: '0.05em' }}>TODAY</span>
+                          <span style={{ fontSize: '10px', background: '#FEF3C7', color: '#D97706', padding: '1px 6px', borderRadius: '10px', fontWeight: 700 }}>
+                            {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'today').length}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'today').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => setSelectedCommunication(item)}
+                              style={{ padding: '10px 12px', border: '1px solid #FCD34D', background: '#FFFDF5', borderRadius: '8px', cursor: 'pointer', transition: 'all 150ms' }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#92400E' }}>{getPartyName(item)}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#D97706' }}>Today</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#78350F', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.subject || 'Follow-up Call'}
+                              </div>
+                              {item.next_action && (
+                                <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+                                  {item.next_action}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-              {/* Clear Filters */}
-              <button
-                onClick={clearFilters}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '9px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', color: '#475569', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F1F5F9'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F8FAFC'; }}
-              >
-                <RefreshCw size={13} />
-                Clear Filters
-              </button>
-            </div>
+                    {/* Upcoming */}
+                    {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'upcoming').length > 0 && (
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#2563EB', letterSpacing: '0.05em' }}>UPCOMING</span>
+                          <span style={{ fontSize: '10px', background: '#DBEAFE', color: '#2563EB', padding: '1px 6px', borderRadius: '10px', fontWeight: 700 }}>
+                            {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'upcoming').length}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {allFollowUps.filter(f => getFollowUpStatus(f.follow_up_date) === 'upcoming').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => setSelectedCommunication(item)}
+                              style={{ padding: '10px 12px', border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: '8px', cursor: 'pointer', transition: 'all 150ms' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = '#3B82F6'; e.currentTarget.style.background = '#fff'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#1E293B' }}>{getPartyName(item)}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: '#4F46E5' }}>{formatFollowUpDate(item.follow_up_date)}</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.subject || 'Follow-up Call'}
+                              </div>
+                              {item.next_action && (
+                                <div style={{ fontSize: '10px', color: '#64748B', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+                                  {item.next_action}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -1209,6 +1542,22 @@ export function ClientCommunication() {
         size="md"
         footer={
           <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const id = selectedCommunication?.client_id || selectedCommunication?.vendor_id || selectedCommunication?.lead_id || selectedCommunication?.subcontractor_id;
+                if (id) {
+                  setSelectedParty({
+                    type: selectedCommunication.party_type || 'client',
+                    id,
+                    name: getPartyName(selectedCommunication),
+                  });
+                  setSelectedCommunication(null);
+                }
+              }}
+            >
+              View History
+            </Button>
             <Button variant="secondary" leftIcon={<CalendarPlus size={16} />} onClick={() => setShowSiteVisitModal(true)}>
               Add Site Visit
             </Button>

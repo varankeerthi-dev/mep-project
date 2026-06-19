@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClients } from '../hooks/useClients';
 import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, MessageSquare, Phone, Mail, Smartphone, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -252,6 +252,8 @@ export default function ClientList() {
   const [activeTab, setActiveTab] = useState('overview');
   const [reportsSubTab, setReportsSubTab] = useState('ledger');
   const [txFilter, setTxFilter] = useState('all');
+  const [commLoading, setCommLoading] = useState(false);
+  const [communications, setCommunications] = useState<any[]>([]);
   const [txSearch, setTxSearch] = useState('');
   const [txDateFrom, setTxDateFrom] = useState('');
   const [txDateTo, setTxDateTo] = useState('');
@@ -372,6 +374,22 @@ const txQueries = useQueries({
     meetingTx
   ] = txQueries;
 
+  // Fetch communications for the active client
+  useEffect(() => {
+    if (!activeClientId || !organisation?.id || activeTab !== 'reports') return;
+    setCommLoading(true);
+    supabase
+      .from('client_communication')
+      .select('*')
+      .eq('client_id', activeClientId)
+      .eq('organisation_id', organisation.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setCommunications(data || []);
+        setCommLoading(false);
+      });
+  }, [activeClientId, organisation?.id, activeTab]);
+
   const transactions = useMemo(() => {
     const merged: any[] = [];
     const safePush = (rows: any[], mapFn: (row: any) => any) => {
@@ -447,9 +465,22 @@ const txQueries = useQueries({
       ref_id: r.id
     }));
 
+    // Merge communication logs into the timeline
+    safePush(communications, (r) => ({
+      type: 'communication',
+      label: 'Communication',
+      number: r.call_category ? `${String(r.call_category).charAt(0).toUpperCase() + String(r.call_category).slice(1)}` : 'Log',
+      date: r.created_at,
+      date_ms: new Date(r.created_at || 0).getTime(),
+      amount: 0,
+      status: r.status || '-',
+      details: r.call_brief || r.next_action || '-',
+      ref_id: r.id
+    }));
+
     merged.sort((a, b) => (b.date_ms || 0) - (a.date_ms || 0));
     return merged;
-  }, [quotationTx?.data, clientPoTx?.data, projectTx?.data, siteVisitTx?.data, dcTx?.data, meetingTx?.data]);
+  }, [quotationTx?.data, clientPoTx?.data, projectTx?.data, siteVisitTx?.data, dcTx?.data, meetingTx?.data, communications]);
 
   const loadingTx = txQueries.length > 0 && txQueries.some((q) => q.isPending && !q.data);
   const transactionsError = txQueries.find((q) => q.isError)?.error;
@@ -490,7 +521,8 @@ const txQueries = useQueries({
       project: 0,
       site_visit: 0,
       delivery_challan: 0,
-      meeting: 0
+      meeting: 0,
+      communication: 0
     };
     transactions.forEach((t: any) => {
       if (counts[t.type] !== undefined) counts[t.type] += 1;
@@ -523,6 +555,10 @@ const txQueries = useQueries({
     if (t.type === 'meeting') {
       navigate(`/meetings/edit?id=${t.ref_id}`);
     }
+    if (t.type === 'communication') {
+      // Communications don't have a detail page; switch to the communication sub-tab
+      setReportsSubTab('communication');
+    }
   };
 
   const ledgerTotals = useMemo(() => {
@@ -542,7 +578,8 @@ const txQueries = useQueries({
       'project': 'project',
       'site_visit': 'site_visit',
       'delivery_challan': 'delivery_challan',
-      'meeting': 'meeting'
+      'meeting': 'meeting',
+      'communication': 'communication'
     };
     const type = typeMap[reportsSubTab];
     if (!type) return [];
@@ -616,6 +653,7 @@ const txQueries = useQueries({
                 <button className={`btn btn-sm ${reportsSubTab === 'site_visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('site_visit')}>Site Visits ({txCounts.site_visit})</button>
                 <button className={`btn btn-sm ${reportsSubTab === 'delivery_challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('delivery_challan')}>Delivery Challans ({txCounts.delivery_challan})</button>
                 <button className={`btn btn-sm ${reportsSubTab === 'meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('meeting')}>Meetings ({txCounts.meeting})</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'communication' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('communication')}>Communications ({txCounts.communication})</button>
               </div>
             )}
 
@@ -662,6 +700,7 @@ const txQueries = useQueries({
                       <option value="site_visit">Site Visit</option>
                       <option value="delivery_challan">Delivery Challan</option>
                       <option value="meeting">Meeting</option>
+                      <option value="communication">Communication</option>
                     </select>
                     <input className="form-input" value={txSearch} onChange={(e) => setTxSearch(e.target.value)} placeholder="Search no/type/details..." style={{ padding: '6px 8px', fontSize: '12px' }} />
                     <input type="date" className="form-input" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
@@ -674,6 +713,52 @@ const txQueries = useQueries({
                     onOpen={openTransaction}
                     emptyMessage={transactionsError ? ((transactionsError as Error)?.message || 'Unable to load transactions.') : 'No transactions'}
                   />
+                </div>
+              )}
+
+              {activeTab === 'reports' && reportsSubTab === 'communication' && (
+                <div>
+                  {commLoading ? (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>Loading communications...</div>
+                  ) : communications.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>
+                      <MessageSquare size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+                      No communications logged for this client.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {communications.map((comm) => {
+                        const CATEGORY_MAP: Record<string, { icon: React.ElementType; bg: string; text: string }> = {
+                          incoming: { icon: Phone, bg: '#ecfdf5', text: '#059669' },
+                          outgoing: { icon: Phone, bg: '#eff6ff', text: '#2563eb' },
+                          Incoming: { icon: Phone, bg: '#ecfdf5', text: '#059669' },
+                          Outgoing: { icon: Phone, bg: '#eff6ff', text: '#2563eb' },
+                          whatsapp: { icon: Smartphone, bg: '#f0fdf4', text: '#16a34a' },
+                          email: { icon: Mail, bg: '#fef3c7', text: '#d97706' },
+                          meeting: { icon: Users, bg: '#f3e8ff', text: '#7c3aed' },
+                        };
+                        const cat = CATEGORY_MAP[comm.call_category] || { icon: MessageSquare, bg: '#f5f5f5', text: '#737373' };
+                        const CatIcon = cat.icon;
+                        return (
+                          <div key={comm.id} style={{ display: 'flex', gap: '12px', padding: '10px 12px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: cat.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.text, flexShrink: 0 }}>
+                              <CatIcon size={16} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>{comm.call_brief || 'No brief'}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', background: (comm.status === 'Open' || comm.status === 'open') ? '#fef3c7' : (comm.status === 'Resolved' || comm.status === 'resolved') ? '#ecfdf5' : '#f3f4f6', color: (comm.status === 'Open' || comm.status === 'open') ? '#d97706' : (comm.status === 'Resolved' || comm.status === 'resolved') ? '#059669' : '#6b7280' }}>{comm.status}</span>
+                              </div>
+                              {comm.next_action && (
+                                <div style={{ fontSize: '11px', color: '#737373', marginBottom: '4px' }}>Next: {comm.next_action}</div>
+                              )}
+                              <div style={{ fontSize: '11px', color: '#a3a3a3' }}>{new Date(comm.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {new Date(comm.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
