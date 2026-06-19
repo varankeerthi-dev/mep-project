@@ -6,9 +6,9 @@ import { supabase } from '../supabase';
 import { getOrganisationMembers } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
 import { Card } from '../components/ui/Card';
-import { Button, IconButton } from '../components/ui/Button';
+import { Button, IconButton } from '../components/ui/button';
 import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
-import { Input, Select, TextArea } from '../components/ui/Input';
+import { Input, Select, TextArea } from '../components/ui/input';
 import { Modal } from '../components/ui/Modal';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
 import { Tabs, TabList, Tab, TabPanel } from '../components/ui/Tabs';
@@ -100,6 +100,10 @@ export function ClientCommunication() {
   // Filters
   const [filters, setFilters] = useState({
     clientId: '',
+    vendorId: '',
+    subcontractorId: '',
+    leadId: '',
+    partyType: '',
     callCategory: '',
     callRegarding: '',
     status: '',
@@ -130,12 +134,78 @@ export function ClientCommunication() {
     retry: 1,
   });
 
-  // Create a client lookup map (must be after clients query)
+  // Fetch vendors - filtered by organisation_id
+  const { data: vendors = [], isLoading: isVendorsLoading } = useQuery({
+    queryKey: ['vendors', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_vendors')
+        .select('id, company_name')
+        .eq('organisation_id', organisation?.id)
+        .order('company_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 30,
+  });
+
+  // Fetch subcontractors - filtered by organisation_id
+  const { data: subcontractors = [], isLoading: isSubcontractorsLoading } = useQuery({
+    queryKey: ['subcontractors', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subcontractors')
+        .select('id, company_name')
+        .eq('organisation_id', organisation?.id)
+        .order('company_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 30,
+  });
+
+  // Fetch leads - filtered by organisation_id
+  const { data: leads = [], isLoading: isLeadsLoading } = useQuery({
+    queryKey: ['leads', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, company_name, contact_name')
+        .eq('organisation_id', organisation?.id)
+        .order('company_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 30,
+  });
+
+  // Create lookup maps
   const clientMap = useMemo(() => {
     const map = new Map<string, any>();
     clients.forEach(c => map.set(c.id, c));
     return map;
   }, [clients]);
+
+  const vendorMap = useMemo(() => {
+    const map = new Map<string, any>();
+    vendors.forEach(v => map.set(v.id, v));
+    return map;
+  }, [vendors]);
+
+  const subcontractorMap = useMemo(() => {
+    const map = new Map<string, any>();
+    subcontractors.forEach(s => map.set(s.id, s));
+    return map;
+  }, [subcontractors]);
+
+  const leadMap = useMemo(() => {
+    const map = new Map<string, any>();
+    leads.forEach(l => map.set(l.id, l));
+    return map;
+  }, [leads]);
 
   // Fetch communications - filtered by organisation_id
   const { data: communications = [], isLoading } = useQuery({
@@ -143,11 +213,21 @@ export function ClientCommunication() {
     queryFn: async () => {
       let query = supabase
         .from('client_communication')
-        .select('*')
+        .select(`
+          *,
+          client:clients(id, client_name),
+          vendor:purchase_vendors(id, company_name),
+          subcontractor:subcontractors(id, company_name),
+          lead:leads(id, company_name, contact_name)
+        `)
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
+      if (filters.partyType) query = query.eq('party_type', filters.partyType);
       if (filters.clientId) query = query.eq('client_id', filters.clientId);
+      if (filters.vendorId) query = query.eq('vendor_id', filters.vendorId);
+      if (filters.subcontractorId) query = query.eq('subcontractor_id', filters.subcontractorId);
+      if (filters.leadId) query = query.eq('lead_id', filters.leadId);
       if (filters.callCategory) query = query.eq('call_category', filters.callCategory);
       if (filters.callRegarding) query = query.eq('call_regarding', filters.callRegarding);
       if (filters.status) query = query.eq('status', filters.status);
@@ -193,6 +273,14 @@ export function ClientCommunication() {
         status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
         priority: data.priority === 'low' ? 'Low' : data.priority === 'normal' ? 'Normal' : data.priority === 'high' ? 'High' : data.priority === 'urgent' ? 'Urgent' : data.priority,
         call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
+        client_id: data.party_type === 'client' && data.client_id ? data.client_id : null,
+        vendor_id: data.party_type === 'vendor' && data.vendor_id ? data.vendor_id : null,
+        lead_id: data.party_type === 'lead' && data.lead_id ? data.lead_id : null,
+        subcontractor_id: data.party_type === 'subcontractor' && data.subcontractor_id ? data.subcontractor_id : null,
+        call_received_by: (data.call_received_by && data.call_received_by !== '') ? data.call_received_by : (user?.id || null),
+        call_entered_by: (data.call_entered_by && data.call_entered_by !== '') ? data.call_entered_by : (user?.id || null),
+        linked_id: (data.linked_id && data.linked_id !== '') ? data.linked_id : null,
+        site_visit_id: (data.site_visit_id && data.site_visit_id !== '') ? data.site_visit_id : null,
       };
 
       const { data: result, error } = await supabase.from('client_communication').insert(dbData).select().single();
@@ -299,7 +387,11 @@ export function ClientCommunication() {
   const { user } = useAuth();
 
   const [formData, setFormData] = useState({
+    party_type: 'client',
     client_id: '',
+    vendor_id: '',
+    subcontractor_id: '',
+    lead_id: '',
     call_received_by: user?.id || '',
     call_entered_by: user?.id || '',
     call_type: 'Incoming',
@@ -334,6 +426,16 @@ export function ClientCommunication() {
     }
   }, [linkedTypeParam, linkedIdParam, itemLabelParam, clientNameParam]);
 
+  useEffect(() => {
+    if (user?.id) {
+      setFormData(prev => ({
+        ...prev,
+        call_received_by: prev.call_received_by || user.id,
+        call_entered_by: prev.call_entered_by || user.id,
+      }));
+    }
+  }, [user]);
+
   const [newClientData, setNewClientData] = useState({
     client_name: '',
     client_id: '',
@@ -359,7 +461,11 @@ export function ClientCommunication() {
 
   const resetForm = () => {
     setFormData({
+      party_type: 'client',
       client_id: '',
+      vendor_id: '',
+      subcontractor_id: '',
+      lead_id: '',
       call_received_by: user?.id || '',
       call_entered_by: user?.id || '',
       call_type: 'Incoming',
@@ -373,6 +479,18 @@ export function ClientCommunication() {
       linked_type: '',
       linked_id: '',
     });
+  };
+
+  const getPartyName = (comm: any) => {
+    if (comm.party_type === 'vendor' || comm.vendor_id) return comm.vendor?.company_name || 'Unknown Vendor';
+    if (comm.party_type === 'subcontractor' || comm.subcontractor_id) return comm.subcontractor?.company_name || 'Unknown Subcontractor';
+    if (comm.party_type === 'lead' || comm.lead_id) return comm.lead?.company_name || comm.lead?.contact_name || 'Unknown Lead';
+    return comm.client?.client_name || 'Unknown Client';
+  };
+
+  const getPartyTypeLabel = (comm: any) => {
+    const type = comm.party_type || 'client';
+    return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
   // Stats
@@ -416,6 +534,10 @@ export function ClientCommunication() {
   const clearFilters = () => {
     setFilters({
       clientId: '',
+      vendorId: '',
+      subcontractorId: '',
+      leadId: '',
+      partyType: '',
       callCategory: '',
       callRegarding: '',
       status: '',
@@ -476,10 +598,10 @@ export function ClientCommunication() {
               >
                 <MessageSquare size={20} />
               </div>
-              Client Communication
+              Communication Log
             </h1>
             <p style={{ fontSize: '14px', color: colors.gray[500], margin: '4px 0 0 52px' }}>
-              Track and manage all client interactions in one place
+              Track and manage all business interactions (Clients, Vendors, Leads, Subcontractors) in one place
             </p>
           </div>
           <Button
@@ -508,11 +630,17 @@ export function ClientCommunication() {
         <div>
           <Tabs defaultTab="dashboard" onChange={setActiveTab}>
             <TabList style={{ marginBottom: '12px' }}>
-              <Tab value="dashboard" icon={<LayoutDashboard size={16} />}>
-                Dashboard
+              <Tab value="dashboard">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <LayoutDashboard size={16} />
+                  <span>Dashboard</span>
+                </div>
               </Tab>
-              <Tab value="list" icon={<List size={16} />}>
-                All Communications
+              <Tab value="list">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <List size={16} />
+                  <span>All Communications</span>
+                </div>
               </Tab>
             </TabList>
 
@@ -640,7 +768,10 @@ export function ClientCommunication() {
                                     color: colors.gray[900],
                                   }}
                                 >
-                                  {clientMap.get(comm.client_id)?.client_name || 'Unknown Client'}
+                                  {getPartyName(comm)}
+                                </span>
+                                <span style={{ fontSize: '12px', color: colors.gray[500], marginLeft: '4px' }}>
+                                  ({getPartyTypeLabel(comm)})
                                 </span>
                                 <PriorityBadge priority={comm.priority} />
                                 <StatusBadge status={comm.status} />
@@ -840,14 +971,14 @@ export function ClientCommunication() {
                                   fontWeight: 600,
                                 }}
                               >
-                                {clientMap.get(comm.client_id)?.client_name?.charAt(0) || '?'}
+                                {getPartyName(comm)?.charAt(0) || '?'}
                               </div>
                               <div>
                                 <div style={{ fontSize: '14px', fontWeight: 500, color: colors.gray[900] }}>
-                                  {clientMap.get(comm.client_id)?.client_name}
+                                  {getPartyName(comm)}
                                 </div>
                                 <div style={{ fontSize: '12px', color: colors.gray[500] }}>
-                                  {clientMap.get(comm.client_id)?.client_type}
+                                  {getPartyTypeLabel(comm)}
                                 </div>
                               </div>
                             </div>
@@ -978,11 +1109,66 @@ export function ClientCommunication() {
                 />
 
                 <Select
-                  label="Client"
-                  value={filters.clientId}
-                  onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
-                  options={[{ value: '', label: 'All Clients' }, ...clients.map((c) => ({ value: c.id, label: c.client_name }))]}
+                  label="Party Type"
+                  value={filters.partyType}
+                  onChange={(e) => setFilters({
+                    ...filters,
+                    partyType: e.target.value,
+                    clientId: '',
+                    vendorId: '',
+                    subcontractorId: '',
+                    leadId: ''
+                  })}
+                  options={[
+                    { value: '', label: 'All Party Types' },
+                    { value: 'client', label: 'Client' },
+                    { value: 'vendor', label: 'Vendor' },
+                    { value: 'lead', label: 'Lead' },
+                    { value: 'subcontractor', label: 'Subcontractor' }
+                  ]}
                 />
+
+                {filters.partyType === 'client' && (
+                  <Select
+                    label="Client"
+                    value={filters.clientId}
+                    onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
+                    options={[{ value: '', label: 'All Clients' }, ...clients.map((c) => ({ value: c.id, label: c.client_name }))]}
+                  />
+                )}
+
+                {filters.partyType === 'vendor' && (
+                  <Select
+                    label="Vendor"
+                    value={filters.vendorId}
+                    onChange={(e) => setFilters({ ...filters, vendorId: e.target.value })}
+                    options={[{ value: '', label: 'All Vendors' }, ...vendors.map((v) => ({ value: v.id, label: v.company_name }))]}
+                  />
+                )}
+
+                {filters.partyType === 'subcontractor' && (
+                  <Select
+                    label="Subcontractor"
+                    value={filters.subcontractorId}
+                    onChange={(e) => setFilters({ ...filters, subcontractorId: e.target.value })}
+                    options={[{ value: '', label: 'All Subcontractors' }, ...subcontractors.map((s) => ({ value: s.id, label: s.company_name }))]}
+                  />
+                )}
+
+                {filters.partyType === 'lead' && (
+                  <Select
+                    label="Lead"
+                    value={filters.leadId}
+                    onChange={(e) => setFilters({ ...filters, leadId: e.target.value })}
+                    options={[
+                      { value: '', label: 'All Leads' },
+                      ...leads.map((l) => ({
+                        value: l.id,
+                        label: l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name
+                      }))
+                    ]}
+                  />
+                )}
 
                 <Select
                   label="Communication Type"
@@ -1107,31 +1293,123 @@ export function ClientCommunication() {
             }} style={{ padding: '24px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                 
-                {/* Client Selection - Full Width Row */}
-                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CLIENT *</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <select
-                      value={formData.client_id}
-                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                      required
-                      style={{ flex: 1, padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
-                    >
-                      <option value="">Select a client</option>
-                      {clients.map((c) => (
-                        <option key={c.id} value={c.id}>{c.client_name}</option>
-                      ))}
-                    </select>
-                    <button 
-                      type="button"
-                      onClick={() => setShowAddClientModal(true)}
-                      style={{ padding: '0 12px', background: '#171717', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-                    >
-                      <Plus size={18} />
-                    </button>
+                {/* Party Type Radio Selection */}
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Party Type *</label>
+                  <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                    {[
+                      { value: 'client', label: 'Client' },
+                      { value: 'vendor', label: 'Vendor' },
+                      { value: 'lead', label: 'Lead' },
+                      { value: 'subcontractor', label: 'Subcontractor' }
+                    ].map((type) => (
+                      <label key={type.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#374151', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="party_type"
+                          value={type.value}
+                          checked={formData.party_type === type.value}
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            party_type: e.target.value,
+                            client_id: '',
+                            vendor_id: '',
+                            lead_id: '',
+                            subcontractor_id: ''
+                          })}
+                          style={{ width: '16px', height: '16px', accentColor: '#171717', cursor: 'pointer' }}
+                        />
+                        {type.label}
+                      </label>
+                    ))}
                   </div>
-                  {clients.length === 0 && (
+                </div>
+
+                {/* Entity Selection based on Party Type */}
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Select {formData.party_type.charAt(0).toUpperCase() + formData.party_type.slice(1)} *
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {formData.party_type === 'client' && (
+                      <>
+                        <select
+                          value={formData.client_id}
+                          onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                          required
+                          style={{ flex: 1, padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                        >
+                          <option value="">Select a client...</option>
+                          {clients.map((c) => (
+                            <option key={c.id} value={c.id}>{c.client_name}</option>
+                          ))}
+                        </select>
+                        <button 
+                          type="button"
+                          onClick={() => setShowAddClientModal(true)}
+                          style={{ padding: '0 12px', background: '#171717', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </>
+                    )}
+
+                    {formData.party_type === 'vendor' && (
+                      <select
+                        value={formData.vendor_id}
+                        onChange={(e) => setFormData({ ...formData, vendor_id: e.target.value })}
+                        required
+                        style={{ flex: 1, padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                      >
+                        <option value="">Select a vendor...</option>
+                        {vendors.map((v) => (
+                          <option key={v.id} value={v.id}>{v.company_name}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {formData.party_type === 'subcontractor' && (
+                      <select
+                        value={formData.subcontractor_id}
+                        onChange={(e) => setFormData({ ...formData, subcontractor_id: e.target.value })}
+                        required
+                        style={{ flex: 1, padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                      >
+                        <option value="">Select a subcontractor...</option>
+                        {subcontractors.map((s) => (
+                          <option key={s.id} value={s.id}>{s.company_name}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {formData.party_type === 'lead' && (
+                      <select
+                        value={formData.lead_id}
+                        onChange={(e) => setFormData({ ...formData, lead_id: e.target.value })}
+                        required
+                        style={{ flex: 1, padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                      >
+                        <option value="">Select a lead...</option>
+                        {leads.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  
+                  {formData.party_type === 'client' && clients.length === 0 && (
                     <p style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>No clients found. Add a client first.</p>
+                  )}
+                  {formData.party_type === 'vendor' && vendors.length === 0 && (
+                    <p style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>No vendors found. Add a vendor first.</p>
+                  )}
+                  {formData.party_type === 'subcontractor' && subcontractors.length === 0 && (
+                    <p style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>No subcontractors found. Add a subcontractor first.</p>
+                  )}
+                  {formData.party_type === 'lead' && leads.length === 0 && (
+                    <p style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>No leads found. Add a lead first.</p>
                   )}
                 </div>
 
@@ -1327,10 +1605,10 @@ export function ClientCommunication() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
-                  Client
+                  {getPartyTypeLabel(selectedCommunication)}
                 </label>
                 <p style={{ fontSize: '15px', fontWeight: 600, color: colors.gray[900], margin: 0 }}>
-                  {clientMap.get(selectedCommunication.client_id)?.client_name || 'Unknown Client'}
+                  {getPartyName(selectedCommunication)}
                 </p>
               </div>
               <div>
