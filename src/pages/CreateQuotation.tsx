@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/formatters';
-import { format } from 'date-fns';
+import { format, subMonths, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -19,7 +19,7 @@ import { useConvertDocument, useConversionStatus, getSourceTableName } from '../
 import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
-import { FileText, Plus, Mail, Info, User, Briefcase } from 'lucide-react';
+import { FileText, Plus, Mail, Info, User, Briefcase, Calendar } from 'lucide-react';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
 import { SearchableItemSelect } from '../components/SearchableItemSelect';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
@@ -32,6 +32,7 @@ import { ArcPricingToggle, ArcPricingStatusBadge, ArcRateBadge, StandardRateBadg
 import { ArcConfirmationDialog } from '../components/ArcConfirmationDialog';
 import { fetchArcPricingForItems, getArcRateFromMap } from '../lib/arc-pricing';
 import { useLastDocumentRates } from '../hooks/useLastDocumentRates';
+import { z } from 'zod';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -64,8 +65,153 @@ function numberToWords(num) {
     str += nArr[5] != 0 ? ((str != '') ? 'and ' : '') + (a[Number(nArr[5])] || b[nArr[5][0]] + ' ' + a[nArr[5][1]]) : '';
     return str.trim() + ' Only';
   };
-  
   return inWords(Math.round(num));
+}
+
+interface CustomDatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  inputStyle?: React.CSSProperties;
+}
+
+function CustomDatePicker({ value, onChange, placeholder = "Select date", inputStyle }: CustomDatePickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(() => {
+    return value ? new Date(value) : new Date();
+  });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentDate(prev => subMonths(prev, 1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentDate(prev => addMonths(prev, 1));
+  };
+
+  const handleSelectDay = (day: Date, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const formatted = format(day, 'yyyy-MM-dd');
+    onChange(formatted);
+    setIsOpen(false);
+  };
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startDayOfWeek = getDay(monthStart);
+
+  const getFormattedValue = () => {
+    if (!value) return '';
+    try {
+      return format(new Date(value), 'dd MMM yyyy');
+    } catch (e) {
+      return value;
+    }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className="cq-datepicker-input"
+        style={inputStyle}
+      >
+        <span style={{ color: value ? '#1f2937' : '#9ca3af', fontWeight: value ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {getFormattedValue() || placeholder}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: '4px',
+          zIndex: 100,
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+          padding: '12px',
+          width: '250px'
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <button type="button" onClick={handlePrevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&lt;</button>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>
+              {format(currentDate, 'MMMM yyyy')}
+            </span>
+            <button type="button" onClick={handleNextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&gt;</button>
+          </div>
+
+          {/* Weekday headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '4px' }}>
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((wd) => (
+              <span key={wd} style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af' }}>{wd}</span>
+            ))}
+          </div>
+
+          {/* Days Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+            {/* Empty cells for leading days */}
+            {Array.from({ length: startDayOfWeek }).map((_, i) => (
+              <span key={`empty-${i}`} />
+            ))}
+            
+            {/* Days in Month */}
+            {daysInMonth.map((day) => {
+              const isSelected = value && isSameDay(day, new Date(value));
+              const isToday = isSameDay(day, new Date());
+              return (
+                <button
+                  key={day.toString()}
+                  type="button"
+                  onClick={(e) => handleSelectDay(day, e)}
+                  style={{
+                    background: isSelected ? '#2563eb' : 'transparent',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: isSelected || isToday ? 'bold' : 'normal',
+                    color: isSelected ? 'white' : isToday ? '#2563eb' : '#374151',
+                    cursor: 'pointer',
+                    height: '24px',
+                    width: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.1s'
+                  }}
+                  onMouseEnter={e => {
+                    if (!isSelected) e.currentTarget.style.background = '#f3f4f6';
+                  }}
+                  onMouseLeave={e => {
+                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  {format(day, 'd')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function CreateQuotation() {
@@ -133,7 +279,7 @@ export default function CreateQuotation() {
   const [activeSection, setActiveSection] = useState('materials');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   
-  const [templateSettings, setTemplateSettings] = useState(null);
+  const [templateSettings, setTemplateSettings] = useState<any>(null);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
@@ -163,6 +309,19 @@ export default function CreateQuotation() {
     if (optional.client_description === true) count++;
     if (optional.make !== false) count++;
     if (optional.variant !== false) count++;
+    return count;
+  };
+
+  const getColsBeforeAmount = () => {
+    return getVisibleColumnCount() - 2;
+  };
+
+  const getColsBeforeGst = () => {
+    let count = getVisibleColumnCount();
+    count -= 2; // amount, delete
+    if (templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels) count--;
+    if (templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels) count--;
+    count--; // gst
     return count;
   };
 
@@ -2209,6 +2368,29 @@ const loadQuoteNoPreview = useCallback(async () => {
       return;
     }
 
+    // Zod validation for date range (Valid Till cannot be before/below Quote Date)
+    const dateValidationSchema = z.object({
+      date: z.string().min(1, 'Quote date is required'),
+      valid_till: z.string().nullable().optional(),
+    }).refine((data) => {
+      if (!data.date || !data.valid_till) return true;
+      return new Date(data.valid_till) >= new Date(data.date);
+    }, {
+      message: 'Valid Till date cannot be before the Quote date',
+      path: ['valid_till'],
+    });
+
+    const dateResult = dateValidationSchema.safeParse({
+      date: formData.date,
+      valid_till: formData.valid_till,
+    });
+
+    if (!dateResult.success) {
+      const errorMsg = dateResult.error.errors[0]?.message || 'Invalid date range';
+      toast.error(errorMsg);
+      return;
+    }
+
     setSaving(true);
     try {
       // Inline session check — withSessionCheck throws SESSION_EXPIRED uncaught in onClick handlers
@@ -2845,7 +3027,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
 
           {/* Column 1: CLIENT CARD */}
-          <div className="bg-white border border-zinc-200 p-4 shadow-sm" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
               <User size={14} style={{ color: '#2563eb' }} /> Client
             </div>
@@ -2962,27 +3144,27 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
           </div>
 
           {/* Column 2: DOCUMENT CARD */}
-          <div className="bg-white border border-zinc-200 p-4 shadow-sm" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
               <FileText size={14} style={{ color: '#2563eb' }} /> Document
             </div>
             
-            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-              <span style={labelColStyle}>Quote No:</span>
-              <div style={{ flex: 1, display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', width: '45%' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>
-                <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', minWidth: '40px', textAlign: 'right' }}>Date:</span>
-                <input type="date" className="form-input" style={{ ...inputStyle, flex: 1 }} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+            {renderHeaderField('Quote No:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formData.quotation_no || quoteNoPreview || 'Auto-generating...'}</div>)}
+            <div style={{ ...headerFieldStyle, marginBottom: '8px', flexWrap: 'nowrap' }}>
+              <span style={{ ...labelColStyle, whiteSpace: 'nowrap' }}>Date:</span>
+              <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'nowrap', minWidth: '0px' }}>
+                <CustomDatePicker value={formData.date} onChange={(val) => setFormData({ ...formData, date: val })} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
+                <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', paddingLeft: '2px', whiteSpace: 'nowrap' }}>Valid Till:</span>
+                <CustomDatePicker value={formData.valid_till} onChange={(val) => setFormData({ ...formData, valid_till: val })} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
               </div>
             </div>
             {renderHeaderField('Prepared By:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent' }}>{formData.prepared_by || 'Set on creation'}</div>)}
-            {renderHeaderField('Valid Till:', <input type="date" className="form-input" style={inputStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />)}
             {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
             {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}
           </div>
 
           {/* Column 3: PROJECT CARD */}
-          <div className="bg-white border border-zinc-200 p-4 shadow-sm" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
               <Briefcase size={14} style={{ color: '#2563eb' }} /> Project
             </div>
@@ -3196,7 +3378,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
 
         <div className="grid-table-container">
           <table className={`grid-table cq-editable ${activeSection === 'erection' ? 'erection-section' : ''}`} style={{ minWidth: getTableMinWidth() }}>
-            <thead>
+            <thead className="grid-table-header-dark">
               <tr>
                 <th className="col-shrink">#</th>
                 {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
@@ -3713,27 +3895,178 @@ className="text-center cell-static col-shrink row-drag-handle"
                 })
               )}
               
-              <tr className="total-row">
-                <td colSpan={getColsBeforeQty()} className="total-label text-right font-bold pr-4">TOTAL</td>
-                <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>
-                  {items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0).toFixed(2)}
-                </td>
-                <td className="cell-static"></td> {/* Unit */}
-                <td className="cell-static"></td> {/* Rate */}
-                <td className="cell-static"></td> {/* Disc % */}
-                <td className="cell-static"></td> {/* Rate After Disc */}
-                <td className="cell-static"></td> {/* GST % */}
-                {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
-                  <td className="cell-static"></td>
-                )}
-                {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
-                  <td className="cell-static"></td>
-                )}
-                <td className="text-right font-bold amount-value pr-4" style={{ fontSize: '15px', color: '#111827' }}>
-                  {formatCurrency(items.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0))}
-                </td>
-                <td className="cell-static"></td> {/* Actions/Delete */}
-              </tr>
+              {(() => {
+                const visibleItems = items.filter(item => {
+                  if (activeSection === 'materials') {
+                    return item.section !== 'erection';
+                  } else {
+                    return item.section === 'erection';
+                  }
+                });
+                
+                const totalQty = visibleItems.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
+                const totalAmount = visibleItems.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0);
+                
+                return (
+                  <>
+                    <tr className="total-row">
+                      <td colSpan={getColsBeforeQty()} className="total-label text-right font-bold pr-4">TOTAL</td>
+                      <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>
+                        {totalQty.toFixed(2)}
+                      </td>
+                      <td className="cell-static"></td> {/* Unit */}
+                      <td className="cell-static"></td> {/* Rate */}
+                      <td className="cell-static"></td> {/* Disc % */}
+                      <td className="cell-static"></td> {/* Rate After Disc */}
+                      <td className="cell-static"></td> {/* GST % */}
+                      {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
+                        <td className="cell-static"></td>
+                      )}
+                      {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
+                        <td className="cell-static"></td>
+                      )}
+                      <td className="text-right font-bold amount-value pr-4" style={{ fontSize: '15px', color: '#111827' }}>
+                        {formatCurrency(totalAmount)}
+                      </td>
+                      <td className="cell-static"></td> {/* Actions/Delete */}
+                    </tr>
+
+                    {/* Aligned Footer Calculations Rows */}
+                    <tr className="footer-breakdown-row">
+                      <td colSpan={getColsBeforeAmount()} className="text-right font-bold pr-4" style={{ textAlign: 'right' }}>Subtotal</td>
+                      <td className="text-right font-semibold pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                        {formatCurrency(calculations.subtotal)}
+                      </td>
+                      <td></td>
+                    </tr>
+                    {calculations.totalItemDiscount > 0 && (
+                      <tr className="footer-breakdown-row">
+                        <td colSpan={getColsBeforeAmount()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>Total Item Discount</td>
+                        <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                          - {formatCurrency(calculations.totalItemDiscount)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    )}
+                    {calculations.extraDiscountAmount > 0 && (
+                      <tr className="footer-breakdown-row">
+                        <td colSpan={getColsBeforeAmount()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>Extra Discount</td>
+                        <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                          - {formatCurrency(calculations.extraDiscountAmount)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    )}
+                    <tr className="footer-breakdown-row">
+                      <td colSpan={getColsBeforeAmount()} className="text-right font-semibold text-zinc-700 pr-4" style={{ textAlign: 'right' }}>Taxable Value</td>
+                      <td className="text-right font-semibold text-zinc-700 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                        {formatCurrency(calculations.subtotal - calculations.extraDiscountAmount)}
+                      </td>
+                      <td></td>
+                    </tr>
+                    
+                    {/* GST Rows */}
+                    {calculations.isInterState ? (
+                      <tr className="footer-breakdown-row">
+                        <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>IGST</td>
+                        <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>
+                          {Object.keys(calculations.taxGroups || {}).length > 0 
+                            ? Object.keys(calculations.taxGroups).map(rate => `${rate}%`).join(', ') 
+                            : '-'}
+                        </td>
+                        {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && <td></td>}
+                        {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && <td></td>}
+                        <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                          {formatCurrency(calculations.igst)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    ) : (
+                      <>
+                        {Object.keys(calculations.taxGroups || {}).length > 0 ? (
+                          Object.entries(calculations.taxGroups).map(([rate, taxes]) => {
+                            const hasCustom1 = templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels;
+                            const hasCustom2 = templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels;
+                            return (
+                              <React.Fragment key={rate}>
+                                <tr className="footer-breakdown-row">
+                                  <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>CGST</td>
+                                  <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>
+                                    {`${Number(rate) / 2}%`}
+                                  </td>
+                                  {hasCustom1 && <td></td>}
+                                  {hasCustom2 && <td></td>}
+                                  <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                    {formatCurrency(taxes.cgst)}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                                <tr className="footer-breakdown-row">
+                                  <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>SGST</td>
+                                  <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>
+                                    {`${Number(rate) / 2}%`}
+                                  </td>
+                                  {hasCustom1 && <td></td>}
+                                  {hasCustom2 && <td></td>}
+                                  <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                    {formatCurrency(taxes.sgst)}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              </React.Fragment>
+                            );
+                          })
+                        ) : (
+                          <>
+                            <tr className="footer-breakdown-row">
+                              <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>CGST</td>
+                              <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>-</td>
+                              {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && <td></td>}
+                              {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && <td></td>}
+                              <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                {formatCurrency(calculations.cgst)}
+                              </td>
+                              <td></td>
+                            </tr>
+                            <tr className="footer-breakdown-row">
+                              <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>SGST</td>
+                              <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>-</td>
+                              {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && <td></td>}
+                              {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && <td></td>}
+                              <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                {formatCurrency(calculations.sgst)}
+                              </td>
+                              <td></td>
+                            </tr>
+                          </>
+                        )}
+                      </>
+                    )}
+                    
+                    <tr className="footer-breakdown-row">
+                      <td colSpan={getColsBeforeAmount()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>Round Off</td>
+                      <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                        {formatCurrency(calculations.roundOff)}
+                      </td>
+                      <td></td>
+                    </tr>
+                    
+                    <tr className="footer-breakdown-row grand-total-row">
+                      <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>Grand Total</td>
+                      <td className="text-right pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
+                        {formatCurrency(calculations.grandTotal)}
+                      </td>
+                      <td></td>
+                    </tr>
+                    
+                    <tr className="footer-breakdown-row amount-words-row">
+                      <td colSpan={getVisibleColumnCount()} className="text-right pr-4" style={{ textAlign: 'right' }}>
+                        INR {calculations.amountInWords}
+                      </td>
+                    </tr>
+                  </>
+                );
+              })()}
             </tbody>
           </table>
         </div>
@@ -3813,70 +4146,28 @@ className="text-center cell-static col-shrink row-drag-handle"
         </div>
         <div className="card" style={{ padding: '12px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Subtotal</span>
-              <span style={{ fontWeight: 600 }}>{formatCurrency(calculations.subtotal)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-              <span>Total Item Discount</span>
-              <span>- {formatCurrency(calculations.totalItemDiscount)}</span>
-            </div>
+            <div style={{ fontWeight: 600, fontSize: '11px', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '6px', marginBottom: '4px' }}>Adjustments</div>
+            
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>Extra Discount %</span>
-              <input type="number" className="form-input" style={{ width: '60px', textAlign: 'right', height: '36px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
+              <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount %</span>
+              <input type="number" className="form-input" style={{ width: '80px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
             </div>
+            
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>Extra Discount Amt</span>
-              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '36px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
+              <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount Amt</span>
+              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-              <span>Extra Discount</span>
-              <span>- {formatCurrency(calculations.extraDiscountAmount)}</span>
-            </div>
-            {calculations.isInterState ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                <span>IGST</span>
-                <span>{formatCurrency(calculations.igst)}</span>
-              </div>
-            ) : (
-              <>
-                {Object.keys(calculations.taxGroups || {}).length > 0 ? (
-                  Object.entries(calculations.taxGroups).map(([rate, taxes]) => (
-                    <React.Fragment key={rate}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                        <span>CGST {Number(rate) / 2}%</span>
-                        <span>{formatCurrency(taxes.cgst)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                        <span>SGST {Number(rate) / 2}%</span>
-                        <span>{formatCurrency(taxes.sgst)}</span>
-                      </div>
-                    </React.Fragment>
-                  ))
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                      <span>CGST</span>
-                      <span>{formatCurrency(calculations.cgst)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                      <span>SGST</span>
-                      <span>{formatCurrency(calculations.sgst)}</span>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
+            
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input 
                   type="checkbox" 
                   id="roundOffToggle"
-                  style={{ width: '12px', height: '12px', cursor: 'pointer' }}
+                  style={{ width: '14px', height: '14px', cursor: 'pointer' }}
                   checked={formData.round_off_enabled} 
                   onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })} 
                 />
-                <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}>Round Off</label>
+                <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none', fontWeight: 500, color: '#4b5563' }}>Round Off</label>
               </div>
               <input 
                 type="number" 
@@ -3884,8 +4175,8 @@ className="text-center cell-static col-shrink row-drag-handle"
                 style={{ 
                   width: '100px', 
                   textAlign: 'right', 
-                  height: '36px', 
-                  padding: '2px 4px', 
+                  height: '32px', 
+                  padding: '4px 8px', 
                   fontSize: '13px',
                   backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white',
                   color: formData.round_off_enabled ? '#64748b' : '#1e293b'
@@ -3895,13 +4186,6 @@ className="text-center cell-static col-shrink row-drag-handle"
                 onChange={(e) => !formData.round_off_enabled && setFormData({ ...formData, round_off: e.target.value })} 
                 step="0.01" 
               />
-            </div>
-            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700 }}>
-              <span>Grand Total</span>
-              <span>{formatCurrency(calculations.grandTotal)}</span>
-            </div>
-            <div style={{ color: '#1e293b', fontSize: '12px', fontStyle: 'italic', fontWeight: 600, textAlign: 'right', marginTop: '2px' }}>
-              INR {calculations.amountInWords}
             </div>
             <div style={{ marginTop: '12px', padding: '12px', borderTop: '1px solid #e5e7eb', fontFamily: 'Inter, sans-serif' }}>
               <div className="flex items-center gap-3 bg-white border border-zinc-200 rounded-none px-3 py-2 shadow-sm">

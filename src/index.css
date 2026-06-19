@@ -2871,3 +2871,75 @@ body {
 .arc-toggle-oval * {
   border-radius: 9999px !important;
 }
+
+/* Custom Table Header & Footer Styles for Create Quotation UI Refactoring */
+.grid-table .grid-table-header-dark th {
+  background: #1e3a8a !important;
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.03em !important;
+  border-bottom: 2px solid #172554 !important;
+}
+
+/* Override the universal border-radius 0 reset for card elements specifically if needed */
+.cq-card-elevated {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+/* Table Footer Aligned Breakdown Rows */
+.grid-table .footer-breakdown-row td {
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  color: #374151 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #f8fafc !important;
+}
+
+.grid-table .footer-breakdown-row.grand-total-row td {
+  background: #eff6ff !important;
+  color: #1e3a8a !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  border-top: 2px solid #2563eb !important;
+  border-bottom: 2px solid #2563eb !important;
+}
+
+.grid-table .footer-breakdown-row.amount-words-row td {
+  background: #fafafa !important;
+  color: #1e293b !important;
+  font-size: 12px !important;
+  font-style: italic !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Custom DatePicker Input Styling with hover effect */
+.cq-datepicker-input {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  background: white !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 4px !important;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+  height: 28px !important;
+  user-select: none !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+  transition: all 0.2s ease-in-out !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.cq-datepicker-input:hover {
+  border-color: #2563eb !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
+}
