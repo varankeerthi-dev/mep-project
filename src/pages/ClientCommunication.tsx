@@ -829,7 +829,7 @@ export function ClientCommunication() {
         margin: '0 auto',
         padding: '20px 24px',
         display: 'grid',
-        gridTemplateColumns: '1fr 350px',
+        gridTemplateColumns: '1fr 280px',
         gap: '20px',
         alignItems: 'start',
       }}>
