@@ -220,6 +220,42 @@ export default function TemplateSettings() {
       }
     },
     {
+      template_name: 'Classic Template (Delivery Challan)',
+      template_code: 'DC_CLASSIC',
+      document_type: 'Delivery Challan',
+      is_default: true,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'classic' }
+      }
+    },
+    {
+      template_name: 'Zoho Template (Delivery Challan)',
+      template_code: 'DC_ZOHO',
+      document_type: 'Delivery Challan',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'default' }
+      }
+    },
+    {
       template_name: 'Standard Template (Proforma Invoice)',
       template_code: 'STD_PRO',
       document_type: 'Proforma Invoice',

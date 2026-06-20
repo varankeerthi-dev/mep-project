@@ -230,6 +230,290 @@ onMouseEnter: background → '#0C447C', borderColor → '#0C447C'
 onMouseLeave: revert
 ```
 
+---
+
+# quoteui
+
+This is the shared design pattern for quotation-style document entry screens.
+
+Use this UI as the base for:
+
+- `quotation`
+- `invoice`
+- `delivery challan`
+- `proforma`
+- `credit note`
+- `debit note`
+- `purchase order`
+
+## Purpose
+
+`quoteui` is a dense, form-first document builder UI designed for:
+
+- fast header entry
+- spreadsheet-like line item editing
+- section and subtotal rows
+- pricing rule controls
+- conversion-friendly document workflows
+
+## Core layout
+
+- Fixed top action bar with document title, status controls, and primary save actions
+- 3-column header area for document metadata
+- large editable line-item table below
+- optional document-specific panels such as allocations, approvals, or pricing rules
+- modal/dialog support for bulk selection, confirmation, and history
+
+## Visual style
+
+- light slate page background
+- white cards with subtle borders
+- compact spacing and small type
+- strong section headers in uppercase
+- table-driven editing with dense rows
+- blue as the primary accent
+
+## Header cards
+
+The header section is split into 3 cards:
+
+- Client
+- Document
+- Project
+
+Each card uses compact label/value rows and should follow the existing document-section row pattern already documented above.
+
+## Line items
+
+The line item table is the primary working area and should support:
+
+- add row
+- add material
+- add section
+- add subtotal
+- bulk add
+- column visibility controls
+- drag reordering
+- inline editing
+- item search/select
+- optional custom columns
+
+The table container should follow the quotation editor shell:
+
+```tsx
+<div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
+  <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
+    {/* title + compact toolbar */}
+  </div>
+  <div className="grid-table-container">
+    <table className="grid-table cq-editable">
+      <thead className="grid-table-header-dark">
+        {/* columns */}
+      </thead>
+    </table>
+  </div>
+</div>
+```
+
+Item cells should use the same searchable dropdown behavior as quotation:
+
+- item/material cells use `SearchableItemSelect`
+- dropdown panel renders above the table using fixed positioning
+- selecting an item updates the row in place
+- description editing stays inline through `InlineDescriptionCell`
+- row-level variant, make, warehouse, quantity, and rate fields remain compact cell controls
+
+Special row types:
+
+- section header rows
+- subtotal rows
+- erection/service rows if the document supports them
+
+## Shared modal patterns
+
+Use standard confirmation and input dialogs for:
+
+- destructive actions
+- revision or negotiation changes
+- bulk discount updates
+- replacement or selection flows
+
+## Custom date picker
+
+`quoteui` date fields should use the custom quotation date picker instead of native browser date inputs.
+
+Behavior:
+
+- display selected dates as `dd MMM yyyy`
+- save values as `yyyy-MM-dd`
+- open a compact calendar popover on click
+- support previous and next month navigation
+- close on outside click
+- use `.cq-datepicker-input` for the trigger styling
+- disabled document states should prevent opening the picker
+
+Use this for document dates such as:
+
+- quotation date
+- valid till
+- DC date
+- PO date
+- invoice due date when the target document supports it
+
+## quoteui dropdowns
+
+Client/party fields should use the quotation-style searchable text dropdown, not a native select, when following `quoteui`.
+
+Behavior:
+
+- text input shows the selected party name when closed
+- typing filters the dropdown case-insensitively
+- clicking or focusing opens the dropdown
+- selecting a party updates dependent fields such as address/contact
+- outside click closes the dropdown
+- empty states show `No clients found` or the matching party label
+
+For item/material fields inside the line-item grid, use the fixed-position `SearchableItemSelect` pattern so dropdowns are not clipped by the table container.
+
+## Reuse rule
+
+Use `quoteui` only when the user specifically asks to follow the `quoteui` design.
+
+If the user does not explicitly request `quoteui`, do not assume this layout or behavior for other document screens.
+
+## Template contract
+
+Use this as the source of truth when cloning the UI for other document types.
+
+### Shared base structure
+
+These elements stay consistent across all `quoteui`-based document screens unless the document type explicitly overrides them:
+
+- fixed top action bar
+- document title and state controls
+- compact status selector
+- primary save / submit action
+- three-column header card layout
+- line-item editor table
+- drag-and-drop row ordering
+- modal/dialog system
+- compact, spreadsheet-like spacing
+- blue primary accent
+
+### Swappable document labels
+
+Replace labels according to the document type while keeping the same visual pattern:
+
+- `Quote No` can become `Invoice No`, `DC No`, `Proforma No`, `Credit Note No`, `Debit Note No`, or `PO No`
+- `Valid Till` can become `Due Date`, `Dispatch Date`, `Approval Due`, or another relevant date field
+- `Client` can become `Vendor` or `Buyer` depending on the document flow
+- `Prepared By` may remain unchanged unless the business flow requires a different owner field
+- `Reference` can become `PO Ref`, `RFQ No`, `Project Ref`, or `Source Ref`
+
+### Shared document cards
+
+The 3-column top section should remain the same structure, but the content may change:
+
+- Card 1: party details
+- Card 2: document details
+- Card 3: project / pricing / workflow details
+
+If a document type does not need one of these cards, keep the layout balanced by replacing the card with the closest equivalent rather than removing the column entirely.
+
+### Allowed overrides by document type
+
+- `quotation`
+  - may use negotiation mode
+  - may use revision history
+  - may use ARC pricing
+  - may use DC allocation when converting from multiple DCs
+- `invoice`
+  - may use payment status, due date, tax/invoice-specific fields
+  - should not inherit quotation-only negotiation behavior unless explicitly required
+- `delivery challan`
+  - may use dispatch and transport details
+  - should not show quotation-specific pricing rules unless the flow requires it
+- `proforma`
+  - may reuse quotation-style header and item grid
+  - should relabel document metadata to proforma terms
+- `credit note`
+  - may use adjustment reason, reversal values, and reference-to-original-doc fields
+  - should not show quotation-only conversion helpers unless needed
+- `debit note`
+  - may use adjustment reason, surcharge values, and reference-to-original-doc fields
+- `purchase order`
+  - may switch party details from client to vendor
+  - may use PO-specific approval and delivery fields
+
+### Behavior rules
+
+- Keep the line-item table as the main editing surface.
+- Keep inline editing over modal editing where practical.
+- Keep subtotal and section rows only when the document type supports grouped items.
+- Keep pricing rules only when the document type has item-rate logic.
+- Keep conversion helpers only when the source and target documents are part of the workflow.
+
+### Do not copy blindly
+
+Do not copy quotation-only controls into another document type unless the user or business flow explicitly asks for them.
+
+Examples of quotation-only controls:
+
+- negotiation mode
+- revision history tied to quote editing
+- quotation-specific approval hooks
+- DC allocation inside quotation creation
+- ARC pricing toggle if the target document does not support it
+
+### quoteui Typography & Font Sizes
+
+To maintain the dense, spreadsheet-like layout, typography is tightly controlled:
+
+- **Section & Card Headers**: `11px` font size, `600` font weight, uppercase with `0.05em` letter spacing (`color: '#6b7280'` or `#1e3a8a`).
+- **Metadata Labels**: `11px` font size, `600` font weight (`color: '#374151'`).
+- **Metadata Inputs & Selects**: `12px` font size (`color: '#1f2937'`).
+- **Table Headers**: `11px` font size, `700` font weight, white text on dark blue (`#1e3a8a`) background.
+- **Table Line Item Cells**:
+  - Item Select / Search text: `12px` font size (`color: '#1e293b'`).
+  - Item Description: `11px` font size, muted grey (`color: '#737373'` or `#64748b`). Editing mode textarea uses `12px`.
+  - Make & Variant cells: `11px` font size (`color: '#0f172a'` when set, `#94a3b8` when unset).
+  - Quantity, UOM, and Rate inputs: `12px` font size.
+- **Special Table Rows**:
+  - Section Header row: `12px` font size, `700` font weight, uppercase.
+  - Subtotal row: `13px` font size, `700` font weight.
+- **Table Footer Summary Rows**:
+  - Subtotals, Taxes, and Discounts: `13px` font size (`color: '#374151'`).
+  - Grand Total row: `15px` font size, `700` font weight.
+  - Amount in Words: `12px` font size, `600` font weight, italic.
+- **Bottom Panels (Notes, Terms, Adjustments)**:
+  - Header labels: `13px` font size, `600` font weight (`color: '#374151'`).
+  - Notes & Terms textareas: `13px` font size.
+  - Adjustment inputs: `13px` font size.
+  - Authorized Signatory trigger: `12px` font size (`text-xs font-medium`).
+  - Signatory helper label / preview label: `10px` / `9px` font size, uppercase, tracked (`color: '#a1a1aa'`).
+
+### quoteui Bottom Layout & Footer Panels
+
+The bottom area of a document page consists of notes, terms, adjustments, and the signatory blocks:
+
+- **Grid Composition**: Renders as a 3-column layout on medium/large screens using Tailwind: `grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4`
+- **Column 1 (Notes & Remarks)**: Fills `1fr` width. Uses an auto-growing `textarea` to avoid scrollbars.
+- **Column 2 (Terms & Conditions)**: Fills `1fr` width. Includes an "Add/Edit" button opening a side-drawer template picker (`TermsConditionsDrawer`), alongside an auto-growing `textarea` displaying the plain text.
+- **Column 3 (Adjustments & Signatory)**: Fixed `300px` width.
+  - Displays numerical adjustment inputs (Extra Discount %, Extra Discount Amt, Round Off toggle).
+  - Displays Grand Total summary (`15px` font size).
+  - Includes **Authorized Signatory** picker. The signatory dropdown MUST open **upwards** (`position: 'absolute', bottom: '100%'`) to prevent viewport clipping.
+  - If selected, a signature image preview card is displayed containing the signatory's image capped at `max-h-7 max-w-[120px] object-contain`.
+
+### Implementation note
+
+If a future screen says “follow `quoteui`,” it should:
+
+- reuse the same visual composition
+- swap labels and document-specific fields
+- keep the same compact editing style
+- remove quotation-only behavior that does not belong to the target document
+
 ## Secondary (Cancel / Close)
 
 Used for the dismiss action next to a primary button.

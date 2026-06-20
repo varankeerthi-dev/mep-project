@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useMaterials } from '../hooks/useMaterials';
@@ -14,6 +15,7 @@ import { createDeliveryChallan, getProjectRates } from '../api';
 import { fetchArcPricingForItems, getArcRateFromMap } from '../lib/arc-pricing';
 
 export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
+  const navigate = useNavigate();
   const { data: materials = [] } = useMaterials();
   const { data: projects = [] } = useProjects();
   const { data: warehouses = [] } = useWarehouses();
@@ -685,7 +687,11 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       
       alert(isEditing ? 'NB-DC Updated!' : 'NB-DC Created!');
       setIsDirty(false);
-      if (onSuccess) onSuccess();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/nb-dc/list');
+      }
       
     } catch (error) {
       console.error('Error:', error);
@@ -713,15 +719,17 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
 
     let padding = 4;
     try {
-      const { data: series, error: seriesError } = await supabase
+      const { data: seriesList, error: seriesError } = await supabase
         .from('document_series')
         .select('configs, created_at')
         .eq('is_default', true)
-        .maybeSingle();
+        .limit(1);
 
       if (seriesError && !isMissingColumnError(seriesError, 'is_default') && !isMissingColumnError(seriesError, 'organisation_id')) {
         throw seriesError;
       }
+
+      const series = Array.isArray(seriesList) ? seriesList[0] : null;
 
       if (series?.configs?.dc?.padding) {
         padding = parseInt(series.configs.dc.padding) || 4;

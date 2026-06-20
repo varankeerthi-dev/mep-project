@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { FormEvent } from 'react';
-import { format } from 'date-fns';
+import type { CSSProperties, FormEvent } from 'react';
+import { format, subMonths, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
@@ -15,6 +15,7 @@ import { useUnits } from '../hooks/useUnits';
 import { updateIntentOnDCCreated } from '../material-intents/api';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
+import { SearchableItemSelect } from '../components/SearchableItemSelect';
 import { getProjectRates } from '../api';
 import { fetchArcPricingForItems, getArcRateFromMap } from '../lib/arc-pricing';
 
@@ -24,8 +25,139 @@ type CreateDCProps = {
   editDC?: any
 }
 
+interface CustomDatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  inputStyle?: CSSProperties;
+  disabled?: boolean;
+}
+
+function CustomDatePicker({ value, onChange, placeholder = 'Select date', inputStyle, disabled = false }: CustomDatePickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(() => {
+    return value ? new Date(value) : new Date();
+  });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startDayOfWeek = getDay(monthStart);
+
+  const getFormattedValue = () => {
+    if (!value) return '';
+    try {
+      return format(new Date(value), 'dd MMM yyyy');
+    } catch {
+      return value;
+    }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div
+        onClick={() => {
+          if (!disabled) setIsOpen(!isOpen);
+        }}
+        className="cq-datepicker-input"
+        style={{ ...inputStyle, cursor: disabled ? 'not-allowed' : 'pointer', background: disabled ? '#f3f4f6' : undefined }}
+      >
+        <span style={{ color: value ? '#1f2937' : '#9ca3af', fontWeight: value ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {getFormattedValue() || placeholder}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: '4px',
+          zIndex: 100,
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+          padding: '12px',
+          width: '250px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <button type="button" onClick={(e) => { e.stopPropagation(); setCurrentDate(prev => subMonths(prev, 1)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&lt;</button>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>
+              {format(currentDate, 'MMMM yyyy')}
+            </span>
+            <button type="button" onClick={(e) => { e.stopPropagation(); setCurrentDate(prev => addMonths(prev, 1)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&gt;</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '4px' }}>
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((wd) => (
+              <span key={wd} style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af' }}>{wd}</span>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+            {Array.from({ length: startDayOfWeek }).map((_, i) => (
+              <span key={`empty-${i}`} />
+            ))}
+            {daysInMonth.map((day) => {
+              const isSelected = value && isSameDay(day, new Date(value));
+              const isToday = isSameDay(day, new Date());
+              return (
+                <button
+                  key={day.toString()}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange(format(day, 'yyyy-MM-dd'));
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    background: isSelected ? '#2563eb' : 'transparent',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: isSelected || isToday ? 'bold' : 'normal',
+                    color: isSelected ? 'white' : isToday ? '#2563eb' : '#374151',
+                    cursor: 'pointer',
+                    height: '24px',
+                    width: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.1s'
+                  }}
+                  onMouseEnter={e => {
+                    if (!isSelected) e.currentTarget.style.background = '#f3f4f6';
+                  }}
+                  onMouseLeave={e => {
+                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  {format(day, 'd')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps) {
   const { organisation } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const intentId = searchParams.get('intent_id');
   const [loading, setLoading] = useState(false);
@@ -46,6 +178,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState<any[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const [isSigDropdownOpen, setIsSigDropdownOpen] = useState(false);
+  const [termsText, setTermsText] = useState('');
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
   const queryClient = useQueryClient();
@@ -129,24 +265,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const itemMakes = dcInitQuery.data?.itemMakes || {};
   const dcSettings = dcInitQuery.data?.dcSettings || { prefix: 'DC', suffix: '', padding: '5' };
 
-  // Project rates query - re-fetches when project_id changes
-  const projectRatesQuery = useQuery({
-    queryKey: ['project-rates-for-dc', formData.project_id, organisation?.id],
-    queryFn: () => getProjectRates(formData.project_id, materials.map(m => m.id)),
-    enabled: !!formData.project_id && !!materials.length && !!organisation?.id,
-  });
-  const projectRates = projectRatesQuery.data || {};
-
-  // ARC rates query - re-fetches when client changes
-  const arcClient = clients.find(c => c.client_name === formData.client_name);
-  const arcRatesQuery = useQuery({
-    queryKey: ['arc-rates-for-dc', arcClient?.id],
-    queryFn: () => fetchArcPricingForItems(arcClient!.id, materials.map(m => m.id)),
-    enabled: !!arcClient?.id && !!materials.length,
-  });
-  const arcPricingMap = arcRatesQuery.data || {};
-  
-  // Shipping address state
   const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
   const [selectedShippingIndex, setSelectedShippingIndex] = useState(-1);
   const [showShippingDropdown, setShowShippingDropdown] = useState(false);
@@ -159,9 +277,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const isEditing = !!editDC;
   const isLocked = editDC?.status === 'APPROVED';
 
-  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
-  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' };
+  const labelColStyle = { minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
+  const inputStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '12px' };
 
   const [formData, setFormData] = useState({
     project_id: '',
@@ -191,6 +310,23 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     authorized_signatory_id: '',
     organisation_id: organisation?.id || null
   });
+
+  // Project rates query - re-fetches when project_id changes
+  const projectRatesQuery = useQuery({
+    queryKey: ['project-rates-for-dc', formData.project_id, organisation?.id],
+    queryFn: () => getProjectRates(formData.project_id, materials.map(m => m.id)),
+    enabled: !!formData.project_id && !!materials.length && !!organisation?.id,
+  });
+  const projectRates = projectRatesQuery.data || {};
+
+  // ARC rates query - re-fetches when client changes
+  const arcClient = clients.find(c => c.client_name === formData.client_name);
+  const arcRatesQuery = useQuery({
+    queryKey: ['arc-rates-for-dc', arcClient?.id],
+    queryFn: () => fetchArcPricingForItems(arcClient!.id, materials.map(m => m.id)),
+    enabled: !!arcClient?.id && !!materials.length,
+  });
+  const arcPricingMap = arcRatesQuery.data || {};
 
   const [items, setItems] = useState<any[]>([
     { id: 1, material_id: '', variant_id: '', material_name: '', unit: '', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
@@ -252,6 +388,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       const target = event.target as Node | null;
       if (shippingDropdownRef.current && target && !shippingDropdownRef.current.contains(target)) {
         setShowShippingDropdown(false);
+      }
+      if ((event.target as HTMLElement) && !(event.target as HTMLElement).closest('.client-dropdown-container')) {
+        setIsClientDropdownOpen(false);
+      }
+      if ((event.target as HTMLElement) && !(event.target as HTMLElement).closest('.sig-dropdown-container')) {
+        setIsSigDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -496,6 +638,27 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleClientChange = (clientName: string) => {
+    const client = clients.find(c => c.client_name === clientName);
+    setFormData(prev => ({
+      ...prev,
+      client_name: clientName,
+      ship_to_name: client?.client_name || '',
+      ship_to_address_line1: client?.address1 || client?.shipping_address || '',
+      ship_to_address_line2: client?.address2 || '',
+      ship_to_city: client?.city || '',
+      ship_to_state: client?.state || '',
+      ship_to_gstin: client?.gstin || '',
+      ship_to_contact: client?.contact || ''
+    }));
+    if (client) {
+      loadShippingAddresses(client.id);
+    } else {
+      setShippingAddresses([]);
+      setSelectedShippingIndex(-1);
+    }
   };
 
   const handleProjectChange = async (projectId) => {
@@ -901,7 +1064,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       
       alert(isEditing ? 'DC Updated!' : 'DC Created!');
       setIsDirty(false);
-      if (onSuccess) onSuccess();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/dc/list');
+      }
       return true;
       
     } catch (error) {
@@ -936,7 +1103,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           .from('document_series')
           .select('id, configs, current_number, created_at')
           .eq('is_default', true)
-          .maybeSingle(),
+          .limit(1),
       () =>
         supabase
           .from('document_series')
@@ -1070,33 +1237,80 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   );
 
   return (
-    <div className="card" style={{ position: 'relative' }}>
-      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', position: 'sticky', top: 0, zIndex: 10, background: 'white', margin: '-20px -20px 16px -20px', padding: '12px 20px', borderBottom: '1px solid #e5e7eb' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h2 className="card-title" style={{ margin: 0 }}>{isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}</h2>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
-            <input
-              type="checkbox"
-              checked={allowInsufficientStock}
-              onChange={(e) => {
-                setAllowInsufficientStock(e.target.checked);
-                localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false');
-              }}
-              style={{ width: '16px', height: '16px' }}
-            />
-            Allow DC with insufficient stock
-          </label>
+    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+      <div
+        className="flex items-center justify-between fixed top-0 left-0 right-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200"
+        style={{ top: '32px', left: '220px', marginBottom: 0 }}
+      >
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-bold text-zinc-900 tracking-tight" style={{ margin: 0 }}>
+            {isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}
+          </h1>
+          {isLocked && (
+            <span className="px-2 py-1 text-xs font-bold bg-amber-100 text-amber-700 rounded">
+              Approved
+            </span>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={loading}>
-            Cancel
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={handleSaveAsDraft} disabled={loading || isLocked}>
-            {loading ? 'Saving...' : 'Save as Draft'}
-          </button>
-          <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading || isLocked}>
-            {loading ? 'Saving...' : isEditing ? 'Update DC' : 'Save Delivery Challan'}
-          </button>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 pr-4 border-r border-zinc-200">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
+              <input
+                type="checkbox"
+                checked={allowInsufficientStock}
+                onChange={(e) => {
+                  setAllowInsufficientStock(e.target.checked);
+                  localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false');
+                }}
+                style={{ width: '16px', height: '16px' }}
+              />
+              Allow DC with insufficient stock
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all"
+              onClick={onCancel}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ${loading || isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={handleSaveAsDraft}
+              disabled={loading || isLocked}
+            >
+              {loading ? 'Saving...' : 'Save as Draft'}
+            </button>
+            <button
+              type="button"
+              style={{
+                height: '36px',
+                padding: '0 40px',
+                minWidth: '100px',
+                background: '#185FA5',
+                border: '1px solid #185FA5',
+                color: '#fff',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: loading || isLocked ? 'not-allowed' : 'pointer',
+                opacity: loading || isLocked ? 0.6 : 1,
+                transition: 'all 0.15s'
+              }}
+              onClick={handleSubmit}
+              disabled={loading || isLocked}
+            >
+              {loading ? 'Saving...' : isEditing ? 'Update DC' : 'Save Delivery Challan'}
+            </button>
+          </div>
         </div>
       </div>
       
@@ -1118,39 +1332,99 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         </div>
       )}
       
+      <div style={{ paddingTop: '84px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '16px' }}>
       <form onSubmit={handleSubmit}>
-        {/* 3-Column Header like Quotation */}
-        <div style={{ background: '#f8f9fa', padding: '10px', marginBottom: '10px', borderRadius: '6px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
             
-            {/* Column 1: DOCUMENT */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Document</div>
+            <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>Client</div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Client:</span>
+                <div style={{ ...fieldColStyle, position: 'relative' }} className="client-dropdown-container">
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={inputStyle}
+                    placeholder="Search or select client..."
+                    value={clientSearch || formData.client_name || ''}
+                    onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
+                    onClick={() => setIsClientDropdownOpen(true)}
+                    onFocus={() => setIsClientDropdownOpen(true)}
+                    disabled={isLocked}
+                  />
+                  {isClientDropdownOpen && !isLocked && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {clients
+                        .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                        .map(c => (
+                          <div
+                            key={c.id}
+                            style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            onClick={() => {
+                              handleClientChange(c.client_name);
+                              setClientSearch('');
+                              setIsClientDropdownOpen(false);
+                            }}
+                          >
+                            {c.client_name}
+                          </div>
+                        ))}
+                      {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                        <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No clients found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>Project:</span>
+                <div style={fieldColStyle}>
+                  <select name="project_id" className="form-select" style={inputStyle} value={formData.project_id} onChange={(e) => handleProjectChange(e.target.value)} disabled={isLocked}>
+                    <option value="">Select</option>
+                    {projects.map(p => (<option key={p.id} value={p.id}>{p.project_name || p.name}</option>))}
+                  </select>
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>PO No:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="po_no" className="form-input" style={inputStyle} value={formData.po_no || ''} onChange={handleInputChange} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>PO Date:</span>
+              <div style={fieldColStyle}>
+                  <CustomDatePicker value={formData.po_date || ''} onChange={(val) => setFormData(prev => ({ ...prev, po_date: val }))} inputStyle={inputStyle} disabled={isLocked} />
+                </div>
+              </div>
+              <div style={headerFieldStyle}>
+                <span style={labelColStyle}>E-Way:</span>
+                <div style={fieldColStyle}>
+                  <input type="text" name="eway_bill_no" className="form-input" style={inputStyle} value={formData.eway_bill_no || ''} onChange={handleInputChange} disabled={isLocked} placeholder="E-Way Bill No" />
+                </div>
+              </div>
+            </div>
+
+            <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>Document</div>
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>DC No:</span>
                 <div style={fieldColStyle}>
-                  <input type="text" name="dc_number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px', background: '#f3f4f6' }} value={formData.dc_number} onChange={handleInputChange} placeholder="Auto" disabled={isLocked} />
+                  <input type="text" name="dc_number" className="form-input" style={{ ...inputStyle, background: '#f3f4f6' }} value={formData.dc_number} onChange={handleInputChange} placeholder="Auto" disabled={isLocked} />
                 </div>
               </div>
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Date:</span>
-                <div style={fieldColStyle}>
-                  <input type="date" name="dc_date" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.dc_date} onChange={handleInputChange} disabled={isLocked} />
-                </div>
-              </div>
-              <div style={headerFieldStyle}>
-                <span style={labelColStyle}>Discount Category:</span>
-                <div style={fieldColStyle}>
-                  <select name="variant_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.variant_id} onChange={(e) => handleHeaderVariantChange(e.target.value)} disabled={isLocked}>
-                    <option value="">Select</option>
-                    {activeVariants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-                  </select>
+              <div style={fieldColStyle}>
+                  <CustomDatePicker value={formData.dc_date} onChange={(val) => setFormData(prev => ({ ...prev, dc_date: val }))} inputStyle={inputStyle} disabled={isLocked} />
                 </div>
               </div>
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Source:</span>
                 <div style={fieldColStyle}>
-                  <select name="source_type" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.source_type} onChange={(e) => handleSourceTypeChange(e.target.value)} disabled={isLocked}>
+                  <select name="source_type" className="form-select" style={inputStyle} value={formData.source_type} onChange={(e) => handleSourceTypeChange(e.target.value)} disabled={isLocked}>
                     <option value="WAREHOUSE">Warehouse</option>
                     <option value="DIRECT_SUPPLY">Direct</option>
                   </select>
@@ -1159,7 +1433,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Rate From:</span>
                 <div style={fieldColStyle}>
-                  <select name="rate_source" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.rate_source} onChange={handleInputChange} disabled={isLocked}>
+                  <select name="rate_source" className="form-select" style={inputStyle} value={formData.rate_source} onChange={handleInputChange} disabled={isLocked}>
                     <option value="base">Base Rate</option>
                     <option value="project" disabled={!formData.project_id}>Project Rate</option>
                     <option value="arc" disabled={!formData.client_name}>Client ARC</option>
@@ -1171,7 +1445,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 <div style={headerFieldStyle}>
                   <span style={labelColStyle}>Warehouse:</span>
                   <div style={fieldColStyle}>
-                    <select name="warehouse_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.warehouse_id} onChange={(e) => handleWarehouseChange(e.target.value)} disabled={isLocked}>
+                    <select name="warehouse_id" className="form-select" style={inputStyle} value={formData.warehouse_id} onChange={(e) => handleWarehouseChange(e.target.value)} disabled={isLocked}>
                       <option value="">Select</option>
                       {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>))}
                     </select>
@@ -1180,80 +1454,24 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
               )}
             </div>
 
-            {/* Column 2: CLIENT */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Client</div>
-              <div style={headerFieldStyle}>
-                <span style={labelColStyle}>Client:</span>
-                <div style={fieldColStyle}>
-                  <select name="client_name" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.client_name} onChange={(e) => {
-                    const client = clients.find(c => c.client_name === e.target.value);
-                    setFormData(prev => ({
-                      ...prev,
-                      client_name: e.target.value,
-                      ship_to_name: client?.client_name || '',
-                      ship_to_address_line1: client?.address1 || client?.shipping_address || '',
-                      ship_to_address_line2: client?.address2 || '',
-                      ship_to_city: client?.city || '',
-                      ship_to_state: client?.state || '',
-                      ship_to_gstin: client?.gstin || '',
-                      ship_to_contact: client?.contact || ''
-                    }));
-                    if (client) { loadShippingAddresses(client.id); } else { setShippingAddresses([]); setSelectedShippingIndex(-1); }
-                  }} disabled={isLocked}>
-                    <option value="">Select</option>
-                    {clients.map(c => (<option key={c.id} value={c.client_name}>{c.client_name}</option>))}
-                  </select>
-                </div>
-              </div>
-              <div style={headerFieldStyle}>
-                <span style={labelColStyle}>Project:</span>
-                <div style={fieldColStyle}>
-                  <select name="project_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.project_id} onChange={(e) => handleProjectChange(e.target.value)} disabled={isLocked}>
-                    <option value="">Select</option>
-                    {projects.map(p => (<option key={p.id} value={p.id}>{p.project_name || p.name}</option>))}
-                  </select>
-                </div>
-              </div>
-              <div style={headerFieldStyle}>
-                <span style={labelColStyle}>PO No:</span>
-                <div style={fieldColStyle}>
-                  <input type="text" name="po_no" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.po_no || ''} onChange={handleInputChange} disabled={isLocked} />
-                </div>
-              </div>
-              <div style={headerFieldStyle}>
-                <span style={labelColStyle}>PO Date:</span>
-                <div style={fieldColStyle}>
-                  <input type="date" name="po_date" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.po_date || ''} onChange={handleInputChange} disabled={isLocked} />
-                </div>
-              </div>
-              <div style={headerFieldStyle}>
-                <span style={labelColStyle}>E-Way:</span>
-                <div style={fieldColStyle}>
-                  <input type="text" name="eway_bill_no" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.eway_bill_no || ''} onChange={handleInputChange} disabled={isLocked} placeholder="E-Way Bill No" />
-                </div>
-              </div>
-            </div>
-
-            {/* Column 3: TRANSPORT & DETAILS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Transport & Details</div>
+            <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>Transport & Details</div>
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Vehicle:</span>
                 <div style={fieldColStyle}>
-                  <input type="text" name="vehicle_number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} maxLength={20} value={formData.vehicle_number} onChange={handleInputChange} disabled={isLocked} />
+                  <input type="text" name="vehicle_number" className="form-input" style={inputStyle} maxLength={20} value={formData.vehicle_number} onChange={handleInputChange} disabled={isLocked} />
                 </div>
               </div>
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Driver:</span>
                 <div style={fieldColStyle}>
-                  <input type="text" name="driver_name" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
+                  <input type="text" name="driver_name" className="form-input" style={inputStyle} value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
                 </div>
               </div>
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Signatory:</span>
                 <div style={fieldColStyle}>
-                  <select name="authorized_signatory_id" className="form-select" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.authorized_signatory_id || ''} onChange={handleInputChange} disabled={isLocked}>
+                  <select name="authorized_signatory_id" className="form-select" style={inputStyle} value={formData.authorized_signatory_id || ''} onChange={handleInputChange} disabled={isLocked}>
                     <option value="">Select</option>
                     {(organisation?.signatures || []).map(sig => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
                   </select>
@@ -1262,13 +1480,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
               <div style={headerFieldStyle}>
                 <span style={labelColStyle}>Remarks:</span>
                 <div style={fieldColStyle}>
-                  <input type="text" name="remarks" className="form-input" style={{ padding: '4px 8px', fontSize: '12px' }} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Remarks" />
+                  <input type="text" name="remarks" className="form-input" style={inputStyle} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Remarks" />
                 </div>
               </div>
             </div>
 
           </div>
-        </div>
         
         {/* Compact Billing & Shipping Address Section */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
@@ -1414,17 +1631,17 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           </div>
         )}
         
-        <div className="form-group" style={{ marginTop: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '4px', height: '22px', background: '#2563eb', borderRadius: '2px' }}></div>
-              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#111827' }}>Line Items</h3>
+        <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
+              <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
               <span style={{ marginLeft: '6px', fontSize: '11px', fontWeight: 600, padding: '2px 8px', background: '#f3f4f6', color: '#6b7280', borderRadius: '4px' }}>
                 {items.length} {items.length === 1 ? 'Item' : 'Items'}
               </span>
             </div>
             {!isLocked && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setShowItemCreateDrawer(true)} style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '4px' }}
                   onMouseEnter={e => e.currentTarget.style.color = '#2563eb'}
                   onMouseLeave={e => e.currentTarget.style.color = '#374151'}
@@ -1452,8 +1669,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
             )}
           </div>
           <div className="grid-table-container">
-            <table className="grid-table">
-              <thead>
+            <table className="grid-table cq-editable">
+              <thead className="grid-table-header-dark">
                 <tr>
                   <th className="col-shrink">#</th>
                   <th className="col-item">ITEM</th>
@@ -1485,17 +1702,17 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                       {index + 1}
                     </td>
                     <td className="col-item">
-                      <select 
-                        className="cell-select"
-                        value={item.material_id} 
-                        onChange={(e) => handleItemChange(item.id, 'material_id', e.target.value)}
-                        disabled={isLocked || materialsLoading}
-                      >
-                        <option value="">{materialsLoading ? 'Loading materials...' : 'Select Item'}</option>
-                        {materials.map(m => (
-                          <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
-                        ))}
-                      </select>
+                      {isLocked || materialsLoading ? (
+                        <div className="cell-static" style={{ minHeight: '28px', display: 'flex', alignItems: 'center', padding: '4px 8px', color: item.material_id ? '#1e293b' : '#94a3b8' }}>
+                          {materialsLoading ? 'Loading materials...' : item.material_name || 'Select Item'}
+                        </div>
+                      ) : (
+                        <SearchableItemSelect
+                          value={item.material_id}
+                          materials={materials}
+                          onChange={(materialId) => handleItemChange(item.id, 'material_id', materialId)}
+                        />
+                      )}
                       <InlineDescriptionCell
                         materialName=""
                         description={item.description}
@@ -1543,7 +1760,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                         className="cell-select"
                         value={item.warehouse_id || ''}
                         onChange={(e) => handleItemChange(item.id, 'warehouse_id', e.target.value)}
-                        disabled={isLocked || !item.material_id || formData.source_type === 'DIRECT'}
+                        disabled={isLocked || !item.material_id || formData.source_type === 'DIRECT_SUPPLY'}
                       >
                         <option value="">Select</option>
                         {warehouses.map(wh => (
@@ -1600,9 +1817,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 
                 {/* Total Row mirroring Vyapar Screenshot */}
                 <tr className="total-row">
-                  <td colSpan={8} className="total-label">TOTAL</td>
+                  <td colSpan={6} className="total-label">TOTAL</td>
                   <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>{totalQty.toFixed(2)}</td>
-                  <td></td>
                   <td></td>
                   <td className="total-value">
                     {totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1625,6 +1841,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           </div>
         </div>
       </form>
+      </div>
 
       {/* Multiple Item Picker Modal */}
       {showItemPicker && (

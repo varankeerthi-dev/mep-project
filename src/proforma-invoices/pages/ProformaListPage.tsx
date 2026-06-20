@@ -25,7 +25,6 @@ import {
 import { useProformaInvoices, useCloneProforma, useSendProforma, useMarkAccepted, useMarkRejected, useDeleteProforma } from '../hooks';
 import { downloadProformaPdf, emailProformaInvoice } from '../pdf';
 import { PDFDocument } from 'pdf-lib';
-import { generateSingleProformaPdfUint8Array } from '../pdf-utils'; // I'll assume this helper exists or create it
 
 const PROFORMA_STATUSES = ['All', 'draft', 'sent', 'accepted', 'rejected'];
 
@@ -90,7 +89,7 @@ export default function ProformaListPage() {
   const { mutate: deleteMutate } = useDeleteProforma();
 
   const { data: proformas = [], isLoading } = useProformaInvoices({
-    organisationId: organisation?.id,
+    organisationId: organisation?.id || undefined,
     page: 1,
     pageSize: 1000, // Fetch all for local filtering/sorting to match QuotationList logic
   });
@@ -540,7 +539,7 @@ export default function ProformaListPage() {
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/proforma-invoices/edit?id=${p.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><EyeIcon className="w-3.5 h-3.5" />View / Edit</button>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/create?convertFrom=proforma-to-invoice&sourceId=${p.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><FileCheckIcon className="w-3.5 h-3.5" />Convert to Invoice</button>
                               <button onClick={(e) => { e.stopPropagation(); downloadProformaPdf(p, { organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
-                              <button onClick={(e) => { e.stopPropagation(); handleClone(p); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><CopyIcon className="w-3.5 h-3.5" />Duplicate</button>
+                              <button onClick={(e) => { e.stopPropagation(); cloneMutate({ id: p.id!, organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><CopyIcon className="w-3.5 h-3.5" />Duplicate</button>
                               <div className="my-1 border-t border-zinc-100" />
                               <button onClick={(e) => { e.stopPropagation(); if(confirm('Delete proforma?')) deleteMutate({ id: p.id!, organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]" style={{ padding: '6px' }}><Trash2Icon className="w-3.5 h-3.5" />Delete</button>
                             </div>

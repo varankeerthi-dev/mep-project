@@ -37,7 +37,7 @@ const PROFORMA_SELECT = `
   prepared_by,
   created_at,
   updated_at,
-  client:clients(id, client_name, gstin, state, default_template_id, email),
+  client:clients(id, client_name, gstin, state, default_template_id, email, billing_address, shipping_address),
   items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order),
   creator:user_profiles(full_name)
 `;
@@ -51,6 +51,8 @@ function parseClientSummary(client: any): ProformaClientSummary | null {
     state: client.state ?? null,
     default_template_id: client.default_template_id ?? null,
     email: client.email ?? null,
+    billing_address: client.billing_address ?? null,
+    shipping_address: client.shipping_address ?? null,
   };
 }
 

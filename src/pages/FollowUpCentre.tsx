@@ -66,7 +66,7 @@ import { LeadCaptureModal } from '@/components/leads/lead-capture-modal';
 import { LeadRow, leadTableHeader } from '@/components/follow-up/lead-row';
 import { WinLossModal } from '@/components/leads/win-loss-modal';
 import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function FollowUpCentre() {
@@ -130,17 +130,6 @@ export default function FollowUpCentre() {
     []
   );
 
-  const handleLogCommunication = useCallback(() => {
-    if (!drawerItem) return;
-    const params = new URLSearchParams();
-    if (drawerItem.linkedType === 'quotation') params.set('linkedType', 'quotation');
-    if (drawerItem.linkedType === 'invoice') params.set('linkedType', 'invoice');
-    if (drawerItem.linkedType === 'podc') params.set('linkedType', 'podc');
-    params.set('linkedId', drawerItem.linkedId);
-    params.set('itemLabel', drawerItem.itemLabel);
-    params.set('clientName', drawerItem.clientName);
-    window.open(`/client-communication?${params.toString()}`, '_blank');
-  }, [drawerItem]);
 
   const withAssigneeLabels = useCallback(
     <T extends { assignee_user_id?: string | null; assignee_name?: string | null }>(items: T[]) =>
@@ -780,7 +769,7 @@ export default function FollowUpCentre() {
                     key={item.id}
                     item={item}
                     disabled={isReadOnly}
-                    onSelect={() => handleOpenHistory('quotation', item.id, item.company_name || item.contact_name, item.client_name || item.contact_name)}
+                    onSelect={() => handleOpenHistory('lead', item.id, item.company_name || item.contact_name, item.client_name || item.contact_name)}
                     onConvert={() => setWinLossTarget({ id: item.id, category: 'win' })}
                     onDisqualify={() => setWinLossTarget({ id: item.id, category: 'disqualify' })}
                     onSetNextAction={(id, at, label) =>
@@ -823,18 +812,30 @@ export default function FollowUpCentre() {
               </p>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              leftIcon={<UserPlus className="h-3.5 w-3.5" />}
-              onClick={() => setLeadModalOpen(true)}
-              disabled={!canManage}
-              title={canManage ? 'Capture a new lead' : 'Manager/admin only'}
-            >
-              New lead
-            </Button>
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                leftIcon={<MessageSquare className="h-3.5 w-3.5" />}
+                onClick={() => window.open('/client-communication', '_blank')}
+                title="Go to Client Communication page"
+              >
+                Communication Log
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                leftIcon={<UserPlus className="h-3.5 w-3.5" />}
+                onClick={() => setLeadModalOpen(true)}
+                disabled={!canManage}
+                title={canManage ? 'Capture a new lead' : 'Manager/admin only'}
+              >
+                New lead
+              </Button>
+            </div>
             {dataSource === 'mock' && (
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900">
                 Demo data — run <code className="font-mono">051_follow_up_centre.sql</code> in Supabase
@@ -901,13 +902,12 @@ export default function FollowUpCentre() {
       <ItemHistoryDrawer
         open={!!drawerItem}
         onClose={() => setDrawerItem(null)}
-        organisationId={organisation?.id}
+        organisationId={organisation?.id || undefined}
         linkedType={drawerItem?.linkedType}
         linkedId={drawerItem?.linkedId}
         itemLabel={drawerItem?.itemLabel || ''}
         clientName={drawerItem?.clientName || ''}
         followUpStatus={drawerItem?.followUpStatus}
-        onLogCommunication={handleLogCommunication}
       />
 
       <LeadCaptureModal

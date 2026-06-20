@@ -86,6 +86,7 @@ const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m
 const QuotationList = lazyAny(() => import('./pages/QuotationList'));
 const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation'));
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
+const DCView = lazyAny(() => import('./pages/DCView'));
 const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
 const QuickQuoteSettings = lazyAny(() => import('./pages/QuickQuoteSettings'));
@@ -439,13 +440,13 @@ export default function App() {
       case '/reports/purchase': return <PurchaseReport />;
       case '/reports/sales': return <SalesReport />;
       // Delivery Challan
-      case '/dc/create': return <CreateDC onCancel={() => navigate('/dc/list')} />;
+      case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
       case '/dc/list': return <DCList />;
       case '/dc/consolidation': return <DCConsolidation />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
       case '/nb-dc/list': return <NonBillableDCList />;
-      case '/nb-dc/create': return <CreateNonBillableDC onCancel={() => navigate('/nb-dc/list')} />;
+      case '/nb-dc/create': return <CreateNonBillableDC onSuccess={() => navigate('/nb-dc/list')} onCancel={() => navigate('/nb-dc/list')} />;
       // Settings
       case '/help': return <HelpPage onNavigate={navigate} />;
       case '/settings': return <SettingsPage />;
@@ -467,6 +468,9 @@ export default function App() {
           if (!pathKey.includes('/issue/new') && !pathKey.endsWith('/issue')) {
             return <IssueDetailPage />;
           }
+        }
+        if (pathKey.startsWith('/dc/view/')) {
+          return <DCView />;
         }
         if (pathKey.startsWith('/dc/edit/')) {
           const dcId = pathKey.split('/dc/edit/')[1];

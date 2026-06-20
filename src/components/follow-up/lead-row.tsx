@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { Lead, LeadStatus } from '@/types/leads';
 import { formatFollowUpCurrency } from '@/lib/followup/currency-format';
+import { formatFollowUpDate } from '@/lib/followup/date-format';
 import { cn } from '@/lib/utils';
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
@@ -134,7 +135,7 @@ export const LeadRow = memo(function LeadRow({
           {item.estimated_value > 0 ? formatFollowUpCurrency(item.estimated_value) : '—'}
         </p>
         {item.expected_close_date && (
-          <p className="text-[10px] text-zinc-500">close {item.expected_close_date}</p>
+          <p className="text-[10px] text-zinc-500">close {formatFollowUpDate(item.expected_close_date)}</p>
         )}
       </div>
 

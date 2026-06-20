@@ -24,6 +24,8 @@ export function useItemHistory(
     queryFn: async () => {
       if (!organisationId || !linkedType || !linkedId) return [];
 
+      const isLead = linkedType === 'lead';
+
       const [activityRes, commsRes] = await Promise.all([
         supabase
           .from('follow_up_activity_log')
@@ -32,13 +34,20 @@ export function useItemHistory(
           .eq('reference_id', linkedId)
           .order('created_at', { ascending: false })
           .limit(100),
-        supabase
-          .from('client_communication')
-          .select('id, call_brief, call_type, call_regarding, next_action, status, priority, created_at, updated_at')
-          .eq('linked_type', linkedType)
-          .eq('linked_id', linkedId)
-          .order('created_at', { ascending: false })
-          .limit(100),
+        isLead
+          ? supabase
+              .from('client_communication')
+              .select('id, call_brief, call_type, call_regarding, next_action, status, priority, created_at, updated_at')
+              .eq('lead_id', linkedId)
+              .order('created_at', { ascending: false })
+              .limit(100)
+          : supabase
+              .from('client_communication')
+              .select('id, call_brief, call_type, call_regarding, next_action, status, priority, created_at, updated_at')
+              .eq('linked_type', linkedType)
+              .eq('linked_id', linkedId)
+              .order('created_at', { ascending: false })
+              .limit(100),
       ]);
 
       if (activityRes.error) throw activityRes.error;

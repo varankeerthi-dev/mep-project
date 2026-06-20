@@ -150,7 +150,7 @@ export interface FollowUpActivityLog {
   metadata?: Record<string, string>;
 }
 
-export type LinkedItemType = 'quotation' | 'invoice' | 'podc';
+export type LinkedItemType = 'quotation' | 'invoice' | 'podc' | 'lead';
 
 export interface UnifiedTimelineEntry {
   id: string;

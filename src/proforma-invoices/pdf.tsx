@@ -19,7 +19,7 @@ type ProformaLike = ProformaWithRelations | string;
 async function getOrganisationDetails(organisationId: string): Promise<ProformaPdfCompany | null> {
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
     .eq('id', organisationId)
     .single();
 
@@ -92,7 +92,7 @@ export async function generateProformaPdf(
 
   // Use Classic Proforma Template if selected
   if (template?.template_code === 'PI_CLASSIC') {
-    const doc = generateProGridProformaPdf(resolvedProforma, company, template);
+    const doc = generateProGridProformaPdf(resolvedProforma as any, company as any, template);
     return doc.output('blob') as Blob;
   }
 
@@ -143,6 +143,7 @@ async function generateVerticalProformaPdf(
 }
 
 function buildProformaVerticalData(proforma: ProformaWithRelations) {
+  const totalTax = (proforma.cgst || 0) + (proforma.sgst || 0) + (proforma.igst || 0);
   return {
     ...proforma,
     document_type: 'Proforma Invoice',
@@ -156,7 +157,7 @@ function buildProformaVerticalData(proforma: ProformaWithRelations) {
       discount_percent: item.discount_percent || 0,
       rate_after_discount: item.rate_after_discount || item.rate,
       base_amount: item.base_amount || (item.quantity || item.qty) * item.rate,
-      tax_percent: item.tax_percent || proforma.gst_rate || 18,
+      tax_percent: item.tax_percent || (proforma as any).gst_rate || 18,
       tax_amount: item.tax_amount || 0,
       line_total: item.line_total || item.total,
       hsn_code: item.hsn_code || '',
@@ -164,16 +165,16 @@ function buildProformaVerticalData(proforma: ProformaWithRelations) {
       item_code: item.item_code || '',
     })),
     subtotal: proforma.subtotal,
-    total_tax: proforma.total_tax || proforma.igst || 0,
-    round_off: proforma.round_off || 0,
+    total_tax: totalTax,
+    round_off: (proforma as any).round_off || 0,
     grand_total: proforma.total,
     client: proforma.client,
-    billing_address: proforma.billing_address || proforma.client?.address,
-    shipping_address: proforma.shipping_address || proforma.client?.shipping_address,
+    billing_address: (proforma as any).billing_address || proforma.client?.billing_address || null,
+    shipping_address: (proforma as any).shipping_address || proforma.client?.shipping_address || null,
     po_no: proforma.po_number,
     po_date: proforma.po_date,
-    valid_till: proforma.valid_till,
-    reference: proforma.reference,
+    valid_till: proforma.valid_until,
+    reference: (proforma as any).reference || null,
   };
 }
 

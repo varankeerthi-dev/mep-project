@@ -3,6 +3,18 @@
 
 import type { CadenceRule, Lead, NextAction, WinLossReason } from '../types/leads';
 
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+};
+
+const daysFromNow = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+};
+
 const NOW = new Date().toISOString();
 
 export const MOCK_LEADS: Lead[] = [
@@ -20,12 +32,12 @@ export const MOCK_LEADS: Lead[] = [
     project_name: 'Tower B HVAC retrofit',
     requirement_summary: 'Chilled water piping + AHU replacement across 18 floors.',
     estimated_value: 8400000,
-    expected_close_date: '2026-07-12',
+    expected_close_date: daysFromNow(23),
     owner_user_id: 'user-1',
     next_action_at: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(),
     next_action_label: 'Send revised quote v2',
     created_by: 'user-1',
-    created_at: '2026-06-01T09:30:00Z',
+    created_at: daysAgo(18) + 'T09:30:00Z',
     updated_at: NOW,
     converted_at: null,
     converted_to_client_id: null,
@@ -47,12 +59,12 @@ export const MOCK_LEADS: Lead[] = [
     project_name: 'Logistics park — electrical tender',
     requirement_summary: '11kV substation + cable tray layout. Tender due 25 June.',
     estimated_value: 12500000,
-    expected_close_date: '2026-06-30',
+    expected_close_date: daysFromNow(11),
     owner_user_id: 'user-2',
     next_action_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
     next_action_label: 'Call to confirm site visit slot',
     created_by: 'user-2',
-    created_at: '2026-06-09T11:15:00Z',
+    created_at: daysAgo(10) + 'T11:15:00Z',
     updated_at: NOW,
     converted_at: null,
     converted_to_client_id: null,
@@ -74,12 +86,12 @@ export const MOCK_LEADS: Lead[] = [
     project_name: 'OT-3 medical gas pipeline',
     requirement_summary: 'MGPS retrofit for new operation theatre.',
     estimated_value: 1200000,
-    expected_close_date: '2026-07-05',
+    expected_close_date: daysFromNow(16),
     owner_user_id: 'user-1',
     next_action_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
     next_action_label: 'Follow up on sent introduction deck',
     created_by: 'user-1',
-    created_at: '2026-06-05T08:00:00Z',
+    created_at: daysAgo(14) + 'T08:00:00Z',
     updated_at: NOW,
     converted_at: null,
     converted_to_client_id: null,

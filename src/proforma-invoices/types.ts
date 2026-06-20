@@ -39,4 +39,6 @@ export interface ProformaClientSummary {
   state: string | null;
   default_template_id: string | null;
   email: string | null;
+  billing_address?: string | null;
+  shipping_address?: string | null;
 }

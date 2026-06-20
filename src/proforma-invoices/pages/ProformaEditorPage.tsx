@@ -10,7 +10,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { isInterstate } from '../logic';
 import { createProforma, updateProforma, getProformaById, sendProforma, markAccepted } from '../api';
 import type { ProformaInput, ProformaItem, ProformaStatus } from '../types';
-import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2 } from 'lucide-react';
+import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Briefcase, Calendar, User, Info } from 'lucide-react';
 import ItemSelectorDrawer from '../../components/ItemSelectorDrawer';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
 import { useClientPOs } from '../hooks';
@@ -20,258 +20,177 @@ import { ArcPricingToggle, ArcPricingStatusBadge } from '../../components/ArcPri
 import { getArcRateFromMap, fetchArcPricingForItems } from '../../lib/arc-pricing';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { ArcConfirmationDialog, type ArcPricingItem } from '../../components/ArcConfirmationDialog';
+import { format, subMonths, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
+import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-  
-  :root {
-    --pe-bg-page: #faf9f7;
-    --pe-bg-card: #ffffff;
-    --pe-bg-hover: #f5f3f0;
-    --pe-bg-muted: #f8f7f5;
-    --pe-border: #e8e5e1;
-    --pe-border-light: #f0eeeb;
-    --pe-border-hover: #d4d0ca;
-    --pe-text-primary: #1a1a1a;
-    --pe-text-secondary: #6b6b6b;
-    --pe-text-muted: #9ca3af;
-    --pe-accent: #0a7661;
-    --pe-accent-hover: #065d4f;
-  }
-  
-  .pe-page {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--pe-bg-page);
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  
-  .pe-container { max-width: 1200px; margin: 0 auto; }
-  
-  .pe-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .pe-back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: var(--pe-bg-card);
-    border: 1px solid var(--pe-border);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--pe-text-secondary);
-    cursor: pointer;
-  }
-  
-  .pe-back-btn:hover { background: var(--pe-bg-hover); border-color: var(--pe-border-hover); }
-  
-  .pe-title { font-size: 1.5rem; font-weight: 700; color: var(--pe-text-primary); margin: 0; }
-  
-  .pe-card {
-    background: var(--pe-bg-card);
-    border: 1px solid var(--pe-border);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-  }
-  
-  .pe-card-title {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--pe-text-muted);
-    margin-bottom: 1rem;
-  }
-  
-  .pe-form-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .pe-form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-  
-  .pe-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--pe-text-secondary);
-  }
-  
-  .pe-input, .pe-select, .pe-textarea {
-    padding: 0.5rem 0.75rem;
-    background: var(--pe-bg-muted);
-    border: 1px solid var(--pe-border);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-family: inherit;
-    color: var(--pe-text-primary);
-  }
-  
-  .pe-input:focus, .pe-select:focus, .pe-textarea:focus {
-    outline: none;
-    border-color: var(--pe-accent);
-    background: white;
-  }
-  
-  .pe-items-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-  
-  .pe-items-table th {
-    padding: 0.5rem;
-    text-align: left;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--pe-text-muted);
-    background: var(--pe-bg-muted);
-    border-bottom: 1px solid var(--pe-border);
-  }
-  
-  .pe-items-table td {
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--pe-border-light);
-  }
-  
-  .pe-items-table input {
-    width: 100%;
-    padding: 0.375rem 0.5rem;
-    border: 1px solid var(--pe-border);
-    border-radius: 0.375rem;
-    font-size: 0.8125rem;
-  }
-  
-  .pe-items-table .pi-col-qty { width: 80px; }
-  .pe-items-table .pi-col-rate { width: 100px; }
-  .pe-items-table .pi-col-amount { width: 120px; }
-  .pe-items-table .pi-col-actions { width: 40px; }
-  
-  .pe-totals {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--pe-border);
-  }
-  
-  .pe-total-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.375rem 0;
-    font-size: 0.875rem;
-  }
-  
-  .pe-total-label { color: var(--pe-text-secondary); }
-  .pe-total-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-  }
-  
-  .pe-grand-total {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--pe-text-primary);
-    border-top: 2px solid var(--pe-accent);
-    padding-top: 0.5rem;
-    margin-top: 0.5rem;
-  }
-  
-  .pe-actions-row {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    flex-wrap: wrap;
-  }
-  
-  .pe-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: inherit;
-  }
-  
-  .pe-btn-primary {
-    background: var(--pe-accent);
-    color: white;
-  }
-  
-  .pe-btn-primary:hover { background: var(--pe-accent-hover); }
-  
-  .pe-btn-secondary {
-    background: var(--pe-bg-card);
-    color: var(--pe-text-primary);
-    border: 1px solid var(--pe-border);
-  }
-  
-  .pe-btn-secondary:hover { background: var(--pe-bg-hover); }
-  
-  .pe-add-item-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    background: transparent;
-    border: 1px dashed var(--pe-border);
-    border-radius: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--pe-text-secondary);
-    cursor: pointer;
-    margin-top: 0.5rem;
-  }
-  
-  .pe-add-item-btn:hover {
-    border-color: var(--pe-accent);
-    color: var(--pe-accent);
-  }
-  
-  .pe-delete-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    background: transparent;
-    border: none;
-    border-radius: 0.25rem;
-    color: var(--pe-text-muted);
-    cursor: pointer;
-  }
-  
-  .pe-delete-btn:hover {
-    background: #fee2e2;
-    color: #991b1b;
-  }
-`;
+// Helper to convert number to words for INR
+function numberToWords(num: number) {
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-if (typeof document !== 'undefined') {
-  const styleId = 'pe-styles';
-  if (!document.getElementById(styleId)) {
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.textContent = styles;
-    document.head.appendChild(styleEl);
-  }
+  const inWords = (n: number) => {
+    let numStr = n.toString();
+    if (numStr.length > 9) return 'overflow';
+    let nArr = ('000000000' + numStr).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!nArr || nArr.length < 6) return '';
+    let str = '';
+    str += Number(nArr[1]) !== 0 ? (a[Number(nArr[1])] || b[Number(nArr[1][0])] + ' ' + a[Number(nArr[1][1])]) + 'Crore ' : '';
+    str += Number(nArr[2]) !== 0 ? (a[Number(nArr[2])] || b[Number(nArr[2][0])] + ' ' + a[Number(nArr[2][1])]) + 'Lakh ' : '';
+    str += Number(nArr[3]) !== 0 ? (a[Number(nArr[3])] || b[Number(nArr[3][0])] + ' ' + a[Number(nArr[3][1])]) + 'Thousand ' : '';
+    str += Number(nArr[4]) !== 0 ? (a[Number(nArr[4])] || b[Number(nArr[4][0])] + ' ' + a[Number(nArr[4][1])]) + 'Hundred ' : '';
+    str += Number(nArr[5]) !== 0 ? ((str !== '') ? 'and ' : '') + (a[Number(nArr[5])] || b[Number(nArr[5][0])] + ' ' + a[Number(nArr[5][1])]) : '';
+    return str.trim() + ' Only';
+  };
+  return inWords(Math.round(num));
+}
+
+interface CustomDatePickerProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  inputStyle?: React.CSSProperties;
+  disabled?: boolean;
+}
+
+function CustomDatePicker({ value, onChange, placeholder = "Select date", inputStyle, disabled }: CustomDatePickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(() => {
+    return value ? new Date(value) : new Date();
+  });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentDate(prev => subMonths(prev, 1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentDate(prev => addMonths(prev, 1));
+  };
+
+  const handleSelectDay = (day: Date, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const formatted = format(day, 'yyyy-MM-dd');
+    onChange(formatted);
+    setIsOpen(false);
+  };
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startDayOfWeek = getDay(monthStart);
+
+  const getFormattedValue = () => {
+    if (!value) return '';
+    try {
+      return format(new Date(value), 'dd MMM yyyy');
+    } catch (e) {
+      return value;
+    }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div 
+        onClick={() => {
+          if (!disabled) setIsOpen(!isOpen);
+        }}
+        className="cq-datepicker-input"
+        style={{ ...inputStyle, cursor: disabled ? 'not-allowed' : 'pointer', background: disabled ? '#f3f4f6' : undefined }}
+      >
+        <span style={{ color: value ? '#1f2937' : '#9ca3af', fontWeight: value ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {getFormattedValue() || placeholder}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: '4px',
+          zIndex: 100,
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+          padding: '12px',
+          width: '250px'
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <button type="button" onClick={handlePrevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&lt;</button>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>
+              {format(currentDate, 'MMMM yyyy')}
+            </span>
+            <button type="button" onClick={handleNextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&gt;</button>
+          </div>
+
+          {/* Weekday headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '4px' }}>
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((wd) => (
+              <span key={wd} style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af' }}>{wd}</span>
+            ))}
+          </div>
+
+          {/* Days Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+            {/* Empty cells for leading days */}
+            {Array.from({ length: startDayOfWeek }).map((_, i) => (
+              <span key={`empty-${i}`} />
+            ))}
+            
+            {/* Days in Month */}
+            {daysInMonth.map((day) => {
+              const isSelected = value && isSameDay(day, new Date(value));
+              const isToday = isSameDay(day, new Date());
+              return (
+                <button
+                  key={day.toString()}
+                  type="button"
+                  onClick={(e) => handleSelectDay(day, e)}
+                  style={{
+                    background: isSelected ? '#2563eb' : 'transparent',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: isSelected || isToday ? 'bold' : 'normal',
+                    color: isSelected ? 'white' : isToday ? '#2563eb' : '#374151',
+                    cursor: 'pointer',
+                    height: '24px',
+                    width: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.1s'
+                  }}
+                  onMouseEnter={e => {
+                    if (!isSelected) e.currentTarget.style.background = '#f3f4f6';
+                  }}
+                  onMouseLeave={e => {
+                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  {format(day, 'd')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface LineItem {
@@ -321,9 +240,30 @@ export default function ProformaEditorPage() {
   const [showItemSelectorDrawer, setShowItemSelectorDrawer] = useState(false);
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
   const [roundOff, setRoundOff] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState<number | string>(0);
+  const [discountAmount, setDiscountAmount] = useState<number | string>(0);
   const [templateSettings, setTemplateSettings] = useState<any>(null);
   const [discountSettings, setDiscountSettings] = useState<Record<string, { default: number; min: number; max: number }>>({});
   const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
+
+  // Client search UI state
+  const [clientSearch, setClientSearch] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
+  // Top action bar measurement state
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useEffect(() => {
+    const measure = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   // ARC Pricing state
   const [useArcPricing, setUseArcPricing] = useState(false);
@@ -355,7 +295,6 @@ export default function ProformaEditorPage() {
         .select('id, template_name, document_type, column_settings')
         .order('template_name', { ascending: true });
       if (error) throw error;
-      // Filter for proforma and invoice on client side
       return (data || []).filter(t => t.document_type === 'proforma' || t.document_type === 'invoice');
     },
   });
@@ -363,27 +302,30 @@ export default function ProformaEditorPage() {
   // Conversion query
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
-  // Debug: Log conversion state
+  // Auto-select client's default template and set clientState when client changes
   useEffect(() => {
-    console.log('Conversion Debug:', {
-      convertFrom,
-      sourceId,
-      isConverting,
-      conversionQueryData: conversionQuery.data,
-      conversionQueryError: conversionQuery.error,
-      conversionQueryIsLoading: conversionQuery.isLoading,
-    });
-  }, [convertFrom, sourceId, isConverting, conversionQuery.data, conversionQuery.error, conversionQuery.isLoading]);
-
-  // Auto-select client's default template when client changes
-  useEffect(() => {
-    if (clientId && !templateId) {
+    if (clientId) {
       const selectedClient = clients.find(c => c.id === clientId);
-      if (selectedClient?.default_template_id) {
-        setTemplateId(selectedClient.default_template_id);
+      if (selectedClient) {
+        setClientState(selectedClient.state || '');
+        if (selectedClient.default_template_id && !templateId) {
+          setTemplateId(selectedClient.default_template_id);
+        }
       }
     }
   }, [clientId, templates, templateId, clients]);
+
+  // Click outside listener for searchable client dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.client-dropdown-container')) {
+        setIsClientDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch ARC pricing when client or items change
   useEffect(() => {
@@ -395,7 +337,7 @@ export default function ProformaEditorPage() {
     const fetchArcPricing = async () => {
       const itemIds = items
         .filter(item => item.item_id)
-        .map(item => item.item_id);
+        .map(item => item.item_id) as string[];
       
       if (itemIds.length === 0) {
         setArcPricingMap({});
@@ -481,7 +423,6 @@ export default function ProformaEditorPage() {
     const numValue = parseFloat(newValue.toString()) || 0;
     
     // Apply discount to items with matching variant_id (only for items that have variant_id)
-    // Items without variant_id (from PO conversion) are not affected
     const affectedItems = items.filter(item => item.variant_id === variantId);
     
     if (affectedItems.length > 0) {
@@ -648,7 +589,7 @@ export default function ProformaEditorPage() {
 
   const { data: proforma, isLoading } = useQuery({
     queryKey: ['proforma-invoice', id],
-    queryFn: withSessionCheck(() => getProformaById(id!, organisation?.id)),
+    queryFn: withSessionCheck(() => getProformaById(id!, organisation?.id || undefined)),
     enabled: !!id && !!organisation?.id,
   });
 
@@ -661,7 +602,7 @@ export default function ProformaEditorPage() {
         const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
         return {
           description: i.description,
-          hsn_code: i.hsn_code,
+          hsn_code: i.hsn_code ?? null,
           qty: i.qty,
           rate: i.rate,
           amount: i.amount,
@@ -682,6 +623,8 @@ export default function ProformaEditorPage() {
       setTerms(proforma.terms ?? '');
       setTemplateId(proforma.template_id ?? '');
       setPaymentTerms(proforma.payment_terms ?? '');
+      setDiscountPercent(proforma.discount_percent !== null && proforma.discount_percent !== undefined ? Number(proforma.discount_percent) : 0);
+      setDiscountAmount(proforma.discount_amount !== null && proforma.discount_amount !== undefined ? Number(proforma.discount_amount) : 0);
     }
   }, [proforma]);
 
@@ -708,6 +651,8 @@ export default function ProformaEditorPage() {
     setPaymentTerms(convertedData.payment_terms || '');
     setPoNumber(convertedData.po_number || '');
     setPoDate(convertedData.po_date || '');
+    setDiscountPercent(convertedData.discount_percent || convertedData.extra_discount_percent || 0);
+    setDiscountAmount(convertedData.discount_amount || convertedData.extra_discount_amount || 0);
 
     // Pre-fill items
     if (convertedData.items && convertedData.items.length > 0) {
@@ -758,7 +703,12 @@ export default function ProformaEditorPage() {
       sgst = taxTotal / 2;
     }
 
-    let total = subtotal + taxTotal;
+    const extraDiscountPercentVal = Number(discountPercent) || 0;
+    const extraDiscountAmtVal = Number(discountAmount) || 0;
+    const computedExtraDiscountAmt = (subtotal * extraDiscountPercentVal) / 100;
+    const subtotalAfterDiscounts = subtotal - computedExtraDiscountAmt - extraDiscountAmtVal;
+
+    let total = subtotalAfterDiscounts + taxTotal;
     let roundOffAmount = 0;
 
     if (roundOff) {
@@ -767,19 +717,19 @@ export default function ProformaEditorPage() {
       total = roundedTotal;
     }
 
-    return { subtotal, discount: 0, cgst, sgst, igst, total, roundOffAmount };
+    return { subtotal, discount: computedExtraDiscountAmt + extraDiscountAmtVal, cgst, sgst, igst, total, roundOffAmount };
   };
 
   const totals = useMemo(() => {
     const validItems = items.filter(i => i.description?.trim());
     if (validItems.length === 0) {
-      return { subtotal: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, total: 0, taxTotal: 0, roundOffAmount: 0 };
+      return { subtotal: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, total: 0, taxTotal: 0, roundOffAmount: 0, amountInWords: '' };
     }
     const calculated = calculateTotals();
-    return calculated;
-  }, [items, companyState, roundOff]);
+    return { ...calculated, amountInWords: numberToWords(calculated.total) };
+  }, [items, companyState, clientState, roundOff, discountPercent, discountAmount]);
 
-  const handleItemChange = (index: number, field: keyof LineItem, value: string | number) => {
+  const handleItemChange = (index: number, field: keyof LineItem, value: string | number | null) => {
     setItems(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -918,8 +868,8 @@ export default function ProformaEditorPage() {
         client_state: clientState || null,
         pi_number: proformaNumber || undefined,
         created_at: proformaDate ? new Date(proformaDate).toISOString() : new Date().toISOString(),
-        discount_amount: 0,
-        discount_percent: 0,
+        discount_amount: Number(discountAmount) || 0,
+        discount_percent: Number(discountPercent) || 0,
         po_number: poNumber || undefined,
         po_date: poDate || undefined,
         template_id: templateId || undefined,
@@ -968,9 +918,9 @@ export default function ProformaEditorPage() {
           .eq('id', sourceId);
       }
 
-      if (shouldPrint && savedProforma) {
+      if (shouldPrint && savedProforma && savedProforma.id) {
         const { downloadProformaPdf } = await import('../pdf');
-        await downloadProformaPdf(savedProforma.id, organisation.id);
+        await downloadProformaPdf(savedProforma.id, { organisationId: organisation.id });
       }
 
       navigate('/proforma-invoices');
@@ -1006,104 +956,215 @@ export default function ProformaEditorPage() {
     navigate(`/invoices/create?convertFrom=proforma-to-invoice&sourceId=${id}`);
   };
 
+  // Fixed dropdown layout hook for inline cell pickers
+  const openDropdownAtRef = (ref: React.RefObject<HTMLElement | null>, setStyle: React.Dispatch<React.SetStateAction<React.CSSProperties>>) => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setStyle({
+        position: 'fixed',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        zIndex: 9999,
+        background: '#fff',
+        border: '1px solid #d4d4d4',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        maxHeight: '200px',
+        overflowY: 'auto',
+      });
+    }
+  };
+
+  // Inline Variant cell popover picker
+  const VariantCell = ({ value, variants: vList, onChange }: { value: string | null; variants: any[]; onChange: (val: string | null) => void }) => {
+    const [open, setOpen] = useState(false);
+    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+    const ref = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node) && listRef.current && !listRef.current.contains(e.target as Node)) {
+          setOpen(false);
+        }
+      };
+      const handleScroll = () => setOpen(false);
+      if (open) {
+        document.addEventListener('mousedown', handler);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+          document.removeEventListener('mousedown', handler);
+          window.removeEventListener('scroll', handleScroll);
+        };
+      }
+    }, [open]);
+
+    const selected = vList.find(v => v.id === value || v.variant_name === value);
+    const filtered = vList;
+
+    return (
+      <>
+        <div ref={ref} onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+          onMouseEnter={e => { (e.currentTarget).style.borderColor = '#3b82f6'; }}
+          onMouseLeave={e => { (e.currentTarget).style.borderColor = 'transparent'; }}
+        >
+          {selected ? selected.variant_name : 'No Category'}
+        </div>
+        {open && (
+          <div ref={listRef} style={dropdownStyle}>
+            <div onClick={() => { onChange(null); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseLeave={e => e.currentTarget.style.background = 'white'}
+            >No Category</div>
+            {filtered.map(v => (
+              <div key={v.id} onClick={() => { onChange(v.id); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', color: '#1e293b', borderBottom: '1px solid #f3f4f6' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'white'}
+              >{v.variant_name}</div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Header helpers for dynamic column spans
+  const getVisibleColumnCount = () => {
+    let count = 1; // #
+    if (templateSettings?.column_settings?.optional?.hsn_code !== false) count++;
+    if (templateSettings?.column_settings?.optional?.item !== false) count++;
+    if (templateSettings?.column_settings?.optional?.make !== false) count++;
+    if (templateSettings?.column_settings?.optional?.variant !== false) count++;
+    count += 1; // qty
+    if (templateSettings?.column_settings?.optional?.unit !== false) count++;
+    if (templateSettings?.column_settings?.optional?.rate !== false) count++;
+    if (templateSettings?.column_settings?.optional?.discount_percent !== false) count++;
+    if (templateSettings?.column_settings?.optional?.rate_after_discount !== false) count++;
+    if (templateSettings?.column_settings?.optional?.tax_percent !== false) count++;
+    count += 2; // amount, delete
+    return count;
+  };
+
+  const getColsBeforeAmount = () => {
+    return getVisibleColumnCount() - 2;
+  };
+
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle = { minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const fieldColStyle = { flex: 1 };
+  const inputStyle = { padding: '4px 8px', fontSize: '12px' };
+
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <div className="pe-page">
-        <div className="pe-container">
-          <Loader2 className="animate-spin" size={24} />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
+        <Loader2 className="animate-spin text-sky-600" size={24} />
       </div>
     );
   }
 
   return (
-    <div className="pe-page">
-      <div className="pe-container">
-        <div className="pe-header">
-          <button type="button" onClick={() => navigate('/proforma-invoices')} className="pe-back-btn">
-            <ArrowLeft size={16} />
-            Back
-          </button>
-          <h1 className="pe-title">{isNew ? 'Create Proforma' : 'Edit Proforma'}</h1>
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '0.5rem', marginLeft: 'auto' }}>
-            <button
-              type="button"
-              onClick={() => handleSave(false)}
-              disabled={saving || !clientId}
-              className="pe-btn pe-btn-secondary"
-              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-            >
-              {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-              Save as Draft
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSave(true)}
-              disabled={saving || !clientId}
-              className="pe-btn pe-btn-primary"
-              style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-            >
-              {saving ? <Loader2 className="animate-spin" size={14} /> : <FileCheck size={14} />}
-              Save & Print
-            </button>
-          </div>
+    <div>
+      {/* Fixed top action bar */}
+      <div ref={headerRef} className="flex items-center justify-between fixed top-0 left-0 right-0 z-50 bg-white pt-4 pb-3 px-6 border-b border-zinc-200" style={{ top: '32px', left: '220px', marginBottom: 0 }}>
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-bold text-zinc-900 tracking-tight">
+            {isNew ? 'Create Proforma' : 'Edit Proforma'}
+          </h1>
         </div>
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={() => navigate('/proforma-invoices')} className="h-9 px-3 rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all border border-zinc-300 bg-white">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave(false)}
+            disabled={saving || !clientId}
+            className={`h-9 px-4 rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all border border-zinc-300 bg-white ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+            <span className="ml-1.5">Save as Draft</span>
+          </button>
+          <button
+            type="button"
+            style={{
+              height: '36px', padding: '0 16px', minWidth: '100px',
+              background: '#185FA5', border: '1px solid #185FA5',
+              color: '#fff', borderRadius: '6px',
+              fontSize: '12px', fontWeight: 500,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: (saving || !clientId) ? 'not-allowed' : 'pointer',
+              opacity: (saving || !clientId) ? 0.6 : 1,
+              transition: 'all 0.15s'
+            }}
+            onClick={() => handleSave(true)}
+            disabled={saving || !clientId}
+            onMouseEnter={e => { if (!saving && clientId) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+            onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+          >
+            {saving ? <Loader2 className="animate-spin" size={14} /> : <FileCheck size={14} />}
+            <span className="ml-1.5">Save & Print</span>
+          </button>
+        </div>
+      </div>
 
-        <div className="pe-card">
-          <div className="pe-card-title">Client Details</div>
-          <div className="pe-form-row">
-            <div className="pe-form-group">
-              <label className="pe-label">PI Number</label>
-              <input
-                type="text"
-                value={proformaNumber}
-                onChange={(e) => setProformaNumber(e.target.value)}
-                className="pe-input"
-                placeholder="Auto-generated"
-                disabled={!isNew}
-              />
+      {/* Main page layout */}
+      <div style={{ paddingTop: headerHeight, background: '#f8fafc', padding: '16px', minHeight: 'calc(100vh - 64px)' }}>
+        
+        {/* Document Details Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
+          
+          {/* Column 1: CLIENT CARD */}
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
+              <User size={14} style={{ color: '#2563eb' }} /> Client
             </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Template</label>
-              <select
-                value={templateId}
-                onChange={(e) => setTemplateId(e.target.value)}
-                className="pe-select"
-              >
-                <option value="">Default Template</option>
-                {templates.map(template => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} ({template.type})
-                  </option>
-                ))}
-              </select>
+            
+            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+              <span style={labelColStyle}>Client *:</span>
+              <div style={{ ...fieldColStyle, position: 'relative' }} className="client-dropdown-container">
+                <input
+                  type="text"
+                  className="form-input"
+                  style={inputStyle}
+                  placeholder="Search or select client..."
+                  value={clientSearch || (clientId ? clients.find(c => c.id === clientId)?.client_name : '')}
+                  onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
+                  onClick={() => setIsClientDropdownOpen(true)}
+                  onFocus={() => setIsClientDropdownOpen(true)}
+                  disabled={!isNew}
+                />
+                {isClientDropdownOpen && isNew && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                    {clients
+                      .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(c => (
+                        <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                          onClick={() => { setClientId(c.id); setClientSearch(c.client_name); setIsClientDropdownOpen(false); setClientSearch(''); }}
+                        >{c.client_name}</div>
+                      ))}
+                    {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No clients found</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Date</label>
-              <input
-                type="date"
-                value={proformaDate}
-                onChange={(e) => setProformaDate(e.target.value)}
-                className="pe-input"
-              />
-            </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Client</label>
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="pe-select"
-                disabled={!isNew}
-              >
-                <option value="">Select Client</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.client_name || client.id}
-                  </option>
-                ))}
-              </select>
-              {clientId && (
-                <div className="mt-2">
+
+            {renderHeaderField('Client State:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clientState || 'Auto-populated from client'}</div>)}
+            
+            {clientId && (
+              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+                <span style={labelColStyle}>Pricing:</span>
+                <div style={{ ...fieldColStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ArcPricingToggle
                     clientId={clientId}
                     enabled={useArcPricing}
@@ -1122,25 +1183,52 @@ export default function ProformaEditorPage() {
                     totalItems={items.length}
                     itemsWithArcRate={Object.values(arcPricingMap).filter(Boolean).length}
                     itemsWithoutArcRate={items.length - Object.values(arcPricingMap).filter(Boolean).length}
-                    className="mt-2"
                   />
                 </div>
-              )}
+              </div>
+            )}
+          </div>
+
+          {/* Column 2: DOCUMENT CARD */}
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
+              <FileText size={14} style={{ color: '#2563eb' }} /> Document
             </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Your State</label>
-              <input
-                type="text"
-                value={companyState}
-                onChange={(e) => setCompanyState(e.target.value)}
-                className="pe-input"
-                placeholder="e.g., Karnataka"
-              />
+            
+            {renderHeaderField('PI Number:', <input type="text" className="form-input" style={inputStyle} value={proformaNumber} onChange={(e) => setProformaNumber(e.target.value)} placeholder="Auto-generated" disabled={!isNew} />)}
+            
+            <div style={{ ...headerFieldStyle, marginBottom: '8px', flexWrap: 'nowrap' }}>
+              <span style={{ ...labelColStyle, whiteSpace: 'nowrap' }}>Date:</span>
+              <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'nowrap', minWidth: '0px' }}>
+                <CustomDatePicker value={proformaDate} onChange={(val) => setProformaDate(val)} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
+              </div>
             </div>
-            <div className="pe-form-group">
-              <label className="pe-label">
-                PO Number
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 'normal', marginLeft: '0.5rem', cursor: 'pointer' }}>
+
+            {renderHeaderField('Status:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', textTransform: 'capitalize' }}>{status}</div>)}
+            {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g., Net 30, 50% Advance" />, true)}
+          </div>
+
+          {/* Column 3: PO DETAILS CARD */}
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
+              <Briefcase size={14} style={{ color: '#2563eb' }} /> PO & Template
+            </div>
+            
+            {renderHeaderField('Template:', <select className="form-select" style={inputStyle} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+              <option value="">Default Template</option>
+              {templates.map(template => (
+                <option key={template.id} value={template.id}>
+                  {template.template_name} ({template.document_type})
+                </option>
+              ))}
+            </select>)}
+
+            {renderHeaderField('Your State:', <input type="text" className="form-input" style={inputStyle} value={companyState} onChange={(e) => setCompanyState(e.target.value)} placeholder="e.g., Karnataka" />)}
+
+            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
+              <span style={labelColStyle}>PO Number:</span>
+              <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '11px', fontWeight: 500, cursor: 'pointer', color: '#4b5563' }}>
                   <input
                     type="checkbox"
                     checked={manualPO}
@@ -1151,379 +1239,465 @@ export default function ProformaEditorPage() {
                         setPoDate('');
                       }
                     }}
-                    style={{ cursor: 'pointer', width: '14px', height: '14px' }}
+                    style={{ cursor: 'pointer', width: '13px', height: '13px' }}
                   />
                   Manual Entry
                 </label>
-              </label>
-              {manualPO ? (
-                <input
-                  type="text"
-                  value={poNumber}
-                  onChange={(e) => setPoNumber(e.target.value)}
-                  className="pe-input"
-                  placeholder="Enter PO number manually"
-                />
-              ) : (
-                <select
-                  value={clientPOs.find(po => po.po_number === poNumber)?.po_number || ''}
-                  onChange={(e) => {
-                    const selectedPO = clientPOs.find(po => po.po_number === e.target.value);
-                    if (selectedPO) {
-                      setPoNumber(selectedPO.po_number);
-                      setPoDate(selectedPO.po_date || '');
-                    } else {
-                      setPoNumber('');
-                      setPoDate('');
-                    }
-                  }}
-                  className="pe-select"
-                >
-                  <option value="">Select PO (Optional)</option>
-                  {clientPOs.map(po => (
-                    <option key={po.id} value={po.po_number}>
-                      {po.po_number} (Bal: {formatCurrency(po.po_available_value)})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div className="pe-form-group">
-              <label className="pe-label">PO Date</label>
-              <input
-                type="date"
-                value={poDate}
-                onChange={(e) => setPoDate(e.target.value)}
-                className="pe-input"
-              />
-            </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Status</label>
-              <div className="pe-input" style={{ padding: '0.5rem 0.75rem', background: 'var(--pe-bg-muted)' }}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {manualPO ? (
+                  <input
+                    type="text"
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value)}
+                    className="form-input"
+                    style={inputStyle}
+                    placeholder="Enter PO number"
+                  />
+                ) : (
+                  <select
+                    value={clientPOs.find(po => po.po_number === poNumber)?.po_number || ''}
+                    onChange={(e) => {
+                      const selectedPO = clientPOs.find(po => po.po_number === e.target.value);
+                      if (selectedPO) {
+                        setPoNumber(selectedPO.po_number);
+                        setPoDate(selectedPO.po_date || '');
+                      } else {
+                        setPoNumber('');
+                        setPoDate('');
+                      }
+                    }}
+                    className="form-select"
+                    style={inputStyle}
+                  >
+                    <option value="">Select PO (Optional)</option>
+                    {clientPOs.map(po => (
+                      <option key={po.id} value={po.po_number}>
+                        {po.po_number} (Bal: {formatCurrency(po.po_available_value)})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Payment Terms</label>
-              <input
-                type="text"
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(e.target.value)}
-                className="pe-input"
-                placeholder="e.g., Net 30, 50% Advance"
-              />
+
+            <div style={{ ...headerFieldStyle, marginBottom: '8px', flexWrap: 'nowrap' }}>
+              <span style={{ ...labelColStyle, whiteSpace: 'nowrap' }}>PO Date:</span>
+              <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'nowrap', minWidth: '0px' }}>
+                <CustomDatePicker value={poDate} onChange={(val) => setPoDate(val)} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="pe-card">
-          <div className="pe-card-title">Line Items</div>
-          
-          {/* Header Discounts for Variants */}
-          {variants.length > 0 && Object.keys(discountSettings).length > 0 && (
-            <div className="mb-4 p-3 bg-zinc-50 rounded border border-zinc-200">
-              <div className="text-xs font-semibold text-zinc-600 mb-2 uppercase tracking-wide">Variant Discounts</div>
-              <div className="flex flex-wrap gap-4">
-                {variants.map((variant) => {
-                  const settings = discountSettings[variant.id];
-                  if (!settings) return null;
-                  const variantName = variant.variant_name || variant.id;
-                  return (
-                    <div key={variant.id} className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-zinc-700">{variantName}:</label>
-                      <input
-                        type="number"
-                        value={headerDiscounts[variant.id] ?? settings.default}
-                        onChange={(e) => handleHeaderDiscountChange(variant.id, Number(e.target.value))}
-                        className="w-20 px-2 py-1 text-sm border border-zinc-300 rounded"
-                        min={settings.min}
-                        max={settings.max}
-                        step="0.1"
-                      />
-                      <span className="text-xs text-zinc-500">%</span>
-                      <span className="text-xs text-zinc-400">(Max: {settings.max}%)</span>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Line Items Table Card */}
+        <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
+              <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
+              <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
+                {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
+              </span>
             </div>
-          )}
-          
-          <table className="pe-items-table">
-            <thead>
-              <tr>
-                {(templateSettings?.column_settings?.optional?.hsn_code !== false) && <th>HSN Code</th>}
-                {(templateSettings?.column_settings?.optional?.item !== false) && <th>Description</th>}
-                {(templateSettings?.column_settings?.optional?.make !== false) && <th>Make</th>}
-                {(templateSettings?.column_settings?.optional?.variant !== false) && <th>Variant</th>}
-                <th>Qty</th>
-                {(templateSettings?.column_settings?.optional?.unit !== false) && <th>Unit</th>}
-                {(templateSettings?.column_settings?.optional?.rate !== false) && <th>Rate</th>}
-                {(templateSettings?.column_settings?.optional?.discount_percent !== false) && <th>Discount %</th>}
-                {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && <th>Rate After Discount</th>}
-                {(templateSettings?.column_settings?.optional?.tax_percent !== false) && <th>Tax %</th>}
-                <th>Amount</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr key={index}>
-                  {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
-                    <td>
-                      <input
-                        type="text"
-                        value={item.hsn_code ?? ''}
-                        onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
-                        placeholder="HSN"
-                      />
-                    </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.item !== false) && (
-                    <td>
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                        placeholder="Item description"
-                      />
-                    </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.make !== false) && (
-                    <td>
-                      <input
-                        type="text"
-                        value={item.make ?? ''}
-                        onChange={(e) => handleItemChange(index, 'make', e.target.value)}
-                        placeholder="Make"
-                        list={`make-options-${index}`}
-                        autoComplete="off"
-                      />
-                      <datalist id={`make-options-${index}`}>
-                        {Array.from(new Set(items.map(i => i.make).filter(Boolean))).map((make) => (
-                          <option key={make} value={make} />
-                        ))}
-                      </datalist>
-                    </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.variant !== false) && (
-                    <td>
-                      <input
-                        type="text"
-                        value={item.variant ?? ''}
-                        onChange={(e) => handleItemChange(index, 'variant', e.target.value)}
-                        placeholder="Variant"
-                        list={`variant-options-${index}`}
-                        autoComplete="off"
-                      />
-                      <datalist id={`variant-options-${index}`}>
-                        {variants.map((v) => (
-                          <option key={v.id} value={v.variant_name} />
-                        ))}
-                      </datalist>
-                    </td>
-                  )}
-                  <td>
-                    <input
-                      type="number"
-                      value={item.qty}
-                      onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                      min="0"
-                      step="0.001"
-                    />
-                  </td>
-                  {(templateSettings?.column_settings?.optional?.unit !== false) && (
-                    <td>
-                      <input
-                        type="text"
-                        value={item.unit ?? ''}
-                        onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                        placeholder="Unit"
-                      />
-                    </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.rate !== false) && (
-                    <td>
+            
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleAddItem} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
+                <Plus size={14} /> Add Item
+              </button>
+              <button type="button" onClick={() => setShowItemSelectorDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
+                <Plus size={14} /> Select from Inventory
+              </button>
+              <button type="button" onClick={() => setShowItemCreateDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
+                <Plus size={14} /> Create New Material
+              </button>
+            </div>
+          </div>
+
+          <div className="grid-table-container">
+            <table className="grid-table cq-editable">
+              <thead className="grid-table-header-dark">
+                <tr>
+                  <th className="col-shrink">#</th>
+                  {(templateSettings?.column_settings?.optional?.hsn_code !== false) && <th className="col-hsn">HSN Code</th>}
+                  {(templateSettings?.column_settings?.optional?.item !== false) && <th className="col-item">Description</th>}
+                  {(templateSettings?.column_settings?.optional?.make !== false) && <th className="col-make">Make</th>}
+                  {(templateSettings?.column_settings?.optional?.variant !== false) && <th className="col-variant">Variant</th>}
+                  <th className="col-qty">Qty</th>
+                  {(templateSettings?.column_settings?.optional?.unit !== false) && <th className="col-unit">Unit</th>}
+                  {(templateSettings?.column_settings?.optional?.rate !== false) && <th className="col-rate">Rate</th>}
+                  {(templateSettings?.column_settings?.optional?.discount_percent !== false) && <th className="col-disc">Discount %</th>}
+                  {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && <th className="col-rate-after-disc">Rate After Disc</th>}
+                  {(templateSettings?.column_settings?.optional?.tax_percent !== false) && <th className="col-gst">Tax %</th>}
+                  <th className="col-amount">Amount</th>
+                  <th style={{ width: '40px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => (
+                  <tr key={index}>
+                    <td className="text-center font-semibold text-[11px] text-zinc-500 pt-2">{index + 1}</td>
+                    {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
+                      <td className="cell-input">
+                        <input
+                          type="text"
+                          className="cell-input text-center"
+                          value={item.hsn_code ?? ''}
+                          onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
+                          placeholder="HSN"
+                        />
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.item !== false) && (
+                      <td className="col-item pr-6 relative">
+                        <InlineDescriptionCell
+                          materialName=""
+                          description={item.description}
+                          onSave={(desc) => handleItemChange(index, 'description', desc)}
+                        />
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.make !== false) && (
+                      <td className="cell-input">
+                        <input
+                          type="text"
+                          className="cell-input text-center"
+                          value={item.make ?? ''}
+                          onChange={(e) => handleItemChange(index, 'make', e.target.value)}
+                          placeholder="Make"
+                          list={`make-options-${index}`}
+                          autoComplete="off"
+                        />
+                        <datalist id={`make-options-${index}`}>
+                          {Array.from(new Set(items.map(i => i.make).filter(Boolean) as string[])).map((make) => (
+                            <option key={make} value={make} />
+                          ))}
+                        </datalist>
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.variant !== false) && (
+                      <td className="col-shrink relative">
+                        <VariantCell
+                          value={item.variant_id}
+                          variants={variants}
+                          onChange={(nextVariant) => {
+                            const selectedVariant = variants.find(v => v.id === nextVariant);
+                            handleItemChange(index, 'variant_id', nextVariant);
+                            handleItemChange(index, 'variant', selectedVariant?.variant_name || null);
+                          }}
+                        />
+                      </td>
+                    )}
+                    <td className="cell-input">
                       <input
                         type="number"
+                        className="cell-input text-right"
+                        value={item.qty}
+                        onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
+                        min="0"
+                        step="0.001"
+                      />
+                    </td>
+                    {(templateSettings?.column_settings?.optional?.unit !== false) && (
+                      <td className="cell-input">
+                        <input
+                          type="text"
+                          className="cell-input text-center"
+                          value={item.unit ?? ''}
+                          onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                          placeholder="Unit"
+                        />
+                      </td>
+                    )}
+                    <td className="cell-input">
+                      <input
+                        type="number"
+                        className="cell-input text-right"
                         value={item.rate}
                         onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
                         min="0"
                         step="0.01"
                       />
                     </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.discount_percent !== false) && (
-                    <td>
-                      <input
-                        type="number"
-                        value={item.discount_percent}
-                        onChange={(e) => handleItemChange(index, 'discount_percent', Number(e.target.value))}
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        placeholder="0"
-                      />
+                    {(templateSettings?.column_settings?.optional?.discount_percent !== false) && (
+                      <td className="cell-input">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.discount_percent}
+                          onChange={(e) => handleItemChange(index, 'discount_percent', Number(e.target.value))}
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          placeholder="0"
+                        />
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && (
+                      <td className="cell-input">
+                        <input
+                          type="number"
+                          className="cell-input text-right bg-zinc-50/50 cursor-default font-medium"
+                          value={item.rate_after_discount}
+                          readOnly
+                          placeholder="0"
+                        />
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.tax_percent !== false) && (
+                      <td className="cell-input">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.tax_percent}
+                          onChange={(e) => handleItemChange(index, 'tax_percent', Number(e.target.value))}
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          placeholder="18"
+                        />
+                      </td>
+                    )}
+                    <td className="text-right pr-4 font-semibold text-[12px] pt-2 tabular-nums" style={{ color: '#0f172a' }}>
+                      {formatCurrency(item.amount)}
                     </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && (
-                    <td>
-                      <input
-                        type="number"
-                        value={item.rate_after_discount}
-                        onChange={(e) => handleItemChange(index, 'rate_after_discount', Number(e.target.value))}
-                        min="0"
-                        step="0.01"
-                        placeholder="0"
-                        readOnly
-                      />
+                    <td className="text-center pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(index)}
+                        className="text-red-500 hover:bg-red-50 hover:text-red-700 w-5 h-5 rounded flex items-center justify-center transition-all mx-auto"
+                        disabled={items.length === 1}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </td>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.tax_percent !== false) && (
-                    <td>
-                      <input
-                        type="number"
-                        value={item.tax_percent}
-                        onChange={(e) => handleItemChange(index, 'tax_percent', Number(e.target.value))}
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        placeholder="18"
-                      />
-                    </td>
-                  )}
-                  <td style={{ textAlign: 'right' }}>
-                    {formatCurrency(item.amount)}
+                  </tr>
+                ))}
+
+                {/* Subtotal & taxes breakdown inside the table footer */}
+                <tr className="footer-breakdown-row">
+                  <td colSpan={getColsBeforeAmount()} className="text-right pr-4 font-semibold" style={{ textAlign: 'right' }}>Subtotal</td>
+                  <td className="text-right pr-4 tabular-nums font-semibold" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                    {formatCurrency(totals.subtotal)}
                   </td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(index)}
-                      className="pe-remove-btn"
-                      disabled={items.length === 1}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
+                  <td></td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex gap-2 mt-4">
-            <button type="button" onClick={handleAddItem} className="pe-add-item-btn">
-              <Plus size={14} />
-              Add Item
-            </button>
-            <button type="button" onClick={() => setShowItemSelectorDrawer(true)} className="pe-add-item-btn">
-              <Plus size={14} />
-              Select from Inventory
-            </button>
-            <button type="button" onClick={() => setShowItemCreateDrawer(true)} className="pe-add-item-btn">
-              <Plus size={14} />
-              Create New Material
-            </button>
+
+                {totals.discount > 0 && (
+                  <tr className="footer-breakdown-row">
+                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4 text-red-600 font-medium" style={{ textAlign: 'right' }}>Discount</td>
+                    <td className="text-right pr-4 tabular-nums text-red-600 font-medium" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      -{formatCurrency(totals.discount)}
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
+
+                {totals.cgst > 0 && (
+                  <tr className="footer-breakdown-row">
+                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>CGST</td>
+                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      {formatCurrency(totals.cgst)}
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
+
+                {totals.sgst > 0 && (
+                  <tr className="footer-breakdown-row">
+                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>SGST</td>
+                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      {formatCurrency(totals.sgst)}
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
+
+                {totals.igst > 0 && (
+                  <tr className="footer-breakdown-row">
+                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>IGST</td>
+                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      {formatCurrency(totals.igst)}
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
+
+                {roundOff && totals.roundOffAmount !== 0 && (
+                  <tr className="footer-breakdown-row">
+                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>Round Off</td>
+                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      {formatCurrency(totals.roundOffAmount)}
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
+
+                <tr className="footer-breakdown-row grand-total-row">
+                  <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>Grand Total</td>
+                  <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
+                    {formatCurrency(totals.total)}
+                  </td>
+                  <td></td>
+                </tr>
+
+                {totals.amountInWords && (
+                  <tr className="footer-breakdown-row amount-words-row">
+                    <td colSpan={getVisibleColumnCount()} className="text-right pr-4" style={{ textAlign: 'right' }}>
+                      INR {totals.amountInWords}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Bottom grid layout: Notes, Terms, and Adjustments */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4 mt-6">
+          {/* Notes Card */}
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Notes & Remarks:</label>
+            </div>
+            <textarea
+              className="form-input"
+              style={{ width: '100%', minHeight: '56px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
+              placeholder="Additional notes..."
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+            />
           </div>
 
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <label className="flex items-center gap-2 text-sm text-zinc-600 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={roundOff}
-                onChange={(e) => setRoundOff(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-              />
-              Round Off Total
-            </label>
+          {/* Terms Card */}
+          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Terms & Conditions:</label>
+            </div>
+            <textarea
+              className="form-input"
+              style={{ width: '100%', minHeight: '56px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
+              placeholder="Payment terms, delivery terms, etc..."
+              value={terms}
+              onChange={(e) => {
+                setTerms(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+            />
           </div>
 
-          <div className="pe-totals">
-            <div className="pe-total-row">
-              <span className="pe-total-label">Subtotal</span>
-              <span className="pe-total-value">{formatCurrency(totals.subtotal)}</span>
-            </div>
-            <div className="pe-total-row">
-              <span className="pe-total-label">CGST</span>
-              <span className="pe-total-value">{formatCurrency(totals.cgst)}</span>
-            </div>
-            <div className="pe-total-row">
-              <span className="pe-total-label">SGST</span>
-              <span className="pe-total-value">{formatCurrency(totals.sgst)}</span>
-            </div>
-            <div className="pe-total-row">
-              <span className="pe-total-label">IGST</span>
-              <span className="pe-total-value">{formatCurrency(totals.igst)}</span>
-            </div>
-            {roundOff && totals.roundOffAmount !== 0 && (
-              <div className="pe-total-row">
-                <span className="pe-total-label">Round Off</span>
-                <span className="pe-total-value">{formatCurrency(totals.roundOffAmount)}</span>
+          {/* Adjustments Card */}
+          <div className="cq-card-elevated">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+              <div style={{ fontWeight: 600, fontSize: '11px', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '6px', marginBottom: '4px' }}>
+                Adjustments & Summary
               </div>
-            )}
-            <div className="pe-total-row pe-grand-total">
-              <span className="pe-total-label">Total</span>
-              <span className="pe-total-value">{formatCurrency(totals.total)}</span>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Extra Discount %</span>
+                <input
+                  type="number"
+                  className="form-input text-right"
+                  style={{ width: '80px', height: '28px', padding: '4px 8px', fontSize: '12px' }}
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Extra Discount Amt</span>
+                <input
+                  type="number"
+                  className="form-input text-right"
+                  style={{ width: '100px', height: '28px', padding: '4px 8px', fontSize: '12px' }}
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Round Off</span>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={roundOff}
+                    onChange={(e) => setRoundOff(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                    style={{ cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
+
+              {/* Header Discounts for Variants */}
+              {variants.length > 0 && Object.keys(discountSettings).length > 0 && (
+                <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #f3f4f6' }}>
+                  <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Variant Discounts</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {variants.map((variant) => {
+                      const settings = discountSettings[variant.id];
+                      if (!settings) return null;
+                      const variantName = variant.variant_name || variant.id;
+                      return (
+                        <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>{variantName}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <input
+                              type="number"
+                              value={headerDiscounts[variant.id] ?? settings.default}
+                              onChange={(e) => handleHeaderDiscountChange(variant.id, Number(e.target.value))}
+                              className="form-input text-right"
+                              style={{ width: '65px', height: '24px', padding: '2px 4px', fontSize: '12px' }}
+                              min={settings.min}
+                              max={settings.max}
+                              step="0.1"
+                            />
+                            <span style={{ fontSize: '11px', color: '#6b7280' }}>%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Status workflow actions inside adjustments sidebar */}
+              <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {!isNew && status === 'draft' && (
+                  <button type="button" onClick={() => sendMutate()} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded border border-sky-200 transition-all">
+                    <Send size={13} /> Send to Client
+                  </button>
+                )}
+                
+                {!isNew && status === 'sent' && (
+                  <button type="button" onClick={() => acceptMutate()} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-green-50 text-green-700 hover:bg-green-100 rounded border border-green-200 transition-all">
+                    <CheckCircle size={13} /> Mark Accepted
+                  </button>
+                )}
+                
+                {!isNew && status === 'accepted' && !proforma?.converted_invoice_id && (
+                  <button type="button" onClick={handleConvertToInvoice} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-all">
+                    <FileCheck size={13} /> Convert to Invoice
+                  </button>
+                )}
+              </div>
+
+              {/* Grand Total Display */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', paddingTop: '10px', borderTop: '2px solid #e5e7eb' }}>
+                <span style={{ fontWeight: 700, color: '#1f2937', fontSize: '13px' }}>Grand Total</span>
+                <span style={{ fontWeight: 800, color: '#185FA5', fontSize: '15px' }}>{formatCurrency(totals.total)}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="pe-card">
-          <div className="pe-card-title">Notes</div>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="pe-textarea"
-            rows={3}
-            placeholder="Additional notes..."
-            style={{ width: '100%' }}
-          />
-        </div>
-
-        <div className="pe-card">
-          <div className="pe-card-title">Terms & Conditions</div>
-          <textarea
-            value={terms}
-            onChange={(e) => setTerms(e.target.value)}
-            className="pe-textarea"
-            rows={3}
-            placeholder="Payment terms, delivery terms, etc..."
-            style={{ width: '100%' }}
-          />
-        </div>
-
-        <div className="pe-actions-row">
-          <button
-            type="button"
-            onClick={() => handleSave(false)}
-            disabled={saving || !clientId}
-            className="pe-btn pe-btn-primary"
-          >
-            {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            {isNew ? 'Create' : 'Save'}
-          </button>
-          
-          {!isNew && status === 'draft' && (
-            <button type="button" onClick={() => sendMutate()} className="pe-btn pe-btn-secondary">
-              <Send size={16} />
-              Send to Client
-            </button>
-          )}
-          
-          {!isNew && status === 'sent' && (
-            <>
-              <button type="button" onClick={() => acceptMutate()} className="pe-btn pe-btn-secondary">
-                <CheckCircle size={16} />
-                Mark Accepted
-              </button>
-            </>
-          )}
-          
-          {!isNew && status === 'accepted' && !proforma?.converted_invoice_id && (
-            <button type="button" onClick={handleConvertToInvoice} className="pe-btn pe-btn-secondary">
-              <FileCheck size={16} />
-              Convert to Invoice
-            </button>
-          )}
-        </div>
       </div>
 
       <ItemSelectorDrawer
@@ -1567,7 +1741,8 @@ export default function ProformaEditorPage() {
           </div>
         </DialogContent>
       </Dialog>
-    {/* ARC Pricing Confirmation Dialog */}
+
+      {/* ARC Pricing Confirmation Dialog */}
       <ArcConfirmationDialog
         open={arcPricingConfirmOpen}
         onClose={() => {

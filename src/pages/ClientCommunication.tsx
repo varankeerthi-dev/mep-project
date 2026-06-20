@@ -31,6 +31,8 @@ import {
   Smartphone,
   Users,
   ArrowLeft,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import {
   format,
@@ -188,6 +190,10 @@ export function ClientCommunication() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedParty, setSelectedParty] = useState<{ type: string; id: string; name: string } | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingCommunication, setEditingCommunication] = useState<any>(null);
+  const [groupBy, setGroupBy] = useState<'none' | 'date' | 'party'>('none');
+  const [paramsProcessed, setParamsProcessed] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -207,7 +213,7 @@ export function ClientCommunication() {
 
   // ── Queries ──
 
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [], isFetched: isClientsFetched } = useQuery({
     queryKey: ['clients', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -252,7 +258,7 @@ export function ClientCommunication() {
     staleTime: 1000 * 60 * 30,
   });
 
-  const { data: leads = [] } = useQuery({
+  const { data: leads = [], isFetched: isLeadsFetched } = useQuery({
     queryKey: ['leads', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -425,6 +431,32 @@ export function ClientCommunication() {
       queryClient.invalidateQueries({ queryKey: ['all-follow-ups'] });
       queryClient.invalidateQueries({ queryKey: ['party-communication-history'] });
       setSelectedCommunication(null);
+      setShowCreateModal(false);
+      setEditingCommunication(null);
+      resetForm();
+    },
+    onError: (error: any) => {
+      alert('Failed to update communication: ' + (error?.message || 'Unknown error'));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('client_communication')
+        .delete()
+        .eq('id', id)
+        .eq('organisation_id', organisation?.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-communications'] });
+      queryClient.invalidateQueries({ queryKey: ['all-follow-ups'] });
+      queryClient.invalidateQueries({ queryKey: ['party-communication-history'] });
+      setSelectedCommunication(null);
+    },
+    onError: (error: any) => {
+      alert('Failed to delete communication: ' + (error?.message || 'Unknown error'));
     },
   });
 
@@ -482,22 +514,69 @@ export function ClientCommunication() {
   const clientNameParam = searchParams.get('clientName');
 
   useEffect(() => {
+    if (paramsProcessed) return;
     if (linkedTypeParam || linkedIdParam || itemLabelParam) {
-      setFormData(prev => ({
-        ...prev,
-        linked_type: linkedTypeParam || '',
-        linked_id: linkedIdParam || '',
-        call_regarding:
-          linkedTypeParam === 'quotation' ? 'quotation'
-            : linkedTypeParam === 'invoice' ? 'payment'
-              : linkedTypeParam === 'podc' ? 'project'
-                : prev.call_regarding,
-        call_brief: itemLabelParam
-          ? `Regarding: ${itemLabelParam}${clientNameParam ? ` (${clientNameParam})` : ''}`
-          : '',
-      }));
+      const isLead = linkedTypeParam === 'lead';
+      
+      // Wait for clients or leads to load if we need them to resolve IDs
+      if (!isLead && clientNameParam && !isClientsFetched) {
+        return;
+      }
+      if (isLead && !isLeadsFetched) {
+        return;
+      }
+
+      setFormData(prev => {
+        let resolvedClientId = '';
+        let resolvedLeadId = '';
+        let partyType = 'client';
+
+        if (isLead) {
+          partyType = 'lead';
+          resolvedLeadId = linkedIdParam || '';
+        } else {
+          partyType = 'client';
+          if (clientNameParam && clients.length > 0) {
+            const matchedClient = clients.find(
+              c => c.client_name.toLowerCase() === clientNameParam.toLowerCase()
+            );
+            if (matchedClient) {
+              resolvedClientId = matchedClient.id;
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          party_type: partyType,
+          client_id: resolvedClientId,
+          lead_id: resolvedLeadId,
+          linked_type: isLead ? '' : (linkedTypeParam || ''),
+          linked_id: isLead ? '' : (linkedIdParam || ''),
+          call_regarding:
+            linkedTypeParam === 'quotation' ? 'quotation'
+              : linkedTypeParam === 'invoice' ? 'payment'
+                : linkedTypeParam === 'podc' ? 'project'
+                  : prev.call_regarding,
+          call_brief: itemLabelParam
+            ? `Regarding: ${itemLabelParam}${clientNameParam ? ` (${clientNameParam})` : ''}`
+            : '',
+        };
+      });
+      setShowCreateModal(true);
+      setParamsProcessed(true);
     }
-  }, [linkedTypeParam, linkedIdParam, itemLabelParam, clientNameParam]);
+  }, [
+    linkedTypeParam, 
+    linkedIdParam, 
+    itemLabelParam, 
+    clientNameParam, 
+    clients, 
+    leads, 
+    isClientsFetched, 
+    isLeadsFetched, 
+    paramsProcessed
+  ]);
 
   useEffect(() => {
     if (user?.id) {
@@ -508,6 +587,16 @@ export function ClientCommunication() {
       }));
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleDocumentClick = () => {
+      setOpenMenuId(null);
+    };
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -573,6 +662,22 @@ export function ClientCommunication() {
   const totalPages = Math.max(1, Math.ceil(communications.length / PAGE_SIZE));
   const paginatedComms = communications.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  const groupedComms = useMemo(() => {
+    if (groupBy === 'none') return null;
+    const groups: { [key: string]: any[] } = {};
+    paginatedComms.forEach(comm => {
+      let key = 'Other';
+      if (groupBy === 'date') {
+        key = formatCommTime(comm.created_at).date;
+      } else if (groupBy === 'party') {
+        key = getPartyName(comm);
+      }
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(comm);
+    });
+    return Object.entries(groups);
+  }, [paginatedComms, groupBy]);
+
   // Calendar events
   const calendarEvents = useMemo(() => {
     const eventMap = new Map<string, number>();
@@ -618,6 +723,241 @@ export function ClientCommunication() {
     outline: 'none',
   };
 
+  const renderCommRow = (comm: any) => {
+    const partyName = getPartyName(comm);
+    const partyTypeLabel = getPartyTypeLabel(comm);
+    const avatar = getAvatarColor(partyName);
+    const initials = getInitials(partyName);
+    const timeInfo = formatCommTime(comm.created_at);
+    const catKey = (comm.call_category || '').toLowerCase();
+    const typeInfo = TYPE_DISPLAY[catKey] || { label: comm.call_category || '—', color: '#64748B', bgColor: '#F1F5F9', icon: <MessageSquare size={13} /> };
+    const regardingLabel = CALL_REGARDING.find(r => r.value === comm.call_regarding)?.label;
+    const priorityKey = (comm.priority || '').toLowerCase();
+    const priorityColor = PRIORITY_COLORS[priorityKey] || '#94A3B8';
+    const priorityLabel = comm.priority ? comm.priority.charAt(0).toUpperCase() + comm.priority.slice(1).toLowerCase() : 'Normal';
+    const statusLower = (comm.status || '').toLowerCase();
+    const isOpen = statusLower === 'open';
+    const statusLabel = comm.status || 'Open';
+
+    return (
+      <tr
+        key={comm.id}
+        onClick={() => setSelectedCommunication(comm)}
+        style={{ cursor: 'pointer', transition: 'background 100ms' }}
+        onMouseEnter={e => (e.currentTarget.style.background = '#F8FAFC')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      >
+        {/* Time */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>{timeInfo.time}</div>
+          <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>{timeInfo.date}</div>
+        </td>
+        {/* Party */}
+        <td
+          onClick={e => {
+            e.stopPropagation();
+            const id = comm.client_id || comm.vendor_id || comm.lead_id || comm.subcontractor_id;
+            if (id) {
+              setSelectedParty({
+                type: comm.party_type || 'client',
+                id,
+                name: partyName,
+              });
+            }
+          }}
+          style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', cursor: 'pointer' }}
+        >
+          <div style={{ minWidth: '100px' }}>
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#4F46E5',
+                textDecoration: 'none',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+              title="Click to view conversation chain"
+            >
+              {partyName}
+            </div>
+            <div style={{ fontSize: '11px', color: '#94A3B8' }}>{partyTypeLabel}</div>
+          </div>
+        </td>
+        {/* Subject / Topic */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', maxWidth: '280px', minWidth: '220px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {comm.subject || regardingLabel || 'General'}
+          </div>
+          {comm.call_brief && (
+            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', whiteSpace: 'pre-wrap', lineHeight: 1.4, minWidth: '200px' }}>
+              {comm.call_brief}
+            </div>
+          )}
+        </td>
+        {/* Type */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-block', padding: '4px 8px', background: typeInfo.bgColor, color: typeInfo.color, borderRadius: '6px', fontSize: '12px', fontWeight: 500 }}>
+            {typeInfo.label}
+          </span>
+        </td>
+        {/* Next Action */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', maxWidth: '260px', minWidth: '180px' }}>
+          {comm.next_action ? (
+            <div 
+              style={{ 
+                fontSize: '12px', 
+                color: '#4F46E5', 
+                fontWeight: 500,
+                whiteSpace: 'pre-wrap', 
+                lineHeight: 1.4,
+                minWidth: '160px'
+              }}
+            >
+              {comm.next_action}
+            </div>
+          ) : (
+            <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
+          )}
+        </td>
+        {/* Status */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, background: isOpen ? '#DBEAFE' : statusLower === 'resolved' ? '#D1FAE5' : '#F1F5F9', color: isOpen ? '#1D4ED8' : statusLower === 'resolved' ? '#065F46' : '#64748B' }}>
+            {statusLabel}
+          </span>
+        </td>
+        {/* Priority */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: priorityColor, flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{priorityLabel}</span>
+          </div>
+        </td>
+        {/* Follow Up */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          {comm.follow_up_date ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#4F46E5' }}>
+              <CalendarIcon size={13} />
+              <span style={{ fontSize: '12px', fontWeight: 500 }}>{formatFollowUpDate(comm.follow_up_date)}</span>
+            </div>
+          ) : (
+            <span style={{ color: '#CBD5E1', fontSize: '14px' }}>—</span>
+          )}
+        </td>
+        {/* Actions */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', position: 'relative' }} onClick={e => e.stopPropagation()}>
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === comm.id ? null : comm.id); }}
+              style={{ padding: '4px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#94A3B8', borderRadius: '4px', display: 'flex' }}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            {openMenuId === comm.id && (
+              <div style={{
+                position: 'absolute',
+                right: 0,
+                top: '100%',
+                marginTop: '4px',
+                background: '#fff',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px',
+                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                zIndex: 100,
+                width: '120px',
+                padding: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+              }}>
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    setEditingCommunication(comm);
+                    setFormData({
+                      subject: comm.subject || '',
+                      party_type: comm.party_type || 'client',
+                      client_id: comm.client_id || '',
+                      vendor_id: comm.vendor_id || '',
+                      subcontractor_id: comm.subcontractor_id || '',
+                      lead_id: comm.lead_id || '',
+                      call_received_by: comm.call_received_by || '',
+                      call_entered_by: comm.call_entered_by || '',
+                      call_type: comm.call_type || 'Incoming',
+                      call_category: comm.call_category || 'incoming',
+                      call_regarding: comm.call_regarding || '',
+                      call_regarding_other: comm.call_regarding_other || '',
+                      call_brief: comm.call_brief || '',
+                      next_action: comm.next_action || '',
+                      follow_up_date: comm.follow_up_date || '',
+                      priority: (comm.priority || '').toLowerCase() === 'low' ? 'low' : (comm.priority || '').toLowerCase() === 'normal' ? 'normal' : (comm.priority || '').toLowerCase() === 'high' ? 'high' : (comm.priority || '').toLowerCase() === 'urgent' ? 'urgent' : comm.priority || 'normal',
+                      status: (comm.status || '').toLowerCase() === 'open' ? 'open' : (comm.status || '').toLowerCase() === 'in_progress' ? 'in_progress' : (comm.status || '').toLowerCase() === 'resolved' ? 'resolved' : (comm.status || '').toLowerCase() === 'closed' ? 'closed' : comm.status || 'open',
+                      linked_type: comm.linked_type || '',
+                      linked_id: comm.linked_id || '',
+                    });
+                    setShowCreateModal(true);
+                    setOpenMenuId(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 8px',
+                    border: 'none',
+                    background: 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: '#334155',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 100ms',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F1F5F9'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Edit size={12} />
+                  Edit
+                </button>
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (window.confirm('Are you sure you want to delete this communication?')) {
+                      deleteMutation.mutate(comm.id);
+                    }
+                    setOpenMenuId(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 8px',
+                    border: 'none',
+                    background: 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: '#EF4444',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 100ms',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Trash2 size={12} />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: 'calc(100vh - 48px)', background: '#F8FAFC' }}>
@@ -643,20 +983,50 @@ export function ClientCommunication() {
               </p>
             </div>
           </div>
-          {/* Split button */}
-          <div style={{ display: 'flex', alignItems: 'stretch' }}>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: '8px 0 0 8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+          {/* Action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <a
+              href="/follow-up"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 16px',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px',
+                background: '#fff',
+                color: '#475569',
+                fontSize: '13px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                transition: 'all 150ms',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#F8FAFC';
+                e.currentTarget.style.color = '#0F172A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.color = '#475569';
+              }}
             >
-              <Plus size={16} />
-              Log Communication
-            </button>
-            <button
-              style={{ padding: '9px 10px', background: '#4338CA', color: '#fff', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.25)', borderRadius: '0 8px 8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronDown size={16} />
-            </button>
+              <CalendarIcon size={14} />
+              Follow-Up Centre
+            </a>
+            <div style={{ display: 'flex', alignItems: 'stretch' }}>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: '8px 0 0 8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <Plus size={16} />
+                Log Communication
+              </button>
+              <button
+                style={{ padding: '9px 10px', background: '#4338CA', color: '#fff', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.25)', borderRadius: '0 8px 8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -829,7 +1199,7 @@ export function ClientCommunication() {
         margin: '0 auto',
         padding: '20px 24px',
         display: 'grid',
-        gridTemplateColumns: '1fr 280px',
+        gridTemplateColumns: '1fr 230px',
         gap: '20px',
         alignItems: 'start',
       }}>
@@ -845,13 +1215,56 @@ export function ClientCommunication() {
                 Communications for {todayLabel}
               </span>
             </div>
-            <button
-              onClick={() => setShowCalendar(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#4F46E5', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
-            >
-              <CalendarIcon size={13} />
-              {showCalendar ? 'Hide Calendar' : 'View Calendar'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Group By Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 500, color: '#64748B' }}>Group by:</span>
+                <div style={{ display: 'flex', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden', background: '#F1F5F9', padding: '2px', gap: '2px' }}>
+                  <button
+                    onClick={() => setGroupBy(groupBy === 'date' ? 'none' : 'date')}
+                    style={{
+                      padding: '3px 8px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      background: groupBy === 'date' ? '#fff' : 'transparent',
+                      color: groupBy === 'date' ? '#4F46E5' : '#64748B',
+                      boxShadow: groupBy === 'date' ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 150ms',
+                    }}
+                  >
+                    Date
+                  </button>
+                  <button
+                    onClick={() => setGroupBy(groupBy === 'party' ? 'none' : 'party')}
+                    style={{
+                      padding: '3px 8px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      background: groupBy === 'party' ? '#fff' : 'transparent',
+                      color: groupBy === 'party' ? '#4F46E5' : '#64748B',
+                      boxShadow: groupBy === 'party' ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 150ms',
+                    }}
+                  >
+                    Party
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowCalendar(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#4F46E5', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                <CalendarIcon size={13} />
+                {showCalendar ? 'Hide Calendar' : 'View Calendar'}
+              </button>
+            </div>
           </div>
 
           {/* Calendar (collapsible) */}
@@ -867,14 +1280,14 @@ export function ClientCommunication() {
 
           {/* Table */}
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
-                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Regarding', 'Status', 'Priority', 'Follow Up', ''].map((col, i) => (
+                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Next Action', 'Status', 'Priority', 'Follow Up', ''].map((col, i) => (
                     <th
                       key={i}
                       style={{
-                        padding: '10px 14px',
+                        padding: '10px 8px',
                         textAlign: 'left',
                         fontSize: '11px',
                         fontWeight: 600,
@@ -883,7 +1296,7 @@ export function ClientCommunication() {
                         letterSpacing: '0.05em',
                         borderBottom: '1px solid #E2E8F0',
                         whiteSpace: 'nowrap',
-                        width: i === 8 ? '48px' : undefined,
+                        width: i === 8 ? '40px' : undefined,
                       }}
                     >
                       {col}
@@ -915,142 +1328,22 @@ export function ClientCommunication() {
                       </div>
                     </td>
                   </tr>
-                ) : paginatedComms.map(comm => {
-                  const partyName = getPartyName(comm);
-                  const partyTypeLabel = getPartyTypeLabel(comm);
-                  const avatar = getAvatarColor(partyName);
-                  const initials = getInitials(partyName);
-                  const timeInfo = formatCommTime(comm.created_at);
-                  const catKey = (comm.call_category || '').toLowerCase();
-                  const typeInfo = TYPE_DISPLAY[catKey] || { label: comm.call_category || '—', color: '#64748B', bgColor: '#F1F5F9', icon: <MessageSquare size={13} /> };
-                  const regardingLabel = CALL_REGARDING.find(r => r.value === comm.call_regarding)?.label;
-                  const priorityKey = (comm.priority || '').toLowerCase();
-                  const priorityColor = PRIORITY_COLORS[priorityKey] || '#94A3B8';
-                  const priorityLabel = comm.priority ? comm.priority.charAt(0).toUpperCase() + comm.priority.slice(1).toLowerCase() : 'Normal';
-                  const statusLower = (comm.status || '').toLowerCase();
-                  const isOpen = statusLower === 'open';
-                  const statusLabel = comm.status || 'Open';
-
-                  return (
-                    <tr
-                      key={comm.id}
-                      onClick={() => setSelectedCommunication(comm)}
-                      style={{ cursor: 'pointer', transition: 'background 100ms' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#F8FAFC')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      {/* Time */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>{timeInfo.time}</div>
-                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>{timeInfo.date}</div>
-                      </td>
-                      {/* Party */}
-                      <td
-                        onClick={e => {
-                          e.stopPropagation();
-                          const id = comm.client_id || comm.vendor_id || comm.lead_id || comm.subcontractor_id;
-                          if (id) {
-                            setSelectedParty({
-                              type: comm.party_type || 'client',
-                              id,
-                              name: partyName,
-                            });
-                          }
-                        }}
-                        style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', cursor: 'pointer' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: avatar.bg, color: avatar.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
-                            {initials}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                color: '#4F46E5',
-                                textDecoration: 'underline',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                maxWidth: '130px',
-                              }}
-                              title="Click to view conversation chain"
-                            >
-                              {partyName}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#94A3B8' }}>{partyTypeLabel}</div>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Subject / Topic */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', maxWidth: '240px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {comm.subject || regardingLabel || 'General'}
-                        </div>
-                        {comm.call_brief && (
-                          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }}>
-                            {comm.call_brief}
-                          </div>
-                        )}
-                      </td>
-                      {/* Type */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', background: typeInfo.bgColor, color: typeInfo.color, borderRadius: '6px', fontSize: '12px', fontWeight: 500 }}>
-                          {typeInfo.icon}
-                          {typeInfo.label}
-                        </span>
-                      </td>
-                      {/* Regarding */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle' }}>
-                        {comm.linked_id ? (
-                          <span style={{ display: 'inline-block', padding: '3px 8px', background: '#EEF2FF', color: '#4F46E5', borderRadius: '4px', fontSize: '12px', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                            {comm.linked_id}
+                ) : groupBy !== 'none' && groupedComms ? (
+                  groupedComms.map(([groupName, comms]) => (
+                    <React.Fragment key={groupName}>
+                      <tr>
+                        <td colSpan={9} style={{ padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', borderTop: '1px solid #E2E8F0' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {groupName} ({comms.length})
                           </span>
-                        ) : regardingLabel ? (
-                          <span style={{ display: 'inline-block', padding: '3px 8px', background: '#F1F5F9', color: '#475569', borderRadius: '4px', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                            {regardingLabel}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                        )}
-                      </td>
-                      {/* Status */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, background: isOpen ? '#DBEAFE' : statusLower === 'resolved' ? '#D1FAE5' : '#F1F5F9', color: isOpen ? '#1D4ED8' : statusLower === 'resolved' ? '#065F46' : '#64748B' }}>
-                          {statusLabel}
-                        </span>
-                      </td>
-                      {/* Priority */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: priorityColor, flexShrink: 0 }} />
-                          <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{priorityLabel}</span>
-                        </div>
-                      </td>
-                      {/* Follow Up */}
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        {comm.follow_up_date ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#4F46E5' }}>
-                            <CalendarIcon size={13} />
-                            <span style={{ fontSize: '12px', fontWeight: 500 }}>{formatFollowUpDate(comm.follow_up_date)}</span>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#CBD5E1', fontSize: '14px' }}>—</span>
-                        )}
-                      </td>
-                      {/* Actions */}
-                      <td style={{ padding: '12px 8px', borderBottom: '1px solid #F1F5F9', verticalAlign: 'middle' }}>
-                        <button
-                          onClick={e => { e.stopPropagation(); setSelectedCommunication(comm); }}
-                          style={{ padding: '4px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#94A3B8', borderRadius: '4px', display: 'flex' }}
-                        >
-                          <MoreHorizontal size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                      </tr>
+                      {comms.map(comm => renderCommRow(comm))}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  paginatedComms.map(comm => renderCommRow(comm))
+                )}
               </tbody>
             </table>
           </div>
@@ -1091,7 +1384,7 @@ export function ClientCommunication() {
         </div>
 
         {/* ── RIGHT: SIDEBAR (FOLLOW-UPS / CONVERSATION CHAIN) ── */}
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', position: 'sticky', top: '100px', maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', position: 'sticky', top: '80px', maxHeight: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
           
           {selectedParty ? (
             /* STATE B: CONVERSATION HISTORY CHAIN */
@@ -1196,7 +1489,7 @@ export function ClientCommunication() {
                             <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F172A', marginBottom: '2px', lineHeight: 1.3 }}>
                               {item.subject || 'General Discussion'}
                             </div>
-                            <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                             <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
                               {item.call_brief}
                             </div>
                             
@@ -1218,12 +1511,31 @@ export function ClientCommunication() {
             /* STATE A: UPCOMING FOLLOW-UPS LIST */
             <>
               {/* Sidebar Header */}
-              <div style={{ padding: '16px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CalendarIcon size={16} color="#4F46E5" />
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Upcoming Follow-ups</h3>
-                  <p style={{ fontSize: '11px', color: '#64748B', margin: 0 }}>Communications requiring action</p>
+              <div style={{ padding: '16px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CalendarIcon size={16} color="#4F46E5" />
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Upcoming Follow-ups</h3>
+                    <p style={{ fontSize: '11px', color: '#64748B', margin: 0 }}>Communications requiring action</p>
+                  </div>
                 </div>
+                <a
+                  href="/follow-up"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#4F46E5',
+                    textDecoration: 'none',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    background: '#EEF2FF',
+                    transition: 'all 150ms'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E0E7FF'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#EEF2FF'; }}
+                >
+                  Open Centre
+                </a>
               </div>
 
               {/* Sidebar Content */}
@@ -1359,16 +1671,43 @@ export function ClientCommunication() {
             {/* Modal Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F1F5F9', position: 'sticky', top: 0, background: '#fff', zIndex: 1, borderRadius: '16px 16px 0 0' }}>
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Log Communication</h3>
-                <p style={{ fontSize: '13px', color: '#64748B', margin: '2px 0 0' }}>Record an interaction with a client, vendor, lead, or subcontractor</p>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                  {editingCommunication ? 'Edit Communication' : 'Log Communication'}
+                </h3>
+                <p style={{ fontSize: '13px', color: '#64748B', margin: '2px 0 0' }}>
+                  {editingCommunication ? 'Update details of this logged interaction' : 'Record an interaction with a client, vendor, lead, or subcontractor'}
+                </p>
               </div>
-              <button onClick={() => setShowCreateModal(false)} style={{ padding: '7px', border: 'none', background: '#F8FAFC', color: '#64748B', cursor: 'pointer', borderRadius: '8px', display: 'flex' }}>
+              <button onClick={() => { setShowCreateModal(false); setEditingCommunication(null); resetForm(); }} style={{ padding: '7px', border: 'none', background: '#F8FAFC', color: '#64748B', cursor: 'pointer', borderRadius: '8px', display: 'flex' }}>
                 <X size={20} />
               </button>
             </div>
 
             <form
-              onSubmit={e => { e.preventDefault(); createMutation.mutate({ ...formData, created_at: new Date().toISOString() }); }}
+              onSubmit={e => {
+                e.preventDefault();
+                if (editingCommunication) {
+                  const updatedData = {
+                    subject: formData.subject,
+                    party_type: formData.party_type,
+                    client_id: formData.party_type === 'client' ? formData.client_id : null,
+                    vendor_id: formData.party_type === 'vendor' ? formData.vendor_id : null,
+                    subcontractor_id: formData.party_type === 'subcontractor' ? formData.subcontractor_id : null,
+                    lead_id: formData.party_type === 'lead' ? formData.lead_id : null,
+                    call_category: formData.call_category,
+                    call_regarding: formData.call_regarding,
+                    priority: formData.priority,
+                    status: formData.status,
+                    follow_up_date: formData.follow_up_date || null,
+                    call_brief: formData.call_brief,
+                    next_action: formData.next_action || null,
+                    call_received_by: formData.call_received_by || null,
+                  };
+                  updateMutation.mutate({ id: editingCommunication.id, data: updatedData });
+                } else {
+                  createMutation.mutate({ ...formData, created_at: new Date().toISOString() });
+                }
+              }}
               style={{ padding: '24px' }}
             >
               {/* Party Type */}
@@ -1511,15 +1850,31 @@ export function ClientCommunication() {
 
               {/* Buttons */}
               <div style={{ display: 'flex', gap: '10px', paddingTop: '16px', borderTop: '1px solid #F1F5F9' }}>
-                <button type="button" onClick={() => setShowCreateModal(false)} style={{ flex: 1, padding: '11px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#fff', color: '#475569', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowCreateModal(false); setEditingCommunication(null); resetForm(); }} 
+                  style={{ flex: 1, padding: '11px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#fff', color: '#475569', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={createMutation.isPending || !hasPartySelected || !formData.call_brief}
-                  style={{ flex: 2, padding: '11px', border: 'none', borderRadius: '8px', background: (createMutation.isPending || !hasPartySelected || !formData.call_brief) ? '#C7D2FE' : '#4F46E5', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: (createMutation.isPending || !hasPartySelected || !formData.call_brief) ? 'not-allowed' : 'pointer' }}
+                  disabled={createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief}
+                  style={{ 
+                    flex: 2, 
+                    padding: '11px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: (createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief) ? '#C7D2FE' : '#4F46E5', 
+                    color: '#fff', 
+                    fontSize: '14px', 
+                    fontWeight: 600, 
+                    cursor: (createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief) ? 'not-allowed' : 'pointer' 
+                  }}
                 >
-                  {createMutation.isPending ? 'Saving...' : 'Log Communication'}
+                  {editingCommunication 
+                    ? (updateMutation.isPending ? 'Updating...' : 'Update Communication') 
+                    : (createMutation.isPending ? 'Saving...' : 'Log Communication')}
                 </button>
               </div>
             </form>
@@ -1544,6 +1899,7 @@ export function ClientCommunication() {
           <>
             <Button
               variant="secondary"
+              size="sm"
               onClick={() => {
                 const id = selectedCommunication?.client_id || selectedCommunication?.vendor_id || selectedCommunication?.lead_id || selectedCommunication?.subcontractor_id;
                 if (id) {
@@ -1558,11 +1914,12 @@ export function ClientCommunication() {
             >
               View History
             </Button>
-            <Button variant="secondary" leftIcon={<CalendarPlus size={16} />} onClick={() => setShowSiteVisitModal(true)}>
+            <Button variant="secondary" size="sm" leftIcon={<CalendarPlus size={14} />} onClick={() => setShowSiteVisitModal(true)}>
               Add Site Visit
             </Button>
             <Button
               variant={selectedCommunication?.status?.toLowerCase() === 'resolved' ? 'secondary' : 'primary'}
+              size="sm"
               onClick={() => updateMutation.mutate({ id: selectedCommunication.id, data: { status: selectedCommunication.status?.toLowerCase() === 'resolved' ? 'open' : 'resolved' } })}
             >
               {selectedCommunication?.status?.toLowerCase() === 'resolved' ? 'Reopen' : 'Mark Resolved'}
@@ -1571,75 +1928,182 @@ export function ClientCommunication() {
         }
       >
         {selectedCommunication && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{getPartyTypeLabel(selectedCommunication)}</label>
-                <p style={{ fontSize: '15px', fontWeight: 600, color: '#0F172A', margin: 0 }}>{getPartyName(selectedCommunication)}</p>
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Date & Time</label>
-                <p style={{ fontSize: '14px', fontWeight: 500, color: '#0F172A', margin: 0 }}>{format(parseISO(selectedCommunication.created_at), 'MMM d, yyyy h:mm a')}</p>
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Type</label>
-                <p style={{ fontSize: '14px', fontWeight: 500, color: '#0F172A', margin: 0 }}>{CALL_CATEGORIES.find(c => c.value === selectedCommunication.call_category)?.label || '—'}</p>
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Regarding</label>
-                <p style={{ fontSize: '14px', fontWeight: 500, color: '#0F172A', margin: 0 }}>{CALL_REGARDING.find(r => r.value === selectedCommunication.call_regarding)?.label || 'General'}</p>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Priority & Status</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <PriorityBadge priority={selectedCommunication.priority} />
-                <StatusBadge status={selectedCommunication.status} />
-              </div>
-            </div>
-
-            {selectedCommunication.subject && (
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Subject</label>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', margin: 0 }}>{selectedCommunication.subject}</p>
-              </div>
-            )}
-
-            <div>
-              <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Call Brief</label>
-              <div style={{ padding: '10px 14px', background: '#F8FAFC', borderRadius: '8px', fontSize: '14px', color: '#334155', lineHeight: 1.6 }}>{selectedCommunication.call_brief}</div>
-            </div>
-
-            {selectedCommunication.next_action && (
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Next Action</label>
-                <div style={{ padding: '10px 14px', background: '#EEF2FF', borderRadius: '8px', fontSize: '14px', color: '#4338CA', lineHeight: 1.6 }}>{selectedCommunication.next_action}</div>
-              </div>
-            )}
-
-            {selectedCommunication.follow_up_date && (
-              <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Follow Up</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4F46E5' }}>
-                  <CalendarIcon size={14} />
-                  <span style={{ fontSize: '14px', fontWeight: 500 }}>{formatFollowUpDate(selectedCommunication.follow_up_date)}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: '[Inter], sans-serif' }}>
+            {/* Header info area */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 16px',
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '8px',
+              gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '6px',
+                  background: getAvatarColor(getPartyName(selectedCommunication)).bg,
+                  color: getAvatarColor(getPartyName(selectedCommunication)).text,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  flexShrink: 0
+                }}>
+                  {getInitials(getPartyName(selectedCommunication))}
+                </div>
+                <div>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    background: '#EEF2FF',
+                    color: '#4F46E5',
+                    marginBottom: '3px'
+                  }}>
+                    {getPartyTypeLabel(selectedCommunication)}
+                  </span>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                    {getPartyName(selectedCommunication)}
+                  </h3>
                 </div>
               </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '11px', color: '#64748B', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Date & Time</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#0F172A' }}>
+                  {format(parseISO(selectedCommunication.created_at), 'MMM d, yyyy h:mm a')}
+                </span>
+              </div>
+            </div>
+
+            {/* Metadata Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '14px 20px',
+              padding: '14px 16px',
+              border: '1px solid #E5E7EB',
+              borderRadius: '8px'
+            }}>
+              <div>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Type / Category</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+                  {CALL_CATEGORIES.find(c => c.value === selectedCommunication.call_category)?.label || '—'}
+                </span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Regarding</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+                  {CALL_REGARDING.find(r => r.value === selectedCommunication.call_regarding)?.label || 'General'}
+                </span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Priority & Status</span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <PriorityBadge priority={selectedCommunication.priority} />
+                  <StatusBadge status={selectedCommunication.status} />
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Associated Ref ID</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, fontFamily: 'monospace', color: selectedCommunication.linked_id ? '#4F46E5' : '#9CA3AF' }}>
+                  {selectedCommunication.linked_id || 'None'}
+                </span>
+              </div>
+            </div>
+
+            {/* Subject (if exists) */}
+            {selectedCommunication.subject && (
+              <div style={{ padding: '0 4px' }}>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Subject</span>
+                <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#111827', margin: 0 }}>
+                  {selectedCommunication.subject}
+                </h4>
+              </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            {/* Brief Box */}
+            <div style={{ padding: '0 4px' }}>
+              <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Discussion Brief</span>
+              <div style={{
+                padding: '12px 14px',
+                background: '#F8FAFC',
+                borderLeft: '4px solid #CBD5E1',
+                borderRadius: '0 8px 8px 0',
+                fontSize: '13px',
+                color: '#374151',
+                lineHeight: '1.6',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {selectedCommunication.call_brief || <span style={{ fontStyle: 'italic', color: '#9CA3AF' }}>No brief notes provided.</span>}
+              </div>
+            </div>
+
+            {/* Action Items / Follow up */}
+            {(selectedCommunication.next_action || selectedCommunication.follow_up_date) && (
+              <div style={{
+                padding: '14px 16px',
+                background: '#F5F3FF',
+                border: '1px solid #DDD6FE',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                {selectedCommunication.next_action && (
+                  <div>
+                    <span style={{ fontSize: '10px', color: '#6D28D9', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Next Action Required</span>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#4C1D95', margin: 0, lineHeight: '1.5' }}>
+                      {selectedCommunication.next_action}
+                    </p>
+                  </div>
+                )}
+                {selectedCommunication.follow_up_date && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: selectedCommunication.next_action ? '1px solid #E4E0FE' : 'none', paddingTop: selectedCommunication.next_action ? '8px' : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6D28D9' }}>
+                      <CalendarIcon size={14} />
+                      <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Follow-up Date:</span>
+                    </div>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#4C1D95' }}>
+                      {formatFollowUpDate(selectedCommunication.follow_up_date)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Ownership / Log history */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              padding: '10px 14px',
+              background: '#F8FAFC',
+              borderRadius: '8px',
+              border: '1px solid #E5E7EB'
+            }}>
               <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Received By</label>
-                <p style={{ fontSize: '14px', color: '#334155', margin: 0 }}>
+                <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Received / Handled By</span>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
                   {users.find(u => u.id === selectedCommunication.call_received_by)?.full_name || users.find(u => u.id === selectedCommunication.call_received_by)?.email || 'N/A'}
-                </p>
+                </span>
               </div>
               <div>
-                <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Entered By</label>
-                <p style={{ fontSize: '14px', color: '#334155', margin: 0 }}>
+                <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Entered / Logged By</span>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
                   {users.find(u => u.id === selectedCommunication.call_entered_by)?.full_name || users.find(u => u.id === selectedCommunication.call_entered_by)?.email || 'N/A'}
-                </p>
+                </span>
               </div>
             </div>
           </div>
