@@ -19,7 +19,7 @@ type ProformaLike = ProformaWithRelations | string;
 async function getOrganisationDetails(organisationId: string): Promise<ProformaPdfCompany | null> {
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details, signatures')
     .eq('id', organisationId)
     .single();
 
@@ -42,6 +42,7 @@ async function getOrganisationDetails(organisationId: string): Promise<ProformaP
     website: data.website ?? null,
     state: data.state ?? null,
     bank_details: data.bank_details ?? null,
+    signatures: data.signatures ?? null,
   };
 }
 
@@ -75,8 +76,18 @@ async function buildProformaPdfData(
   const company = options.company ?? (organisationId ? await getOrganisationDetails(organisationId) : null);
   const template = options.template ?? (organisationId && proforma.template_id ? await getProformaTemplateById(proforma.template_id, organisationId) : null);
 
+  let authorizedSignatory = null;
+  if (proforma.authorized_signatory_id && company?.signatures) {
+    authorizedSignatory = company.signatures.find((s: any) => String(s.id) === String(proforma.authorized_signatory_id)) || null;
+  }
+
+  const proformaWithSignatory = {
+    ...proforma,
+    authorized_signatory: authorizedSignatory
+  };
+
   return {
-    proforma,
+    proforma: proformaWithSignatory,
     company,
     template,
   };
@@ -92,7 +103,15 @@ export async function generateProformaPdf(
 
   // Use Classic Proforma Template if selected
   if (template?.template_code === 'PI_CLASSIC') {
-    const doc = generateProGridProformaPdf(resolvedProforma as any, company as any, template);
+    let authorizedSignatory = null;
+    if (resolvedProforma.authorized_signatory_id && company?.signatures) {
+      authorizedSignatory = company.signatures.find((s: any) => String(s.id) === String(resolvedProforma.authorized_signatory_id)) || null;
+    }
+    const proformaWithSignatory = {
+      ...resolvedProforma,
+      authorized_signatory: authorizedSignatory
+    };
+    const doc = generateProGridProformaPdf(proformaWithSignatory as any, company as any, template);
     return doc.output('blob') as Blob;
   }
 

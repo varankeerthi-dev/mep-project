@@ -19,6 +19,7 @@ export interface ProformaPdfCompany {
     ifsc?: string | null;
     branch?: string | null;
   } | null;
+  signatures?: any[] | null;
 }
 
 export interface ProformaPdfData {

@@ -38,13 +38,16 @@ const PROFORMA_SELECT = `
   prepared_by,
   created_at,
   updated_at,
-  client:clients(id, client_name, gstin, state, default_template_id, email, billing_address, shipping_address),
+  client:clients(id, client_name, gstin, state, default_template_id, email, address1, address2, city, pincode, shipping_address),
   items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, discount_category_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order),
   creator:user_profiles(full_name)
 `;
 
 function parseClientSummary(client: any): ProformaClientSummary | null {
   if (!client) return null;
+  const billingAddress = [client.address1, client.address2, client.city, client.state, client.pincode]
+    .filter(Boolean)
+    .join(', ');
   return {
     id: String(client.id),
     name: client.client_name ?? null,
@@ -52,7 +55,7 @@ function parseClientSummary(client: any): ProformaClientSummary | null {
     state: client.state ?? null,
     default_template_id: client.default_template_id ?? null,
     email: client.email ?? null,
-    billing_address: client.billing_address ?? null,
+    billing_address: billingAddress || null,
     shipping_address: client.shipping_address ?? null,
   };
 }

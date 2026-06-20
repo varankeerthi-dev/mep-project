@@ -1,8 +1,9 @@
-import type {
+import {
   FollowUpActivityLog,
   InvoiceFollowUp,
   PodcBacklogItem,
   QuotationFollowUp,
+  ProcurementFollowUp,
 } from '../types/followup';
 
 const daysAgo = (n: number) => {
@@ -504,4 +505,70 @@ export const MOCK_ACTIVITY_LOGS: FollowUpActivityLog[] = [
     created_at: new Date(Date.now() - 150 * 3600000).toISOString(),
     metadata: { issue: 'disputed_execution' },
   },
+];
+
+export const MOCK_PROCUREMENT: ProcurementFollowUp[] = [
+  {
+    id: 'pr1',
+    po_no: 'PO-2026-0045',
+    vendor_name: 'Anupam Tubes',
+    project_name: 'Utility Air Line Expansion',
+    total_value: 678900,
+    status: 'delayed',
+    submitted_date: daysAgo(10),
+    due_date: daysAgo(2), // 2 days overdue
+    contact_phone: '919876543211',
+    days_pending_vendor: 5,
+    last_follow_up_at: daysAgo(3),
+  },
+  {
+    id: 'pr2',
+    po_no: 'PO-2026-0048',
+    vendor_name: 'Techno Valves',
+    project_name: 'Cooling Tower Utility Header',
+    total_value: 345000,
+    status: 'pending_delivery',
+    submitted_date: daysAgo(6),
+    due_date: daysFromNow(3),
+    contact_phone: '919876543212',
+    days_pending_vendor: 0,
+  },
+  {
+    id: 'pr3',
+    po_no: 'PO-2026-0051',
+    vendor_name: 'Apex Steels',
+    project_name: 'SS304 Process Piping',
+    total_value: 1250000,
+    status: 'pending_inquiry',
+    submitted_date: daysAgo(12),
+    due_date: daysFromNow(1),
+    contact_phone: '919876543213',
+    days_pending_vendor: 8,
+    last_follow_up_at: daysAgo(2),
+  },
+  {
+    id: 'pr4',
+    po_no: 'PO-2026-0054',
+    vendor_name: 'Jindal Steel',
+    project_name: 'Utility Air Line Expansion',
+    total_value: 8450000,
+    status: 'po_draft',
+    submitted_date: daysAgo(2),
+    due_date: daysFromNow(7),
+    contact_phone: '919876543214',
+    days_pending_vendor: 0,
+  },
+  {
+    id: 'pr5',
+    po_no: 'PO-2026-0057',
+    vendor_name: 'Bharat Forge',
+    project_name: 'Boiler Feed Water Pipeline',
+    total_value: 189400,
+    status: 'completed',
+    submitted_date: daysAgo(15),
+    due_date: daysAgo(1),
+    contact_phone: '919876543215',
+    days_pending_vendor: 0,
+    last_follow_up_at: daysAgo(1),
+  }
 ];

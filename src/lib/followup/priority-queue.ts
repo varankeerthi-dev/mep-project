@@ -8,6 +8,7 @@ import type {
   PodcBacklogItem,
   PriorityQueueItem,
   QuotationFollowUp,
+  ProcurementFollowUp,
 } from '../../types/followup';
 
 function valueScore(amount: number): number {
@@ -107,8 +108,23 @@ function scoreLead(lead: Lead): { score: number; reason: string } {
   }
 
   score += valueScore(lead.estimated_value);
-
   return { score, reason: reasons.slice(0, 2).join(' · ') || 'Open lead' };
+}
+
+function scoreProcurement(po: ProcurementFollowUp): { score: number; reason: string } {
+  let score = 40;
+  const reasons: string[] = [];
+
+  score += Math.min(po.days_pending_vendor * 1.5, 30);
+  if (po.days_pending_vendor >= 7) reasons.push(`${po.days_pending_vendor}d pending vendor`);
+
+  score += valueScore(po.total_value);
+  if (po.status === 'delayed') {
+    score += 15;
+    reasons.push('Delivery delayed');
+  }
+
+  return { score, reason: reasons.slice(0, 2).join(' · ') || 'Pending procurement' };
 }
 
 function priorityBand(score: number): PriorityQueueItem['priority_band'] {
@@ -122,7 +138,8 @@ export function buildPriorityQueue(
   quotations: QuotationFollowUp[],
   podc: PodcBacklogItem[],
   invoices: InvoiceFollowUp[],
-  leads: Lead[] = []
+  leads: Lead[] = [],
+  procurements: ProcurementFollowUp[] = []
 ): PriorityQueueItem[] {
   const items: PriorityQueueItem[] = [];
 
@@ -143,6 +160,7 @@ export function buildPriorityQueue(
       reason,
       assignee_user_id: lead.owner_user_id,
       assignee_name: lead.owner_name ?? null,
+      last_activity: lead.updated_at || lead.created_at || null,
     });
   }
 
@@ -164,6 +182,7 @@ export function buildPriorityQueue(
       reason,
       assignee_user_id: q.assignee_user_id,
       assignee_name: q.assignee_name,
+      last_activity: q.status_changed_at || q.last_follow_up_at || q.submitted_date || null,
     });
   }
 
@@ -183,6 +202,7 @@ export function buildPriorityQueue(
       reason,
       assignee_user_id: p.assignee_user_id,
       assignee_name: p.assignee_name,
+      last_activity: new Date(Date.now() - p.days_pending_po * 24 * 3600 * 1000).toISOString(),
     });
   }
 
@@ -204,6 +224,28 @@ export function buildPriorityQueue(
       reason,
       assignee_user_id: inv.assignee_user_id,
       assignee_name: inv.assignee_name,
+      last_activity: inv.last_reminder_at || inv.due_date || null,
+    });
+  }
+
+  for (const po of procurements) {
+    if (po.status === 'completed') continue;
+    const { score, reason } = scoreProcurement(po);
+    items.push({
+      id: `pr-${po.id}`,
+      source_tab: 'procurement',
+      source_id: po.id,
+      reference_label: po.po_no,
+      client_name: po.vendor_name,
+      project_name: po.project_name,
+      amount: po.total_value,
+      priority_score: Math.round(score),
+      priority_band: priorityBand(score),
+      urgency_label: po.status === 'delayed' ? 'Delayed delivery' : `${po.days_pending_vendor}d pending vendor`,
+      reason,
+      assignee_user_id: po.assignee_user_id,
+      assignee_name: po.assignee_name,
+      last_activity: po.last_follow_up_at || po.submitted_date || null,
     });
   }
 
@@ -269,4 +311,5 @@ export const SOURCE_TAB_LABELS: Record<PriorityQueueItem['source_tab'], string> 
   podc: 'PO/DC',
   invoice: 'Invoice',
   lead: 'Lead',
+  procurement: 'Procurement',
 };

@@ -308,6 +308,39 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
         </>
       )}
 
+      {/* Procurement tab filters */}
+      {tab === 'procurement' && (
+        <>
+          <div className="flex items-center gap-1.5" role="group" aria-label="Filter procurement by status">
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'pending_inquiry', label: 'Inquiry' },
+              { value: 'po_draft', label: 'Draft' },
+              { value: 'pending_delivery', label: 'Pending Delivery' },
+              { value: 'delayed', label: 'Delayed' },
+              { value: 'completed', label: 'Completed' },
+            ].map((opt) => (
+              <FilterChip
+                key={opt.value}
+                label={opt.label}
+                active={filters.status === opt.value}
+                onClick={() => onChange({ status: opt.value })}
+              />
+            ))}
+          </div>
+
+          <FilterSelect
+            value={filters.sort || 'days_desc'}
+            options={[
+              { value: 'days_desc', label: 'Days Pending: High → Low' },
+              { value: 'value_desc', label: 'Value: High → Low' },
+            ]}
+            onChange={(value) => onChange({ sort: value })}
+            placeholder="Sort"
+          />
+        </>
+      )}
+
       {/* Reset button */}
       <button
         type="button"

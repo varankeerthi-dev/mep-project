@@ -20,6 +20,7 @@ import type {
   QuotationFollowUp,
   QuotationFollowUpStatus,
   QuotationResponseOption,
+  ProcurementFollowUp,
 } from '../types/followup';
 
 const QUOTATION_FOLLOW_UP_STATUSES = [
@@ -487,9 +488,35 @@ export async function recordInvoiceReminder(
   });
 }
 
+export async function recordProcurementReminder(
+  organisationId: string,
+  poId: string,
+  meta: { po_no: string; vendor_name: string }
+) {
+  const now = new Date().toISOString();
+  await supabase.from('follow_up_procurement_tracking').upsert(
+    {
+      organisation_id: organisationId,
+      po_id: poId,
+      last_reminder_at: now,
+      updated_at: now,
+    },
+    { onConflict: 'organisation_id,po_id' }
+  );
+
+  await logActivity(organisationId, {
+    event_type: 'procurement_reminder_sent',
+    tab_source: 'procurement',
+    title: 'Procurement reminder sent',
+    description: `${meta.vendor_name} — ${meta.po_no}`,
+    reference_id: poId,
+    reference_label: meta.po_no,
+  });
+}
+
 export async function assignFollowUpOwner(
   organisationId: string,
-  source: 'quotation' | 'podc' | 'invoice',
+  source: 'quotation' | 'podc' | 'invoice' | 'procurement',
   sourceId: string,
   assigneeUserId: string | null
 ) {
@@ -518,9 +545,81 @@ export async function assignFollowUpOwner(
     return;
   }
 
+  if (source === 'procurement') {
+    const { error } = await supabase.from('follow_up_procurement_tracking').upsert(
+      { ...payload, po_id: sourceId },
+      { onConflict: 'organisation_id,po_id' }
+    );
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase.from('follow_up_invoice_tracking').upsert(
     { ...payload, invoice_id: sourceId },
     { onConflict: 'organisation_id,invoice_id' }
   );
   if (error) throw error;
+}
+
+export async function fetchFollowUpProcurement(
+  organisationId: string
+): Promise<ProcurementFollowUp[]> {
+  const { data, error } = await supabase
+    .from('purchase_order_headers')
+    .select(`
+      id,
+      po_no,
+      vendor:vendors(id, name, contact),
+      project:projects(id, project_name),
+      grand_total,
+      status,
+      date,
+      delivery_date,
+      tracking:follow_up_procurement_tracking(
+        last_reminder_at,
+        contact_phone,
+        assignee_user_id
+      )
+    `)
+    .eq('organisation_id', organisationId)
+    .order('date', { ascending: false })
+    .limit(500);
+
+  if (error) throw error;
+
+  return (data || []).map((row: any) => {
+    const tracking = Array.isArray(row.tracking) ? row.tracking[0] : row.tracking;
+    const vendor = row.vendor as any;
+    const project = row.project as any;
+    const track = tracking as any;
+
+    const today = new Date();
+    const dueStr = String(row.delivery_date || row.date || '').split('T')[0];
+    let daysPending = 0;
+    try {
+      if (row.status !== 'completed' && row.date) {
+        daysPending = differenceInCalendarDays(today, parseISO(row.date));
+      }
+    } catch {
+      daysPending = 0;
+    }
+
+    return {
+      id: String(row.id),
+      po_no: String(row.po_no || ''),
+      vendor_name: String(vendor?.name || '—'),
+      project_name: String(project?.project_name || '—'),
+      total_value: Number(row.grand_total || 0),
+      status: (row.status as ProcurementFollowUp['status']) || 'po_draft',
+      submitted_date: String(row.date || '').split('T')[0],
+      due_date: dueStr,
+      contact_phone: track?.contact_phone || vendor?.contact || undefined,
+      days_pending_vendor: daysPending,
+      last_follow_up_at: track?.last_reminder_at
+        ? String(track.last_reminder_at).split('T')[0]
+        : null,
+      assignee_user_id: track?.assignee_user_id || null,
+      assignee_name: null,
+    };
+  });
 }

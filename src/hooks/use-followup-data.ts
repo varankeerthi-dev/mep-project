@@ -6,6 +6,7 @@ import {
   MOCK_INVOICES,
   MOCK_PODC_BACKLOG,
   MOCK_QUOTATIONS,
+  MOCK_PROCUREMENT,
 } from '../mock/followup-data';
 import type {
   FollowUpActivityLog,
@@ -15,6 +16,7 @@ import type {
   QuotationFollowUp,
   QuotationFollowUpStatus,
   QuotationResponseOption,
+  ProcurementFollowUp,
 } from '../types/followup';
 import { getTransitionToStatus } from '../lib/followup/quotation-workflow';
 
@@ -104,6 +106,27 @@ export function useFollowupPodc() {
     enabled: !!orgId,
     staleTime: 30_000,
     placeholderData: MOCK_PODC_BACKLOG,
+  });
+}
+
+export function useFollowupProcurement() {
+  const { organisation } = useAuth();
+  const orgId = organisation?.id as string | undefined;
+
+  return useQuery({
+    queryKey: [...FOLLOWUP_KEY, 'procurement', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await withMockFallback(
+        () => followUpApi.fetchFollowUpProcurement(orgId),
+        MOCK_PROCUREMENT,
+        'procurement'
+      );
+      return data;
+    },
+    enabled: !!orgId,
+    staleTime: 30_000,
+    placeholderData: MOCK_PROCUREMENT,
   });
 }
 
@@ -244,7 +267,7 @@ export function useRecordReminder() {
 
   return useMutation({
     mutationFn: async (payload: {
-      type: 'quotation' | 'podc' | 'invoice';
+      type: 'quotation' | 'podc' | 'invoice' | 'procurement';
       id: string;
       label: string;
       client: string;
@@ -259,6 +282,11 @@ export function useRecordReminder() {
         await followUpApi.recordPodcPackShared(orgId, payload.id, {
           dc_wo_number: payload.label,
           client_name: payload.client,
+        });
+      } else if (payload.type === 'procurement') {
+        await followUpApi.recordProcurementReminder(orgId, payload.id, {
+          po_no: payload.label,
+          vendor_name: payload.client,
         });
       } else {
         await followUpApi.recordInvoiceReminder(orgId, payload.id, {

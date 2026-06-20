@@ -1,6 +1,6 @@
 // Follow-Up Centre — unified types
 
-export type FollowUpTab = 'queue' | 'quotation' | 'podc' | 'invoice' | 'activity' | 'lead';
+export type FollowUpTab = 'queue' | 'quotation' | 'podc' | 'invoice' | 'activity' | 'lead' | 'procurement';
 
 export type PriorityBand = 'critical' | 'high' | 'medium' | 'low';
 
@@ -20,6 +20,7 @@ export interface PriorityQueueItem {
   reason: string;
   assignee_user_id?: string | null;
   assignee_name?: string | null;
+  last_activity?: string | null;
 }
 
 export type QuotationFollowUpStatus =
@@ -76,7 +77,8 @@ export type ActivityEventType =
   | 'invoice_reminder_sent'
   | 'invoice_escalation_changed'
   | 'invoice_edited'
-  | 'invoice_finalized';
+  | 'invoice_finalized'
+  | 'procurement_reminder_sent';
 
 export type EscalationStage = 0 | 1 | 2 | 3 | 4;
 
@@ -137,6 +139,22 @@ export interface InvoiceFollowUp {
   assignee_name?: string | null;
 }
 
+export interface ProcurementFollowUp {
+  id: string;
+  po_no: string;
+  vendor_name: string;
+  project_name: string;
+  total_value: number;
+  status: 'pending_inquiry' | 'po_draft' | 'pending_delivery' | 'delayed' | 'completed';
+  submitted_date: string;
+  due_date: string;
+  contact_phone?: string;
+  days_pending_vendor: number;
+  last_follow_up_at?: string | null;
+  assignee_user_id?: string | null;
+  assignee_name?: string | null;
+}
+
 export interface FollowUpActivityLog {
   id: string;
   event_type: ActivityEventType;
@@ -150,7 +168,7 @@ export interface FollowUpActivityLog {
   metadata?: Record<string, string>;
 }
 
-export type LinkedItemType = 'quotation' | 'invoice' | 'podc' | 'lead';
+export type LinkedItemType = 'quotation' | 'invoice' | 'podc' | 'lead' | 'procurement';
 
 export interface UnifiedTimelineEntry {
   id: string;

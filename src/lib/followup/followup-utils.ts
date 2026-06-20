@@ -4,6 +4,7 @@ import type {
   InvoiceFollowUp,
   PodcBacklogItem,
   QuotationFollowUp,
+  ProcurementFollowUp,
 } from '../../types/followup';
 import { getReminderStage } from './escalation-engine';
 import { isValidityExpiringSoon, isFollowUpExpired } from './date-format';
@@ -232,5 +233,62 @@ export function computeInvoiceMetrics(items: InvoiceFollowUp[]) {
     overdueCount: overdue.length,
     criticalCount: critical.length,
     totalOverdueDue: totalDue,
+  };
+}
+
+export function filterProcurement(
+  items: ProcurementFollowUp[],
+  filters: FollowUpFiltersState,
+  searchQ: string,
+  currentUserId?: string | null
+): ProcurementFollowUp[] {
+  let result = [...items];
+
+  if (searchQ.trim()) {
+    const q = searchQ.toLowerCase();
+    result = result.filter(
+      (r) =>
+        r.vendor_name.toLowerCase().includes(q) ||
+        r.project_name.toLowerCase().includes(q) ||
+        r.po_no.toLowerCase().includes(q)
+    );
+  }
+
+  if (filters.status !== 'all') {
+    result = result.filter((r) => r.status === filters.status);
+  }
+
+  result = result.filter((r) =>
+    matchesAssigneeFilter(r.assignee_user_id, filters.assignee, currentUserId)
+  );
+
+  switch (filters.sort) {
+    case 'days_desc':
+      result.sort((a, b) => b.days_pending_vendor - a.days_pending_vendor);
+      break;
+    case 'value_desc':
+      result.sort((a, b) => b.total_value - a.total_value);
+      break;
+    default:
+      result.sort((a, b) => b.days_pending_vendor - a.days_pending_vendor);
+  }
+
+  return result;
+}
+
+export function computeProcurementMetrics(items: ProcurementFollowUp[]) {
+  const open = items.filter((i) => i.status !== 'completed');
+  const delayed = items.filter((i) => i.status === 'delayed');
+  const totalValue = open.reduce((s, i) => s + i.total_value, 0);
+  const avgDays =
+    open.length > 0
+      ? Math.round(open.reduce((s, i) => s + i.days_pending_vendor, 0) / open.length)
+      : 0;
+
+  return {
+    openCount: open.length,
+    delayedCount: delayed.length,
+    totalValue,
+    avgDaysPending: avgDays,
   };
 }

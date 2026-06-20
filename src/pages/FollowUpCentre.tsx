@@ -17,6 +17,10 @@ import {
   PriorityQueueRow,
   priorityQueueTableHeader,
 } from '@/components/follow-up/priority-queue-row';
+import {
+  ProcurementFollowupRow,
+  procurementTableHeader,
+} from '@/components/follow-up/procurement-followup-row';
 import { InvoiceDetailPanel } from '@/components/follow-up/reminder-action-sheet';
 import { ItemHistoryDrawer } from '@/components/follow-up/item-history-drawer';
 import { useFollowupFilters } from '@/hooks/use-followup-filters';
@@ -32,6 +36,7 @@ import {
   useRecordReminder,
   useFollowUpDataSource,
   useAssignFollowUp,
+  useFollowupProcurement,
 } from '@/hooks/use-followup-data';
 import { useLeads, useCreateLead, useUpdateLead, useConvertLead, useDisqualifyLead } from '@/hooks/use-leads';
 import {
@@ -46,6 +51,8 @@ import {
   computeQuotationMetrics,
   computePodcMetrics,
   computeInvoiceMetrics,
+  filterProcurement,
+  computeProcurementMetrics,
 } from '@/lib/followup/followup-utils';
 import { formatCompactCurrency } from '@/lib/followup/currency-format';
 import {
@@ -53,6 +60,9 @@ import {
   filterPriorityQueue,
   computeQueueMetrics,
 } from '@/lib/followup/priority-queue';
+import {
+  DEFAULT_FOLLOWUP_FILTERS,
+} from '@/types/followup';
 import type {
   FollowUpTab,
   InvoiceFollowUp,
@@ -66,7 +76,18 @@ import { LeadCaptureModal } from '@/components/leads/lead-capture-modal';
 import { LeadRow, leadTableHeader } from '@/components/follow-up/lead-row';
 import { WinLossModal } from '@/components/leads/win-loss-modal';
 import { Button } from '@/components/ui/button';
-import { UserPlus, MessageSquare } from 'lucide-react';
+import { 
+  UserPlus, 
+  MessageSquare,
+  Calendar,
+  Clock,
+  User,
+  Hourglass,
+  UserMinus,
+  RotateCcw,
+  CheckSquare,
+  Square
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function FollowUpCentre() {
@@ -81,6 +102,7 @@ export default function FollowUpCentre() {
   const { data: invoices = [], isLoading: loadingI } = useFollowupInvoices();
   const { data: activity = [], isLoading: loadingA } = useFollowupActivity();
   const { data: leads = [], isLoading: loadingL } = useLeads();
+  const { data: procurements = [], isLoading: loadingPR } = useFollowupProcurement();
 
   const logResponse = useLogQuotationResponse();
   const flagIssue = useFlagPodcIssue();
@@ -99,12 +121,21 @@ export default function FollowUpCentre() {
   const currentUserId = user?.id ?? null;
 
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  
+  // Selection checkbox states
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+
+  // Quick Filter selections
+  const [quickFilter, setQuickFilter] = useState<'all' | 'due_today' | 'overdue' | 'waiting' | 'upcoming' | 'unassigned'>('all');
+  const [focusMode, setFocusMode] = useState<boolean>(false);
+
   const [queuePage, setQueuePage] = useState(1);
   const [quotationPage, setQuotationPage] = useState(1);
   const [podcPage, setPodcPage] = useState(1);
   const [invoicePage, setInvoicePage] = useState(1);
   const [activityPage, setActivityPage] = useState(1);
   const [leadPage, setLeadPage] = useState(1);
+  const [procurementPage, setProcurementPage] = useState(1);
   const itemsPerPage = 20;
 
   const [drawerItem, setDrawerItem] = useState<{
@@ -129,6 +160,31 @@ export default function FollowUpCentre() {
     },
     []
   );
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback((items: PriorityQueueItem[]) => {
+    setSelectedRowIds((prev) => {
+      const allSelected = items.length > 0 && items.every((i) => prev.has(i.id));
+      const next = new Set(prev);
+      if (allSelected) {
+        items.forEach((i) => next.delete(i.id));
+      } else {
+        items.forEach((i) => next.add(i.id));
+      }
+      return next;
+    });
+  }, []);
 
 
   const withAssigneeLabels = useCallback(
@@ -160,6 +216,10 @@ export default function FollowUpCentre() {
     () => filterActivityLogs(activity, filters, search),
     [activity, filters, search]
   );
+  const filteredProcurement = useMemo(
+    () => withAssigneeLabels(filterProcurement(procurements, filters, search, currentUserId)),
+    [procurements, filters, search, currentUserId, withAssigneeLabels]
+  );
 
   const filteredLeads = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -177,8 +237,8 @@ export default function FollowUpCentre() {
   }, [leads, filters.status, search]);
 
   const priorityQueue = useMemo(
-    () => buildPriorityQueue(quotations, podc, invoices, leads),
-    [quotations, podc, invoices, leads]
+    () => buildPriorityQueue(quotations, podc, invoices, leads, procurements),
+    [quotations, podc, invoices, leads, procurements]
   );
 
   const openLeadCount = useMemo(
@@ -199,13 +259,47 @@ export default function FollowUpCentre() {
     [priorityQueue, search, filters.status, filters.sort, filters.assignee, currentUserId]
   );
 
+  const queueWithFocus = useMemo(() => {
+    let items = filteredQueue;
+    
+    // Focus mode: show only essentials (critical and high bands)
+    if (focusMode) {
+      items = items.filter((i) => i.priority_band === 'critical' || i.priority_band === 'high');
+    }
+    
+    // Quick filter selection
+    if (quickFilter === 'due_today') {
+      items = items.filter((i) => i.urgency_label.toLowerCase().includes('today') || i.urgency_label.toLowerCase().includes('due tomorrow') || i.urgency_label.toLowerCase().includes('tomorrow'));
+    } else if (quickFilter === 'overdue') {
+      items = items.filter((i) => i.urgency_label.toLowerCase().includes('overdue') || i.urgency_label.toLowerCase().includes('delayed') || i.urgency_label.toLowerCase().includes('days'));
+    } else if (quickFilter === 'waiting') {
+      items = items.filter((i) => i.reason.toLowerCase().includes('negotiation') || i.reason.toLowerCase().includes('sent') || i.urgency_label.toLowerCase().includes('validity'));
+    } else if (quickFilter === 'upcoming') {
+      items = items.filter((i) => i.urgency_label.toLowerCase().includes('upcoming') || i.urgency_label.toLowerCase().includes('close') || i.urgency_label.toLowerCase().includes('due'));
+    } else if (quickFilter === 'unassigned') {
+      items = items.filter((i) => !i.assignee_user_id);
+    }
+    
+    return items;
+  }, [filteredQueue, focusMode, quickFilter]);
+
+  const quickFilterCounts = useMemo(() => {
+    const due_today = priorityQueue.filter((i) => i.urgency_label.toLowerCase().includes('today') || i.urgency_label.toLowerCase().includes('due tomorrow') || i.urgency_label.toLowerCase().includes('tomorrow')).length;
+    const overdue = priorityQueue.filter((i) => i.urgency_label.toLowerCase().includes('overdue') || i.urgency_label.toLowerCase().includes('delayed') || i.urgency_label.toLowerCase().includes('days')).length;
+    const waiting = priorityQueue.filter((i) => i.reason.toLowerCase().includes('negotiation') || i.reason.toLowerCase().includes('sent') || i.urgency_label.toLowerCase().includes('validity')).length;
+    const upcoming = priorityQueue.filter((i) => i.urgency_label.toLowerCase().includes('upcoming') || i.urgency_label.toLowerCase().includes('close') || i.urgency_label.toLowerCase().includes('due')).length;
+    const unassigned = priorityQueue.filter((i) => !i.assignee_user_id).length;
+
+    return { due_today, overdue, waiting, upcoming, unassigned };
+  }, [priorityQueue]);
+
   const queuePagination = useMemo(() => {
-    const totalItems = filteredQueue.length;
+    const totalItems = queueWithFocus.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (queuePage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredQueue.slice(startIndex, endIndex), hasNextPage: queuePage < totalPages, hasPrevPage: queuePage > 1 };
-  }, [filteredQueue, queuePage, itemsPerPage]);
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: queueWithFocus.slice(startIndex, endIndex), hasNextPage: queuePage < totalPages, hasPrevPage: queuePage > 1 };
+  }, [queueWithFocus, queuePage, itemsPerPage]);
 
   const quotationPagination = useMemo(() => {
     const totalItems = filteredQuotations.length;
@@ -247,12 +341,21 @@ export default function FollowUpCentre() {
     return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredLeads.slice(startIndex, endIndex), hasNextPage: leadPage < totalPages, hasPrevPage: leadPage > 1 };
   }, [filteredLeads, leadPage, itemsPerPage]);
 
-  useEffect(() => { setQueuePage(1); }, [filters, search]);
+  const procurementPagination = useMemo(() => {
+    const totalItems = filteredProcurement.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (procurementPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredProcurement.slice(startIndex, endIndex), hasNextPage: procurementPage < totalPages, hasPrevPage: procurementPage > 1 };
+  }, [filteredProcurement, procurementPage, itemsPerPage]);
+
+  useEffect(() => { setQueuePage(1); }, [filters, search, quickFilter, focusMode]);
   useEffect(() => { setQuotationPage(1); }, [filters, search]);
   useEffect(() => { setPodcPage(1); }, [filters, search]);
   useEffect(() => { setInvoicePage(1); }, [filters, search]);
   useEffect(() => { setActivityPage(1); }, [filters, search]);
   useEffect(() => { setLeadPage(1); }, [filters, search]);
+  useEffect(() => { setProcurementPage(1); }, [filters, search]);
 
   // Reset stale status filter when switching to Leads tab so prior-tab
   // filters (e.g. 'sent', 'disputed') don't silently hide new leads.
@@ -262,8 +365,13 @@ export default function FollowUpCentre() {
     }
   }, [filters.tab, filters.status, setFilters]);
 
+  // Clear row selections when switching tabs
+  useEffect(() => {
+    setSelectedRowIds(new Set());
+  }, [filters.tab]);
+
   const handleAssigneeChange = useCallback(
-    (source: 'quotation' | 'podc' | 'invoice', sourceId: string, userId: string | null) => {
+    (source: 'quotation' | 'podc' | 'invoice' | 'procurement', sourceId: string, userId: string | null) => {
       if (!canManage) return;
       assignFollowUp.mutate({ source, sourceId, assigneeUserId: userId });
     },
@@ -395,6 +503,25 @@ export default function FollowUpCentre() {
           { label: 'Filtered', value: filteredLeads.length, sublabel: 'Current view' },
         ];
       }
+      case 'procurement': {
+        const m = computeProcurementMetrics(procurements);
+        return [
+          { label: 'Open POs', value: m.openCount, sublabel: 'Awaiting vendor delivery' },
+          {
+            label: 'Delayed POs',
+            value: m.delayedCount,
+            variant: 'danger' as const,
+            sublabel: 'Overdue delivery dates',
+          },
+          {
+            label: 'Open PO Value',
+            value: formatCompactCurrency(m.totalValue),
+            sublabel: 'Procurement commitment',
+          },
+          { label: 'Avg lead time', value: `${m.avgDaysPending}d`, sublabel: 'Days pending vendor' },
+          { label: 'Filtered', value: filteredProcurement.length, sublabel: 'Current view' },
+        ];
+      }
       default:
         return [];
     }
@@ -411,6 +538,8 @@ export default function FollowUpCentre() {
     filteredActivity.length,
     openLeadCount,
     filteredLeads.length,
+    procurements,
+    filteredProcurement.length,
   ]);
 
   const tabCounts = useMemo(
@@ -421,6 +550,7 @@ export default function FollowUpCentre() {
       invoice: invoices.length,
       activity: activity.length,
       lead: leads.length,
+      procurement: procurements.length,
     }),
     [
       priorityQueue.length,
@@ -429,6 +559,7 @@ export default function FollowUpCentre() {
       invoices.length,
       activity.length,
       leads.length,
+      procurements.length,
     ]
   );
 
@@ -437,9 +568,10 @@ export default function FollowUpCentre() {
       const quote = quotations.find((q) => q.id === item.source_id);
       const backlog = podc.find((p) => p.id === item.source_id);
       const invoice = invoices.find((i) => i.id === item.source_id);
-      return { quote, backlog, invoice };
+      const po = procurements.find((pr) => pr.id === item.source_id);
+      return { quote, backlog, invoice, po };
     },
-    [quotations, podc, invoices]
+    [quotations, podc, invoices, procurements]
   );
 
   const handleQueueOpen = useCallback(
@@ -511,10 +643,15 @@ export default function FollowUpCentre() {
         handleQueueOpen(item);
         return;
       }
-      const { quote, backlog, invoice } = resolveSourceRecords(item);
+      const { quote, backlog, invoice, po } = resolveSourceRecords(item);
       if (item.source_tab === 'quotation' && quote) handleQuotationReminder(quote);
       if (item.source_tab === 'podc' && backlog) handlePodcShare(backlog);
       if (item.source_tab === 'invoice' && invoice) handleInvoiceReminder(invoice);
+      if (item.source_tab === 'procurement' && po) {
+        toast.success(`WhatsApp reminder prepared for ${po.vendor_name}`, {
+          description: `Templated message for ${po.po_no} ready.`
+        });
+      }
     },
     [
       canManage,
@@ -527,12 +664,13 @@ export default function FollowUpCentre() {
   );
 
   const isLoading =
-    (filters.tab === 'queue' && (loadingQ || loadingP || loadingI)) ||
+    (filters.tab === 'queue' && (loadingQ || loadingP || loadingI || loadingPR || loadingL)) ||
     (filters.tab === 'quotation' && loadingQ) ||
     (filters.tab === 'podc' && loadingP) ||
     (filters.tab === 'invoice' && loadingI) ||
     (filters.tab === 'activity' && loadingA) ||
-    (filters.tab === 'lead' && loadingL);
+    (filters.tab === 'lead' && loadingL) ||
+    (filters.tab === 'procurement' && loadingPR);
 
   const PaginationFooter = useCallback(
     ({ page, setPage, pagination }: { page: number; setPage: (p: number) => void; pagination: { totalItems: number; totalPages: number; startIndex: number; endIndex: number; hasNextPage: boolean; hasPrevPage: boolean } }) => {
@@ -609,11 +747,35 @@ export default function FollowUpCentre() {
     }
 
     switch (tab) {
-      case 'queue':
+      case 'queue': {
+        const isAllSelected = queuePagination.currentItems.length > 0 && queuePagination.currentItems.every(i => selectedRowIds.has(i.id));
         return (
           <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
-              {priorityQueueTableHeader}
+              <div className="flex h-[38px] items-center px-4 text-xs font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-200 bg-zinc-50">
+                <div className="w-[40px] shrink-0 flex items-center justify-center">
+                  <button 
+                    type="button" 
+                    onClick={() => handleSelectAll(queuePagination.currentItems)} 
+                    className="text-zinc-400 hover:text-zinc-600 transition-colors"
+                  >
+                    {isAllSelected ? (
+                      <CheckSquare className="h-[18px] w-[18px] text-blue-600 fill-blue-50/10" />
+                    ) : (
+                      <Square className="h-[18px] w-[18px]" />
+                    )}
+                  </button>
+                </div>
+                <span className="w-[100px] shrink-0 px-2 text-left">Priority</span>
+                <span className="w-[160px] shrink-0 px-2 text-left">Entity / Reference</span>
+                <span className="w-[240px] shrink-0 px-2 text-left">Client / Project</span>
+                <span className="w-[260px] shrink-0 px-2 text-left">Next Action & Status</span>
+                <span className="w-[130px] shrink-0 px-2 text-right">Amount</span>
+                <span className="w-[120px] shrink-0 px-2 text-center">Timeline</span>
+                <span className="w-[150px] shrink-0 px-2 text-left">Owner</span>
+                <span className="w-[140px] shrink-0 px-2 text-left">Last Activity</span>
+                <span className="w-[120px] shrink-0 text-center">Action</span>
+              </div>
             </div>
             <div className="flex-1 overflow-auto">
               {queuePagination.currentItems.length === 0 ? (
@@ -630,6 +792,8 @@ export default function FollowUpCentre() {
                     disabled={isReadOnly}
                     onOpenSource={handleQueueOpen}
                     onQuickAction={handleQueueQuickAction}
+                    selected={selectedRowIds.has(item.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 ))
               )}
@@ -637,6 +801,7 @@ export default function FollowUpCentre() {
             <PaginationFooter page={queuePage} setPage={setQueuePage} pagination={queuePagination} />
           </div>
         );
+      }
       case 'quotation':
         return (
           <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
@@ -782,6 +947,42 @@ export default function FollowUpCentre() {
             <PaginationFooter page={leadPage} setPage={setLeadPage} pagination={leadPagination} />
           </div>
         );
+      case 'procurement':
+        return (
+          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+              {procurementTableHeader}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {procurementPagination.currentItems.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-zinc-500">No procurement items match your filters.</p>
+              ) : (
+                procurementPagination.currentItems.map((item) => (
+                  <ProcurementFollowupRow
+                    key={item.id}
+                    item={item}
+                    assignees={assignees}
+                    disabled={isReadOnly}
+                    onReminder={(po) => {
+                      toast.success(`WhatsApp reminder prepared for ${po.vendor_name}`, {
+                        description: `Templated message for ${po.po_no} ready.`
+                      });
+                      recordReminder.mutate({
+                        type: 'procurement',
+                        id: po.id,
+                        label: po.po_no,
+                        client: po.vendor_name,
+                      });
+                    }}
+                    onSelect={() => handleOpenHistory('procurement', item.id, item.po_no, item.vendor_name, item.status)}
+                    onAssigneeChange={(id, userId) => handleAssigneeChange('procurement', id, userId)}
+                  />
+                ))
+              )}
+            </div>
+            <PaginationFooter page={procurementPage} setPage={setProcurementPage} pagination={procurementPagination} />
+          </div>
+        );
       default:
         return null;
     }
@@ -873,6 +1074,67 @@ export default function FollowUpCentre() {
                 onChange={setFilters}
               />
             </div>
+            {filters.tab === 'queue' && (
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-1">Quick Filters:</span>
+                  {[
+                    { value: 'all', label: 'All Items', count: filteredQueue.length },
+                    { value: 'due_today', label: 'Due Today/Tomorrow', count: quickFilterCounts.due_today },
+                    { value: 'overdue', label: 'Overdue/Delayed', count: quickFilterCounts.overdue },
+                    { value: 'waiting', label: 'Waiting on Customer', count: quickFilterCounts.waiting },
+                    { value: 'upcoming', label: 'Upcoming / Close', count: quickFilterCounts.upcoming },
+                    { value: 'unassigned', label: 'Unassigned', count: quickFilterCounts.unassigned },
+                  ].map((pill) => (
+                    <button
+                      key={pill.value}
+                      type="button"
+                      onClick={() => setQuickFilter(pill.value as any)}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all ${
+                        quickFilter === pill.value
+                          ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-700/20'
+                          : 'bg-zinc-50 text-zinc-600 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900'
+                      }`}
+                    >
+                      <span>{pill.label}</span>
+                      <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.25 text-[9px] font-bold ${
+                        quickFilter === pill.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-zinc-200 text-zinc-600'
+                      }`}>
+                        {pill.count}
+                      </span>
+                    </button>
+                  ))}
+                  {quickFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setQuickFilter('all')}
+                      className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-600 transition-colors ml-1 font-medium"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={focusMode}
+                      onChange={(e) => setFocusMode(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-8 h-4 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ml-2 text-xs font-semibold text-zinc-700 flex items-center gap-1">
+                      Focus Mode
+                      <span className="text-[10px] font-normal text-zinc-400">(Critical/High)</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="min-h-0 flex-1 overflow-hidden pt-1">
@@ -892,6 +1154,59 @@ export default function FollowUpCentre() {
               onChange={setFilters}
             />
           </div>
+          {filters.tab === 'queue' && (
+            <div className="mt-2 flex flex-col gap-2.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { value: 'all', label: 'All', count: filteredQueue.length },
+                  { value: 'due_today', label: 'Due', count: quickFilterCounts.due_today },
+                  { value: 'overdue', label: 'Overdue', count: quickFilterCounts.overdue },
+                  { value: 'waiting', label: 'Waiting', count: quickFilterCounts.waiting },
+                  { value: 'unassigned', label: 'Unassigned', count: quickFilterCounts.unassigned },
+                ].map((pill) => (
+                  <button
+                    key={pill.value}
+                    type="button"
+                    onClick={() => setQuickFilter(pill.value as any)}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-all ${
+                      quickFilter === pill.value
+                        ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-700/20'
+                        : 'bg-zinc-50 text-zinc-500 border border-zinc-200'
+                    }`}
+                  >
+                    <span>{pill.label}</span>
+                    <span className="text-[9px] font-bold text-zinc-400">
+                      ({pill.count})
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-zinc-100 pt-2">
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={focusMode}
+                    onChange={(e) => setFocusMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                  <span className="ml-2 text-xs font-semibold text-zinc-700">
+                    Focus Mode
+                  </span>
+                </label>
+                {quickFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setQuickFilter('all')}
+                    className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-600"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="min-h-0 flex-1 overflow-hidden pt-1">
@@ -959,6 +1274,53 @@ export default function FollowUpCentre() {
           setWinLossTarget(null);
         }}
       />
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedRowIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-xl border border-zinc-200 bg-zinc-900 px-6 py-3.5 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-2 border-r border-zinc-700 pr-4">
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500 px-1 text-[11px] font-bold text-white">
+              {selectedRowIds.size}
+            </span>
+            <span className="text-xs font-semibold text-zinc-100">
+              items selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isReadOnly}
+              onClick={() => {
+                toast.success('Bulk reassignment initialized', {
+                  description: `Reassigning ${selectedRowIds.size} items...`
+                });
+              }}
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+            >
+              Bulk Reassign
+            </button>
+            <button
+              type="button"
+              disabled={isReadOnly}
+              onClick={() => {
+                toast.success('WhatsApp batch template prepared', {
+                  description: `Preparing templates for ${selectedRowIds.size} clients...`
+                });
+              }}
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+            >
+              WhatsApp Batch
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRowIds(new Set())}
+              className="inline-flex h-8 items-center justify-center rounded-lg border border-transparent px-3 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

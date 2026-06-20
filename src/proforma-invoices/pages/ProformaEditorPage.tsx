@@ -9,7 +9,8 @@ import type { ConversionType } from '../../conversions/types';
 import { formatCurrency } from '../../utils/formatters';
 import { isInterstate } from '../logic';
 import { createProforma, updateProforma, getProformaById, sendProforma, markAccepted } from '../api';
-import type { ProformaInput, ProformaItem, ProformaStatus } from '../types';
+import type { ProformaStatus } from '../types';
+import type { ProformaInput, ProformaItem } from '../schemas';
 import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Briefcase, Calendar, User, Info } from 'lucide-react';
 import ItemSelectorDrawer from '../../components/ItemSelectorDrawer';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
@@ -204,9 +205,12 @@ interface LineItem {
   tax_percent: number;
   item_id: string | null;
   variant_id: string | null;
+  discount_category_id?: string | null;
   make: string | null;
   variant: string | null;
   unit: string | null;
+  custom1?: string;
+  custom2?: string;
 }
 
 export default function ProformaEditorPage() {
@@ -223,7 +227,7 @@ export default function ProformaEditorPage() {
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
 
   const [clientId, setClientId] = useState('');
-  const [items, setItems] = useState<LineItem[]>([{ description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, make: null, variant: null, unit: null }]);
+  const [items, setItems] = useState<LineItem[]>([{ description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, discount_category_id: null, make: null, variant: null, unit: null, custom1: '', custom2: '' }]);
   const [companyState, setCompanyState] = useState('');
   const [clientState, setClientState] = useState('');
   const [status, setStatus] = useState<ProformaStatus>('draft');
@@ -245,6 +249,9 @@ export default function ProformaEditorPage() {
   const [templateSettings, setTemplateSettings] = useState<any>(null);
   const [discountSettings, setDiscountSettings] = useState<Record<string, { default: number; min: number; max: number }>>({});
   const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
+  const [discountCategoryMap, setDiscountCategoryMap] = useState<Record<string, any>>({});
+  const [authorizedSignatoryId, setAuthorizedSignatoryId] = useState('');
+  const [isSigDropdownOpen, setIsSigDropdownOpen] = useState(false);
 
   // Client search UI state
   const [clientSearch, setClientSearch] = useState('');
@@ -273,6 +280,13 @@ export default function ProformaEditorPage() {
   const [variantPricing, setVariantPricing] = useState<Record<string, Record<string, Record<string, number>>>>({});
 
   const { data: clients = [] } = useClients();
+  const selectedClient = useMemo(() => clients.find(c => c.id === clientId) as any, [clients, clientId]);
+  const billingAddress = useMemo(() => {
+    if (!selectedClient) return '';
+    return [selectedClient.address1, selectedClient.address2, selectedClient.city, selectedClient.state, selectedClient.pincode]
+      .filter(Boolean)
+      .join(', ');
+  }, [selectedClient]);
   const { data: clientPOs = [] } = useClientPOs(clientId);
   const { data: variants = [] } = useQuery({
     queryKey: ['company-variants'],
@@ -299,13 +313,66 @@ export default function ProformaEditorPage() {
     },
   });
 
+  const { data: discountCategories = [] } = useQuery({
+    queryKey: ['discount-categories', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('discount_categories')
+        .select('*')
+        .or(`organisation_id.eq.${organisation.id},organisation_id.is.null`)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  useEffect(() => {
+    const dcMap: Record<string, any> = {};
+    (discountCategories || []).forEach((dc) => {
+      dcMap[dc.id] = dc;
+    });
+    setDiscountCategoryMap(dcMap);
+  }, [discountCategories]);
+
+  const { data: organisationDetails } = useQuery({
+    queryKey: ['organisation-details', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return null;
+      const { data, error } = await supabase
+        .from('organisations')
+        .select('*')
+        .eq('id', organisation.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const { data: materials = [] } = useQuery({
+    queryKey: ['materials', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, mappings')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
   // Conversion query
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
   // Auto-select client's default template and set clientState when client changes
   useEffect(() => {
     if (clientId) {
-      const selectedClient = clients.find(c => c.id === clientId);
+      const selectedClient = clients.find(c => c.id === clientId) as any;
       if (selectedClient) {
         setClientState(selectedClient.state || '');
         if (selectedClient.default_template_id && !templateId) {
@@ -418,16 +485,17 @@ export default function ProformaEditorPage() {
     loadSettings();
   }, [organisation?.id, templateId]);
 
-  // Handle header discount change for variant-based discounts
-  const handleHeaderDiscountChange = useCallback((variantId: string, newValue: number) => {
+  // Handle header discount change for discount category based discounts
+  const handleHeaderDiscountChange = useCallback((id: string, newValue: number) => {
     const numValue = parseFloat(newValue.toString()) || 0;
     
-    // Apply discount to items with matching variant_id (only for items that have variant_id)
-    const affectedItems = items.filter(item => item.variant_id === variantId);
+    const matchFn = (item: LineItem) => item.discount_category_id === id;
+      
+    const affectedItems = items.filter(matchFn);
     
     if (affectedItems.length > 0) {
       const updatedItems = items.map(item => {
-        if (item.variant_id === variantId) {
+        if (matchFn(item)) {
           const baseRate = item.rate || 0;
           const rateAfterDiscount = baseRate - (baseRate * numValue / 100);
           return {
@@ -442,7 +510,7 @@ export default function ProformaEditorPage() {
       setItems(updatedItems);
     }
     
-    setHeaderDiscounts(prev => ({ ...prev, [variantId]: numValue }));
+    setHeaderDiscounts(prev => ({ ...prev, [id]: numValue }));
   }, [items]);
 
   // Load PO line items when converting from PO
@@ -490,6 +558,7 @@ export default function ProformaEditorPage() {
               make: null,
               variant: null,
               unit: item.unit || 'Nos',
+              discount_category_id: null,
             }));
             setItems(proformaItems);
           }
@@ -611,9 +680,12 @@ export default function ProformaEditorPage() {
           tax_percent: i.tax_percent || 18,
           item_id: i.item_id || null,
           variant_id: i.variant_id || null,
+          discount_category_id: i.discount_category_id || null,
           make: i.make || null,
           variant: i.variant || null,
           unit: i.unit || null,
+          custom1: i.meta_json?.custom1 ?? '',
+          custom2: i.meta_json?.custom2 ?? '',
         };
       }));
       setCompanyState(proforma.company_state ?? '');
@@ -623,6 +695,7 @@ export default function ProformaEditorPage() {
       setTerms(proforma.terms ?? '');
       setTemplateId(proforma.template_id ?? '');
       setPaymentTerms(proforma.payment_terms ?? '');
+      setAuthorizedSignatoryId(proforma.authorized_signatory_id ?? '');
       setDiscountPercent(proforma.discount_percent !== null && proforma.discount_percent !== undefined ? Number(proforma.discount_percent) : 0);
       setDiscountAmount(proforma.discount_amount !== null && proforma.discount_amount !== undefined ? Number(proforma.discount_amount) : 0);
     }
@@ -651,6 +724,7 @@ export default function ProformaEditorPage() {
     setPaymentTerms(convertedData.payment_terms || '');
     setPoNumber(convertedData.po_number || '');
     setPoDate(convertedData.po_date || '');
+    setAuthorizedSignatoryId(convertedData.authorized_signatory_id || '');
     setDiscountPercent(convertedData.discount_percent || convertedData.extra_discount_percent || 0);
     setDiscountAmount(convertedData.discount_amount || convertedData.extra_discount_amount || 0);
 
@@ -671,9 +745,12 @@ export default function ProformaEditorPage() {
           tax_percent: item.tax_percent || 18,
           item_id: item.item_id || null,
           variant_id: item.variant_id || null,
+          discount_category_id: item.discount_category_id || null,
           make: item.make || null,
           variant: item.variant || null,
           unit: item.unit || null,
+          custom1: item.meta_json?.custom1 || '',
+          custom2: item.meta_json?.custom2 || '',
         };
       });
       setItems(mappedItems);
@@ -735,8 +812,17 @@ export default function ProformaEditorPage() {
       updated[index] = { ...updated[index], [field]: value };
       const item = updated[index];
 
+      if (field === 'discount_category_id') {
+        const dcId = value as string | null;
+        const categoryDiscount = dcId ? (headerDiscounts[dcId] !== undefined ? headerDiscounts[dcId] : (discountCategoryMap[dcId]?.default_discount_percent ?? 0)) : 0;
+        item.discount_percent = categoryDiscount;
+        const baseRate = Number(item.rate) || 0;
+        const rateAfterDiscount = baseRate - (baseRate * categoryDiscount / 100);
+        item.rate_after_discount = Math.max(0, rateAfterDiscount);
+      }
+
       // Calculate rate after discount
-      if (field === 'discount_percent' || field === 'rate') {
+      if (field === 'discount_percent' || field === 'rate' || field === 'discount_category_id') {
         const discountPercent = Number(item.discount_percent) || 0;
         const baseRate = Number(item.rate) || 0;
         const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
@@ -744,7 +830,7 @@ export default function ProformaEditorPage() {
       }
 
       // Calculate amount as qty × rate_after_discount
-      if (field === 'qty' || field === 'rate' || field === 'discount_percent' || field === 'rate_after_discount') {
+      if (field === 'qty' || field === 'rate' || field === 'discount_percent' || field === 'rate_after_discount' || field === 'discount_category_id') {
         const rateAfterDiscount = item.rate_after_discount || item.rate;
         item.amount = Number(item.qty) * rateAfterDiscount;
       }
@@ -754,7 +840,7 @@ export default function ProformaEditorPage() {
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, make: null, variant: null, unit: null }]);
+    setItems(prev => [...prev, { description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, discount_category_id: null, make: null, variant: null, unit: null }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -784,21 +870,23 @@ export default function ProformaEditorPage() {
 
   const handleItemSelectorSuccess = (newItems: any[]) => {
     const newLineItems = newItems.map((newItem: any) => {
-      const discountPercent = 0;
+      const dcId = newItem.discount_category_id || null;
+      const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
       const rate = getRateForItem(newItem, newItem.variant_id);
-      const rateAfterDiscount = rate;
+      const rateAfterDiscount = rate - (rate * categoryDiscount / 100);
 
       return {
         description: newItem.display_name || newItem.item_name || newItem.name,
         hsn_code: newItem.hsn_code,
         qty: 1,
         rate: rate,
-        amount: rate,
-        discount_percent: discountPercent,
+        amount: rateAfterDiscount,
+        discount_percent: categoryDiscount,
         rate_after_discount: rateAfterDiscount,
         tax_percent: newItem.gst_rate || 18,
         item_id: newItem.id || null,
         variant_id: newItem.variant_id || null,
+        discount_category_id: dcId,
         make: newItem.make || null,
         variant: newItem.variant || null,
         unit: newItem.unit || 'Nos',
@@ -810,9 +898,10 @@ export default function ProformaEditorPage() {
   };
 
   const handleItemCreateSuccess = (newItem: any) => {
-    const discountPercent = 0;
+    const dcId = newItem.discount_category_id || null;
+    const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
     const rate = getRateForItem(newItem, newItem.variant_id);
-    const rateAfterDiscount = rate;
+    const rateAfterDiscount = rate - (rate * categoryDiscount / 100);
 
     setItems(prev => [
       ...prev,
@@ -821,12 +910,13 @@ export default function ProformaEditorPage() {
         hsn_code: newItem.hsn_code,
         qty: 1,
         rate: rate,
-        amount: rate,
-        discount_percent: discountPercent,
+        amount: rateAfterDiscount,
+        discount_percent: categoryDiscount,
         rate_after_discount: rateAfterDiscount,
         tax_percent: newItem.gst_rate || 18,
         item_id: newItem.id || null,
         variant_id: newItem.variant_id || null,
+        discount_category_id: dcId,
         make: newItem.make || null,
         variant: newItem.variant || null,
         unit: newItem.unit || 'Nos',
@@ -873,6 +963,7 @@ export default function ProformaEditorPage() {
         po_number: poNumber || undefined,
         po_date: poDate || undefined,
         template_id: templateId || undefined,
+        authorized_signatory_id: authorizedSignatoryId || null,
         items: validItems.map(item => ({
           description: item.description,
           hsn_code: item.hsn_code || null,
@@ -884,10 +975,16 @@ export default function ProformaEditorPage() {
           tax_percent: item.tax_percent || 18,
           item_id: item.item_id || null,
           variant_id: item.variant_id || null,
+          discount_category_id: item.discount_category_id || null,
           make: item.make || null,
           variant: item.variant || null,
           unit: item.unit || null,
-          meta_json: { tax_percent: item.tax_percent || 18, rate_after_discount: item.rate_after_discount },
+          meta_json: { 
+            tax_percent: item.tax_percent || 18, 
+            rate_after_discount: item.rate_after_discount,
+            custom1: item.custom1 || null,
+            custom2: item.custom2 || null
+          },
         })),
         notes,
         terms,
@@ -1033,14 +1130,19 @@ export default function ProformaEditorPage() {
     let count = 1; // #
     if (templateSettings?.column_settings?.optional?.hsn_code !== false) count++;
     if (templateSettings?.column_settings?.optional?.item !== false) count++;
+    if (templateSettings?.column_settings?.optional?.client_part_no === true) count++;
+    if (templateSettings?.column_settings?.optional?.client_description === true) count++;
     if (templateSettings?.column_settings?.optional?.make !== false) count++;
     if (templateSettings?.column_settings?.optional?.variant !== false) count++;
+    count += 1; // Discount Category
     count += 1; // qty
     if (templateSettings?.column_settings?.optional?.unit !== false) count++;
     if (templateSettings?.column_settings?.optional?.rate !== false) count++;
     if (templateSettings?.column_settings?.optional?.discount_percent !== false) count++;
     if (templateSettings?.column_settings?.optional?.rate_after_discount !== false) count++;
     if (templateSettings?.column_settings?.optional?.tax_percent !== false) count++;
+    if (templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels) count++;
+    if (templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels) count++;
     count += 2; // amount, delete
     return count;
   };
@@ -1050,7 +1152,7 @@ export default function ProformaEditorPage() {
   };
 
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
-  const labelColStyle = { minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
   const inputStyle = { padding: '4px 8px', fontSize: '12px' };
 
@@ -1160,6 +1262,13 @@ export default function ProformaEditorPage() {
             </div>
 
             {renderHeaderField('Client State:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clientState || 'Auto-populated from client'}</div>)}
+            {clientId && (
+              <>
+                {renderHeaderField('Contact:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedClient?.contact || selectedClient?.email || 'N/A'}</div>)}
+                {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{billingAddress || 'Auto-populated from client'}</div>)}
+                {renderHeaderField('GSTIN:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedClient?.gstin || 'N/A'}</div>)}
+              </>
+            )}
             
             {clientId && (
               <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
@@ -1285,6 +1394,40 @@ export default function ProformaEditorPage() {
                 <CustomDatePicker value={poDate} onChange={(val) => setPoDate(val)} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
               </div>
             </div>
+
+            {/* Pricing Rules (Discount Categories) */}
+            {discountCategories.length > 0 && (
+              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #f3f4f6' }}>
+                <div style={{ fontWeight: 600, fontSize: '11px', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Pricing Rules (Discount Categories)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {discountCategories.map((dc) => (
+                    <div key={dc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: '4px 8px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '4px', minHeight: '32px' }}>
+                      <span style={{ fontWeight: 600, color: '#374151', fontSize: '11px', flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dc.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                        <input
+                          type="number"
+                          style={{ width: '45px', padding: '3px 4px', fontSize: '11px', fontWeight: 700, textAlign: 'right', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                          value={headerDiscounts[dc.id] ?? dc.default_discount_percent ?? 0}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                            setHeaderDiscounts(prev => ({ ...prev, [dc.id]: val }));
+                          }}
+                          onBlur={(e) => {
+                            const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                            handleHeaderDiscountChange(dc.id, val);
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                          min="0" max="100" step="0.01"
+                        />
+                        <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+
           </div>
         </div>
 
@@ -1319,14 +1462,27 @@ export default function ProformaEditorPage() {
                   <th className="col-shrink">#</th>
                   {(templateSettings?.column_settings?.optional?.hsn_code !== false) && <th className="col-hsn">HSN Code</th>}
                   {(templateSettings?.column_settings?.optional?.item !== false) && <th className="col-item">Description</th>}
+                  {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
+                    <th className="col-code">{templateSettings?.column_settings?.labels?.client_part_no || 'Client Part No'}</th>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.client_description === true) && (
+                    <th className="col-item">{templateSettings?.column_settings?.labels?.client_description || 'Client Description'}</th>
+                  )}
                   {(templateSettings?.column_settings?.optional?.make !== false) && <th className="col-make">Make</th>}
                   {(templateSettings?.column_settings?.optional?.variant !== false) && <th className="col-variant">Variant</th>}
+                  <th className="col-disc-cat">Discount Category</th>
                   <th className="col-qty">Qty</th>
                   {(templateSettings?.column_settings?.optional?.unit !== false) && <th className="col-unit">Unit</th>}
                   {(templateSettings?.column_settings?.optional?.rate !== false) && <th className="col-rate">Rate</th>}
                   {(templateSettings?.column_settings?.optional?.discount_percent !== false) && <th className="col-disc">Discount %</th>}
                   {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && <th className="col-rate-after-disc">Rate After Disc</th>}
                   {(templateSettings?.column_settings?.optional?.tax_percent !== false) && <th className="col-gst">Tax %</th>}
+                  {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
+                    <th className="col-custom">{templateSettings.column_settings.labels.custom1 || 'Custom 1'}</th>
+                  )}
+                  {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
+                    <th className="col-custom">{templateSettings.column_settings.labels.custom2 || 'Custom 2'}</th>
+                  )}
                   <th className="col-amount">Amount</th>
                   <th style={{ width: '40px' }}></th>
                 </tr>
@@ -1353,6 +1509,22 @@ export default function ProformaEditorPage() {
                           description={item.description}
                           onSave={(desc) => handleItemChange(index, 'description', desc)}
                         />
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
+                      <td className="col-shrink cell-static text-center" style={{ fontSize: '11px', color: '#64748b', padding: '4px' }}>
+                        {(() => {
+                          const mapping = clientId && materials.find(m => m.id === item.item_id)?.mappings?.find((m: any) => m.client_id === clientId);
+                          return mapping?.client_part_no || '-';
+                        })()}
+                      </td>
+                    )}
+                    {(templateSettings?.column_settings?.optional?.client_description === true) && (
+                      <td className="col-item cell-static" style={{ fontSize: '11px', color: '#64748b', padding: '4px' }}>
+                        {(() => {
+                          const mapping = clientId && materials.find(m => m.id === item.item_id)?.mappings?.find((m: any) => m.client_id === clientId);
+                          return mapping?.client_description || '-';
+                        })()}
                       </td>
                     )}
                     {(templateSettings?.column_settings?.optional?.make !== false) && (
@@ -1386,6 +1558,19 @@ export default function ProformaEditorPage() {
                         />
                       </td>
                     )}
+                    <td className="cell-input">
+                      <select
+                        className="cell-input text-center"
+                        value={item.discount_category_id || ''}
+                        onChange={(e) => handleItemChange(index, 'discount_category_id', e.target.value || null)}
+                        style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '12px' }}
+                      >
+                        <option value="">None</option>
+                        {discountCategories.map(dc => (
+                          <option key={dc.id} value={dc.id}>{dc.name}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="cell-input">
                       <input
                         type="number"
@@ -1453,6 +1638,30 @@ export default function ProformaEditorPage() {
                           max="100"
                           step="0.1"
                           placeholder="18"
+                        />
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
+                      <td className="cell-input">
+                        <input
+                          type="text"
+                          className="cell-input text-center"
+                          value={item.custom1 || ''}
+                          onChange={(e) => handleItemChange(index, 'custom1', e.target.value)}
+                          placeholder={templateSettings.column_settings.labels.custom1 || 'Custom 1'}
+                          style={{ width: '100%' }}
+                        />
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
+                      <td className="cell-input">
+                        <input
+                          type="text"
+                          className="cell-input text-center"
+                          value={item.custom2 || ''}
+                          onChange={(e) => handleItemChange(index, 'custom2', e.target.value)}
+                          placeholder={templateSettings.column_settings.labels.custom2 || 'Custom 2'}
+                          style={{ width: '100%' }}
                         />
                       </td>
                     )}
@@ -1560,7 +1769,7 @@ export default function ProformaEditorPage() {
             </div>
             <textarea
               className="form-input"
-              style={{ width: '100%', minHeight: '56px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
+              style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
               placeholder="Additional notes..."
               value={notes}
               onChange={(e) => {
@@ -1578,7 +1787,7 @@ export default function ProformaEditorPage() {
             </div>
             <textarea
               className="form-input"
-              style={{ width: '100%', minHeight: '56px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
+              style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
               placeholder="Payment terms, delivery terms, etc..."
               value={terms}
               onChange={(e) => {
@@ -1636,37 +1845,79 @@ export default function ProformaEditorPage() {
                 </label>
               </div>
 
-              {/* Header Discounts for Variants */}
-              {variants.length > 0 && Object.keys(discountSettings).length > 0 && (
-                <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #f3f4f6' }}>
-                  <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Variant Discounts</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {variants.map((variant) => {
-                      const settings = discountSettings[variant.id];
-                      if (!settings) return null;
-                      const variantName = variant.variant_name || variant.id;
-                      return (
-                        <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>{variantName}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <input
-                              type="number"
-                              value={headerDiscounts[variant.id] ?? settings.default}
-                              onChange={(e) => handleHeaderDiscountChange(variant.id, Number(e.target.value))}
-                              className="form-input text-right"
-                              style={{ width: '65px', height: '24px', padding: '2px 4px', fontSize: '12px' }}
-                              min={settings.min}
-                              max={settings.max}
-                              step="0.1"
-                            />
-                            <span style={{ fontSize: '11px', color: '#6b7280' }}>%</span>
+              {/* Authorized Signatory */}
+              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Authorized Signatory</div>
+                <div 
+                  className="relative cursor-pointer flex items-center justify-between px-3 py-1.5 border border-zinc-300 rounded bg-white text-zinc-700 text-xs font-medium hover:bg-zinc-50 hover:border-zinc-400 transition-all shadow-sm"
+                  onClick={() => setIsSigDropdownOpen(!isSigDropdownOpen)}
+                >
+                  <span>
+                    {authorizedSignatoryId
+                      ? ((organisationDetails as any)?.signatures || []).find((s: any) => String(s.id) === String(authorizedSignatoryId))?.name || 'Select Signatory...'
+                      : 'Select Signatory...'}
+                  </span>
+                  <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${isSigDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+
+                  {isSigDropdownOpen && (
+                    <div style={{
+                      position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '4px',
+                      zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
+                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+                      maxHeight: '200px', overflowY: 'auto'
+                    }} onClick={e => e.stopPropagation()}>
+                      <div 
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6', fontWeight: 500 }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                        onClick={() => {
+                          setAuthorizedSignatoryId('');
+                          setIsSigDropdownOpen(false);
+                        }}
+                      >
+                        Select Signatory...
+                      </div>
+                      {((organisationDetails as any)?.signatures || []).length > 0 ? (
+                        ((organisationDetails as any)?.signatures || []).map((sig: any) => (
+                          <div 
+                            key={String(sig.id)} 
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            onClick={() => {
+                              setAuthorizedSignatoryId(String(sig.id));
+                              setIsSigDropdownOpen(false);
+                            }}
+                          >
+                            {sig.name}
                           </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '8px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>
+                          No signatures - Add in Settings → Organisation
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
+                {authorizedSignatoryId && (
+                  <div className="bg-white border border-zinc-200 rounded px-3 py-2 shadow-sm mt-2">
+                    <div style={{ fontSize: '9px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Signature Preview</div>
+                    <div className="h-8 flex items-center">
+                      {(() => {
+                        const sigId = String(authorizedSignatoryId);
+                        const selectedSig = ((organisationDetails as any)?.signatures || []).find((s: any) => String(s.id) === sigId);
+                        if (selectedSig?.url) {
+                          return <img src={selectedSig.url} alt={selectedSig.name} className="max-h-7 max-w-[120px] object-contain" />;
+                        }
+                        return <span className="text-zinc-400 text-[11px]">No signature preview</span>;
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Status workflow actions inside adjustments sidebar */}
               <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '8px' }}>
