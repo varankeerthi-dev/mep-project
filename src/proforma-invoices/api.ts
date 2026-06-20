@@ -31,6 +31,7 @@ const PROFORMA_SELECT = `
   po_number,
   po_date,
   template_id,
+  authorized_signatory_id,
   notes,
   terms,
   payment_terms,
@@ -38,7 +39,7 @@ const PROFORMA_SELECT = `
   created_at,
   updated_at,
   client:clients(id, client_name, gstin, state, default_template_id, email, billing_address, shipping_address),
-  items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order),
+  items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, discount_category_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order),
   creator:user_profiles(full_name)
 `;
 
@@ -64,6 +65,7 @@ function parseProformaRecord(row: any): ProformaWithRelations {
           proforma_id: item.proforma_id,
           item_id: item.item_id ?? null,
           variant_id: item.variant_id ?? null,
+          discount_category_id: item.discount_category_id ?? null,
           description: item.description,
           hsn_code: item.hsn_code ?? null,
           qty: item.qty,
@@ -104,6 +106,7 @@ function parseProformaRecord(row: any): ProformaWithRelations {
     po_number: row.po_number ?? null,
     po_date: row.po_date ?? null,
     template_id: row.template_id ?? null,
+    authorized_signatory_id: row.authorized_signatory_id ?? null,
     notes: row.notes ?? null,
     terms: row.terms ?? null,
     payment_terms: row.payment_terms ?? null,
@@ -131,6 +134,7 @@ function buildProformaPayload(proforma: Proforma): {
     tax_percent: number;
     item_id: string | null;
     variant_id: string | null;
+    discount_category_id: string | null;
     make: string | null;
     variant: string | null;
     unit: string | null;
@@ -152,6 +156,7 @@ function buildProformaPayload(proforma: Proforma): {
       tax_percent: item.tax_percent ?? DEFAULT_TAX,
       item_id: item.item_id ?? null,
       variant_id: item.variant_id ?? null,
+      discount_category_id: item.discount_category_id ?? null,
       make: item.make ?? null,
       variant: item.variant ?? null,
       unit: item.unit ?? null,
@@ -210,6 +215,7 @@ function buildProformaPayload(proforma: Proforma): {
     po_number: proforma.po_number,
     po_date: proforma.po_date,
     template_id: proforma.template_id,
+    authorized_signatory_id: proforma.authorized_signatory_id ?? null,
     notes: proforma.notes,
     terms: proforma.terms,
     payment_terms: proforma.payment_terms,
@@ -228,6 +234,7 @@ function buildProformaPayload(proforma: Proforma): {
       tax_percent: item.tax_percent ?? DEFAULT_TAX,
       item_id: item.item_id ?? null,
       variant_id: item.variant_id ?? null,
+      discount_category_id: item.discount_category_id ?? null,
       make: item.make ?? null,
       variant: item.variant ?? null,
       unit: item.unit ?? null,
