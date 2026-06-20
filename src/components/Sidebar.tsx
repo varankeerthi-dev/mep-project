@@ -84,19 +84,6 @@ const menuData: MenuSection[] = [
     ]
   },
   {
-    section: 'Finance',
-    items: [
-      { id: 'payments-hub', label: 'Payments Hub', path: '/finance/payments' }
-    ]
-  },
-  {
-    section: 'Accounting',
-    items: [
-      { id: 'chart-of-accounts', label: 'Chart of Accounts', path: '/accounting/chart-of-accounts' },
-      { id: 'day-book', label: 'Day Book', path: '/accounting/day-book' }
-    ]
-  },
-  {
     section: 'Client',
     items: [
       {
@@ -127,7 +114,7 @@ const menuData: MenuSection[] = [
       },
       {
         id: 'client-communication',
-        label: 'Client Communication',
+        label: 'Communication Log',
         submenu: [
           { id: 'client-comm-dashboard', label: 'Dashboard', path: '/client-communication' }
         ]
@@ -165,15 +152,8 @@ const menuData: MenuSection[] = [
         path: '/invoices',
         submenu: [
           { id: 'invoice-list', label: 'Invoice List', path: '/invoices' },
-          { id: 'invoice-create', label: 'Create Invoice', path: '/invoices/create' }
-        ]
-      },
-      {
-        id: 'proforma-invoices',
-        label: 'Proforma Invoices',
-        submenu: [
-          { id: 'proforma-list', label: 'Proforma List', path: '/proforma-invoices' },
-          { id: 'proforma-create', label: 'Create Proforma', path: '/proforma-invoices/create' }
+          { id: 'invoice-create', label: 'Create Invoice', path: '/invoices/create' },
+          { id: 'proforma-list', label: 'Proforma Invoice', path: '/proforma-invoices' }
         ]
       },
       {
@@ -278,6 +258,19 @@ const menuData: MenuSection[] = [
           { id: 'dc-consolidation', label: 'DC Consolidation', path: '/dc/consolidation' }
         ]
       }
+    ]
+  },
+  {
+    section: 'Finance',
+    items: [
+      { id: 'payments-hub', label: 'Payments Hub', path: '/finance/payments' }
+    ]
+  },
+  {
+    section: 'Accounting',
+    items: [
+      { id: 'chart-of-accounts', label: 'Chart of Accounts', path: '/accounting/chart-of-accounts' },
+      { id: 'day-book', label: 'Day Book', path: '/accounting/day-book' }
     ]
   },
   {

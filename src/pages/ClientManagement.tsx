@@ -7,29 +7,18 @@ import { ensureValidSession } from '../queryClient';
 import { withTimeout } from '../utils/queryTimeout';
 import { z } from 'zod';
 import {
-  Button,
   Input,
-  Label,
-  Badge,
   Tabs, TabsList, TabsTrigger, TabsContent,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Separator,
 } from '@/components/ui';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '../lib/utils';
 import { 
-  Building2, 
-  MapPin, 
-  CreditCard, 
-  Users, 
-  Settings, 
-  AlignLeft,
   Truck,
   Plus,
   Trash2,
   Copy,
   Info,
-  Archive,
   Save,
   ChevronLeft
 } from 'lucide-react';
@@ -61,28 +50,49 @@ type CreateClientProps = {
 
 const selectCn = 'h-11 w-full border border-zinc-200 bg-white px-3 text-sm outline-none';
 
-const SectionHeading = ({ children }: { children: React.ReactNode }) => (
-  <div className="mb-4">
-    <h3 className="text-base font-semibold" style={{ color: '#3A6963' }}>{children}</h3>
+const sectionHeadStyle: React.CSSProperties = {
+  fontWeight: 600, fontSize: '11px', color: '#6b7280',
+  textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px'
+};
+
+const labelStyle: React.CSSProperties = {
+  minWidth: '70px', maxWidth: '70px',
+  fontWeight: 600, fontSize: '11px', color: '#374151'
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: '8px 10px', fontSize: '12px', lineHeight: '20px', outline: 'none'
+};
+
+const headerFieldStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '8px'
+};
+
+const fieldColStyle: React.CSSProperties = {
+  flex: 1
+};
+
+const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+  <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+    <span style={labelStyle}>{label}</span>
+    <div style={fieldColStyle}>{field}</div>
   </div>
 );
 
-const FieldGroup = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-1.5">
-    <Label className="text-xs font-medium" style={{ color: '#3A6963' }}>
-      {label}{required && <span className="text-red-500 ml-1">*</span>}
-    </Label>
-    {children}
-    {error && <p className="text-xs text-red-500">{error}</p>}
-  </div>
-);
+const sectionBgStyle: React.CSSProperties = {
+  background: '#f8f9fa', padding: '12px', borderRadius: '6px'
+};
+
+const sectionGridStyle: React.CSSProperties = {
+  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px'
+};
 
 const CompactInput = (props: ComponentProps<typeof Input>) => (
-  <Input {...props} className={cn("h-10 border-zinc-200 text-sm", props.className)} />
+  <Input {...props} style={{ ...inputStyle, ...(props.style || {}) } as React.CSSProperties} className={cn("border-zinc-200 w-full", props.className)} />
 );
 
 const CompactTextarea = (props: ComponentProps<typeof Textarea>) => (
-  <Textarea {...props} className={cn("min-h-[100px] rounded-xl border-zinc-200/80 bg-white p-4 text-[14px] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] transition-all focus-visible:ring-4 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-500 hover:border-zinc-300 resize-y", props.className)} style={undefined} />
+  <Textarea {...props} className={cn("min-h-[80px] border border-zinc-200 bg-white p-2 text-[12px] resize-y", props.className)} style={undefined} />
 );
 
 export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps) {
@@ -101,10 +111,10 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isLoading) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center bg-[#f8fafc] p-6 md:p-10">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-          <p className="text-sm font-medium text-zinc-500 tracking-wide uppercase">Initializing...</p>
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div className="animate-spin" style={{ width: '28px', height: '28px', borderRadius: '50%', border: '3px solid rgba(24,95,165,0.2)', borderTopColor: '#185FA5' }}></div>
+          <p style={{ fontSize: '12px', fontWeight: 500, color: '#71717a', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Loading...</p>
         </div>
       </div>
     );
@@ -112,14 +122,18 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isError) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] p-6 md:p-10 flex items-center justify-center">
-        <div className="mx-auto max-w-lg w-full rounded-3xl bg-white border border-rose-100 p-10 text-center shadow-xl shadow-rose-900/5">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-             <Info className="h-6 w-6" />
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '24px' }}>
+        <div style={{ maxWidth: '400px', width: '100%', background: 'white', border: '1px solid #fecdd3', borderRadius: '6px', padding: '24px', textAlign: 'center' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+             <Info style={{ width: '20px', height: '20px', color: '#e11d48' }} />
           </div>
-          <h3 className="text-lg font-bold text-zinc-900 mb-2">Error Loading Client</h3>
-          <p className="text-[14px] text-zinc-500 mb-8 leading-relaxed">We could not retrieve the client profile. Please check the network or try again.</p>
-          <Button variant="secondary" className="h-11 rounded-xl px-8" onClick={onCancel}>Return to Directory</Button>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#18181b', margin: '0 0 4px' }}>Error Loading Client</h3>
+          <p style={{ fontSize: '12px', color: '#71717a', marginBottom: '20px' }}>Could not retrieve the client profile. Please try again.</p>
+          <button type="button" style={{ padding: '6px 14px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+            onClick={onCancel}
+            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+          >Return to Directory</button>
         </div>
       </div>
     );
@@ -523,10 +537,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
     about_client: '', discount_type: 'Standard', standard_pricelist_id: null,
     msme_register_type: '', msme_number: '',
-    gst_treatment: ''
+    gst_treatment: '', client_type: 'Business', country: 'India',
+    contact_code: '+91', contact_person_2_contact_code: '+91', purchase_contact_code: '+91'
   });
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const primaryBtn: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: '4px',
@@ -567,6 +583,19 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   }, [formData]);
 
   useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.state-dropdown-container')) {
+        setIsStateDropdownOpen(false);
+      }
+      if (!(e.target as HTMLElement).closest('.country-code-container')) {
+        setIsCountryCodeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty && !saving) {
         e.preventDefault();
@@ -579,13 +608,46 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   }, [isDirty, saving]);
 
   const [gstError, setGstError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [stateSearchText, setStateSearchText] = useState('');
+  const [isStateDropdownOpen, setIsStateDropdownOpen] = useState(false);
+  const [countryCodeSearchText, setCountryCodeSearchText] = useState('');
+  const [isCountryCodeOpen, setIsCountryCodeOpen] = useState(false);
+  const [activeCountryField, setActiveCountryField] = useState('');
   const [showShippingForm, setShowShippingForm] = useState(false);
   const [newShipping, setNewShipping] = useState({
     address_name: '', address_line1: '', address_line2: '', city: '', state: '',
     pincode: '', gstin: '', contact: '', is_default: false
   });
 
-  const indianStates = [
+  const countryCodes = [
+  '+1', '+7', '+20', '+27', '+30', '+31', '+32', '+33', '+34', '+36',
+  '+39', '+40', '+41', '+43', '+44', '+45', '+46', '+47', '+48', '+49',
+  '+51', '+52', '+53', '+54', '+55', '+56', '+57', '+58', '+60', '+61',
+  '+62', '+63', '+64', '+65', '+66', '+81', '+82', '+84', '+86', '+90',
+  '+91', '+92', '+93', '+94', '+95', '+96', '+97', '+98', '+212', '+213',
+  '+216', '+218', '+220', '+221', '+222', '+223', '+224', '+225', '+226',
+  '+227', '+228', '+229', '+230', '+231', '+232', '+233', '+234', '+235',
+  '+236', '+237', '+238', '+239', '+240', '+241', '+242', '+243', '+244',
+  '+245', '+246', '+247', '+248', '+249', '+250', '+251', '+252', '+253',
+  '+254', '+255', '+256', '+257', '+258', '+260', '+261', '+262', '+263',
+  '+264', '+265', '+266', '+267', '+268', '+269', '+290', '+291', '+297',
+  '+298', '+299', '+350', '+351', '+352', '+353', '+354', '+355', '+356',
+  '+357', '+358', '+359', '+370', '+371', '+372', '+373', '+374', '+375',
+  '+376', '+377', '+378', '+379', '+380', '+381', '+382', '+385', '+386',
+  '+387', '+389', '+420', '+421', '+423', '+500', '+501', '+502', '+503',
+  '+504', '+505', '+506', '+507', '+508', '+509', '+590', '+591', '+592',
+  '+593', '+594', '+595', '+596', '+597', '+598', '+599', '+670', '+672',
+  '+673', '+674', '+675', '+676', '+677', '+678', '+679', '+680', '+681',
+  '+682', '+683', '+685', '+686', '+687', '+688', '+689', '+690', '+691',
+  '+692', '+850', '+852', '+853', '+855', '+856', '+880', '+886', '+960',
+  '+961', '+962', '+963', '+964', '+965', '+966', '+967', '+968', '+970',
+  '+971', '+972', '+973', '+974', '+975', '+976', '+977', '+992', '+993',
+  '+994', '+995', '+996', '+998'
+];
+
+const indianStates = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
     'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
     'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
@@ -675,21 +737,21 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     queryClient.invalidateQueries({ queryKey: ['clientShipping', clientData.id] });
   };
 
-  const deleteClient = async () => {
+  const confirmDeleteClient = async () => {
     if (!editMode || !clientData?.id) return;
-    if (!confirm(`Are you certain you want to permanently delete the client "${formData.client_name}"? This operation cannot be reversed.`)) return;
-    setSaving(true);
+    setDeleting(true);
     try {
       const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['invoice-ui', 'clients', organisation?.id] });
       setIsDirty(false);
+      setShowDeleteModal(false);
       onCancel();
     } catch (err: any) {
       alert('Deletion Failed: ' + (err?.message || err));
     } finally {
-      setSaving(false);
+      setDeleting(false);
     }
   };
 
@@ -697,14 +759,38 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     if (e) e.preventDefault();
     if (saving) return;
     
-    if (!formData.client_name || formData.client_name.trim() === '') {
-      alert('The core identifier (Client Name) must be supplied.');
+    const phonePattern = /^[0-9\s\-\+\(\)]{6,20}$/;
+    const clientSchema = z.object({
+      client_name: z.string()
+        .min(1, 'Client Name is required')
+        .regex(/^[A-Za-z\s\&\'\-\.\,\(\)\[\]\/]+$/, 'Client Name must only contain letters and symbols'),
+      gstin: z.string().length(15, 'GSTIN must be exactly 15 characters').optional().or(z.literal('')),
+      contact_person_email: z.string().email('Invalid email in Primary Contact').optional().or(z.literal('')),
+      contact_person_2_email: z.string().email('Invalid email in Secondary Contact').optional().or(z.literal('')),
+      purchase_email: z.string().email('Invalid email in Purchase Contact').optional().or(z.literal('')),
+    });
+
+    const result = clientSchema.safeParse({
+      client_name: formData.client_name,
+      gstin: formData.gstin || '',
+      contact_person_email: formData.contact_person_email || '',
+      contact_person_2_email: formData.contact_person_2_email || '',
+      purchase_email: formData.purchase_email || '',
+    });
+
+    if (!result.success) {
+      const errs: Record<string, string> = {};
+      for (const issue of result.error.errors) {
+        const field = issue.path[0] as string;
+        if (!errs[field]) errs[field] = 'Enter proper email';
+      }
+      setValidationErrors(prev => ({ ...prev, ...errs }));
       return;
-    }
-    
-    if (formData.gstin && formData.gstin.length !== 15) {
-      alert('Enterprise GSTIN identifier requires strictly 15 characters.');
-      return;
+    } else {
+      setValidationErrors(prev => {
+        const { contact_person_email, contact_person_2_email, purchase_email, ...rest } = prev;
+        return rest;
+      });
     }
     
     setSaving(true);
@@ -764,10 +850,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         {/* Header Block & Navigation Row */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={onCancel as any}>
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
+            <button type="button"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+              onClick={onCancel as any}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+            ><ChevronLeft size={13} /> Back</button>
             <h1 className="text-lg font-semibold text-zinc-800">{editMode ? 'Edit Client' : 'New Client'}</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -785,17 +873,17 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         </div>
 
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="px-2 pb-8">
-            <TabsList className="h-14 w-full md:w-auto p-1.5 bg-zinc-200/60 rounded-2xl">
+          <div className="pb-6">
+            <TabsList className="h-9 p-0.5 bg-zinc-100 rounded-md">
               <TabsTrigger 
                  value="general" 
-                 className="rounded-xl h-full px-8 text-[14px] font-bold text-zinc-500 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-md transition-all duration-300"
+                 className="h-full px-4 text-[12px] font-medium text-zinc-500 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm rounded transition-all"
               >
                 General Info
               </TabsTrigger>
               <TabsTrigger 
                  value="pricing" 
-                 className="rounded-xl h-full px-8 text-[14px] font-bold text-zinc-500 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-md transition-all duration-300"
+                 className="h-full px-4 text-[12px] font-medium text-zinc-500 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm rounded transition-all"
               >
                 Discount Settings
               </TabsTrigger>
@@ -805,278 +893,446 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
           {/* ─── GENERAL TAB ─── */}
           <TabsContent value="general" className="mt-0 ring-0 outline-none">
             <form onSubmit={handleSubmit} className="relative">
-              <div className="border border-zinc-200 bg-white">
+              <div className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]">
                 
                 <div className="p-6 space-y-8">
                   
                   {/* Identity Block */}
                   <section>
-                    <SectionHeading>Client Information</SectionHeading>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ paddingLeft: '16px' }}>
-                      <FieldGroup label="Client Name" required>
-                        <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
-                      </FieldGroup>
-                      
-                      <FieldGroup label="Status">
-                         <div className="relative">
-                            <select className={selectCn} value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                    <div style={sectionHeadStyle}>Client Information</div>
+                    <div style={sectionBgStyle}>
+                      <div style={sectionGridStyle}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={headerFieldStyle}>
+                            <span style={labelStyle}>Type:</span>
+                            <div style={{ ...fieldColStyle, display: 'flex', gap: '4px' }}>
+                              <button type="button"
+                                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, border: '1px solid', cursor: 'pointer', transition: 'all 0.15s', background: formData.client_type === 'Business' ? '#185FA5' : '#fff', color: formData.client_type === 'Business' ? '#fff' : '#374151', borderColor: formData.client_type === 'Business' ? '#185FA5' : '#d1d5db' }}
+                                onClick={() => setFormData({ ...formData, client_type: 'Business' })}
+                              >Business</button>
+                              <button type="button"
+                                style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, border: '1px solid', cursor: 'pointer', transition: 'all 0.15s', background: formData.client_type === 'Individual' ? '#185FA5' : '#fff', color: formData.client_type === 'Individual' ? '#fff' : '#374151', borderColor: formData.client_type === 'Individual' ? '#185FA5' : '#d1d5db' }}
+                                onClick={() => setFormData({ ...formData, client_type: 'Individual' })}
+                              >Individual</button>
+                            </div>
+                          </div>
+                          {renderHeaderField('Client Name:', <input style={inputStyle} className="border border-zinc-200 w-full" value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />)}
+                          {renderHeaderField('GSTIN:', <input style={{ ...inputStyle, fontFamily: 'monospace' }} className="border border-zinc-200 w-full uppercase" value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GST Number" maxLength={15} />)}
+                          {renderHeaderField('Vendor Code:', <input style={inputStyle} className="border border-zinc-200 w-full" value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor Code" />)}
+                          {renderHeaderField('MSME No:', <input style={{ ...inputStyle, fontFamily: 'monospace' }} className="border border-zinc-200 w-full uppercase" value={val('msme_number')} onChange={set('msme_number')} placeholder="UDYAM/MSME Registration Number" />)}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {renderHeaderField('Status:', (
+                            <select style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                               <option value="Active">Active</option>
                               <option value="Prospect">Prospect</option>
                               <option value="Inactive">Inactive</option>
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
-                         </div>
-                      </FieldGroup>
-
-                      <FieldGroup label="GST Number" error={gstError}>
-                        <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GST Number" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
-                      </FieldGroup>
-
-                      <FieldGroup label="GST Treatment">
-                        <div className="relative">
-                           <select className={selectCn} value={val('gst_treatment') || ''} onChange={e => setFormData({ ...formData, gst_treatment: e.target.value })}>
-                             <option value="">Select GST Treatment</option>
-                             <option value="Registered Business Regular">Registered Business Regular - Standard GST registered business</option>
-                             <option value="Registered Business Composition">Registered Business Composition - Business under GST Composition Scheme</option>
-                             <option value="Unregistered Business">Unregistered Business - Not registered under GST</option>
-                             <option value="Consumer">Consumer - Regular end-consumer</option>
-                             <option value="Overseas">Overseas - Import/Export outside India</option>
-                             <option value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ) - Units located in an Indian SEZ</option>
-                             <option value="Deemed Export">Deemed Export - Supply to EOUs or against Advance Authorization</option>
-                             <option value="Tax Deductor">Tax Deductor - Government departments/local authorities</option>
-                             <option value="SEZ Developer">SEZ Developer - Owners of SEZ infrastructure</option>
-                             <option value="Input Service Distributor">Input Service Distributor - For distributing ITC across different branches</option>
-                           </select>
-                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                           </div>
+                          ))}
+                          {renderHeaderField('GST Treatment:', (
+                            <select style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('gst_treatment') || ''} onChange={e => setFormData({ ...formData, gst_treatment: e.target.value })}>
+                              <option value="">Select GST Treatment</option>
+                              <option value="Registered Business Regular">Registered Business Regular</option>
+                              <option value="Registered Business Composition">Registered Business Composition</option>
+                              <option value="Unregistered Business">Unregistered Business</option>
+                              <option value="Consumer">Consumer</option>
+                              <option value="Overseas">Overseas</option>
+                              <option value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ)</option>
+                              <option value="Deemed Export">Deemed Export</option>
+                              <option value="Tax Deductor">Tax Deductor</option>
+                              <option value="SEZ Developer">SEZ Developer</option>
+                              <option value="Input Service Distributor">Input Service Distributor</option>
+                            </select>
+                          ))}
+                          {renderHeaderField('MSME Type:', (
+                            <select style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('msme_register_type') || ''} onChange={e => setFormData({ ...formData, msme_register_type: e.target.value })}>
+                              <option value="">Select MSME Type</option>
+                              <option value="micro">Micro Enterprise</option>
+                              <option value="small">Small Enterprise</option>
+                              <option value="macro">Macro Enterprise</option>
+                            </select>
+                          ))}
                         </div>
-                      </FieldGroup>
-
-                      <FieldGroup label="Vendor Code">
-                        <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor Code" />
-                      </FieldGroup>
-
-                      <FieldGroup label="MSME Register Type">
-                        <div className="relative">
-                           <select className={selectCn} value={val('msme_register_type') || ''} onChange={e => setFormData({ ...formData, msme_register_type: e.target.value })}>
-                             <option value="">Select MSME Type</option>
-                             <option value="micro">Micro Enterprise</option>
-                             <option value="small">Small Enterprise</option>
-                             <option value="macro">Macro Enterprise</option>
-                           </select>
-                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                           </div>
-                        </div>
-                      </FieldGroup>
-
-                      <FieldGroup label="MSME Number">
-                        <CompactInput value={val('msme_number')} onChange={set('msme_number')} placeholder="UDYAM/MSME Registration Number" className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
-                      </FieldGroup>
+                      </div>
                     </div>
                   </section>
 
                   {/* Operational Nodes (Contacts) */}
-                  <section>
-                    <SectionHeading>
-                        Contact Information
-                    </SectionHeading>
-                    
-                    <div className="space-y-8">
-                      <div>
-                        <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Primary Contact</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginLeft: '7px', border: '1px solid #e2e8f0', paddingLeft: '16px', borderRadius: '8px' }}>
-                          <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Contact Person Name" />
-                          <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
-                          <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Phone number" />
-                          <CompactInput type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email address" />
+                  <div style={sectionHeadStyle}>Contact Information</div>
+                    <div style={sectionBgStyle}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={headerFieldStyle}>
+                          <span style={{ ...labelStyle, minWidth: '110px', maxWidth: '110px' }}>Primary Contact:</span>
+                          <div style={{ ...fieldColStyle, display: 'flex', gap: '8px' }}>
+                            <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" placeholder="Contact Person Name" value={val('contact_person')} onChange={set('contact_person')} />
+                            <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" placeholder="Designation" value={val('contact_designation')} onChange={set('contact_designation')} />
+                            <div className="country-code-container hover:border-zinc-400 focus-within:ring-2 focus-within:ring-[#185FA5]/20 focus-within:border-[#185FA5]" style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', position: 'relative' }}>
+                              <input style={{ ...inputStyle, border: 'none', outline: 'none', width: '75px', padding: '8px 4px 8px 8px', background: '#fff', cursor: 'pointer' }}
+                                value={isCountryCodeOpen && activeCountryField === 'primary' ? countryCodeSearchText : formData.contact_code || '+91'}
+                                onChange={e => { setCountryCodeSearchText(e.target.value); setIsCountryCodeOpen(true); setActiveCountryField('primary'); }}
+                                onFocus={() => { setIsCountryCodeOpen(true); setActiveCountryField('primary'); }}
+                                readOnly={!isCountryCodeOpen || activeCountryField !== 'primary'}
+                              />
+                              {isCountryCodeOpen && activeCountryField === 'primary' && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '180px', overflowY: 'auto', minWidth: '120px' }}>
+                                  {countryCodes.filter(c => !countryCodeSearchText || c.includes(countryCodeSearchText)).map(c => (
+                                    <div key={c} style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6' }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                                      onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                      onClick={() => { setFormData({ ...formData, contact_code: c }); setCountryCodeSearchText(''); setIsCountryCodeOpen(false); }}
+                                    >{c}</div>
+                                  ))}
+                                </div>
+                              )}
+                              <span style={{ borderLeft: '1px solid #e5e7eb', height: '20px', margin: 'auto 0' }}></span>
+                              <input style={{ ...inputStyle, border: 'none', outline: 'none', flex: 1, background: '#fff' }} placeholder="Phone" value={val('contact')} onChange={set('contact')} />
+                            </div>
+                            <div className={validationErrors.contact_person_email ? 'error-shake' : ''}>
+                              <input style={{ ...inputStyle, borderColor: validationErrors.contact_person_email ? '#e11d48' : undefined }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" type="email" placeholder="Email" value={val('contact_person_email')} onChange={e => { setFormData({ ...formData, contact_person_email: e.target.value }); setValidationErrors(prev => { const { contact_person_email, ...rest } = prev; return rest; }); }} />
+                              {validationErrors.contact_person_email && <div style={{ fontSize: '11px', color: '#e11d48', marginTop: '2px', lineHeight: 1.3 }}>Enter proper email</div>}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="border-t border-zinc-100"></div>
-
-                      <div>
-                        <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Secondary Contact</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginLeft: '7px', border: '1px solid #e2e8f0', paddingLeft: '16px', borderRadius: '8px' }}>
-                          <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Contact Person Name" />
-                          <CompactInput value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
-                          <CompactInput value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone Number" />
-                          <CompactInput type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Email Address" />
+                        <div style={headerFieldStyle}>
+                          <span style={{ ...labelStyle, minWidth: '110px', maxWidth: '110px' }}>Secondary Contact:</span>
+                          <div style={{ ...fieldColStyle, display: 'flex', gap: '8px' }}>
+                            <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" placeholder="Contact Person Name" value={val('contact_person_2')} onChange={set('contact_person_2')} />
+                            <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" placeholder="Designation" value={val('contact_designation_2')} onChange={set('contact_designation_2')} />
+                            <div className="country-code-container hover:border-zinc-400 focus-within:ring-2 focus-within:ring-[#185FA5]/20 focus-within:border-[#185FA5]" style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', position: 'relative' }}>
+                              <input style={{ ...inputStyle, border: 'none', outline: 'none', width: '75px', padding: '8px 4px 8px 8px', background: '#fff', cursor: 'pointer' }}
+                                value={isCountryCodeOpen && activeCountryField === 'secondary' ? countryCodeSearchText : formData.contact_person_2_contact_code || '+91'}
+                                onChange={e => { setCountryCodeSearchText(e.target.value); setIsCountryCodeOpen(true); setActiveCountryField('secondary'); }}
+                                onFocus={() => { setIsCountryCodeOpen(true); setActiveCountryField('secondary'); }}
+                                readOnly={!isCountryCodeOpen || activeCountryField !== 'secondary'}
+                              />
+                              {isCountryCodeOpen && activeCountryField === 'secondary' && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '180px', overflowY: 'auto', minWidth: '120px' }}>
+                                  {countryCodes.filter(c => !countryCodeSearchText || c.includes(countryCodeSearchText)).map(c => (
+                                    <div key={c} style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6' }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                                      onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                      onClick={() => { setFormData({ ...formData, contact_person_2_contact_code: c }); setCountryCodeSearchText(''); setIsCountryCodeOpen(false); }}
+                                    >{c}</div>
+                                  ))}
+                                </div>
+                              )}
+                              <span style={{ borderLeft: '1px solid #e5e7eb', height: '20px', margin: 'auto 0' }}></span>
+                              <input style={{ ...inputStyle, border: 'none', outline: 'none', flex: 1, background: '#fff' }} placeholder="Phone" value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} />
+                            </div>
+                            <div className={validationErrors.contact_person_2_email ? 'error-shake' : ''}>
+                              <input style={{ ...inputStyle, borderColor: validationErrors.contact_person_2_email ? '#e11d48' : undefined }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" type="email" placeholder="Email" value={val('contact_person_2_email')} onChange={e => { setFormData({ ...formData, contact_person_2_email: e.target.value }); setValidationErrors(prev => { const { contact_person_2_email, ...rest } = prev; return rest; }); }} />
+                              {validationErrors.contact_person_2_email && <div style={{ fontSize: '11px', color: '#e11d48', marginTop: '2px', lineHeight: 1.3 }}>Enter proper email</div>}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="border-t border-zinc-100"></div>
-
-                      <div>
-                        <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Purchase Contact</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginLeft: '7px', border: '1px solid #e2e8f0', paddingLeft: '16px', borderRadius: '8px' }}>
-                          <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Contact Person Name" />
-                          <CompactInput value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
-                          <CompactInput value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone Number" />
-                          <CompactInput type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Email Address" />
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Physical Domains */}
-                  <section>
-<SectionHeading>Address Details</SectionHeading>
-
-                    <div className="grid grid-cols-1 max-w-4xl gap-8" style={{ paddingLeft: '16px' }}>
-                      {/* Billing Address */}
-                      <div className="rounded-xl border border-zinc-200 p-6">
-                        <h4 className="text-[15px] font-semibold text-zinc-900 mb-4">Billing Address</h4>
-                        <div className="space-y-4">
-                          <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
-                          <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FieldGroup label="State">
-                               <div className="relative">
-                                  <select className={selectCn} value={val('state')} onChange={e => setFormData({ ...formData, state: e.target.value })}>
-                                    <option value="">Select State</option>
-                                    {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                                  </select>
-                                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                                  </div>
-                               </div>
-                            </FieldGroup>
-                            <FieldGroup label="City">
-                              <CompactInput value={val('city')} onChange={set('city')} placeholder="City" />
-                            </FieldGroup>
-                            <FieldGroup label="PIN Code">
-                              <CompactInput value={val('pincode')} onChange={set('pincode')} placeholder="PIN Code" className="font-mono" />
-                            </FieldGroup>
+                        <div style={headerFieldStyle}>
+                          <span style={{ ...labelStyle, minWidth: '110px', maxWidth: '110px' }}>Purchase Contact:</span>
+                          <div style={{ ...fieldColStyle, display: 'flex', gap: '8px' }}>
+                            <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" placeholder="Contact Person Name" value={val('purchase_person')} onChange={set('purchase_person')} />
+                            <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" placeholder="Designation" value={val('purchase_designation')} onChange={set('purchase_designation')} />
+                            <div className="country-code-container hover:border-zinc-400 focus-within:ring-2 focus-within:ring-[#185FA5]/20 focus-within:border-[#185FA5]" style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', position: 'relative' }}>
+                              <input style={{ ...inputStyle, border: 'none', outline: 'none', width: '75px', padding: '8px 4px 8px 8px', background: '#fff', cursor: 'pointer' }}
+                                value={isCountryCodeOpen && activeCountryField === 'purchase' ? countryCodeSearchText : formData.purchase_contact_code || '+91'}
+                                onChange={e => { setCountryCodeSearchText(e.target.value); setIsCountryCodeOpen(true); setActiveCountryField('purchase'); }}
+                                onFocus={() => { setIsCountryCodeOpen(true); setActiveCountryField('purchase'); }}
+                                readOnly={!isCountryCodeOpen || activeCountryField !== 'purchase'}
+                              />
+                              {isCountryCodeOpen && activeCountryField === 'purchase' && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '180px', overflowY: 'auto', minWidth: '120px' }}>
+                                  {countryCodes.filter(c => !countryCodeSearchText || c.includes(countryCodeSearchText)).map(c => (
+                                    <div key={c} style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6' }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                                      onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                      onClick={() => { setFormData({ ...formData, purchase_contact_code: c }); setCountryCodeSearchText(''); setIsCountryCodeOpen(false); }}
+                                    >{c}</div>
+                                  ))}
+                                </div>
+                              )}
+                              <span style={{ borderLeft: '1px solid #e5e7eb', height: '20px', margin: 'auto 0' }}></span>
+                              <input style={{ ...inputStyle, border: 'none', outline: 'none', flex: 1, background: '#fff' }} placeholder="Phone" value={val('purchase_contact')} onChange={set('purchase_contact')} />
+                            </div>
+                            <div className={validationErrors.purchase_email ? 'error-shake' : ''}>
+                              <input style={{ ...inputStyle, borderColor: validationErrors.purchase_email ? '#e11d48' : undefined }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" type="email" placeholder="Email" value={val('purchase_email')} onChange={e => { setFormData({ ...formData, purchase_email: e.target.value }); setValidationErrors(prev => { const { purchase_email, ...rest } = prev; return rest; }); }} />
+                              {validationErrors.purchase_email && <div style={{ fontSize: '11px', color: '#e11d48', marginTop: '2px', lineHeight: 1.3 }}>Enter proper email</div>}
+                            </div>
                           </div>
                         </div>
                       </div>
-
-                      {/* Shipping Addresses */}
-                      <div>
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-[15px] font-semibold text-zinc-900">Shipping Addresses</h4>
-                          {shippingAddresses.length > 0 && (
-                            <Button type="button" variant="ghost" size="sm" onClick={copyBillingToShipping} className="text-indigo-600 font-semibold hover:bg-indigo-50">
-                               <Copy className="w-4 h-4 mr-2" /> Copy from Billing
-                            </Button>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-4">
-                          {shippingAddresses.map((addr: any) => (
-                            <div key={addr.id} className="group flex items-start justify-between gap-4 rounded-2xl border border-zinc-200/80 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-md">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-3 text-[15px] font-bold text-zinc-800 mb-1.5">
-                                  <span className="truncate">{addr.address_name || 'Unnamed Address'}</span>
-                                  {addr.is_default && <Badge variant="default" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200">Default</Badge>}
-                                </div>
-                                <p className="text-[14px] font-medium text-zinc-600 line-clamp-2 md:line-clamp-none">{addr.address_line1} {addr.address_line2}</p>
-                                <p className="text-[14px] text-zinc-500 mt-0.5">{addr.city}, {addr.state} • {addr.pincode}</p>
-                              </div>
-                              <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="shrink-0 rounded-xl p-2.5 text-zinc-300 transition-colors hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-4 focus:ring-rose-500/20">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
-
-                          {showShippingForm && (
-                            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-6 space-y-6 slide-in-from-top-2 animate-in duration-300">
-                              <div className="flex items-center gap-2 text-indigo-700">
-                                 <Truck className="w-4 h-4" />
-                                 <p className="text-[13px] font-bold uppercase tracking-widest">Provision New Line</p>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FieldGroup label="Address Name">
-                                    <CompactInput value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" className="bg-white/60" />
-                                </FieldGroup>
-                                <FieldGroup label="Contact Phone">
-                                    <CompactInput value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact Phone" className="bg-white/60" />
-                                </FieldGroup>
-                              </div>
-                              
-                              <div className="space-y-4">
-                                <CompactInput value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" className="bg-white/60" />
-                                <CompactInput value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" className="bg-white/60" />
-                              </div>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <FieldGroup label="State">
-                                   <div className="relative">
-                                      <select className={cn(selectCn, "bg-white/60")} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
-                                        <option value="">Select State</option>
-                                        {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                                      </select>
-                                      <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-zinc-400">
-                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                                      </div>
-                                   </div>
-                                </FieldGroup>
-                                <FieldGroup label="City">
-                                    <CompactInput value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" className="bg-white/60" />
-                                </FieldGroup>
-                                <FieldGroup label="Routing Code">
-                                    <CompactInput value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" className="bg-white/60 font-mono" />
-                                </FieldGroup>
-                              </div>
-                              
-                              <div className="flex gap-3 pt-2">
-                                <Button type="button" className="h-11 rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={addShippingAddress}>Add Shipping Address</Button>
-                                <Button type="button" variant="secondary" className="h-11 rounded-xl px-6" onClick={() => setShowShippingForm(false)}>Cancel</Button>
-                              </div>
+                    </div>
+                  <div style={sectionHeadStyle}>Address Details</div>
+                  <div style={sectionBgStyle}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {renderHeaderField('Address Line 1:', <input style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />)}
+                      {renderHeaderField('Address Line 2:', <input style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />)}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={labelStyle}>State:</span>
+                        <div className="state-dropdown-container" style={{ flex: 1, position: 'relative' }}>
+                          <input
+                            style={inputStyle}
+                            className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]"
+                            value={isStateDropdownOpen ? stateSearchText : (val('state') || '')}
+                            onChange={e => { setStateSearchText(e.target.value); setIsStateDropdownOpen(true); }}
+                            onFocus={() => setIsStateDropdownOpen(true)}
+                            placeholder="Search state..."
+                          />
+                          {isStateDropdownOpen && (
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0,
+                              zIndex: 50, background: 'white', border: '1px solid #d1d5db',
+                              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                              maxHeight: '200px', overflowY: 'auto'
+                            }}>
+                              {indianStates
+                                .filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase()))
+                                .map(s => (
+                                  <div key={s} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                                    onClick={() => { setFormData({ ...formData, state: s }); setStateSearchText(''); setIsStateDropdownOpen(false); }}
+                                  >{s}</div>
+                                ))}
+                              {indianStates.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).length === 0 && (
+                                <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No states found</div>
+                              )}
                             </div>
                           )}
-
-                          {!showShippingForm && shippingAddresses.length === 0 && (
-                            <button
-                              type="button"
-                              className="w-full rounded-2xl border-2 border-dashed border-zinc-200 py-10 text-[14px] font-bold tracking-wide text-zinc-400 transition-all hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20"
-                              onClick={() => {
-                                 copyBillingToShipping();
-                                 setShowShippingForm(true);
-                              }}
-                            >
-                              <span className="flex items-center justify-center gap-2">
-                                <Plus className="w-5 h-5 pointer-events-none" />
-                                Add Shipping Address
-                              </span>
-                            </button>
-                          )}
-                          {!showShippingForm && shippingAddresses.length > 0 && (
-                            <button
-                              type="button"
-                              className="w-full rounded-2xl border border-zinc-200/80 bg-zinc-50/50 py-5 text-[14px] font-bold tracking-wide text-zinc-500 transition-all hover:border-zinc-300 hover:text-zinc-800 hover:bg-zinc-100"
-                              onClick={() => {
-                                 setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '', is_default: false });
-                                 setShowShippingForm(true);
-                              }}
-                            >
-                              <span className="flex items-center justify-center gap-2">
-                                <Plus className="w-4 h-4" /> Add More Shipping Address
-                              </span>
-                            </button>
-                          )}
                         </div>
+                        <span style={{ ...labelStyle, minWidth: '45px', maxWidth: '45px' }}>City:</span>
+                        <input style={{ ...inputStyle, width: '160px' }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('city')} onChange={set('city')} placeholder="City" />
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={labelStyle}>PIN:</span>
+                        <input style={{ ...inputStyle, width: '140px', fontFamily: 'monospace' }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('pincode')} onChange={set('pincode')} placeholder="PIN Code" />
+                        <span style={{ ...labelStyle, minWidth: '55px', maxWidth: '55px' }}>Country:</span>
+                        <select style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={val('country') || 'India'} onChange={e => setFormData({ ...formData, country: e.target.value })}>
+                          <option value="India">India</option>
+                          <option value="Afghanistan">Afghanistan</option>
+                          <option value="Albania">Albania</option>
+                          <option value="Algeria">Algeria</option>
+                          <option value="Angola">Angola</option>
+                          <option value="Argentina">Argentina</option>
+                          <option value="Armenia">Armenia</option>
+                          <option value="Australia">Australia</option>
+                          <option value="Austria">Austria</option>
+                          <option value="Azerbaijan">Azerbaijan</option>
+                          <option value="Bahrain">Bahrain</option>
+                          <option value="Bangladesh">Bangladesh</option>
+                          <option value="Belarus">Belarus</option>
+                          <option value="Belgium">Belgium</option>
+                          <option value="Bhutan">Bhutan</option>
+                          <option value="Botswana">Botswana</option>
+                          <option value="Brazil">Brazil</option>
+                          <option value="Brunei">Brunei</option>
+                          <option value="Bulgaria">Bulgaria</option>
+                          <option value="Cambodia">Cambodia</option>
+                          <option value="Cameroon">Cameroon</option>
+                          <option value="Canada">Canada</option>
+                          <option value="Chile">Chile</option>
+                          <option value="China">China</option>
+                          <option value="Colombia">Colombia</option>
+                          <option value="Croatia">Croatia</option>
+                          <option value="Cyprus">Cyprus</option>
+                          <option value="Czech Republic">Czech Republic</option>
+                          <option value="Denmark">Denmark</option>
+                          <option value="Egypt">Egypt</option>
+                          <option value="Estonia">Estonia</option>
+                          <option value="Ethiopia">Ethiopia</option>
+                          <option value="Finland">Finland</option>
+                          <option value="France">France</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Germany">Germany</option>
+                          <option value="Ghana">Ghana</option>
+                          <option value="Greece">Greece</option>
+                          <option value="Hong Kong">Hong Kong</option>
+                          <option value="Hungary">Hungary</option>
+                          <option value="Iceland">Iceland</option>
+                          <option value="Indonesia">Indonesia</option>
+                          <option value="Iran">Iran</option>
+                          <option value="Iraq">Iraq</option>
+                          <option value="Ireland">Ireland</option>
+                          <option value="Israel">Israel</option>
+                          <option value="Italy">Italy</option>
+                          <option value="Japan">Japan</option>
+                          <option value="Jordan">Jordan</option>
+                          <option value="Kazakhstan">Kazakhstan</option>
+                          <option value="Kenya">Kenya</option>
+                          <option value="Kuwait">Kuwait</option>
+                          <option value="Kyrgyzstan">Kyrgyzstan</option>
+                          <option value="Laos">Laos</option>
+                          <option value="Latvia">Latvia</option>
+                          <option value="Lebanon">Lebanon</option>
+                          <option value="Libya">Libya</option>
+                          <option value="Lithuania">Lithuania</option>
+                          <option value="Luxembourg">Luxembourg</option>
+                          <option value="Malaysia">Malaysia</option>
+                          <option value="Maldives">Maldives</option>
+                          <option value="Mali">Mali</option>
+                          <option value="Malta">Malta</option>
+                          <option value="Mauritius">Mauritius</option>
+                          <option value="Mexico">Mexico</option>
+                          <option value="Moldova">Moldova</option>
+                          <option value="Monaco">Monaco</option>
+                          <option value="Mongolia">Mongolia</option>
+                          <option value="Morocco">Morocco</option>
+                          <option value="Myanmar">Myanmar</option>
+                          <option value="Namibia">Namibia</option>
+                          <option value="Nepal">Nepal</option>
+                          <option value="Netherlands">Netherlands</option>
+                          <option value="New Zealand">New Zealand</option>
+                          <option value="Nigeria">Nigeria</option>
+                          <option value="North Korea">North Korea</option>
+                          <option value="Norway">Norway</option>
+                          <option value="Oman">Oman</option>
+                          <option value="Pakistan">Pakistan</option>
+                          <option value="Palestine">Palestine</option>
+                          <option value="Peru">Peru</option>
+                          <option value="Philippines">Philippines</option>
+                          <option value="Poland">Poland</option>
+                          <option value="Portugal">Portugal</option>
+                          <option value="Qatar">Qatar</option>
+                          <option value="Romania">Romania</option>
+                          <option value="Russia">Russia</option>
+                          <option value="Saudi Arabia">Saudi Arabia</option>
+                          <option value="Serbia">Serbia</option>
+                          <option value="Singapore">Singapore</option>
+                          <option value="Slovakia">Slovakia</option>
+                          <option value="Slovenia">Slovenia</option>
+                          <option value="Somalia">Somalia</option>
+                          <option value="South Africa">South Africa</option>
+                          <option value="South Korea">South Korea</option>
+                          <option value="Spain">Spain</option>
+                          <option value="Sudan">Sudan</option>
+                          <option value="Sweden">Sweden</option>
+                          <option value="Switzerland">Switzerland</option>
+                          <option value="Syria">Syria</option>
+                          <option value="Taiwan">Taiwan</option>
+                          <option value="Tajikistan">Tajikistan</option>
+                          <option value="Tanzania">Tanzania</option>
+                          <option value="Thailand">Thailand</option>
+                          <option value="Tunisia">Tunisia</option>
+                          <option value="Turkey">Turkey</option>
+                          <option value="Turkmenistan">Turkmenistan</option>
+                          <option value="Uganda">Uganda</option>
+                          <option value="Ukraine">Ukraine</option>
+                          <option value="United Arab Emirates">United Arab Emirates</option>
+                          <option value="United Kingdom">United Kingdom</option>
+                          <option value="United States">United States</option>
+                          <option value="Uzbekistan">Uzbekistan</option>
+                          <option value="Vietnam">Vietnam</option>
+                          <option value="Yemen">Yemen</option>
+                          <option value="Zimbabwe">Zimbabwe</option>
+                        </select>
                       </div>
                     </div>
-                  </section>
+                  </div>
+                  <div style={{ ...sectionHeadStyle, marginTop: '24px' }}>Shipping Addresses</div>
+                  <div style={sectionBgStyle}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginBottom: '4px' }}>
+                        {shippingAddresses.length > 0 && (
+                          <button type="button"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
+                            onClick={copyBillingToShipping}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                          ><Copy size={12} /> Copy from Billing</button>
+                        )}
+                      </div>
+                      {shippingAddresses.map((addr: any) => (
+                        <div key={addr.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '12px', color: '#1f2937', marginBottom: '2px' }}>
+                              <span>{addr.address_name || 'Unnamed Address'}</span>
+                              {addr.is_default && <span style={{ fontSize: '10px', background: '#d1fae5', color: '#065f46', padding: '1px 6px', borderRadius: '3px', fontWeight: 600 }}>Default</span>}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#6b7280' }}>{addr.address_line1} {addr.address_line2}</div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af' }}>{addr.city}, {addr.state} &bull; {addr.pincode}</div>
+                          </div>
+                          <button type="button" onClick={() => deleteShippingAddress(addr.id)}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', border: 'none', background: 'transparent', color: '#9ca3af', borderRadius: '4px', cursor: 'pointer', flexShrink: 0 }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#e11d48'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9ca3af'; }}
+                          ><Trash2 size={14} /></button>
+                        </div>
+                      ))}
 
-                  {/* Operational Notes */}
-                  <section>
-<SectionHeading>Notes</SectionHeading>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl" style={{ paddingLeft: '16px' }}>
-                      <FieldGroup label="Internal Remarks">
-                        <CompactTextarea rows={4} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
-                      </FieldGroup>
-                      <FieldGroup label="Client Notes">
-                        <CompactTextarea rows={4} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Client notes..." />
-                      </FieldGroup>
+                      {showShippingForm && (
+                        <div style={{ padding: '12px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                            <Truck size={13} style={{ color: '#6b7280' }} />
+                            <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280' }}>New Shipping Address</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <input style={{ ...inputStyle, flex: 1 }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: e.target.value })} placeholder="Address Name" />
+                              <input style={{ ...inputStyle, flex: 1 }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: e.target.value })} placeholder="Contact Phone" />
+                            </div>
+                            <button type="button"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', border: '1px dashed #185FA5', background: '#eff6ff', color: '#185FA5', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }}
+                              onClick={copyBillingToShipping}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; }}
+                            ><Copy size={12} /> Copy Billing Address</button>
+                            <input style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: e.target.value })} placeholder="Address Line 1" />
+                            <input style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: e.target.value })} placeholder="Address Line 2" />
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <select style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
+                                <option value="">Select State</option>
+                                {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                              </select>
+                              <input style={inputStyle} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: e.target.value })} placeholder="City" />
+                              <input style={{ ...inputStyle, fontFamily: 'monospace' }} className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]" value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: e.target.value })} placeholder="Pincode" />
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                              <button type="button"
+                                style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                                onClick={addShippingAddress}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+                              >Add Address</button>
+                              <button type="button"
+                                style={{ padding: '6px 14px', background: '#fff', border: '1px solid #d1d5db', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                                onClick={() => setShowShippingForm(false)}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+                              >Cancel</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!showShippingForm && shippingAddresses.length === 0 && (
+                        <button type="button"
+                          style={{ padding: '24px', border: '2px dashed #d1d5db', borderRadius: '6px', background: 'transparent', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          onClick={() => { copyBillingToShipping(); setShowShippingForm(true); }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.color = '#185FA5'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#9ca3af'; }}
+                        ><Plus size={14} /> Add Shipping Address</button>
+                      )}
+                      {!showShippingForm && shippingAddresses.length > 0 && (
+                        <button type="button"
+                          style={{ padding: '12px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#f9fafb', cursor: 'pointer', fontSize: '12px', fontWeight: 500, color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          onClick={() => { setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '', is_default: false }); setShowShippingForm(true); }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#374151'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.color = '#6b7280'; }}
+                        ><Plus size={13} /> Add More Shipping Address</button>
+                      )}
                     </div>
-                  </section>
+                  </div>
+
+                  <div style={{ ...sectionHeadStyle, marginTop: '24px' }}>Notes</div>
+                  <div style={sectionBgStyle}>
+                    <div style={sectionGridStyle}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={labelStyle}>Internal Remarks</span>
+                        <CompactTextarea rows={4} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={labelStyle}>Client Notes</span>
+                        <CompactTextarea rows={4} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Client notes..." />
+                      </div>
+                    </div>
+                  </div>
 
                 </div>
 
@@ -1097,7 +1353,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     >Cancel</button>
                     {editMode && (
                       <button type="button" style={{...destructiveBtn, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1}}
-                        onClick={deleteClient} disabled={saving}
+                        onClick={() => setShowDeleteModal(true)} disabled={saving}
                         onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
                         onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
                       ><Trash2 size={13} /> Delete Client</button>
@@ -1116,14 +1372,49 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
           {/* ─── PRICING TAB ─── */}
 <TabsContent value="pricing" className="mt-0 ring-0 outline-none">
-<div className="rounded-xl border border-zinc-200 bg-white">
-                <div className="p-6">
+              <div className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5]">
+                <div style={{ padding: '24px' }}>
                   <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} organisation={organisation} />
                 </div>                
               </div>
             </TabsContent>
           
         </Tabs>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}
+            onClick={() => { if (!deleting) setShowDeleteModal(false); }}>
+            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 style={{ width: '20px', height: '20px', color: '#e11d48' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#18181b', margin: 0 }}>Delete Client</h3>
+                </div>
+              </div>
+              <p style={{ fontSize: '13px', color: '#52525b', lineHeight: '18px', margin: '0 0 20px 0' }}>
+                Are you sure you want to permanently delete <strong>{formData.client_name}</strong>? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button"
+                  style={{ height: '36px', padding: '0 16px', border: '1px solid #e4e4e7', background: 'white', color: '#52525b', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                >Cancel</button>
+                <button type="button"
+                  style={{ height: '36px', padding: '0 16px', border: 'none', background: '#e11d48', color: 'white', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={confirmDeleteClient}
+                  disabled={deleting}
+                  onMouseEnter={e => { if (!deleting) e.currentTarget.style.background = '#be123c'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#e11d48'; }}
+                >{deleting ? <><span className="animate-spin" style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block' }}></span> Deleting...</> : 'Delete'}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
