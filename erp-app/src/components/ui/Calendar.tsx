@@ -15,7 +15,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { colors, radii, shadows, transitions } from '../../design-system';
-import { IconButton } from './Button';
+import { IconButton } from './button';
 
 interface CalendarProps {
   currentMonth: Date;

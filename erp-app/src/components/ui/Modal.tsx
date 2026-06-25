@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { IconButton } from './Button';
+import { IconButton } from './button';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
