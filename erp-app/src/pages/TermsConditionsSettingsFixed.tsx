@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Plus, Edit, Trash2, Save, X, Search, Filter, Settings, ChevronDown, ChevronUp, Copy, Eye, EyeOff, MoreHorizontal, GripVertical } from 'lucide-react';
@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 
 interface TermsSection {
   id: string;
@@ -629,7 +629,7 @@ export const TermsConditionsSettings: React.FC = () => {
                                 <div key={item.id} className="flex items-center space-x-3 p-3 bg-accent/30 rounded-lg">
                                   <GripVertical className="w-4 h-4 text-muted-foreground" />
                                   <span className="text-sm font-mono text-muted-foreground w-6">
-                                    {item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`}
+                                    {item.item_type === 'bullet' ? 'â€¢' : `${itemIndex + 1}.`}
                                   </span>
                                   <Input
                                     value={item.content}
@@ -661,7 +661,7 @@ export const TermsConditionsSettings: React.FC = () => {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="bullet">•</SelectItem>
+                                        <SelectItem value="bullet">â€¢</SelectItem>
                                         <SelectItem value="number">1.</SelectItem>
                                         <SelectItem value="text">Text</SelectItem>
                                       </SelectContent>

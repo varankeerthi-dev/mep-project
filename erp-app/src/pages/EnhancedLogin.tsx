@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Label } from '@/components/ui/Label';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 export default function EnhancedLogin() {
   const navigate = useNavigate();
