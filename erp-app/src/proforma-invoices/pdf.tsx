@@ -19,7 +19,7 @@ type ProformaLike = ProformaWithRelations | string;
 async function getOrganisationDetails(organisationId: string): Promise<ProformaPdfCompany | null> {
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details, signatures')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, signatures')
     .eq('id', organisationId)
     .single();
 
@@ -75,6 +75,8 @@ async function buildProformaPdfData(
   const organisationId = options.organisationId;
   const company = options.company ?? (organisationId ? await getOrganisationDetails(organisationId) : null);
   const template = options.template ?? (organisationId && proforma.template_id ? await getProformaTemplateById(proforma.template_id, organisationId) : null);
+  const isReviewCopy = options.isReviewCopy ?? proforma.render_as_tax_invoice ?? false;
+  const showWatermark = options.showWatermark ?? false;
 
   let authorizedSignatory = null;
   if (proforma.authorized_signatory_id && company?.signatures) {
@@ -90,6 +92,8 @@ async function buildProformaPdfData(
     proforma: proformaWithSignatory,
     company,
     template,
+    isReviewCopy,
+    showWatermark,
   };
 }
 
@@ -100,6 +104,8 @@ export async function generateProformaPdf(
   const resolvedProforma = await resolveProforma(proforma, options.organisationId);
   const template = options.template ?? (options.organisationId && resolvedProforma.template_id ? await getProformaTemplateById(resolvedProforma.template_id, options.organisationId) : null);
   const company = options.company ?? (options.organisationId ? await getOrganisationDetails(options.organisationId) : null);
+  const isReviewCopy = options.isReviewCopy ?? resolvedProforma.render_as_tax_invoice ?? false;
+  const showWatermark = options.showWatermark ?? false;
 
   // Use Classic Proforma Template if selected
   if (template?.template_code === 'PI_CLASSIC') {
@@ -109,7 +115,9 @@ export async function generateProformaPdf(
     }
     const proformaWithSignatory = {
       ...resolvedProforma,
-      authorized_signatory: authorizedSignatory
+      authorized_signatory: authorizedSignatory,
+      isReviewCopy,
+      showWatermark,
     };
     const doc = generateProGridProformaPdf(proformaWithSignatory as any, company as any, template);
     return doc.output('blob') as Blob;
@@ -117,12 +125,12 @@ export async function generateProformaPdf(
 
   // Use Vertical Template if selected
   if (template?.column_settings?.print?.style === 'vertical') {
-    return await generateVerticalProformaPdf(resolvedProforma, template, company);
+    return await generateVerticalProformaPdf(resolvedProforma, template, company, isReviewCopy, showWatermark);
   }
 
   // Default to React-PDF document
   ensurePdfFontsRegistered();
-  const data = await buildProformaPdfData(resolvedProforma, { ...options, template });
+  const data = await buildProformaPdfData(resolvedProforma, { ...options, template, isReviewCopy, showWatermark });
   const doc = <ProformaPdfDocument data={data} />;
   const pdfBlob = await pdf(doc).toBlob();
 
@@ -132,7 +140,9 @@ export async function generateProformaPdf(
 async function generateVerticalProformaPdf(
   proforma: ProformaWithRelations,
   template: any,
-  company: ProformaPdfCompany | null
+  company: ProformaPdfCompany | null,
+  isReviewCopy?: boolean,
+  showWatermark?: boolean,
 ): Promise<Blob> {
   const container = document.createElement('div');
   container.style.position = 'fixed';
@@ -149,7 +159,7 @@ async function generateVerticalProformaPdf(
 
   const root = createRoot(container);
   try {
-    const proformaData = buildProformaVerticalData(proforma);
+    const proformaData = buildProformaVerticalData(proforma, isReviewCopy, showWatermark);
     flushSync(() => {
       root.render(<VerticalTemplate data={proformaData} organisation={company} templateConfig={template.column_settings} />);
     });
@@ -161,11 +171,17 @@ async function generateVerticalProformaPdf(
   }
 }
 
-function buildProformaVerticalData(proforma: ProformaWithRelations) {
+function buildProformaVerticalData(
+  proforma: ProformaWithRelations,
+  isReviewCopy?: boolean,
+  showWatermark?: boolean,
+) {
   const totalTax = (proforma.cgst || 0) + (proforma.sgst || 0) + (proforma.igst || 0);
   return {
     ...proforma,
-    document_type: 'Proforma Invoice',
+    isReviewCopy,
+    showWatermark,
+    document_type: isReviewCopy ? 'TAX INVOICE' : 'Proforma Invoice',
     items: (proforma.items || []).map((item: any, idx: number) => ({
       sno: idx + 1,
       item: item.item_name || item.description,
@@ -201,9 +217,14 @@ export async function downloadProformaPdf(
   proforma: ProformaLike,
   options: ProformaPdfOptions = {},
 ): Promise<void> {
-  const pdfBlob = await generateProformaPdf(proforma, options);
   const resolvedProforma = await resolveProforma(proforma, options.organisationId);
-  const fileName = options.fileName || `Proforma-${resolvedProforma.pi_number || resolvedProforma.id}.pdf`;
+  const isReviewCopy = options.isReviewCopy ?? resolvedProforma.render_as_tax_invoice ?? false;
+  const showWatermark = options.showWatermark ?? false;
+
+  const pdfBlob = await generateProformaPdf(resolvedProforma, { ...options, isReviewCopy, showWatermark });
+  const fileName = options.fileName || (isReviewCopy
+    ? `Tax-Invoice-Review-${resolvedProforma.pi_number || resolvedProforma.id}.pdf`
+    : `Proforma-${resolvedProforma.pi_number || resolvedProforma.id}.pdf`);
 
   const url = URL.createObjectURL(pdfBlob);
   const link = document.createElement('a');
@@ -229,10 +250,13 @@ export async function emailProformaInvoice(
   clientEmail: string,
   subject?: string,
   message?: string,
+  options: ProformaPdfOptions = {},
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const proforma = await getProformaById(proformaId, organisationId);
-    const pdfBlob = await generateProformaPdf(proforma, { organisationId });
+    const isReviewCopy = options.isReviewCopy ?? proforma.render_as_tax_invoice ?? false;
+    const showWatermark = options.showWatermark ?? false;
+    const pdfBlob = await generateProformaPdf(proforma, { ...options, organisationId, isReviewCopy, showWatermark });
     
     // Convert blob to base64 for email attachment
     const reader = new FileReader();
@@ -246,7 +270,9 @@ export async function emailProformaInvoice(
     });
     const base64Pdf = await base64Promise;
 
-    const emailSubject = subject || `Proforma Invoice ${proforma.pi_number || proforma.id}`;
+    const emailSubject = subject || (isReviewCopy
+      ? `Tax Invoice (Review Copy) ${proforma.pi_number || proforma.id}`
+      : `Proforma Invoice ${proforma.pi_number || proforma.id}`);
     const emailBody = message || `Please find attached the proforma invoice for your review.`;
 
     // Using mailto as fallback - in production, this should use a proper email service

@@ -23,7 +23,10 @@ export function generateProGridProformaPdf(data: Record<string, unknown>, organi
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   drawProDoubleFrame(doc);
 
-  const documentTitle = 'Proforma Invoice';
+  const isReviewCopy = !!(data.isReviewCopy || data.render_as_tax_invoice);
+  const showWatermark = !!data.showWatermark;
+
+  const documentTitle = isReviewCopy ? 'Tax Invoice' : 'Proforma Invoice';
   const themeHex = (organisation.theme_color as string) || '#0f172a';
   const headerLabels =
     (templateSettings as { column_settings?: { header_labels?: Record<string, string> } })?.column_settings?.header_labels || {};
@@ -31,13 +34,14 @@ export function generateProGridProformaPdf(data: Record<string, unknown>, organi
   let y = renderProOrgBanner(doc, organisation, {
     documentTitle,
     themeHex,
+    tagline: isReviewCopy ? '(REVIEW COPY)' : undefined,
   });
 
-  const docNo = String(data.pi_number || '—');
-  const docDate = String(data.created_at || data.date || '—');
+  const docNo = isReviewCopy ? '' : String(data.pi_number || '—');
+  const docDate = isReviewCopy ? '' : String(data.created_at || data.date || '—');
   const hl = {
-    document_no: (headerLabels.document_no as string) || 'Proforma No.',
-    document_date: (headerLabels.document_date as string) || 'Date',
+    document_no: isReviewCopy ? 'Invoice No.' : ((headerLabels.document_no as string) || 'Proforma No.'),
+    document_date: isReviewCopy ? 'Invoice Date' : ((headerLabels.document_date as string) || 'Date'),
     po_no: (headerLabels.po_no as string) || 'PO No.',
     po_date: (headerLabels.po_date as string) || 'PO Date',
     valid_till: (headerLabels.valid_till as string) || 'Valid Till',
@@ -52,10 +56,10 @@ export function generateProGridProformaPdf(data: Record<string, unknown>, organi
     [
       [hl.document_no, docNo, hl.document_date, docDate],
       [hl.po_no, String(data.po_number || '—'), hl.po_date, String(data.po_date || '—')],
-      [hl.valid_till, String(data.valid_until || '—'), hl.payment, String(data.payment_terms || '—')],
+      [hl.valid_till, isReviewCopy ? '' : String(data.valid_until || '—'), hl.payment, String(data.payment_terms || '—')],
       [hl.remarks, String(data.notes || '—'), hl.eway_bill, String(data.eway_bill || '—')],
     ],
-    { title: 'Document details' },
+    { title: isReviewCopy ? 'Tax Invoice Info' : 'Document details' },
   );
 
   const client = (data.client as Record<string, string>) || {};
@@ -174,7 +178,29 @@ export function generateProGridProformaPdf(data: Record<string, unknown>, organi
   doc.setTextColor(71, 85, 105);
   doc.text(String(sign.name || 'Authorised Signatory'), signX, y + 22, { align: 'center' });
 
-  appendProFooterNote(doc, 'Computer-generated document. Valid subject to terms printed overleaf where applicable.');
+  if (isReviewCopy) {
+    appendProFooterNote(doc, 'This is a review copy of the Tax Invoice. The official Tax Invoice with invoice number and date will be issued upon final confirmation.');
+  } else {
+    appendProFooterNote(doc, 'Computer-generated document. Valid subject to terms printed overleaf where applicable.');
+  }
+
+  if (showWatermark) {
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setTextColor(220, 220, 220); // Very light gray for watermark
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(70);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      // Draw watermark text rotated at 45 degrees
+      doc.text('DRAFT', pageWidth / 2, pageHeight / 2, {
+        align: 'center',
+        angle: 45,
+      });
+    }
+  }
+
   return doc;
 }
 

@@ -516,7 +516,18 @@ export default function ProformaListPage() {
                       </td>
                       {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
                         if (col.id === 'date') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{formatDate(p.created_at)}</td>;
-                        if (col.id === 'pi_number') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">{p.pi_number ?? p.id?.slice(0, 8)}</td>;
+                        if (col.id === 'pi_number') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                            <div className="flex flex-col gap-0.5">
+                              <span>{p.pi_number ?? p.id?.slice(0, 8)}</span>
+                              {p.render_as_tax_invoice && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-zinc-300 text-[10px] font-medium text-zinc-500 bg-white w-max leading-none">
+                                  Review Copy
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
                         if (col.id === 'client') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="max-w-[350px] truncate" title={p.client?.client_name || p.client?.name || '-'}>{p.client?.client_name || p.client?.name || '-'}</div></td>;
                         if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={p.creator?.full_name || p.prepared_by || '-'}>{p.creator?.full_name || p.prepared_by || '-'}</div></td>;
                         if (col.id === 'status') return (

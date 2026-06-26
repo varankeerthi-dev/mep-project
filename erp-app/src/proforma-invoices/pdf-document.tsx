@@ -282,10 +282,26 @@ function ProformaItemsTable({ data }: { data: ProformaPdfData }) {
 export function ProformaPdfDocument({ data }: { data: ProformaPdfData }) {
   const company = data.company;
   const proforma = data.proforma;
+  const isReviewCopy = data.isReviewCopy ?? proforma.render_as_tax_invoice ?? false;
+  const showWatermark = data.showWatermark ?? false;
 
   return (
-    <Document title={`Proforma ${proforma.pi_number || proforma.id}`} author={company?.name ?? undefined}>
+    <Document title={isReviewCopy ? `Tax Invoice Review ${proforma.pi_number || proforma.id}` : `Proforma ${proforma.pi_number || proforma.id}`} author={company?.name ?? undefined}>
       <Page size="A4" style={styles.page}>
+        {showWatermark && (
+          <Text style={{
+            position: 'absolute',
+            top: '35%',
+            left: '10%',
+            fontSize: 150,
+            color: '#000000',
+            opacity: 0.05,
+            transform: 'rotate(-45deg)',
+            fontFamily: 'Helvetica-Bold',
+          }}>
+            DRAFT
+          </Text>
+        )}
         <View style={styles.content}>
           <View style={styles.headerPanel} wrap={false}>
             <View style={styles.headerTop}>
@@ -304,8 +320,8 @@ export function ProformaPdfDocument({ data }: { data: ProformaPdfData }) {
               </View>
 
               <View style={styles.titleWrap}>
-                <Text style={styles.invoiceTitle}>PROFORMA INVOICE</Text>
-                <Text style={styles.titleMeta}>Preliminary Invoice</Text>
+                <Text style={styles.invoiceTitle}>{isReviewCopy ? 'TAX INVOICE' : 'PROFORMA INVOICE'}</Text>
+                <Text style={styles.titleMeta}>{isReviewCopy ? '(REVIEW COPY)' : 'Preliminary Invoice'}</Text>
                 <Text style={styles.titleMeta}>Status: {proforma.status}</Text>
               </View>
             </View>
@@ -320,11 +336,11 @@ export function ProformaPdfDocument({ data }: { data: ProformaPdfData }) {
             </View>
 
             <View style={[styles.gridCol, styles.panel]}>
-              <Text style={styles.sectionLabel}>Proforma Info</Text>
-              <Text style={styles.valueLine}>PI No: {stringValue(proforma.pi_number)}</Text>
-              <Text style={styles.valueLine}>Date: {formatDate(proforma.created_at)}</Text>
+              <Text style={styles.sectionLabel}>{isReviewCopy ? 'Tax Invoice Info' : 'Proforma Info'}</Text>
+              <Text style={styles.valueLine}>{isReviewCopy ? 'Invoice No:' : 'PI No:'} {isReviewCopy ? '' : stringValue(proforma.pi_number)}</Text>
+              <Text style={styles.valueLine}>{isReviewCopy ? 'Invoice Date:' : 'Date:'} {isReviewCopy ? '' : formatDate(proforma.created_at)}</Text>
               <Text style={styles.valueLine}>Source: {stringValue(proforma.source_type)}</Text>
-              {proforma.valid_until && (
+              {!isReviewCopy && proforma.valid_until && (
                 <Text style={styles.validUntil}>Valid Until: {formatDate(proforma.valid_until)}</Text>
               )}
             </View>
@@ -369,7 +385,9 @@ export function ProformaPdfDocument({ data }: { data: ProformaPdfData }) {
         </View>
 
         <Text style={styles.footerLine}>
-          This is a proforma invoice. Final invoice will be issued upon acceptance.
+          {isReviewCopy
+            ? 'This is a review copy of the Tax Invoice. The official Tax Invoice with invoice number and date will be issued upon final confirmation.'
+            : 'This is a proforma invoice. Final invoice will be issued upon acceptance.'}
         </Text>
       </Page>
     </Document>

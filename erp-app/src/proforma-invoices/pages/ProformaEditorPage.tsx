@@ -246,6 +246,8 @@ export default function ProformaEditorPage() {
   const [showItemSelectorDrawer, setShowItemSelectorDrawer] = useState(false);
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
   const [roundOff, setRoundOff] = useState(false);
+  const [renderAsTaxInvoice, setRenderAsTaxInvoice] = useState(false);
+  const [showWatermark, setShowWatermark] = useState(false);
   const [discountPercent, setDiscountPercent] = useState<number | string>(0);
   const [discountAmount, setDiscountAmount] = useState<number | string>(0);
   const [templateSettings, setTemplateSettings] = useState<any>(null);
@@ -688,8 +690,29 @@ export default function ProformaEditorPage() {
       setAuthorizedSignatoryId(proforma.authorized_signatory_id ?? '');
       setDiscountPercent(proforma.discount_percent !== null && proforma.discount_percent !== undefined ? Number(proforma.discount_percent) : 0);
       setDiscountAmount(proforma.discount_amount !== null && proforma.discount_amount !== undefined ? Number(proforma.discount_amount) : 0);
+      setRenderAsTaxInvoice(proforma.render_as_tax_invoice ?? false);
     }
   }, [proforma]);
+
+  // Synchronize showWatermark state with renderAsTaxInvoice and localStorage
+  const handleRenderAsTaxInvoiceChange = (checked: boolean) => {
+    setRenderAsTaxInvoice(checked);
+    setShowWatermark(checked);
+  };
+
+  const handleShowWatermarkChange = (checked: boolean) => {
+    setShowWatermark(checked);
+    localStorage.setItem('proforma_watermark_default', checked ? 'true' : 'false');
+  };
+
+  useEffect(() => {
+    const savedDefault = localStorage.getItem('proforma_watermark_default');
+    if (savedDefault !== null) {
+      setShowWatermark(savedDefault === 'true');
+    } else {
+      setShowWatermark(renderAsTaxInvoice);
+    }
+  }, [renderAsTaxInvoice]);
 
   // Load conversion data when converting from another document
   useEffect(() => {
@@ -995,6 +1018,7 @@ export default function ProformaEditorPage() {
         po_date: poDate || undefined,
         template_id: templateId || undefined,
         authorized_signatory_id: authorizedSignatoryId || null,
+        render_as_tax_invoice: renderAsTaxInvoice,
         items: validItems.map(item => ({
           description: item.description,
           hsn_code: item.hsn_code || null,
@@ -1048,7 +1072,11 @@ export default function ProformaEditorPage() {
 
       if (shouldPrint && savedProforma && savedProforma.id) {
         const { downloadProformaPdf } = await import('../pdf');
-        await downloadProformaPdf(savedProforma.id, { organisationId: organisation.id });
+        await downloadProformaPdf(savedProforma.id, { 
+          organisationId: organisation.id,
+          isReviewCopy: renderAsTaxInvoice,
+          showWatermark: showWatermark
+        });
       }
 
       navigate('/proforma-invoices');
@@ -1889,6 +1917,32 @@ export default function ProformaEditorPage() {
                     type="checkbox"
                     checked={roundOff}
                     onChange={(e) => setRoundOff(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                    style={{ cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Render as Tax Invoice (Review Copy)</span>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={renderAsTaxInvoice}
+                    onChange={(e) => handleRenderAsTaxInvoiceChange(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                    style={{ cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Show DRAFT Watermark</span>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showWatermark}
+                    onChange={(e) => handleShowWatermarkChange(e.target.checked)}
                     className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                     style={{ cursor: 'pointer' }}
                   />

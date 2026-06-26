@@ -94,6 +94,7 @@ export const ProformaSchema = z
     notes: z.string().optional().nullable(),
     terms: z.string().optional().nullable(),
     payment_terms: z.string().optional().nullable(),
+    render_as_tax_invoice: z.boolean().default(false),
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
     items: z.array(z.object({

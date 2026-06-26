@@ -126,9 +126,12 @@ export default function VerticalTemplate({
   organisation,
   templateConfig
 }: any) {
+  const isReviewCopy = !!(data.isReviewCopy || data.render_as_tax_invoice);
+  const showWatermark = !!data.showWatermark;
+
   const columns = getActiveColumns(templateConfig);
-  const docNo = getDocumentNumber(data);
-  const docType = data.document_type || "QUOTATION";
+  const docNo = isReviewCopy ? '' : getDocumentNumber(data);
+  const docType = isReviewCopy ? 'TAX INVOICE' : (data.document_type || "QUOTATION");
   const optional = templateConfig?.optional || {};
 
   // Group items
@@ -157,14 +160,14 @@ export default function VerticalTemplate({
   const infoFields = [
     { label: "PO No.", value: data.po_no, key: 'po_no' },
     { label: "PO Date", value: formatDate(data.po_date), key: 'po_date' },
-    { label: "Valid Till", value: formatDate(data.valid_till), key: 'valid_till' },
+    ...(!isReviewCopy ? [{ label: "Valid Till", value: formatDate(data.valid_till), key: 'valid_till' }] : []),
     { label: "Payment Terms", value: data.payment_terms, key: 'payment_terms' },
     { label: "Reference", value: data.reference, key: 'reference' },
     { label: "E-Way Bill", value: data.eway_bill, key: 'eway_bill' },
     { label: "Vendor No.", value: data.client?.vendor_no, key: 'vendor_no' }
   ]
   .filter(f => optional[f.key] !== false)
-  .filter(f => f.value && f.value !== "-" && f.value !== "" && f.value !== formatDate(null));
+  .filter(f => f.value && f.value !== "-" && f.value !== "" && f.value !== formatDate(null as any));
 
   // Calculate taxes by rate for mixed tax scenarios
   const calculateTaxesByRate = () => {
@@ -330,6 +333,23 @@ export default function VerticalTemplate({
 
       {/* ---------------- PAGE 1 ---------------- */}
       <div className="a4-page">
+        {showWatermark && (
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '15%',
+            fontSize: '180px',
+            fontWeight: 'bold',
+            color: '#000000',
+            opacity: 0.05,
+            transform: 'rotate(-45deg)',
+            pointerEvents: 'none',
+            zIndex: 9999,
+            userSelect: 'none',
+          }}>
+            DRAFT
+          </div>
+        )}
         {/* Header */}
         <div className="dense-header flex justify-between items-start pt-2">
           <div className="flex gap-5">
@@ -362,6 +382,11 @@ export default function VerticalTemplate({
             <div className="text-4xl font-black txt-zinc-900 tracking-tighter leading-none">
               {docType.toUpperCase()}
             </div>
+            {isReviewCopy && (
+              <div className="text-[10px] txt-zinc-600 font-bold tracking-widest mt-1">
+                (REVIEW COPY)
+              </div>
+            )}
           </div>
         </div>
 
@@ -369,8 +394,10 @@ export default function VerticalTemplate({
         {infoFields.length > 0 && (
           <div className="mt-0 grid grid-cols-3 border-y border-zinc-200 py-1 text-[11px] font-bold">
           <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2 gap-y-2">
-            <div className="txt-zinc-500 font-bold uppercase text-[10px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
-            <div className="txt-zinc-500 font-bold uppercase text-[10px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
+            <div className="txt-zinc-500 font-bold uppercase text-[10px]">{isReviewCopy ? 'Invoice No' : `${docType} No`}</div>
+            <div className="font-bold doc-no-font">: {isReviewCopy ? '' : docNo}</div>
+            <div className="txt-zinc-500 font-bold uppercase text-[10px]">{isReviewCopy ? 'Invoice Date' : `${docType} Date`}</div>
+            <div className="font-bold">: {isReviewCopy ? '' : formatDate(data.date)}</div>
           </div>
           <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2 gap-y-2">
             {infoFields.slice(0, 2).map((f, i) => (
@@ -617,6 +644,23 @@ export default function VerticalTemplate({
 
       {/* ---------------- PAGE 2: TERMS ---------------- */}
       <div className="a4-page">
+        {showWatermark && (
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '15%',
+            fontSize: '180px',
+            fontWeight: 'bold',
+            color: '#000000',
+            opacity: 0.05,
+            transform: 'rotate(-45deg)',
+            pointerEvents: 'none',
+            zIndex: 9999,
+            userSelect: 'none',
+          }}>
+            DRAFT
+          </div>
+        )}
         <div className="dense-header flex justify-between items-center">
           <div className="text-lg font-black txt-zinc-900 uppercase tracking-tighter">Terms & Conditions</div>
           <div className="txt-zinc-400 font-bold text-[10px]">Annexure to {docNo}</div>

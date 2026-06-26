@@ -26,6 +26,8 @@ export interface ProformaPdfData {
   proforma: ProformaWithRelations;
   company: ProformaPdfCompany | null;
   template?: any | null;
+  isReviewCopy?: boolean;
+  showWatermark?: boolean;
 }
 
 export interface ProformaPdfOptions {
@@ -33,4 +35,6 @@ export interface ProformaPdfOptions {
   organisationId?: string;
   template?: any | null;
   fileName?: string;
+  isReviewCopy?: boolean;
+  showWatermark?: boolean;
 }
