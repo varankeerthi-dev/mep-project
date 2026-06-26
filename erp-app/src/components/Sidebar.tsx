@@ -14,6 +14,7 @@ type MenuItem = {
   label: string;
   path?: string;
   submenu?: SubmenuItem[];
+  flyout?: boolean;
 };
 
 type MenuSection = {
@@ -66,206 +67,156 @@ const menuData: MenuSection[] = [
     section: '',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' },
-      { id: 'projects-overview', label: 'Projects Overview', path: '/projects-overview' }
+      { id: 'projects-overview', label: 'Overview', path: '/projects-overview' }
     ]
   },
   {
-    section: 'Projects',
+    section: 'Work',
     items: [
       { id: 'projects', label: 'Projects', path: '/projects' },
-      { id: 'tools', label: 'Tools', path: '/tools' }
-    ]
-  },
-  {
-    section: 'Tasks',
-    items: [
       { id: 'approvals', label: 'Approvals', path: '/approvals' },
-      { id: 'todo', label: 'To Do List', path: '/todo' },
-      { id: 'follow-up', label: 'Follow-Up Centre', path: '/follow-up' }
+      { id: 'todo', label: 'To do', path: '/todo' },
+      { id: 'follow-up', label: 'Follow-up', path: '/follow-up' },
+      { id: 'client-communication', label: 'Communication log', path: '/client-communication' }
     ]
   },
   {
-    section: 'Client',
+    section: 'Client and field',
     items: [
       {
         id: 'clients',
-        label: 'Client',
+        label: 'Clients',
         submenu: [
-          { id: 'clients-new', label: 'New Client', path: '/clients/new' },
-          { id: 'clients-list', label: 'Client List', path: '/clients' },
-          { id: 'client-po-list', label: 'Purchase Orders', path: '/client-po' },
+          { id: 'clients-list', label: 'Client list', path: '/clients' },
+          { id: 'client-po-list', label: 'Purchase orders', path: '/client-po' },
           { id: 'client-meetings', label: 'Meetings', path: '/meetings' }
         ]
       },
-      
-      {
-        id: 'site-visit',
-        label: 'Site Visit',
-        submenu: [
-          { id: 'site-visit-dashboard', label: 'Dashboard', path: '/site-visits' }
-        ]
-      },
+      { id: 'site-visit', label: 'Site visit', path: '/site-visits' },
       {
         id: 'site-report',
-        label: 'Site Report',
+        label: 'Site report',
         submenu: [
           { id: 'site-report-dashboard', label: 'Reports', path: '/site-reports' },
-          { id: 'site-report-handover', label: 'Handover Planner', path: '/handover' }
+          { id: 'site-report-handover', label: 'Handover planner', path: '/handover' }
         ]
       },
       {
-        id: 'client-communication',
-        label: 'Communication Log',
+        id: 'issue',
+        label: 'Issues',
         submenu: [
-          { id: 'client-comm-dashboard', label: 'Dashboard', path: '/client-communication' }
+          { id: 'issue-dashboard', label: 'Dashboard', path: '/issue' },
+          { id: 'issue-list', label: 'All issues', path: '/issues' }
         ]
       },
       {
         id: 'subcontractor',
-        label: 'Sub-Contractor',
+        label: 'Sub-contractor',
+        flyout: true,
         submenu: [
           { id: 'subcontractor-dashboard', label: 'Dashboard', path: '/subcontractors' },
-          { id: 'subcontractor-create', label: 'Add New', path: '/subcontractors/new' },
-          { id: 'subcontractor-workorders', label: 'Work Orders', path: '/subcontractors/workorders' },
+          { id: 'subcontractor-create', label: 'Add new', path: '/subcontractors/new' },
+          { id: 'subcontractor-workorders', label: 'Work orders', path: '/subcontractors/workorders' },
           { id: 'subcontractor-attendance', label: 'Attendance', path: '/subcontractors/attendance' },
           { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors/payments' },
           { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
-          { id: 'subcontractor-payment-queue', label: 'Payment Queue', path: '/subcontractors/payments' },
+          { id: 'subcontractor-payment-queue', label: 'Payment queue', path: '/subcontractors/payments' },
           { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' }
         ]
       }
     ]
   },
   {
-    section: 'Sales',
+    section: 'Commerce',
     items: [
       {
         id: 'leads',
         label: 'Leads',
         submenu: [
-          { id: 'leads-list', label: 'List View', path: '/leads' },
-          { id: 'leads-kanban', label: 'Kanban', path: '/leads/kanban' },
-          { id: 'leads-settings', label: 'Settings', path: '/leads/settings' }
+          { id: 'leads-list', label: 'List view', path: '/leads' },
+          { id: 'leads-kanban', label: 'Kanban', path: '/leads/kanban' }
         ]
       },
-      { 
-        id: 'quotation', 
-        label: 'Quotation', 
+      {
+        id: 'quotation',
+        label: 'Quotation',
         submenu: [
-          { id: 'quotation-list', label: 'Quotation List', path: '/quotation' },
-          { id: 'quotation-create', label: 'Create Quotation', path: '/quotation/create' }
+          { id: 'quotation-list', label: 'Quotation list', path: '/quotation' },
+          { id: 'quotation-create', label: 'Create quotation', path: '/quotation/create' },
+          { id: 'boq-list', label: 'BOQ list', path: '/boq' },
+          { id: 'boq-create', label: 'Create BOQ', path: '/boq/create' }
         ]
       },
       {
         id: 'invoice',
         label: 'Invoices',
-        path: '/invoices',
         submenu: [
-          { id: 'invoice-list', label: 'Invoice List', path: '/invoices' },
-          { id: 'invoice-create', label: 'Create Invoice', path: '/invoices/create' },
-          { id: 'proforma-list', label: 'Proforma Invoice', path: '/proforma-invoices' }
+          { id: 'invoice-list', label: 'Invoice list', path: '/invoices' },
+          { id: 'invoice-create', label: 'Create invoice', path: '/invoices/create' },
+          { id: 'proforma-list', label: 'Proforma invoice', path: '/proforma-invoices' },
+          { id: 'credit-note-list', label: 'Credit notes', path: '/credit-notes' }
         ]
       },
+      { id: 'ledger', label: 'Ledger', path: '/ledger' },
       {
-        id: 'credit-notes',
-        label: 'Credit Notes',
+        id: 'dc',
+        label: 'Delivery challan',
         submenu: [
-          { id: 'credit-note-list', label: 'Credit Note List', path: '/credit-notes' },
-          { id: 'credit-note-create', label: 'Create Credit Note', path: '/credit-notes/create' }
-        ]
-      },
-      {
-        id: 'ledger',
-        label: 'Ledger',
-        path: '/ledger'
-      },
-      {
-        id: 'boq',
-        label: 'BOQ',
-        submenu: [
-          { id: 'boq-list', label: 'BOQ List', path: '/boq' },
-          { id: 'boq-create', label: 'Create BOQ', path: '/boq/create' }
-        ]
-      },
-      { id: 'issue', label: 'Issues', 
-        submenu: [
-          { id: 'issue-dashboard', label: 'Dashboard', path: '/issue' },
-          { id: 'issue-list', label: 'All Issues', path: '/issues' }
+          { id: 'dc-list', label: 'DC list', path: '/dc/list' },
+          { id: 'dc-create', label: 'Create DC', path: '/dc/create' },
+          { id: 'nb-dc-list', label: 'NB-DC list', path: '/nb-dc/list' },
+          { id: 'dc-consolidation', label: 'Consolidation', path: '/dc/consolidation' }
         ]
       }
     ]
   },
   {
-    section: 'Inventory',
+    section: 'Supply chain',
     items: [
       { id: 'procurement', label: 'Procurement', path: '/procurement' },
-      { 
-        id: 'store', 
-        label: 'Material', 
+      {
+        id: 'store',
+        label: 'Materials',
+        flyout: true,
         submenu: [
-          { id: 'materials-list', label: 'Items/Materials', path: '/store/materials' },
-          { id: 'material-inward', label: 'Material Inward', path: '/store/inward' },
-          { id: 'material-outward', label: 'Material Outward', path: '/store/outward' },
-          { id: 'stock-transfer', label: 'Stock Transfer', path: '/store/transfer' },
-          { id: 'stock-balance', label: 'Stock Balance', path: '/store/stock' },
-          { id: 'quick-stock-check', label: 'Stock Check', path: '/quick-stock-check' },
+          { id: 'materials-list', label: 'Items/materials', path: '/store/materials' },
+          { id: 'material-inward', label: 'Material inward', path: '/store/inward' },
+          { id: 'material-outward', label: 'Material outward', path: '/store/outward' },
+          { id: 'stock-transfer', label: 'Stock transfer', path: '/store/transfer' },
+          { id: 'stock-balance', label: 'Stock balance', path: '/store/stock' },
+          { id: 'quick-stock-check', label: 'Stock check', path: '/quick-stock-check' },
           { id: 'warehouses', label: 'Warehouses', path: '/store/materials?tab=warehouses' }
         ]
-      }
-    ]
-  },
-  {
-    section: 'Manufacturing',
-    items: [
-      { 
-        id: 'manufacturing', 
-        label: 'Manufacturing', 
+      },
+      {
+        id: 'manufacturing',
+        label: 'Manufacturing',
+        flyout: true,
         submenu: [
           { id: 'mfg-dashboard', label: 'Dashboard', path: '/manufacturing' },
           { id: 'mfg-inventory', label: 'Inventory', path: '/manufacturing/inventory' },
           { id: 'mfg-boms', label: 'BOMs', path: '/manufacturing/boms' },
-          { id: 'mfg-schedules', label: 'Production Schedules', path: '/manufacturing/schedules' },
-          { id: 'mfg-job-cards', label: 'Job Cards', path: '/manufacturing/job-cards' },
-          { id: 'mfg-production', label: 'Production Entry', path: '/manufacturing/production' },
-          { id: 'mfg-custom-units', label: 'Custom Units', path: '/manufacturing/custom-units' },
-          { id: 'mfg-custom-fields', label: 'Custom Fields', path: '/manufacturing/custom-fields' },
-          { id: 'mfg-activity-log', label: 'Activity Log', path: '/manufacturing/activity-log' }
+          { id: 'mfg-schedules', label: 'Production schedules', path: '/manufacturing/schedules' },
+          { id: 'mfg-job-cards', label: 'Job cards', path: '/manufacturing/job-cards' },
+          { id: 'mfg-production', label: 'Production entry', path: '/manufacturing/production' },
+          { id: 'mfg-custom-units', label: 'Custom units', path: '/manufacturing/custom-units' },
+          { id: 'mfg-activity-log', label: 'Activity log', path: '/manufacturing/activity-log' }
         ]
-      }
-    ]
-  },
-  {
-    section: 'Purchase',
-    items: [
-      { 
-        id: 'purchase', 
-        label: 'Purchase', 
+      },
+      {
+        id: 'purchase',
+        label: 'Purchase',
+        flyout: true,
         submenu: [
           { id: 'purchase-vendors', label: 'Vendors', path: '/purchase/vendors' },
           { id: 'purchase-requisitions', label: 'Requisitions', path: '/purchase/requisitions' },
-          { id: 'purchase-inquiries', label: 'Availability Inquiry', path: '/purchase/inquiries' },
-          { id: 'purchase-orders', label: 'Purchase Orders', path: '/purchase/orders' },
+          { id: 'purchase-inquiries', label: 'Availability inquiry', path: '/purchase/inquiries' },
+          { id: 'purchase-orders', label: 'Purchase orders', path: '/purchase/orders' },
           { id: 'purchase-bills', label: 'Bills', path: '/purchase/bills' },
-          { id: 'purchase-invoice-verification', label: 'Invoice Verification', path: '/purchase/invoice-verification' },
-          { id: 'purchase-debit-notes', label: 'Debit Notes', path: '/purchase/debit-notes' },
+          { id: 'purchase-invoice-verification', label: 'Invoice verification', path: '/purchase/invoice-verification' },
+          { id: 'purchase-debit-notes', label: 'Debit notes', path: '/purchase/debit-notes' },
           { id: 'purchase-payments', label: 'Payments', path: '/purchase/payments' },
-          { id: 'purchase-payment-queue', label: 'Bills Due', path: '/purchase/payment-queue' },
-        ]
-      }
-    ]
-  },
-  {
-    section: 'Delivery Challan',
-    items: [
-      { 
-        id: 'dc', 
-        label: 'Delivery Challan', 
-        submenu: [
-          { id: 'dc-create', label: 'Create DC', path: '/dc/create' },
-          { id: 'dc-list', label: 'DC List', path: '/dc/list' },
-          { id: 'nb-dc-create', label: 'Create NB-DC', path: '/nb-dc/create' },
-          { id: 'nb-dc-list', label: 'NB-DC List', path: '/nb-dc/list' },
-          { id: 'dc-consolidation', label: 'DC Consolidation', path: '/dc/consolidation' }
+          { id: 'purchase-payment-queue', label: 'Bills due', path: '/purchase/payment-queue' }
         ]
       }
     ]
@@ -273,32 +224,27 @@ const menuData: MenuSection[] = [
   {
     section: 'Finance',
     items: [
-      { id: 'payments-hub', label: 'Payments Hub', path: '/finance/payments' }
-    ]
-  },
-  {
-    section: 'Accounting',
-    items: [
-      { id: 'chart-of-accounts', label: 'Chart of Accounts', path: '/accounting/chart-of-accounts' },
-      { id: 'day-book', label: 'Day Book', path: '/accounting/day-book' }
+      { id: 'payments-hub', label: 'Payments hub', path: '/finance/payments' },
+      { id: 'chart-of-accounts', label: 'Chart of accounts', path: '/accounting/chart-of-accounts' },
+      { id: 'day-book', label: 'Day book', path: '/accounting/day-book' }
     ]
   },
   {
     section: 'Reports',
     items: [
-      { 
-        id: 'reports', 
-        label: 'Reports', 
+      {
+        id: 'reports',
+        label: 'Reports',
         submenu: [
           { id: 'reports-dashboard', label: 'Dashboard', path: '/reports' },
-          { id: 'invoice-reports', label: 'Invoice Reports', path: '/reports/invoices' },
+          { id: 'invoice-reports', label: 'Invoices', path: '/reports/invoices' },
           { id: 'financial-reports', label: 'Financial', path: '/reports/financial' },
           { id: 'project-reports', label: 'Projects', path: '/reports/projects' },
           { id: 'inventory-reports', label: 'Inventory', path: '/reports/inventory' },
           { id: 'compliance-reports', label: 'Compliance', path: '/reports/compliance' },
-          { id: 'stock-report', label: 'Stock Report', path: '/reports/stock' },
-          { id: 'purchase-report', label: 'Purchase Report', path: '/reports/purchase' },
-          { id: 'sales-report', label: 'Sales Report', path: '/reports/sales' }
+          { id: 'stock-report', label: 'Stock', path: '/reports/stock' },
+          { id: 'purchase-report', label: 'Purchase', path: '/reports/purchase' },
+          { id: 'sales-report', label: 'Sales', path: '/reports/sales' }
         ]
       }
     ]
@@ -306,21 +252,22 @@ const menuData: MenuSection[] = [
   {
     section: 'Settings',
     items: [
-      { 
-        id: 'settings', 
-        label: 'Settings', 
+      {
+        id: 'settings',
+        label: 'Settings',
+        flyout: true,
         submenu: [
           { id: 'settings-general', label: 'General', path: '/settings' },
-          { id: 'settings-approval', label: 'Approval Settings', path: '/approval-settings' },
+          { id: 'settings-approval', label: 'Approval settings', path: '/approval-settings' },
           { id: 'documents', label: 'Documents', path: '/documents' },
-          { id: 'settings-print', label: 'Print Settings', path: '/settings/print' },
-          { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
-          { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
-          { id: 'settings-terms', label: 'Terms & Conditions', path: '/settings/terms-conditions' },
-          { id: 'settings-organisation', label: 'Organisation Settings', path: '/settings/organisation' },
-          { id: 'settings-access', label: 'Access Control', path: '/settings/access-control' },
-          { id: 'settings-discounts', label: 'Discount Settings', path: '/settings/discounts' },
-          { id: 'settings-tools', label: 'Tools Settings', path: '/tools-settings' }
+          { id: 'settings-print', label: 'Print settings', path: '/settings/print' },
+          { id: 'settings-document', label: 'Document series', path: '/settings/document-series' },
+          { id: 'settings-template', label: 'Template settings', path: '/settings/template' },
+          { id: 'settings-terms', label: 'Terms and conditions', path: '/settings/terms-conditions' },
+          { id: 'settings-organisation', label: 'Organisation', path: '/settings/organisation' },
+          { id: 'settings-access', label: 'Access control', path: '/settings/access-control' },
+          { id: 'settings-discounts', label: 'Discount settings', path: '/settings/discounts' },
+          { id: 'settings-tools', label: 'Tools settings', path: '/tools-settings' }
         ]
       }
     ]
@@ -329,7 +276,7 @@ const menuData: MenuSection[] = [
 
 const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   dashboard: 'HomeIcon',
-  'projects-overview': 'Squares2X2Icon',
+  'projects-overview': 'SignalIcon',
   projects: 'FolderIcon',
   todo: 'ClipboardDocumentCheckIcon',
   tasks: 'ListBulletIcon',
@@ -412,8 +359,17 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     })).filter(section => section.items.length > 0);
   }, [isModuleEnabled]);
 
+  // Extract Settings section
+  const settingsSection = useMemo(() => {
+    return filteredMenuData.find(s => s.section === 'Settings');
+  }, [filteredMenuData]);
+
+  // Extract non-Settings sections
+  const otherSections = useMemo(() => {
+    return filteredMenuData.filter(s => s.section !== 'Settings');
+  }, [filteredMenuData]);
+
   // Compute which menus to expand on first render only
-  // (useState ignores the initial value after mount, so recomputing on path change was wasted work)
   const initialExpandedMenus = useMemo(() => {
     const defaults: string[] = [];
     menuData.forEach(section => {
@@ -426,9 +382,11 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     });
     return defaults;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only on mount — user controls expansion after that
+  }, []);
 
   const [expandedMenus, setExpandedMenus] = useState<string[]>(initialExpandedMenus);
+  const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
+  const [flyoutMenu, setFlyoutMenu] = useState<string | null>(null);
 
   const toggleMenu = useCallback((menuId: string) => {
     setExpandedMenus(prev => 
@@ -439,8 +397,12 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   }, []);
 
   const handleClick = useCallback((item: MenuItem) => () => {
+    if (item.flyout) {
+      setFlyoutMenu(prev => prev === item.id ? null : item.id);
+      return;
+    }
+    setFlyoutMenu(null);
     if (item.submenu) {
-      // When the sidebar is collapsed, submenus aren't visible. Navigate to the parent path instead.
       if (isCollapsed) {
         const target = item.path || item.submenu?.[0]?.path;
         if (target) onNavigate(target);
@@ -453,7 +415,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   }, [isCollapsed, toggleMenu, onNavigate]);
 
   const handleOverlayClick = useCallback(() => {
-    // Just close the overlay; don't re-navigate
+    setFlyoutMenu(null);
     onNavigate(pathKey);
   }, [onNavigate, pathKey]);
 
@@ -466,110 +428,195 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const isActive = useCallback((path: string) => pathKey === path, [pathKey]);
 
+  const activeFlyoutItem = useMemo(() => {
+    if (!flyoutMenu) return null;
+    for (const section of filteredMenuData) {
+      const found = section.items.find(item => item.id === flyoutMenu);
+      if (found) return found;
+    }
+    return null;
+  }, [flyoutMenu, filteredMenuData]);
+
   const { ChevronDownIcon, ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
 
   return (
     <>
       {mobileOpen && <div className="sidebar-overlay" onClick={handleOverlayClick} />}
-      <aside
-        data-tour-anchor="sidebar"
-        className={cx(
-          'sidebar',
-          isCollapsed && 'collapsed',
-          mobileOpen && 'mobile-open'
-        )}
-      >
-        <div className="sidebar-content">
-          {filteredMenuData.map(section => (
-            <div key={section.section} className="sidebar-section">
-              {!isCollapsed && (
-                <div className="sidebar-section-title">
-                  {section.section}
-                </div>
-              )}
-              {section.items.map(item => {
-                const parentActive = isParentActive(item);
-                const isExpanded = expandedMenus.includes(item.id);
-                const Icon = getIconComponent(item.id);
-
-                return (
-                  <div key={item.id}>
-                    <button
-                      className={cx(
-                        'sidebar-item',
-                        parentActive && 'active',
-                        isExpanded && 'expanded'
-                      )}
-                      onClick={handleClick(item)}
-                      type="button"
+      <div className="sidebar-layout">
+        <aside
+          data-tour-anchor="sidebar"
+          className={cx(
+            'sidebar',
+            isCollapsed && 'collapsed',
+            mobileOpen && 'mobile-open'
+          )}
+        >
+          <div className="sidebar-content">
+            {otherSections.map(section => {
+              const isSectionExpanded = !collapsedSections.includes(section.section);
+              return (
+                <div key={section.section} className="sidebar-section">
+                  {section.section && !isCollapsed && (
+                    <div
+                      className="sidebar-section-header"
+                      onClick={() => {
+                        setCollapsedSections(prev =>
+                          prev.includes(section.section)
+                            ? prev.filter(s => s !== section.section)
+                            : [...prev, section.section]
+                        );
+                      }}
                     >
-                      <span className="sidebar-item-icon">
-                        <Icon />
+                      <span className="sidebar-section-title">{section.section}</span>
+                      <span className={cx('sidebar-section-chevron', isSectionExpanded && 'expanded')}>
+                        <ChevronRightIcon />
                       </span>
-                      <span className="sidebar-item-label">{item.label}</span>
-                      {item.submenu && !isCollapsed && (
-                        <span className="sidebar-item-chevron">
-                          <ChevronDownIcon />
-                        </span>
-                      )}
-                    </button>
+                    </div>
+                  )}
+                  {isSectionExpanded && section.items.map(item => {
+                    const parentActive = isParentActive(item);
+                    const isExpanded = expandedMenus.includes(item.id);
+                    const Icon = getIconComponent(item.id);
+                    const isActiveBtn = parentActive && !(item.submenu && isExpanded);
+                    const isParentActiveBtn = !!(item.submenu && isExpanded);
 
-                    {item.submenu && isExpanded && !isCollapsed && (
-                      <div className="sidebar-submenu">
-                        {item.submenu.map(subItem => (
-                          <div key={subItem.id}>
-                            <button
-                              className={cx(
-                                'sidebar-submenu-item',
-                                isActive(subItem.path) && 'active'
-                              )}
-                              onClick={() => subItem.submenu ? toggleMenu(subItem.id) : onNavigate(subItem.path)}
-                              type="button"
-                            >
-                              <span className="sidebar-item-label">{subItem.label}</span>
-                              {subItem.submenu && (
-                                <span className="sidebar-item-chevron">
-                                  {expandedMenus.includes(subItem.id) ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                                </span>
-                              )}
-                            </button>
-                            {subItem.submenu && expandedMenus.includes(subItem.id) && (
-                              <div className="sidebar-submenu" style={{ paddingLeft: '16px' }}>
-                                {subItem.submenu.map(nestedItem => (
-                                  <button
-                                    key={nestedItem.id}
-                                    className={cx(
-                                      'sidebar-submenu-item',
-                                      isActive(nestedItem.path) && 'active'
-                                    )}
-                                    onClick={() => onNavigate(nestedItem.path)}
-                                    type="button"
-                                  >
-                                    <span className="sidebar-item-label">{nestedItem.label}</span>
-                                  </button>
-                                ))}
+                    return (
+                      <div key={item.id}>
+                        <button
+                          className={cx(
+                            'sidebar-item',
+                            isActiveBtn && 'active',
+                            isParentActiveBtn && 'parent-active',
+                            isExpanded && 'expanded'
+                          )}
+                          onClick={handleClick(item)}
+                          type="button"
+                        >
+                          <span className="sidebar-item-icon">
+                            <Icon />
+                          </span>
+                          <span className="sidebar-item-label">{item.label}</span>
+                          {item.submenu && !isCollapsed && (
+                            <span className={item.flyout ? "sidebar-flyout-pip" : "sidebar-item-chevron"}>
+                              {item.flyout ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                            </span>
+                          )}
+                        </button>
+
+                        {item.submenu && isExpanded && !isCollapsed && !item.flyout && (
+                          <div className="sidebar-submenu">
+                            {item.submenu.map(subItem => (
+                              <div key={subItem.id}>
+                                <button
+                                  className={cx(
+                                    'sidebar-submenu-item',
+                                    isActive(subItem.path) && 'active'
+                                  )}
+                                  onClick={() => {
+                                    setFlyoutMenu(null);
+                                    subItem.submenu ? toggleMenu(subItem.id) : onNavigate(subItem.path);
+                                  }}
+                                  type="button"
+                                >
+                                  <span className="sidebar-item-label">{subItem.label}</span>
+                                  {subItem.submenu && (
+                                    <span className="sidebar-item-chevron">
+                                      {expandedMenus.includes(subItem.id) ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                                    </span>
+                                  )}
+                                </button>
+                                {subItem.submenu && expandedMenus.includes(subItem.id) && (
+                                  <div className="sidebar-submenu" style={{ paddingLeft: '16px' }}>
+                                    {subItem.submenu.map(nestedItem => (
+                                      <button
+                                        key={nestedItem.id}
+                                        className={cx(
+                                          'sidebar-submenu-item',
+                                          isActive(nestedItem.path) && 'active'
+                                        )}
+                                        onClick={() => {
+                                          setFlyoutMenu(null);
+                                          onNavigate(nestedItem.path);
+                                        }}
+                                        type="button"
+                                      >
+                                        <span className="sidebar-item-label">{nestedItem.label}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
 
-        <div className="sidebar-bottom">
-          <button className="sidebar-toggle" onClick={onToggle} type="button">
-            <span className="sidebar-item-icon">
-              {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-            </span>
-            <span>{isCollapsed ? 'Expand' : 'Collapse'}</span>
-          </button>
-        </div>
-      </aside>
+          <div className="sidebar-bottom">
+            {settingsSection && settingsSection.items.map(item => {
+              const parentActive = isParentActive(item);
+              const isExpanded = expandedMenus.includes(item.id);
+              const Icon = getIconComponent(item.id);
+              const isActiveBtn = parentActive && !(item.submenu && isExpanded);
+              const isParentActiveBtn = !!(item.submenu && isExpanded);
+
+              return (
+                <div key={item.id} className="w-full">
+                  <button
+                    className={cx(
+                      'sidebar-item',
+                      isActiveBtn && 'active',
+                      isParentActiveBtn && 'parent-active',
+                      isExpanded && 'expanded'
+                    )}
+                    onClick={handleClick(item)}
+                    type="button"
+                  >
+                    <span className="sidebar-item-icon">
+                      <Icon />
+                    </span>
+                    <span className="sidebar-item-label">{item.label}</span>
+                    {item.submenu && !isCollapsed && (
+                      <span className={item.flyout ? "sidebar-flyout-pip" : "sidebar-item-chevron"}>
+                        {item.flyout ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+            <button className="sidebar-toggle" onClick={() => { setFlyoutMenu(null); onToggle(); }} type="button">
+              <span className="sidebar-item-icon">
+                {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+              </span>
+              <span>{isCollapsed ? 'Expand' : 'Collapse'}</span>
+            </button>
+          </div>
+        </aside>
+        {flyoutMenu && activeFlyoutItem && (
+          <div className="sidebar-flyout">
+            <div className="sidebar-flyout-title">{activeFlyoutItem.label}</div>
+            {activeFlyoutItem.submenu?.map(sub => (
+              <button
+                key={sub.id}
+                className={cx('sidebar-flyout-item', isActive(sub.path) && 'active')}
+                onClick={() => {
+                  setFlyoutMenu(null);
+                  onNavigate(sub.path);
+                }}
+                type="button"
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   );
 }

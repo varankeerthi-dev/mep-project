@@ -41,7 +41,7 @@ async function getOrganisationDetails(organisationId: string): Promise<ProformaP
     msme_no: data.msme_no ?? null,
     website: data.website ?? null,
     state: data.state ?? null,
-    bank_details: data.bank_details ?? null,
+    bank_details: (data as any).bank_details ?? null,
     signatures: data.signatures ?? null,
   };
 }
