@@ -60,7 +60,8 @@ import {
   Clipboard,
   Search,
   X,
-  Mic
+  Mic,
+  Clock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../App';
@@ -92,6 +93,7 @@ import {
   type WorkStoppage,
 } from '@/types/siteReportStoppage';
 import TaskLinkSelector from '@/components/tasks/TaskLinkSelector';
+import { useTaskLabelResolution } from '@/hooks/useTaskSearch';
 
 // Removed Material-UI imports
 
@@ -385,7 +387,7 @@ export function SiteReport() {
 
   const form = useForm<SiteReportFormValues>({
     resolver: zodResolver(siteReportSchema),
-    mode: 'onSubmit', // Only validate on submit, not on every keystroke
+    mode: 'onTouched', // Validate on blur/touch for inline feedback
     defaultValues: {
       client: '',
       projectName: '',
@@ -414,6 +416,84 @@ export function SiteReport() {
 
   const { errors } = form.formState;
   const selectedClientId = form.watch('client');
+
+  // Style constants for the refactored form
+  const sectionCardStyle: React.CSSProperties = {
+    background: '#fff',
+    borderRadius: '10px',
+    padding: '20px',
+    boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)',
+  };
+  const sectionHeaderStyle = (isOpen: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    cursor: 'pointer',
+    marginBottom: isOpen ? '16px' : 0,
+  });
+  const accentHeaderStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  };
+  const accentLineStyle: React.CSSProperties = {
+    width: '3px',
+    height: '16px',
+    background: '#2563eb',
+    borderRadius: '2px',
+    flexShrink: 0,
+  };
+  const sectionTitleStyle: React.CSSProperties = {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#1e293b',
+  };
+  const fieldLabelStyle: React.CSSProperties = {
+    fontSize: '12px',
+    fontWeight: 500,
+    color: '#374151',
+  };
+  const fieldGroupLabelStyle: React.CSSProperties = {
+    fontSize: '10px',
+    fontWeight: 600,
+    color: '#64748b',
+  };
+  const addOutlineBtnStyle: React.CSSProperties = {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#2563eb',
+    background: '#fff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+  };
+  const subSectionStyle: React.CSSProperties = {
+    background: '#f8fafc',
+    borderRadius: '8px',
+    padding: '16px',
+  };
+
+  // Auto-calculate total manpower
+  const skilledCount = form.watch('manpower.skilled');
+  const unskilledCount = form.watch('manpower.unskilled');
+  const computedTotal = useMemo(() => {
+    const s = parseInt(skilledCount || '0', 10);
+    const u = parseInt(unskilledCount || '0', 10);
+    return (isNaN(s) ? 0 : s) + (isNaN(u) ? 0 : u);
+  }, [skilledCount, unskilledCount]);
+
+  // Sync computed total back to form
+  useEffect(() => {
+    form.setValue('manpower.total', String(computedTotal));
+  }, [computedTotal, form]);
 
   // Project milestones query & dismissal states
   const selectedProjectId = form.watch('projectName');
@@ -2165,20 +2245,34 @@ export function SiteReport() {
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-200">
-            <div>
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
               <h1 className="text-2xl font-bold text-zinc-900">
                 {view === 'create' ? 'Create Site Report' : view === 'edit' ? 'Edit Site Report' : 'Site Report Details'}
               </h1>
-              <p className="text-sm text-zinc-500 mt-1">
-                {view === 'create' 
-                  ? 'Record daily activities, manpower logs, and progress reports' 
-                  : view === 'edit' 
-                    ? 'Update daily activities, manpower logs, and progress reports' 
-                    : 'Review daily activities, manpower logs, and progress reports'}
-              </p>
+              {/* Summary bar */}
+              <div className="flex items-center gap-6 mt-3 text-xs text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                  <CalendarIcon className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="font-medium text-zinc-700">{form.watch('date') ? new Date(form.watch('date') + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="font-medium text-zinc-700">{view === 'create' ? 'New' : form.watch('reporting.pmStatus') || 'Draft'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <HardHat className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="font-medium text-zinc-700">{form.watch('footer.engineer') || '—'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="font-medium text-zinc-700">
+                    {projects?.find((p: any) => p.id === form.watch('projectName'))?.project_name || '—'}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-shrink-0 ml-6">
               <button
                 type="button"
                 onClick={() => setView('list')}
@@ -2227,16 +2321,19 @@ export function SiteReport() {
             <fieldset disabled={view === 'view'} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* 1. Identification Section */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('identification')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.identification ? '14px' : 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Report Identification</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('identification')} style={sectionHeaderStyle(openSections.identification)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Report Identification</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.identification && 'rotate-90')} />
                 </button>
                 {openSections.identification && (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client *</label>
+                        <label style={fieldLabelStyle}>Client *</label>
                         <Select 
                           value={form.watch('client')} 
                           onValueChange={(val) => {
@@ -2244,8 +2341,8 @@ export function SiteReport() {
                             form.setValue('projectName', ''); 
                           }}
                         >
-                          <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.client || clientsError) && "border-red-500")}>
-                            <SelectValue placeholder={clientsLoading ? "Loading clients..." : "Select Client"} />
+                          <SelectTrigger className={cn("h-10 text-sm bg-white", (errors.client || clientsError) && "border-red-500")}>
+                            <SelectValue placeholder={clientsLoading ? "Loading clients..." : "Select client"} />
                           </SelectTrigger>
                           <SelectContent>
                             {clients?.map((client: any) => (
@@ -2256,46 +2353,46 @@ export function SiteReport() {
                             )}
                           </SelectContent>
                         </Select>
-                        {errors.client && <p className="text-[10px] text-red-500 font-medium">{errors.client.message}</p>}
+                        {errors.client && <p className="text-[11px] text-red-500 font-medium">{errors.client.message}</p>}
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Project *</label>
+                        <label style={fieldLabelStyle}>Project *</label>
                         <Select 
                           value={form.watch('projectName')} 
                           onValueChange={(val) => form.setValue('projectName', val)}
                           disabled={!selectedClientId}
                         >
-                          <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.projectName || projectsError) && "border-red-500")}>
-                            <SelectValue placeholder={!selectedClientId ? "Select client first" : projectsLoading ? "Fetching projects..." : "Select Project"} />
+                          <SelectTrigger className={cn("h-10 text-sm bg-white", (errors.projectName || projectsError) && "border-red-500")}>
+                            <SelectValue placeholder={!selectedClientId ? "Select a client to load projects" : projectsLoading ? "Fetching projects..." : "Select project"} />
                           </SelectTrigger>
                           <SelectContent>
                             {projects?.map((project: any) => (
                               <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
                             ))}
                             {projects?.length === 0 && !projectsLoading && (
-                              <SelectItem value="_empty">No projects for this client</SelectItem>
+                              <SelectItem value="_empty">No active projects available</SelectItem>
                             )}
                           </SelectContent>
                         </Select>
-                        {errors.projectName && <p className="text-[10px] text-red-500 font-medium">{errors.projectName.message}</p>}
+                        {errors.projectName && <p className="text-[11px] text-red-500 font-medium">{errors.projectName.message}</p>}
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Report Date *</label>
+                        <label style={fieldLabelStyle}>Report Date *</label>
                         <Input 
                           type="date" 
-                          className={cn("h-9 text-sm bg-white", errors.date && "border-red-500")}
+                          className={cn("h-10 text-sm bg-white", errors.date && "border-red-500")}
                           {...form.register('date')} 
                         />
-                        {errors.date && <p className="text-[10px] text-red-500 font-medium">{errors.date.message}</p>}
+                        {errors.date && <p className="text-[11px] text-red-500 font-medium">{errors.date.message}</p>}
                       </div>
                     </div>
 
                     {linkedTasks.length > 0 && (
-                      <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f0f0f0' }}>
-                        <label style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Linked Tasks</label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+                        <label style={fieldGroupLabelStyle}>Linked Tasks</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
                           {linkedTasks.map(t => (
                             <div
                               key={t.id}
@@ -2303,8 +2400,8 @@ export function SiteReport() {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
                                 background: '#f8fafc',
                                 border: '1px solid #e2e8f0',
                                 fontSize: '12px',
@@ -2328,23 +2425,20 @@ export function SiteReport() {
                 <div
                   style={{
                     background: '#fffbeb',
-                    border: '1px solid #fef3c7',
+                    borderLeft: '3px solid #f59e0b',
                     borderRadius: '8px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                    padding: '14px 18px',
+                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                       <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>
                         Upcoming Milestone Reminder:
                       </span>
                       <span style={{ fontSize: '13px', color: '#78350f' }}>
-                        <strong>{upcomingMilestones[0].name}</strong> is due on {new Date(upcomingMilestones[0].milestone_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <strong>{upcomingMilestones[0].name}</strong> — due {new Date(upcomingMilestones[0].milestone_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
                       {upcomingMilestones.length > 1 && (
                         <button
@@ -2356,10 +2450,9 @@ export function SiteReport() {
                             color: '#b45309',
                             background: '#fef3c7',
                             border: '1px solid #fde68a',
-                            borderRadius: '4px',
-                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
                             cursor: 'pointer',
-                            marginLeft: '6px',
                           }}
                         >
                           +{upcomingMilestones.length - 1} more
@@ -2377,6 +2470,7 @@ export function SiteReport() {
                         display: 'flex',
                         alignItems: 'center',
                         padding: '2px',
+                        flexShrink: 0,
                       }}
                     >
                       <X className="w-4 h-4" />
@@ -2384,11 +2478,11 @@ export function SiteReport() {
                   </div>
                   
                   {expandMilestones && upcomingMilestones.length > 1 && (
-                    <div style={{ marginTop: '8px', paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed #fde68a', paddingTop: '8px' }}>
+                    <div style={{ marginTop: '10px', paddingLeft: '34px', display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed #fde68a', paddingTop: '10px' }}>
                       {upcomingMilestones.slice(1).map((m: any) => (
                         <div key={m.id} style={{ fontSize: '12px', color: '#78350f', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#b45309' }} />
-                          <strong>{m.name}</strong> - due on {new Date(m.milestone_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#b45309', flexShrink: 0 }} />
+                          <strong>{m.name}</strong> — due {new Date(m.milestone_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </div>
                       ))}
                     </div>
@@ -2397,70 +2491,97 @@ export function SiteReport() {
               )}
 
               {/* 2. Manpower Section */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('manpower')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.manpower ? '14px' : 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Manpower Details</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('manpower')} style={sectionHeaderStyle(openSections.manpower)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Manpower Details</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.manpower && 'rotate-90')} />
                 </button>
                 {openSections.manpower && <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SKILLED FORCE</label>
-                    <Input className="h-9 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>UNSKILLED FORCE</label>
-                    <Input className="h-9 bg-white text-sm" {...form.register('manpower.unskilled')} placeholder="0" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>TOTAL FORCE</label>
-                    <Input className="h-9 bg-zinc-50 font-bold text-sm" {...form.register('manpower.total')} placeholder="0" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>IN TIME</label>
-                    <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.startTime')} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>OUT TIME</label>
-                    <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.endTime')} />
+                {/* Group: Counts */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={subSectionStyle}>
+                    <label style={{ ...fieldGroupLabelStyle, marginBottom: '10px', display: 'block' }}>On-site Workforce</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Skilled</label>
+                        <Input className="h-10 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" type="number" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Unskilled</label>
+                        <Input className="h-10 bg-white text-sm" {...form.register('manpower.unskilled')} placeholder="0" type="number" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Total</label>
+                        <div className="h-10 flex items-center px-3 rounded-lg bg-zinc-50 border border-zinc-200 text-sm font-semibold text-zinc-700">
+                          {computedTotal}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Group: Timing */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={subSectionStyle}>
+                    <label style={{ ...fieldGroupLabelStyle, marginBottom: '10px', display: 'block' }}>Timing</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '400px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>In Time</label>
+                        <div style={{ position: 'relative' }}>
+                          <Input className="h-10 bg-white text-sm pl-9" type="time" {...form.register('manpower.startTime')} />
+                          <Clock className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Out Time</label>
+                        <div style={{ position: 'relative' }}>
+                          <Input className="h-10 bg-white text-sm pl-9" type="time" {...form.register('manpower.endTime')} />
+                          <Clock className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sub-Contractors on Site</label>
+                    <label style={fieldLabelStyle}>Sub-Contractors on Site</label>
                     {view !== 'view' && (
                       <button 
                         type="button" 
                         onClick={() => appendSubContractor({ subcontractor_id: '', name: '', count: '', start: '', end: '' })}
-                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={addOutlineBtnStyle}
                       >
-                        + Add Entry
+                        <Plus className="w-3 h-3" />
+                        Add Entry
                       </button>
                     )}
                   </div>
                   
-                  <div className="border border-zinc-100 rounded-lg overflow-hidden bg-white">
+                  <div className="rounded-lg overflow-hidden bg-white border border-zinc-200">
                     <Table>
-                      <TableHeader className="bg-zinc-50/50">
+                      <TableHeader className="bg-zinc-50">
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500">Company/Vendor Name</TableHead>
-                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[100px]">Count</TableHead>
-                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">In</TableHead>
-                          <TableHead className="text-[10px] h-8 font-bold text-zinc-500 w-[120px]">Out</TableHead>
-                          {view !== 'view' && <TableHead className="w-[40px] h-8"></TableHead>}
+                          <TableHead className="text-[11px] h-10 font-semibold text-zinc-600">Company/Vendor Name</TableHead>
+                          <TableHead className="text-[11px] h-10 font-semibold text-zinc-600 w-[100px]">Count</TableHead>
+                          <TableHead className="text-[11px] h-10 font-semibold text-zinc-600 w-[120px]">In</TableHead>
+                          <TableHead className="text-[11px] h-10 font-semibold text-zinc-600 w-[120px]">Out</TableHead>
+                          {view !== 'view' && <TableHead className="w-[50px] h-10"></TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {subContractorFields.map((field, index) => (
-                          <TableRow key={field.id} className="bg-white border-b-zinc-50 last:border-0 hover:bg-transparent">
-                            <TableCell className="p-1">
+                          <TableRow key={field.id} className="bg-white border-b-zinc-100 last:border-0 hover:bg-zinc-50/50" style={{ height: '52px' }}>
+                            <TableCell className="p-2">
                               <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                 <input type="hidden" {...form.register(`manpower.subContractors.${index}.subcontractor_id`)} />
-                                <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter name..." style={{ flex: 1, minWidth: 0 }} />
+                                <Input className="h-9 text-sm border-zinc-200 focus:border-blue-400 bg-white" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter name..." style={{ flex: 1, minWidth: 0 }} />
                                 {view !== 'view' && (
                                   <select
-                                    style={{ fontSize: '11px', padding: '4px 6px', borderRadius: '4px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', minWidth: '140px' }}
+                                    style={{ fontSize: '12px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', minWidth: '140px', height: '36px' }}
                                     value={form.watch(`manpower.subContractors.${index}.subcontractor_id`) || ''}
                                     onChange={(e) => {
                                       if (!e.target.value) return;
@@ -2479,22 +2600,22 @@ export function SiteReport() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="p-1">
-                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.count`)} placeholder="0" />
+                            <TableCell className="p-2">
+                              <Input className="h-9 text-sm bg-white" {...form.register(`manpower.subContractors.${index}.count`)} placeholder="0" />
                             </TableCell>
-                            <TableCell className="p-1">
-                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.start`)} />
+                            <TableCell className="p-2">
+                              <Input className="h-9 text-sm bg-white pl-8" type="time" {...form.register(`manpower.subContractors.${index}.start`)} />
                             </TableCell>
-                            <TableCell className="p-1">
-                              <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
+                            <TableCell className="p-2">
+                              <Input className="h-9 text-sm bg-white pl-8" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
                             </TableCell>
                             {view !== 'view' && (
-                              <TableCell className="p-1 text-center">
+                              <TableCell className="p-2 text-center">
                                 <ShadcnButton 
                                   type="button" 
                                   variant="ghost" 
                                   size="sm" 
-                                  className="h-7 w-7 text-zinc-300 hover:text-red-500"
+                                  className="h-8 w-8 text-zinc-400 hover:text-red-500"
                                   onClick={() => removeSubContractor(index)}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -2505,7 +2626,7 @@ export function SiteReport() {
                         ))}
                         {subContractorFields.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={view === 'view' ? 4 : 5} className="h-12 text-center text-[11px] text-zinc-400 italic">No sub-contractors added</TableCell>
+                            <TableCell colSpan={view === 'view' ? 4 : 5} className="h-14 text-center text-[12px] text-zinc-400">No sub-contractors added</TableCell>
                           </TableRow>
                         )}
                       </TableBody>
@@ -2516,34 +2637,38 @@ export function SiteReport() {
               </div>
 
               {/* 3. Work Carried Out & Milestones */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('workMilestones')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.workMilestones ? '12px' : 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Carried Out & Milestones</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('workMilestones')} style={sectionHeaderStyle(openSections.workMilestones)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Work Carried Out & Milestones</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.workMilestones && 'rotate-90')} />
                 </button>
-                {openSections.workMilestones && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Done Today *</label>
+                {openSections.workMilestones && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div style={subSectionStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <label style={fieldLabelStyle}>Work Done Today *</label>
                     {view !== 'view' && (
                       <button 
                         type="button" 
                         onClick={() => appendWork({ value: '', trade: 'General' })}
-                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={addOutlineBtnStyle}
                       >
-                        + Add Activity
+                        <Plus className="w-3 h-3" />
+                        Add Activity
                       </button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {workFields.map((field, index) => (
-                      <div key={field.id} className="flex gap-2 items-start group">
+                      <div key={field.id} className="flex gap-2 items-start p-2 bg-white rounded-lg border border-zinc-100" style={{ minHeight: '44px' }}>
                         <Select 
                           value={form.watch(`workCarriedOut.${index}.trade`) || 'General'} 
                           onValueChange={(val) => form.setValue(`workCarriedOut.${index}.trade`, val)}
                           disabled={view === 'view'}
                         >
-                          <SelectTrigger className="h-9 w-40 text-xs bg-white">
+                          <SelectTrigger className="h-9 w-36 text-xs bg-white">
                             <SelectValue placeholder="Select Trade" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2565,10 +2690,10 @@ export function SiteReport() {
                             type="button" 
                             variant="ghost" 
                             size="sm" 
-                            className="h-9 w-9 text-zinc-300 hover:text-red-500"
+                            className="h-9 w-9 text-zinc-400 hover:text-red-500 flex-shrink-0"
                             onClick={() => removeWork(index)}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </ShadcnButton>
                         )}
                       </div>
@@ -2576,32 +2701,33 @@ export function SiteReport() {
                   </div>
                 </div>
 
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Milestones Hit</label>
+                <div style={subSectionStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <label style={fieldLabelStyle}>Milestones Hit</label>
                     {view !== 'view' && (
                       <button 
                         type="button" 
                         onClick={() => appendMilestone({ value: '' })}
-                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={addOutlineBtnStyle}
                       >
-                        + Add Milestone
+                        <Plus className="w-3 h-3" />
+                        Add Milestone
                       </button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {milestoneFields.map((field, index) => (
-                      <div key={field.id} className="flex gap-2 items-start group">
+                      <div key={field.id} className="flex gap-2 items-start p-2 bg-white rounded-lg border border-zinc-100" style={{ minHeight: '44px' }}>
                         <Input className="h-9 text-sm bg-white flex-1" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone description..." />
                         {view !== 'view' && (
                           <ShadcnButton 
                             type="button" 
                             variant="ghost" 
                             size="sm" 
-                            className="h-9 w-9 text-zinc-300 hover:text-red-500"
+                            className="h-9 w-9 text-zinc-400 hover:text-red-500 flex-shrink-0"
                             onClick={() => removeMilestone(index)}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </ShadcnButton>
                         )}
                       </div>
@@ -2612,66 +2738,69 @@ export function SiteReport() {
               </div>
 
               {/* 4. Progress, Equipment, Safety & Quality */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('progressEquipmentSafety')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.progressEquipmentSafety ? '12px' : 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Progress, Equipment & Safety</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('progressEquipmentSafety')} style={sectionHeaderStyle(openSections.progressEquipmentSafety)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Progress, Equipment & Safety</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.progressEquipmentSafety && 'rotate-90')} />
                 </button>
                 {openSections.progressEquipmentSafety && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 {/* Progress Monitoring */}
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Progress Monitoring</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>PLANNED FOR TODAY</label>
-                    <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.planned')} placeholder="..." />
+                <div style={subSectionStyle}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '12px' }}>Progress Monitoring</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Planned for today</label>
+                    <Textarea className="min-h-[60px] text-sm bg-white" {...form.register('progress.planned')} placeholder="What was planned for today..." />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>ACTUAL PROGRESS</label>
-                    <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.actual')} placeholder="..." />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Actual progress</label>
+                    <Textarea className="min-h-[60px] text-sm bg-white" {...form.register('progress.actual')} placeholder="What was actually achieved..." />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>% COMPLETE</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Completion</label>
                     <div className="relative">
-                      <Input className="h-9 text-xs pr-8 font-bold" {...form.register('progress.percentComplete')} placeholder="0" />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-[10px]">%</span>
+                      <Input className="h-10 text-sm pr-10 font-semibold bg-white" {...form.register('progress.percentComplete')} placeholder="0" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 font-medium text-xs">%</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Equipment Status */}
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Equipment Status</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>MACHINES ON SITE</label>
-                    <Textarea className="min-h-[80px] text-xs bg-white" {...form.register('equipment.onSite')} placeholder="List tools/machinery..." />
+                <div style={subSectionStyle}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '12px' }}>Equipment Status</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Machines on site</label>
+                    <Textarea className="min-h-[80px] text-sm bg-white" {...form.register('equipment.onSite')} placeholder="List tools and machinery on site..." />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#ef4444' }}>ISSUES / BREAKDOWNS</label>
-                    <Textarea className="min-h-[80px] text-xs bg-white border-red-50" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues..." />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#dc2626' }}>Issues / breakdowns</label>
+                    <Textarea className="min-h-[80px] text-sm bg-white" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues or breakdowns..." />
                   </div>
                 </div>
 
                 {/* Safety & Quality */}
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Safety & Quality</div>
+                <div style={subSectionStyle}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '12px' }}>Safety & Quality</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div className="flex items-center justify-between p-2 bg-white rounded border border-zinc-100 shadow-sm">
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Toolbox Meeting</label>
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-white rounded-lg border border-zinc-100">
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>Toolbox meeting</label>
                       <Checkbox checked={form.watch('safety.toolboxMeeting')} onCheckedChange={(c) => form.setValue('safety.toolboxMeeting', !!c)} />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-white rounded border border-zinc-100 shadow-sm">
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>PPE Protocols</label>
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-white rounded-lg border border-zinc-100">
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>PPE protocols followed</label>
                       <Checkbox checked={form.watch('safety.ppe')} onCheckedChange={(c) => form.setValue('safety.ppe', !!c)} />
                     </div>
                   </div>
                   
-                  <div className="h-px bg-zinc-200 my-1" />
+                  <div className="h-px bg-zinc-200 my-3" />
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>INSPECTION</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Inspection</label>
                       <Select value={form.watch('quality.inspection')} onValueChange={(val: any) => form.setValue('quality.inspection', val)} disabled={view === 'view'}>
-                        <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-9 text-sm bg-white"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Yes">Yes</SelectItem>
                           <SelectItem value="Pending">Pending</SelectItem>
@@ -2679,48 +2808,48 @@ export function SiteReport() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SATISFIED %</label>
-                      <Input className="h-8 text-xs bg-white" {...form.register('quality.satisfiedPercent')} placeholder="0%" disabled={view === 'view'} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Satisfied %</label>
+                      <Input className="h-9 text-sm bg-white" {...form.register('quality.satisfiedPercent')} placeholder="0%" disabled={view === 'view'} />
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>REWORK REQUIRED REASON</label>
-                    <Input className="h-8 text-xs bg-white" {...form.register('quality.reworkRequiredReason')} placeholder="Reason for rework if any..." disabled={view === 'view'} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Rework required reason</label>
+                    <Input className="h-9 text-sm bg-white" {...form.register('quality.reworkRequiredReason')} placeholder="Reason for rework if any..." disabled={view === 'view'} />
                   </div>
 
-                  <div className="h-px bg-zinc-200 my-2" />
+                  <div className="h-px bg-zinc-200 my-3" />
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div className="flex items-center justify-between p-2 bg-white rounded border border-zinc-100 shadow-sm">
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Rework Performed Today</label>
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-white rounded-lg border border-zinc-100">
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>Rework performed today</label>
                       <Checkbox checked={form.watch('rework.isRework')} onCheckedChange={(c) => form.setValue('rework.isRework', !!c)} disabled={view === 'view'} />
                     </div>
                     
                     {form.watch('rework.isRework') && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>REWORK REASON *</label>
-                          <Input className="h-8 text-xs bg-white" {...form.register('rework.reason')} placeholder="What is being reworked..." disabled={view === 'view'} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Rework reason *</label>
+                          <Input className="h-9 text-sm bg-white" {...form.register('rework.reason')} placeholder="What is being reworked..." disabled={view === 'view'} />
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>START DATE</label>
-                            <Input type="date" className="h-8 text-xs bg-white" {...form.register('rework.start')} disabled={view === 'view'} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Start date</label>
+                            <Input type="date" className="h-9 text-sm bg-white" {...form.register('rework.start')} disabled={view === 'view'} />
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>END DATE</label>
-                            <Input type="date" className="h-8 text-xs bg-white" {...form.register('rework.end')} disabled={view === 'view'} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>End date</label>
+                            <Input type="date" className="h-9 text-sm bg-white" {...form.register('rework.end')} disabled={view === 'view'} />
                           </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>MATERIAL USED</label>
-                          <Input className="h-8 text-xs bg-white" {...form.register('rework.materialUsed')} placeholder="Pipes, valves, etc..." disabled={view === 'view'} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Material used</label>
+                          <Input className="h-9 text-sm bg-white" {...form.register('rework.materialUsed')} placeholder="Pipes, valves, etc..." disabled={view === 'view'} />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '9px', fontWeight: 600, color: '#6b7280' }}>TOTAL MANPOWER</label>
-                          <Input className="h-8 text-xs bg-white" {...form.register('rework.totalManpower')} placeholder="e.g. 2 fitters, 3 hours" disabled={view === 'view'} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Total manpower</label>
+                          <Input className="h-9 text-sm bg-white" {...form.register('rework.totalManpower')} placeholder="e.g. 2 fitters, 3 hours" disabled={view === 'view'} />
                         </div>
                       </div>
                     )}
@@ -2730,149 +2859,160 @@ export function SiteReport() {
               </div>
 
               {/* 5. Logistics & Internal Reporting */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('logistics')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.logistics ? '10px' : 0 }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Logistics & Internal Reporting</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('logistics')} style={sectionHeaderStyle(openSections.logistics)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Logistics & Internal Reporting</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.logistics && 'rotate-90')} />
                 </button>
                 {openSections.logistics && <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>APPROVAL STATUS</label>
-                    <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
-                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Pending Approval">Pending Approval</SelectItem>
-                        <SelectItem value="Approved">Approved</SelectItem>
-                        <SelectItem value="Rejected">Rejected</SelectItem>
-                        <SelectItem value="On Hold">On Hold</SelectItem>
-                        <SelectItem value="Reported">Reported</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>MATERIAL ARRANGEMENT</label>
-                    <Select value={form.watch('reporting.materialArrangement')} onValueChange={(v: any) => form.setValue('reporting.materialArrangement', v)}>
-                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Arranged">Arranged</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Not Required">Not Required</SelectItem>
-                        <SelectItem value="Informed to stores">Informed to stores</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>SITE PHOTO STATUS</label>
-                    <Select value={form.watch('documentation.sitePictures')} onValueChange={(v: any) => form.setValue('documentation.sitePictures', v)}>
-                      <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Taken">Taken</SelectItem>
-                        <SelectItem value="Not Allowed">Not Allowed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px', paddingLeft: '8px' }}>
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={form.watch('documentation.filed')} onCheckedChange={(c) => form.setValue('documentation.filed', !!c)} />
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Hardcopy Filed</label>
+                <div style={subSectionStyle}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <label style={fieldGroupLabelStyle}>Approval status</label>
+                      <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
+                        <SelectTrigger className="h-9 text-sm bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Draft">Draft</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Pending Approval">Pending Approval</SelectItem>
+                          <SelectItem value="Approved">Approved</SelectItem>
+                          <SelectItem value="Rejected">Rejected</SelectItem>
+                          <SelectItem value="On Hold">On Hold</SelectItem>
+                          <SelectItem value="Reported">Reported</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={form.watch('documentation.toolsLocked')} onCheckedChange={(c) => form.setValue('documentation.toolsLocked', !!c)} />
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Tools Secured</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <label style={fieldGroupLabelStyle}>Material arrangement</label>
+                      <Select value={form.watch('reporting.materialArrangement')} onValueChange={(v: any) => form.setValue('reporting.materialArrangement', v)}>
+                        <SelectTrigger className="h-9 text-sm bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Arranged">Arranged</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Not Required">Not Required</SelectItem>
+                          <SelectItem value="Informed to stores">Informed to stores</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <label style={fieldGroupLabelStyle}>Site photo status</label>
+                      <Select value={form.watch('documentation.sitePictures')} onValueChange={(v: any) => form.setValue('documentation.sitePictures', v)}>
+                        <SelectTrigger className="h-9 text-sm bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Taken">Taken</SelectItem>
+                          <SelectItem value="Not Allowed">Not Allowed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '10px', paddingLeft: '8px' }}>
+                      <div className="flex items-center gap-2.5">
+                        <Checkbox checked={form.watch('documentation.filed')} onCheckedChange={(c) => form.setValue('documentation.filed', !!c)} />
+                        <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>Hardcopy filed</label>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <Checkbox checked={form.watch('documentation.toolsLocked')} onCheckedChange={(c) => form.setValue('documentation.toolsLocked', !!c)} />
+                        <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>Tools secured</label>
+                      </div>
                     </div>
                   </div>
                 </div>
                 {/* DC/Invoice Section */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div className="flex items-center gap-2">
+                <div style={subSectionStyle}>
+                  <label style={{ ...fieldLabelStyle, marginBottom: '10px', display: 'block' }}>Documentation</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div className="flex items-center gap-2.5">
                       <Checkbox checked={form.watch('documents.dcInvoiceSupplied')} onCheckedChange={(c) => form.setValue('documents.dcInvoiceSupplied', !!c)} />
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>DC/Invoice Supplied Today</label>
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>DC/Invoice supplied today</label>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <Checkbox 
                         checked={form.watch('documents.submittedToOffice')} 
                         onCheckedChange={(c) => form.setValue('documents.submittedToOffice', !!c)}
                         disabled={!form.watch('documents.dcInvoiceSupplied')}
                       />
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: form.watch('documents.dcInvoiceSupplied') ? '#374151' : '#9ca3af' }}>Submitted to Office</label>
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: form.watch('documents.dcInvoiceSupplied') ? '#374151' : '#9ca3af' }}>Submitted to office</label>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>DC NO (Optional)</label>
-                    <Input className="h-8 text-xs bg-white" {...form.register('documents.docNo')} placeholder="Enter DC number..." />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <label style={fieldGroupLabelStyle}>DC no (optional)</label>
+                      <Input className="h-9 text-sm bg-white" {...form.register('documents.docNo')} placeholder="Enter DC number..." />
+                    </div>
                   </div>
                 </div>
               </>}
               </div>
 
               {/* 6. Issues, Plan, Client Requirements */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('issuesPlanClient')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.issuesPlanClient ? '12px' : 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Issues, Planning & Client Requirements</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('issuesPlanClient')} style={sectionHeaderStyle(openSections.issuesPlanClient)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Issues, Planning & Client Requirements</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.issuesPlanClient && 'rotate-90')} />
                 </button>
                 {openSections.issuesPlanClient && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 {/* Issues */}
-                <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', background: '#fff5f5', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ background: '#fef2f2', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Issues Faced</label>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#b91c1c' }}>Issues Faced</label>
                     {view !== 'view' && (
                       <button 
                         type="button" 
                         onClick={() => appendIssue({ issue: '', solution: '' })}
-                        style={{ fontSize: '11px', color: '#b91c1c', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', background: '#fff', border: '1px solid #fecaca', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       >
-                        + Log Issue
+                        <Plus className="w-3 h-3" />
+                        Log Issue
                       </button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {issueFields.map((field, index) => (
-                      <div key={field.id} className="space-y-1 p-2 bg-white rounded border border-red-100 relative group">
-                        <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.issue`)} placeholder="Issue..." />
-                        <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.solution`)} placeholder="Action..." />
-                        {view !== 'view' && (
-                          <ShadcnButton 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full" 
-                            onClick={() => removeIssue(index)}
-                          >
-                            <Plus className="w-3 h-3 rotate-45" />
-                          </ShadcnButton>
-                        )}
+                      <div key={field.id} className="p-2.5 bg-white rounded-lg border border-red-100 relative group">
+                        <div className="flex gap-1.5">
+                          <Input className="h-8 text-sm bg-white flex-1" {...form.register(`issues.${index}.issue`)} placeholder="Issue..." />
+                          {view !== 'view' && (
+                            <ShadcnButton 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 text-red-300 hover:text-red-600 flex-shrink-0" 
+                              onClick={() => removeIssue(index)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </ShadcnButton>
+                          )}
+                        </div>
+                        <Input className="h-8 text-sm bg-white mt-1.5" {...form.register(`issues.${index}.solution`)} placeholder="Action taken..." />
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Next Day Plan */}
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next Day Plan *</label>
+                <div style={subSectionStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <label style={fieldLabelStyle}>Next Day Plan *</label>
                     {view !== 'view' && (
                       <button 
                         type="button" 
                         onClick={() => appendPlan({ value: '' })}
-                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={addOutlineBtnStyle}
                       >
-                        + Add Task
+                        <Plus className="w-3 h-3" />
+                        Add Task
                       </button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {planFields.map((field, index) => (
-                      <div key={field.id} className="flex gap-1 group items-center">
-                        <Input className="h-8 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
+                      <div key={field.id} className="flex gap-2 items-center p-1.5 bg-white rounded-lg border border-zinc-100">
+                        <Input className="h-9 text-sm bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
                         {view !== 'view' && (
-                          <ShadcnButton type="button" variant="ghost" size="sm" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removePlan(index)}>
+                          <ShadcnButton type="button" variant="ghost" size="sm" className="h-9 w-9 text-zinc-400 hover:text-red-500 flex-shrink-0" onClick={() => removePlan(index)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </ShadcnButton>
                         )}
@@ -2882,53 +3022,55 @@ export function SiteReport() {
                 </div>
 
                 {/* Client Side Req */}
-                <div style={{ border: '1px solid #fef3c7', borderRadius: '8px', padding: '16px', background: '#fffbeb', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ background: '#fffbeb', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Client Requirements</label>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#b45309' }}>Client Requirements</label>
                     {view !== 'view' && (
                       <button 
                         type="button" 
                         onClick={() => appendClientReq({ value: '' })}
-                        style={{ fontSize: '11px', color: '#b45309', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        style={{ fontSize: '11px', fontWeight: 600, color: '#b45309', background: '#fff', border: '1px solid #fde68a', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       >
-                        + Add Req
+                        <Plus className="w-3 h-3" />
+                        Add Req
                       </button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
                     {clientReqFields.map((field, index) => (
-                      <div key={field.id} className="flex gap-1 group items-center">
-                        <Input className="h-8 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Requirement..." />
+                      <div key={field.id} className="flex gap-2 items-center p-1.5 bg-white rounded-lg border border-amber-100">
+                        <Input className="h-9 text-sm bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Requirement..." />
                         {view !== 'view' && (
-                          <ShadcnButton type="button" variant="ghost" size="sm" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={() => removeClientReq(index)}>
+                          <ShadcnButton type="button" variant="ghost" size="sm" className="h-9 w-9 text-zinc-400 hover:text-red-500 flex-shrink-0" onClick={() => removeClientReq(index)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </ShadcnButton>
                         )}
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div className="flex items-center gap-2">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="flex items-center gap-2.5">
                       <Checkbox checked={form.watch('clientRequirements.quoteToBe_sent')} onCheckedChange={(c) => form.setValue('clientRequirements.quoteToBe_sent', !!c)} />
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Quote to be sent</label>
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>Quote to be sent</label>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <Checkbox checked={form.watch('clientRequirements.mailReceived')} onCheckedChange={(c) => form.setValue('clientRequirements.mailReceived', !!c)} />
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>Mail Received from client</label>
+                      <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>Mail received from client</label>
                     </div>
                   </div>
                 </div>
               </div>}
               </div>
 
-              {/* Section 6.5: Work Stoppages (Phase H) — log blocks/restarts on this report */}
-              <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '16px', background: '#fff5f5' }}>
-                <button type="button" onClick={() => toggleSection('workStoppages')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.workStoppages ? '12px' : 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Stoppages</div>
+              {/* Section 6.5: Work Stoppages */}
+              <div style={{ ...sectionCardStyle, borderLeft: '3px solid #fca5a5' }}>
+                <button type="button" onClick={() => toggleSection('workStoppages')} style={sectionHeaderStyle(openSections.workStoppages)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={{ ...accentLineStyle, background: '#ef4444' }} />
+                    <span style={{ ...sectionTitleStyle, color: '#b91c1c' }}>Work Stoppages</span>
                     {stoppages.length > 0 && (
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#b91c1c', background: '#fecaca', padding: '2px 6px', borderRadius: '10px' }}>
-                        {stoppages.length} log{stoppages.length === 1 ? '' : 's'}
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#b91c1c', background: '#fecaca', padding: '2px 8px', borderRadius: '10px' }}>
+                        {stoppages.length}
                       </span>
                     )}
                   </div>
@@ -2936,28 +3078,28 @@ export function SiteReport() {
                 </button>
                 {openSections.workStoppages && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ fontSize: '10px', color: '#7f1d1d', lineHeight: '1.4' }}>
-                      Log work that was stopped today and when (or whether) it is expected to restart. Resolution happens from the Projects Overview.
+                    <div style={{ fontSize: '11px', color: '#7f1d1d', lineHeight: '1.5' }}>
+                      Log work that was stopped today and when it is expected to restart. Resolution happens from Projects Overview.
                     </div>
                     {stoppages.length === 0 ? (
-                      <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#9f1239', background: '#fff', border: '1px dashed #fecaca', borderRadius: '6px' }}>
+                      <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: '#9f1239', background: '#fff', border: '1px dashed #fecaca', borderRadius: '8px' }}>
                         No work stoppages logged for this report.
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {stoppages.map((s, index) => {
                           const tone = toneClassForCategory(s.category);
                           const isResolved = (existingStoppages[index]?.is_resolved) || false;
                           return (
-                            <div key={`stoppage-${index}`} className="p-3 bg-white rounded border border-red-100 relative group">
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span className={cn('w-2 h-2 rounded-full', tone.dot)} />
-                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#7f1d1d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            <div key={`stoppage-${index}`} className="p-4 bg-white rounded-lg border border-red-100 relative group">
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span className={cn('w-2.5 h-2.5 rounded-full', tone.dot)} />
+                                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#7f1d1d' }}>
                                     Stoppage #{index + 1}
                                   </span>
                                   {isResolved && view === 'view' && (
-                                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 6px', borderRadius: '8px' }}>
+                                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#047857', background: '#d1fae5', padding: '2px 8px', borderRadius: '8px' }}>
                                       Resolved
                                     </span>
                                   )}
@@ -2967,22 +3109,22 @@ export function SiteReport() {
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-6 text-red-300 hover:text-red-600"
+                                    className="h-7 w-7 text-red-300 hover:text-red-600"
                                     onClick={() => removeStoppageRow(index)}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </ShadcnButton>
                                 )}
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                                 <div>
-                                  <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Category</label>
+                                  <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Category</label>
                                   <Select
                                     value={s.category}
                                     onValueChange={(v) => updateStoppageRow(index, { category: v as StoppageCategory })}
                                     disabled={view === 'view'}
                                   >
-                                    <SelectTrigger className="h-8 text-xs bg-white mt-1">
+                                    <SelectTrigger className="h-9 text-sm bg-white mt-1">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -2993,13 +3135,13 @@ export function SiteReport() {
                                   </Select>
                                 </div>
                                 <div>
-                                  <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Blocked by</label>
+                                  <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Blocked by</label>
                                   <Select
                                     value={s.blocking_party}
                                     onValueChange={(v) => updateStoppageRow(index, { blocking_party: v as BlockingParty })}
                                     disabled={view === 'view'}
                                   >
-                                    <SelectTrigger className="h-8 text-xs bg-white mt-1">
+                                    <SelectTrigger className="h-9 text-sm bg-white mt-1">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -3010,20 +3152,20 @@ export function SiteReport() {
                                   </Select>
                                 </div>
                               </div>
-                              <div style={{ marginBottom: '8px' }}>
-                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Affected work</label>
+                              <div style={{ marginBottom: '10px' }}>
+                                <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Affected work</label>
                                 <Input
-                                  className="h-8 text-xs bg-white mt-1"
+                                  className="h-9 text-sm bg-white mt-1"
                                   value={s.affected_work}
                                   onChange={(e) => updateStoppageRow(index, { affected_work: e.target.value })}
                                   placeholder="e.g. AHU-1 piping on 3rd floor east wing"
                                   readOnly={view === 'view'}
                                 />
                               </div>
-                              <div style={{ marginBottom: '8px' }}>
-                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Reason / context</label>
+                              <div style={{ marginBottom: '10px' }}>
+                                <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Reason / context</label>
                                 <Textarea
-                                  className="text-xs bg-white mt-1 min-h-[44px]"
+                                  className="text-sm bg-white mt-1 min-h-[50px]"
                                   value={s.reason_detail}
                                   onChange={(e) => updateStoppageRow(index, { reason_detail: e.target.value })}
                                   placeholder="What happened, who needs to act"
@@ -3031,10 +3173,12 @@ export function SiteReport() {
                                 />
                               </div>
                               <div>
-                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#525252', textTransform: 'uppercase' }}>Expected restart date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(leave blank if unknown)</span></label>
+                                <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>
+                                  Expected restart date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(leave blank if unknown)</span>
+                                </label>
                                 <Input
                                   type="date"
-                                  className="h-8 text-xs bg-white mt-1"
+                                  className="h-9 text-sm bg-white mt-1"
                                   value={s.expected_resolution_date}
                                   onChange={(e) => updateStoppageRow(index, { expected_resolution_date: e.target.value })}
                                   readOnly={view === 'view'}
@@ -3061,23 +3205,25 @@ export function SiteReport() {
                       <button
                         type="button"
                         onClick={addStoppageRow}
-                        style={{ fontSize: '11px', color: '#b91c1c', background: 'none', border: '1px dashed #fca5a5', borderRadius: '6px', padding: '8px', cursor: 'pointer', fontWeight: 600 }}
+                        style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', background: '#fff', border: '1px solid #fca5a5', borderRadius: '6px', padding: '7px 14px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                       >
-                        + Log Stoppage
+                        <Plus className="w-3 h-3" />
+                        Log Stoppage
                       </button>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Section 6.8: Continuous Improvement Logs (Optional) */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', background: '#f8fafc' }}>
-                <button type="button" onClick={() => toggleSection('continuousImprovement')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.continuousImprovement ? '12px' : 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Continuous Improvement Observations</div>
+              {/* Section 6.8: Continuous Improvement Observations */}
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('continuousImprovement')} style={sectionHeaderStyle(openSections.continuousImprovement)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={{ ...accentLineStyle, background: '#10b981' }} />
+                    <span style={sectionTitleStyle}>Continuous Improvement Observations</span>
                     {observations.length > 0 && (
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#10b981', background: '#d1fae5', padding: '2px 6px', borderRadius: '10px' }}>
-                        {observations.length} log{observations.length === 1 ? '' : 's'}
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 8px', borderRadius: '10px' }}>
+                        {observations.length}
                       </span>
                     )}
                   </div>
@@ -3085,25 +3231,25 @@ export function SiteReport() {
                 </button>
                 {openSections.continuousImprovement && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ fontSize: '10px', color: '#475569', lineHeight: '1.4' }}>
-                      Log any coordination issues, best practices, safety observations, or improvement opportunities noticed on site today. Only Category and Title are required.
+                    <div style={{ fontSize: '11px', color: '#475569', lineHeight: '1.5' }}>
+                      Log any coordination issues, best practices, safety observations, or improvement opportunities noticed on site today.
                     </div>
                     {observations.length === 0 ? (
-                      <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#64748b', background: '#fff', border: '1px dashed #cbd5e1', borderRadius: '6px' }}>
-                        No continuous improvement logs recorded.
+                      <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: '#64748b', background: '#fff', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                        No observations recorded.
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {observations.map((obs, idx) => (
-                          <div key={`obs-${idx}`} className="p-3 bg-white rounded border border-zinc-200 relative group flex flex-col gap-2">
+                          <div key={`obs-${idx}`} className="p-4 bg-white rounded-lg border border-zinc-200 relative group flex flex-col gap-3">
                             <div className="flex justify-between items-center">
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Observation #{idx + 1}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Observation #{idx + 1}</span>
                               {view !== 'view' && (
                                 <ShadcnButton
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 w-6 text-zinc-400 hover:text-red-600"
+                                  className="h-7 w-7 text-zinc-400 hover:text-red-600"
                                   onClick={() => setObservations(prev => prev.filter((_, i) => i !== idx))}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -3112,13 +3258,13 @@ export function SiteReport() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#475569' }}>Category *</label>
+                                <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Category *</label>
                                 <Select
                                   value={obs.category}
                                   onValueChange={(v) => setObservations(prev => prev.map((o, i) => i === idx ? { ...o, category: v } : o))}
                                   disabled={view === 'view'}
                                 >
-                                  <SelectTrigger className="h-8 text-xs bg-white mt-1">
+                                  <SelectTrigger className="h-9 text-sm bg-white mt-1">
                                     <SelectValue placeholder="Select category" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -3132,10 +3278,10 @@ export function SiteReport() {
                                 </Select>
                               </div>
                               <div>
-                                <label style={{ fontSize: '10px', fontWeight: 600, color: '#475569' }}>Title *</label>
+                                <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Title *</label>
                                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
                                   <Input
-                                    className="h-8 text-xs bg-white mt-0 flex-1"
+                                    className="h-9 text-sm bg-white mt-0 flex-1"
                                     value={obs.title}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -3152,23 +3298,23 @@ export function SiteReport() {
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        padding: '4px',
-                                        borderRadius: '4px',
+                                        padding: '6px',
+                                        borderRadius: '6px',
                                         border: '1px solid #e2e8f0',
                                         background: activeListeningIdx === idx ? '#fee2e2' : '#ffffff',
                                         color: activeListeningIdx === idx ? '#ef4444' : '#475569',
                                         cursor: 'pointer',
-                                        width: '32px',
-                                        height: '32px',
+                                        width: '36px',
+                                        height: '36px',
                                       }}
                                       title={activeListeningIdx === idx ? 'Listening...' : 'Dictate Title'}
                                     >
-                                      <Mic size={14} style={{ animation: activeListeningIdx === idx ? 'pulse 1s infinite' : 'none' }} />
+                                      <Mic size={15} style={{ animation: activeListeningIdx === idx ? 'pulse 1s infinite' : 'none' }} />
                                     </button>
                                   )}
                                 </div>
                                 {view !== 'view' && (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
                                     {[
                                       'Material dimension mismatch',
                                       'Vendor supply delay',
@@ -3182,9 +3328,9 @@ export function SiteReport() {
                                         type="button"
                                         onClick={() => setObservations(prev => prev.map((o, i) => i === idx ? { ...o, title: template } : o))}
                                         style={{
-                                          fontSize: '9px',
-                                          padding: '2px 6px',
-                                          borderRadius: '10px',
+                                          fontSize: '10px',
+                                          padding: '3px 8px',
+                                          borderRadius: '12px',
                                           border: '1px solid #e2e8f0',
                                           background: '#fff',
                                           color: '#64748b',
@@ -3206,9 +3352,10 @@ export function SiteReport() {
                       <button
                         type="button"
                         onClick={() => setObservations(prev => [...prev, { category: 'Improvement Opportunity', title: '' }])}
-                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: '1px dashed #bfdbfe', borderRadius: '6px', padding: '8px', cursor: 'pointer', fontWeight: 600 }}
+                        style={addOutlineBtnStyle}
                       >
-                        + Add Observation
+                        <Plus className="w-3 h-3" />
+                        Add Observation
                       </button>
                     )}
                   </div>
@@ -3216,9 +3363,12 @@ export function SiteReport() {
               </div>
 
               {/* Section 7: Photos */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('photos')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.photos ? '10px' : 0 }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>Visual Documentation (Photos)</label>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('photos')} style={sectionHeaderStyle(openSections.photos)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Visual Documentation</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.photos && 'rotate-90')} />
                 </button>
                 {openSections.photos && (
@@ -3234,39 +3384,42 @@ export function SiteReport() {
               </div>
 
               {/* Section 8: Engineer Signature & Date */}
-              <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
-                <button type="button" onClick={() => toggleSection('footer')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginBottom: openSections.footer ? '14px' : 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Engineer Signature & Date</div>
+              <div style={sectionCardStyle}>
+                <button type="button" onClick={() => toggleSection('footer')} style={sectionHeaderStyle(openSections.footer)}>
+                  <div style={accentHeaderStyle}>
+                    <div style={accentLineStyle} />
+                    <span style={sectionTitleStyle}>Engineer Signature & Date</span>
+                  </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.footer && 'rotate-90')} />
                 </button>
-                {openSections.footer && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {openSections.footer && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Engineer/Supervisor Name *</label>
-                    <Input className="h-10 bg-white font-semibold" {...form.register('footer.engineer')} placeholder="Enter your name" />
-                    {errors.footer?.engineer && <p className="text-[10px] text-red-500 font-medium">{errors.footer.engineer.message}</p>}
+                    <label style={fieldLabelStyle}>Engineer/Supervisor Name *</label>
+                    <Input className="h-10 bg-white text-sm" {...form.register('footer.engineer')} placeholder="Enter your name" />
+                    {errors.footer?.engineer && <p className="text-[11px] text-red-500 font-medium">{errors.footer.engineer.message}</p>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Signature Date *</label>
-                    <Input type="date" className="h-10 bg-white" {...form.register('footer.signatureDate')} />
-                    {errors.footer?.signatureDate && <p className="text-[10px] text-red-500 font-medium">{errors.footer.signatureDate.message}</p>}
+                    <label style={fieldLabelStyle}>Signature Date *</label>
+                    <Input type="date" className="h-10 bg-white text-sm" {...form.register('footer.signatureDate')} />
+                    {errors.footer?.signatureDate && <p className="text-[11px] text-red-500 font-medium">{errors.footer.signatureDate.message}</p>}
                   </div>
                 </div>}
               </div>
 
-              {/* Section 9: Approval (Phase D) — visible only in create mode */}
+              {/* Section 9: Approval — visible only in create mode */}
               {view === 'create' && (
-                <div style={{ border: '1px solid #dbeafe', borderRadius: '8px', padding: '16px', background: '#eff6ff' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: submitForApproval ? '14px' : 0 }}>
+                <div style={{ ...sectionCardStyle, borderLeft: '3px solid #93c5fd' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: submitForApproval ? '16px' : 0 }}>
                     <div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approval</div>
-                      <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
+                      <div style={sectionTitleStyle}>Approval</div>
+                      <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
                         {submitForApproval
                           ? 'Pick an approver — they will review and approve / reject this report'
                           : 'Save as a draft now, or submit for approval'}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Submit for approval</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-zinc-600">Submit for approval</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -3287,19 +3440,19 @@ export function SiteReport() {
                     </div>
                   </div>
                   {submitForApproval && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Approver (MD / PM / Manager) *</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={fieldLabelStyle}>Approver (MD / PM / Manager) *</label>
                       <Select
                         value={selectedApproverId}
                         onValueChange={setSelectedApproverId}
                       >
-                        <SelectTrigger className="h-10 bg-white">
+                        <SelectTrigger className="h-10 bg-white text-sm">
                           <SelectValue placeholder={approvableMembers.length === 0 ? "No approvers available in this org" : "Select approver"} />
                         </SelectTrigger>
                         <SelectContent>
                           {approvableMembers.map((m) => (
                             <SelectItem key={m.user_id} value={m.user_id}>
-                              {m.full_name || m.email} <span className="text-zinc-400 text-[10px]">· {m.role}</span>
+                              {m.full_name || m.email} <span className="text-zinc-400 text-[11px]">· {m.role}</span>
                             </SelectItem>
                           ))}
                           {approvableMembers.length === 0 && (
@@ -3308,7 +3461,7 @@ export function SiteReport() {
                         </SelectContent>
                       </Select>
                       {selectedApproverId && (
-                        <p className="text-[10px] text-blue-700 font-medium">
+                        <p className="text-[11px] text-blue-700 font-medium">
                           This report will be locked after submission. The approver will be notified.
                         </p>
                       )}
@@ -3322,18 +3475,18 @@ export function SiteReport() {
             <div style={{
               display: 'flex',
               gap: '12px',
-              marginTop: '24px',
-              paddingTop: '16px',
-              borderTop: '1px solid #e5e5e5',
+              marginTop: '28px',
+              paddingTop: '20px',
+              borderTop: '1px solid #e2e8f0',
             }}>
               <button
                 type="button"
                 onClick={() => setView('list')}
                 style={{
                   flex: 1,
-                  padding: '10px 16px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '6px',
+                  padding: '12px 20px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
                   background: '#fff',
                   color: '#525252',
                   fontSize: '14px',
@@ -3351,9 +3504,9 @@ export function SiteReport() {
                     disabled={isMutating}
                     style={{
                       flex: 1,
-                      padding: '10px 16px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '6px',
+                      padding: '12px 20px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
                       background: '#fff',
                       color: '#374151',
                       fontSize: '14px',
@@ -3369,9 +3522,9 @@ export function SiteReport() {
                     disabled={isMutating}
                     style={{
                       flex: 1,
-                      padding: '10px 16px',
+                      padding: '12px 20px',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       background: '#2563eb',
                       color: '#fff',
                       fontSize: '14px',

@@ -2586,14 +2586,197 @@ body {
 }
 
 /* ==========================================
-   SITE REPORT FORM — scoped input padding
-   Adds 4px left padding to all inputs and
-   textareas so placeholder text isn't flush
-   against the border.
+   SITE REPORT FORM — UX polish
+   Scoped to [data-site-report] form element.
    ========================================== */
+
+/* --- Base input padding --- */
 [data-site-report] input,
 [data-site-report] textarea {
-  padding-left: 4px;
+  padding-left: 8px;
+}
+
+/* -----------------------------------------------------------
+   1. REDUCE BORDERS (~40% less)
+   Section containers: drop border, use shadow + white card
+   Inner nested cards keep a very subtle border only
+   ----------------------------------------------------------- */
+[data-site-report] > fieldset > div {
+  border: none !important;
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03) !important;
+  border-radius: 10px !important;
+  padding: 20px !important;
+}
+
+/* Nested sub-sections (e.g. Work Done / Milestones inside Work & Milestones) */
+[data-site-report] > fieldset > div > div > div[style*="border: 1px solid"] {
+  border-color: #f4f4f5 !important;
+  background: #fafafa !important;
+  box-shadow: none !important;
+}
+
+/* -----------------------------------------------------------
+   2. QUIETER LABELS
+   undo uppercase + heavy bold on field labels
+   ----------------------------------------------------------- */
+[data-site-report] label {
+  text-transform: none !important;
+  font-weight: 500 !important;
+  font-size: 12.5px !important;
+  letter-spacing: 0 !important;
+  color: #52525b !important;
+}
+
+/* Required asterisk stays visible */
+[data-site-report] label .text-red-500,
+[data-site-report] label::after {
+  color: #ef4444 !important;
+}
+
+/* -----------------------------------------------------------
+   3. STRONGER SECTION HEADERS
+   The toggle button's inner div (section title):
+   bigger, darker, left accent line, sentence-case
+   ----------------------------------------------------------- */
+[data-site-report] > fieldset > div > button[type="button"] > div:first-child {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #18181b !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding-left: 12px !important;
+  border-left: 3px solid #3b82f6 !important;
+  line-height: 1.4 !important;
+}
+
+/* -----------------------------------------------------------
+   4. SECTION TOGGLE — breathe more
+   ----------------------------------------------------------- */
+[data-site-report] > fieldset > div > button[type="button"] {
+  padding-bottom: 4px !important;
+}
+
+/* -----------------------------------------------------------
+   5. TOTAL FORCE / COMPUTED FIELDS
+   Gray background indicates non-editable
+   ----------------------------------------------------------- */
+[data-site-report] input.bg-zinc-50 {
+  background: #f0f0f0 !important;
+  cursor: default;
+  color: #18181b !important;
+  font-weight: 700 !important;
+}
+
+/* -----------------------------------------------------------
+   6. EMPTY STATE — softer, instructive text
+   ----------------------------------------------------------- */
+[data-site-report] td.italic {
+  font-style: normal !important;
+  color: #a1a1aa !important;
+  font-size: 12px !important;
+  padding: 16px 0 !important;
+}
+
+/* -----------------------------------------------------------
+   7. SUBCONTRACTOR / TABLE ROW HEIGHT
+   increase to 48px for breathing room
+   ----------------------------------------------------------- */
+[data-site-report] table tbody tr {
+  height: 48px;
+}
+
+[data-site-report] table tbody td {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+/* Table header — quieter */
+[data-site-report] table thead th {
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  color: #71717a !important;
+  height: 36px !important;
+}
+
+/* -----------------------------------------------------------
+   8. ADD BUTTONS — outline button style instead of link
+   ----------------------------------------------------------- */
+[data-site-report] button[style*="color: #2563eb"][style*="border: none"] {
+  border: 1px solid #bfdbfe !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  transition: all 0.15s ease;
+}
+
+[data-site-report] button[style*="color: #2563eb"][style*="border: none"]:hover {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+}
+
+/* -----------------------------------------------------------
+   9. TIME PICKERS — slightly larger touch target
+   ----------------------------------------------------------- */
+[data-site-report] input[type="time"] {
+  min-height: 36px;
+  font-size: 13px !important;
+  padding-right: 4px;
+}
+
+[data-site-report] input[type="time"]::-webkit-calendar-picker-indicator {
+  width: 18px;
+  height: 18px;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+[data-site-report] input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* -----------------------------------------------------------
+   10. INLINE VALIDATION — error messages breathe
+   ----------------------------------------------------------- */
+[data-site-report] p.text-red-500 {
+  margin-top: 2px;
+  font-size: 11px !important;
+}
+
+/* -----------------------------------------------------------
+   11. CHECKBOX LABELS — keep them light
+   ----------------------------------------------------------- */
+[data-site-report] .flex.items-center.gap-2 > label,
+[data-site-report] .flex.items-center.gap-2 > span {
+  font-weight: 400 !important;
+  font-size: 13px !important;
+  color: #3f3f46 !important;
+}
+
+/* -----------------------------------------------------------
+   12. MILESTONE REMINDER BAR — keep but soften shadow
+   ----------------------------------------------------------- */
+[data-site-report] ~ div[style*="background: #fffbeb"] {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+}
+
+/* -----------------------------------------------------------
+   13. WORK DONE ACTIVITY ROWS — light gray background
+   ----------------------------------------------------------- */
+[data-site-report] .flex.gap-2.items-start.group {
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 6px 8px;
+  border: 1px solid #f4f4f5;
+}
+
+[data-site-report] .flex.gap-2.items-start.group:hover {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
 }
 
 /* ==========================================

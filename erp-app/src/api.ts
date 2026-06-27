@@ -330,7 +330,8 @@ export async function createMaterial(material: Partial<Material>): Promise<Mater
 }
 
 export async function fetchDeliveryChallans(filters: DCFilters = {}): Promise<DeliveryChallan[]> {
-  let query: ReturnType<SupabaseClient['from']> = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
     .from('delivery_challans')
     .select(`
       *,
@@ -483,7 +484,8 @@ export async function updateDeliveryChallanItems(
 }
 
 export async function getConsolidationDateWise(filters: DCFilters = {}, orgId?: string): Promise<DeliveryChallan[]> {
-  let query: ReturnType<SupabaseClient['from']> = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
     .from('delivery_challans')
     .select(`
       id,
@@ -522,7 +524,8 @@ export async function getConsolidationDateWise(filters: DCFilters = {}, orgId?: 
 }
 
 export async function getConsolidationMaterialWise(_filters: DCFilters = {}, orgId?: string): Promise<DeliveryChallanItem[]> {
-  let query: ReturnType<SupabaseClient['from']> = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
     .from('delivery_challans')
     .select('id')
     .eq('status', 'active');
@@ -538,7 +541,8 @@ export async function getConsolidationMaterialWise(_filters: DCFilters = {}, org
   const challanIds = challans?.map(c => c.id) || [];
   if (challanIds.length === 0) return [];
 
-  const itemsQuery: ReturnType<SupabaseClient['from']> = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const itemsQuery: any = supabase
     .from('delivery_challan_items')
     .select(`
       *,
@@ -553,7 +557,8 @@ export async function getConsolidationMaterialWise(_filters: DCFilters = {}, org
 }
 
 export async function fetchQuotations(filters: QuotationFilters = {}): Promise<QuotationHeader[]> {
-  let query: ReturnType<SupabaseClient['from']> = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
     .from('quotation_header')
     .select(`
       *,
@@ -872,7 +877,8 @@ export async function getDefaultTemplate(documentType: string): Promise<Document
 }
 
 export async function fetchBOQList(filters: BOQFilters = {}): Promise<BOQHeader[]> {
-  let query: ReturnType<SupabaseClient['from']> = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
     .from('boq_headers')
     .select(`
       *,
@@ -1060,7 +1066,7 @@ export async function saveBOQ(boqData: BOQData): Promise<string> {
       boq_no: boqNo,
       revision_no: revisionNo || 1,
       boq_date: date,
-      client_id: safeClientId,
+      client_id: safeClientId ?? undefined,
       project_id: safeProjectId,
       variant_id: safeVariantId,
       status: status || 'Draft',
