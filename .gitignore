@@ -298,5 +298,6 @@ credentials.json
 .credentials
 nul
 
-# Sibling projects
-mep-marketing/
+# Turborepo
+.turbo/
+
