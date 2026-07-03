@@ -29,7 +29,7 @@ ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY audit_log_select ON audit_log
   FOR SELECT USING (
     organisation_id IN (
-      SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()
+      SELECT organisation_id FROM org_members WHERE user_id = auth.uid()
     )
   );
 
@@ -37,6 +37,6 @@ CREATE POLICY audit_log_select ON audit_log
 CREATE POLICY audit_log_insert ON audit_log
   FOR INSERT WITH CHECK (
     organisation_id IN (
-      SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()
+      SELECT organisation_id FROM org_members WHERE user_id = auth.uid()
     )
   );

@@ -14,7 +14,7 @@
 
 The Project Module is the **central nervous system** of the MEP ERP. It manages project lifecycle from Draft → Active → Execution Completed → Financially Closed, and integrates with nearly every other module (DCs, Quotations, Invoices, Subcontractors, Materials, Site Reports, Meetings, Issues, Manufacturing).
 
-**The module is feature-rich but structurally fragile.** It suffers from a critical god-component problem, inline style chaos, missing error boundaries, absent draft persistence, and zero audit trail. At 1,000 customers, the first thing to break will be the `ProjectList.tsx` component (1,500+ lines) and the Supabase queries running without proper indexes or pagination.
+**The module is feature-rich but structurally fragile.** It suffers from a critical god-component problem (`ProjectList.tsx` at 4,978 lines), inline style chaos, and missing pagination on some queries. Improvements made: ~~absent error boundaries~~ ✅ `TabErrorBoundary` wraps all tabs, ~~zero draft persistence~~ ✅ `useProjectFormDraft` auto-saves, ~~no audit trail~~ ✅ `audit_log` table + `created_by`/`updated_by` tracking. At 1,000 customers, the first thing to break will be the Supabase queries running without proper indexes or pagination.
 
 ---
 
@@ -60,8 +60,8 @@ Click Project → Detail loads 10+ queries in parallel → Some fail → Partial
 
 **Missing flows:**
 - No optimistic updates on create/edit
-- No auto-save / draft persistence
-- No confirmation before navigating away with unsaved changes
+- ~~No auto-save / draft persistence~~ ✅ Fixed: `useProjectFormDraft` hook auto-saves to localStorage every 30s with restore on page load
+- ~~No confirmation before navigating away with unsaved changes~~ ✅ Fixed: `beforeunload` handler warns on navigation with unsaved form data
 - No loading state per-section (entire page shows generic "Loading projects...")
 - No skeleton loading for detail view subsections
 - ~~No error boundary around individual detail tabs~~ ✅ Fixed: `TabErrorBoundary` wraps all tab content
@@ -79,7 +79,7 @@ Click Project → Detail loads 10+ queries in parallel → Some fail → Partial
 | Leaves 15 tabs open in detail view | **Fixed:** `visitedTabs` pattern removed — only active tab is mounted, previous tabs unmount on switch | ✅ Resolved |
 | Sets completion % to 100 but status to "Draft" | Auto-transitions status to "Execution Completed" — user may not want this | 🟡 Surprising auto-behavior |
 | Creates project with empty client | Client validation exists but only on submit — no inline validation | 🟡 Late feedback |
-| Navigates away mid-form-fill | All form data lost — no draft, no warning | 🔴 Data loss |
+| Navigates away mid-form-fill | ~~All form data lost — no draft, no warning~~ | ✅ Fixed: `beforeunload` warning + localStorage draft auto-save |
 | Filters list by "Closed" but has 0 closed projects | Shows "No projects" — unclear if filter issue or data issue | 🟡 Confusing empty state |
 | Opens ProjectList on mobile | Inline styles don't fully respond — detail view is cramped | 🟡 Poor mobile UX |
 | Clicks "Download Certificate" rapidly | Multiple PDF generation attempts — no debounce | 🟡 Duplicate downloads |
@@ -134,14 +134,14 @@ Click Project → Detail loads 10+ queries in parallel → Some fail → Partial
 
 | Recovery Need | Current State | Rating |
 |---|---|---|
-| Browser crash during project creation | **No draft persistence** — all form data lost | 🔴 0/10 |
+| Browser crash during project creation | ~~No draft persistence~~ ✅ `useProjectFormDraft` auto-saves to localStorage every 30s, restores on load | 🟡 7/10 |
 | Session expiry mid-edit | `SESSION_EXPIRED` error thrown but form state not saved | 🔴 2/10 |
 | User accidentally deletes project | `confirm()` dialog only — no soft delete, no undo | 🟡 3/10 |
 | Tab refresh on detail view | Detail state lost — returns to list | 🔴 2/10 |
 | Network failure during save | Error alert shown — data not saved | 🔴 1/10 |
-| User navigates away with unsaved changes | **No warning** — changes silently lost | 🔴 0/10 |
+| User navigates away with unsaved changes | ~~No warning~~ ✅ `beforeunload` handler warns with unsaved changes | 🟡 7/10 |
 
-**Critical:** The `CreateProject` form has zero draft persistence. A user filling out a 15-field form who accidentally clicks "Cancel" or closes the browser loses everything.
+**Critical:** ~~Zero draft persistence.~~ ✅ **Fixed:** `useProjectFormDraft` hook now auto-saves form data to localStorage every 30 seconds and restores it on page load. Plus `beforeunload` warning prevents accidental navigation loss.
 
 **The `ProjectList` detail view uses URL search params for tab state, but actual selected project data is in component state** — a page refresh returns to the list.
 
@@ -158,7 +158,7 @@ Click Project → Detail loads 10+ queries in parallel → Some fail → Partial
 | Invoice → Payment matching | `financialSummary.outstanding_amount = totalInvoiceValue - totalPaymentReceived` — simple subtraction, no reconciliation | 🟡 5/10 |
 | Expense tracking | Basic sum — no categorization, no approval workflow | 🟡 4/10 |
 | Currency formatting | Uses `en-IN` locale with ₹ — consistent | ✅ 8/10 |
-| Audit trail for project changes | **None** — no history table, no change log | 🔴 0/10 |
+| Audit trail for project changes | ~~None~~ ✅ `audit_log` table + `useAuditLog` hook + `created_by`/`updated_by` columns on projects | 🟡 6/10 |
 | Completion certificate generation | PDF generated client-side with jsPDF — **not digitally signed** | 🟡 4/10 |
 
 **Verdict:** An accountant would NOT trust this for month-end closing. No audit trail, no reconciliation, no approval workflow on financial data.
@@ -202,8 +202,8 @@ Click Project → Detail loads 10+ queries in parallel → Some fail → Partial
 
 | Diagnostic Need | Available? | Details |
 |---|---|---|
-| Which user created/modified a project | ❌ No | No `created_by` or `updated_by` tracking |
-| When was the last modification | ❌ No | No `updated_at` shown in UI |
+| Which user created/modified a project | ✅ Yes | `created_by`/`updated_by` columns added, shown in detail view summary |
+| When was the last modification | ⚠️ Partial | `updated_at` tracked but not prominently shown in UI |
 | What queries are failing | ⚠️ Partial | Console warnings only — no structured logging |
 | User's current org context | ⚠️ Partial | Available in React DevTools only |
 | Query performance | ❌ No | No performance monitoring |
@@ -255,15 +255,15 @@ Click Project → Detail loads 10+ queries in parallel → Some fail → Partial
 
 | Compliance Need | Met? | Details |
 |---|---|---|
-| Who created this project? | ❌ No | No `created_by` field used |
-| Who modified it last? | ❌ No | No `updated_by` tracking |
-| When was status changed? | ❌ No | No audit log |
+| Who created this project? | ✅ Yes | `created_by` column on projects, shown in detail view |
+| Who modified it last? | ✅ Yes | `updated_by` column on projects, shown in detail view |
+| When was status changed? | ⚠️ Partial | `audit_log` table captures creates/updates; status changes not yet explicitly tracked |
 | Who approved the completion? | ❌ No | No approval workflow on project closure |
 | What was the original estimate vs actual? | ⚠️ Partial | `project_estimated_value` stored but no variance tracking |
 | Financial changes history | ❌ No | No change log on invoices/expenses/payments |
 | Digital signature on certificates | ❌ No | PDF generated client-side — not legally binding |
 
-**Verdict:** Fails compliance audit. No trail of who did what, when, or why.
+**Verdict:** ~~Fails compliance audit.~~ ✅ **Partially resolved.** `created_by`/`updated_by` tracking now exists and `audit_log` table is provisioned. Still missing: explicit status change tracking, approval workflow, and variance reporting.
 
 ---
 

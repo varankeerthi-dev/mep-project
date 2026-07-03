@@ -194,6 +194,8 @@ export function ClientCommunication() {
   const [editingCommunication, setEditingCommunication] = useState<any>(null);
   const [groupBy, setGroupBy] = useState<'none' | 'date' | 'party'>('none');
   const [paramsProcessed, setParamsProcessed] = useState(false);
+  const [requireSiteVisit, setRequireSiteVisit] = useState(false);
+  const [issueSiteVisitDate, setIssueSiteVisitDate] = useState('');
 
   // Filters
   const [filters, setFilters] = useState({
@@ -381,6 +383,27 @@ export function ClientCommunication() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
+      let resolvedSiteVisitId = data.site_visit_id && data.site_visit_id !== '' ? data.site_visit_id : null;
+
+      if (requireSiteVisit && issueSiteVisitDate && data.call_regarding === 'issue') {
+        const { data: sv, error: svErr } = await supabase
+          .from('site_visits')
+          .insert({
+            client_id: data.party_type === 'client' ? data.client_id : null,
+            project_id: null,
+            visit_date: issueSiteVisitDate,
+            purpose: `[Issue] ${data.subject || 'Issue follow-up'} — ${data.call_brief?.slice(0, 200) || ''}`,
+            assigned_to: data.call_received_by || null,
+            notes: `Origin: Issue communication.\nBrief: ${data.call_brief || ''}\nNext action: ${data.next_action || '—'}`,
+            organisation_id: organisation?.id,
+            created_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+        if (svErr) throw svErr;
+        resolvedSiteVisitId = sv?.id || null;
+      }
+
       const dbData = {
         ...data,
         organisation_id: organisation?.id,
@@ -393,7 +416,7 @@ export function ClientCommunication() {
         call_received_by: data.call_received_by && data.call_received_by !== '' ? data.call_received_by : (user?.id || null),
         call_entered_by: data.call_entered_by && data.call_entered_by !== '' ? data.call_entered_by : (user?.id || null),
         linked_id: data.linked_id && data.linked_id !== '' ? data.linked_id : null,
-        site_visit_id: data.site_visit_id && data.site_visit_id !== '' ? data.site_visit_id : null,
+        site_visit_id: resolvedSiteVisitId,
         follow_up_date: data.follow_up_date && data.follow_up_date !== '' ? data.follow_up_date : null,
         subject: data.subject && data.subject !== '' ? data.subject : null,
       };
@@ -620,6 +643,8 @@ export function ClientCommunication() {
       linked_type: '',
       linked_id: '',
     });
+    setRequireSiteVisit(false);
+    setIssueSiteVisitDate('');
   };
 
   // ── Helpers ──
@@ -1789,7 +1814,7 @@ export function ClientCommunication() {
                 {/* Regarding */}
                 <div>
                   <label style={labelStyle}>Regarding</label>
-                  <select value={formData.call_regarding} onChange={e => setFormData(f => ({ ...f, call_regarding: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                  <select value={formData.call_regarding} onChange={e => { setFormData(f => ({ ...f, call_regarding: e.target.value })); if (e.target.value !== 'issue') { setRequireSiteVisit(false); setIssueSiteVisitDate(''); } }} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                     <option value="">General</option>
                     {CALL_REGARDING.filter(r => r.value).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
@@ -1847,6 +1872,47 @@ export function ClientCommunication() {
                   style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box', color: '#334155', outline: 'none' }}
                 />
               </div>
+
+              {/* Issue → Site Visit */}
+              {formData.call_regarding === 'issue' && (
+                <div style={{ marginBottom: '24px', padding: '16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: requireSiteVisit ? '14px' : 0 }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400E' }}>Require site visit?</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="requireSiteVisit"
+                        checked={!requireSiteVisit}
+                        onChange={() => { setRequireSiteVisit(false); setIssueSiteVisitDate(''); }}
+                        style={{ accentColor: '#D97706' }}
+                      />
+                      No
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="requireSiteVisit"
+                        checked={requireSiteVisit}
+                        onChange={() => setRequireSiteVisit(true)}
+                        style={{ accentColor: '#D97706' }}
+                      />
+                      Yes
+                    </label>
+                  </div>
+                  {requireSiteVisit && (
+                    <div>
+                      <label style={{ ...labelStyle, color: '#92400E' }}>Site Visit Date *</label>
+                      <input
+                        type="date"
+                        value={issueSiteVisitDate}
+                        onChange={e => setIssueSiteVisitDate(e.target.value)}
+                        required
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #FDE68A', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', boxSizing: 'border-box', outline: 'none' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Buttons */}
               <div style={{ display: 'flex', gap: '10px', paddingTop: '16px', borderTop: '1px solid #F1F5F9' }}>
