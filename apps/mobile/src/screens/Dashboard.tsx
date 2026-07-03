@@ -5,6 +5,7 @@ import { Loader2, Folder, ArrowRight, ClipboardList, LogOut } from 'lucide-react
 interface DashboardProps {
   onLogout: () => void;
   onNavigateToApprovals: () => void;
+  isDemo?: boolean;
 }
 
 interface Project {
@@ -14,7 +15,7 @@ interface Project {
   project_code: string;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToApprovals }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToApprovals, isDemo = false }) => {
   const [loading, setLoading] = useState(true);
   const [orgName, setOrgName] = useState('');
   const [userName, setUserName] = useState('');
@@ -24,8 +25,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (isDemo) {
+      loadDemoData();
+    } else {
+      fetchDashboardData();
+    }
+  }, [isDemo]);
+
+  const loadDemoData = () => {
+    setUserName('Demo User');
+    setOrgName('Demo Corp');
+    setPendingApprovalsCount(3);
+    setProjectsCount(2);
+    setProjects([
+      { id: 'demo-p1', project_name: 'Metro Line Expansion', name: 'Metro Line Expansion', project_code: 'MLE-04' },
+      { id: 'demo-p2', project_name: 'Commercial Complex B', name: 'Commercial Complex B', project_code: 'CCB-12' }
+    ]);
+    setLoading(false);
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);

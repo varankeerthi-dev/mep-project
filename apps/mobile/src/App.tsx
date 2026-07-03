@@ -3,32 +3,62 @@ import { supabase } from './lib/supabase';
 import { Login } from './screens/Login';
 import { Dashboard } from './screens/Dashboard';
 import { Approvals } from './screens/Approvals';
-import { Home, ClipboardList, Loader2 } from 'lucide-react';
+import { ClientCommunication } from './screens/ClientCommunication';
+import { Home, ClipboardList, Loader2, MessageSquare } from 'lucide-react';
 
-type Screen = 'dashboard' | 'approvals';
+type Screen = 'dashboard' | 'approvals' | 'communications';
 
 function App() {
   const [session, setSession] = useState<any>(null);
+  const [isDemo, setIsDemo] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
 
   useEffect(() => {
     // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!isDemo) {
+          setSession(session);
+        }
+        setAuthLoading(false);
+      })
+      .catch((err) => {
+        console.warn('Supabase session fetch failed:', err);
+        setAuthLoading(false);
+      });
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (!isDemo) {
+        setSession(session);
+      }
       setAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isDemo]);
 
-  if (authLoading) {
+  const handleLoginSuccess = (demoMode = false) => {
+    if (demoMode) {
+      setIsDemo(true);
+      setSession({
+        user: {
+          id: 'demo-user-id',
+          email: 'demo@billfast.com',
+          user_metadata: { full_name: 'Demo User' }
+        }
+      });
+    }
+    setCurrentScreen('dashboard');
+  };
+
+  const handleLogout = () => {
+    setIsDemo(false);
+    setSession(null);
+  };
+
+  if (authLoading && !isDemo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -37,7 +67,7 @@ function App() {
   }
 
   if (!session) {
-    return <Login onLoginSuccess={() => setCurrentScreen('dashboard')} />;
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
@@ -46,11 +76,13 @@ function App() {
       <div className="flex-1 overflow-hidden">
         {currentScreen === 'dashboard' && (
           <Dashboard
-            onLogout={() => setSession(null)}
+            onLogout={handleLogout}
             onNavigateToApprovals={() => setCurrentScreen('approvals')}
+            isDemo={isDemo}
           />
         )}
-        {currentScreen === 'approvals' && <Approvals />}
+        {currentScreen === 'approvals' && <Approvals isDemo={isDemo} />}
+        {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
       </div>
 
       {/* Bottom Navigation */}
@@ -80,6 +112,20 @@ function App() {
             <ClipboardList className="h-5 w-5 mb-0.5" />
             <span className="text-[9px] font-medium">Approvals</span>
             {currentScreen === 'approvals' && (
+              <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
+
+          {/* Comms Tab */}
+          <button
+            onClick={() => setCurrentScreen('communications')}
+            className={`flex-1 flex flex-col items-center justify-center h-full relative cursor-pointer ${
+              currentScreen === 'communications' ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <MessageSquare className="h-5 w-5 mb-0.5" />
+            <span className="text-[9px] font-medium">Comms</span>
+            {currentScreen === 'communications' && (
               <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
             )}
           </button>

@@ -1,0 +1,922 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { 
+  MessageSquare, Plus, Search, Filter, Calendar, Phone, 
+  Mail, Users, ArrowLeft, Loader2, 
+  X, Clock, AlertCircle, Sparkles, Edit
+} from 'lucide-react';
+
+interface ClientCommunicationProps {
+  isDemo?: boolean;
+}
+
+interface CommItem {
+  id: string;
+  subject: string;
+  party_type: string;
+  call_category: string;
+  call_regarding: string;
+  call_brief: string;
+  next_action: string;
+  follow_up_date: string | null;
+  priority: string;
+  status: string;
+  created_at: string;
+  client_id?: string | null;
+  vendor_id?: string | null;
+  subcontractor_id?: string | null;
+  lead_id?: string | null;
+  client?: { client_name: string };
+  vendor?: { company_name: string };
+  subcontractor?: { company_name: string };
+  lead?: { company_name: string; contact_name: string };
+}
+
+interface PartyOption {
+  id: string;
+  name: string;
+}
+
+const CATEGORIES = [
+  { value: 'incoming', label: 'Incoming Call' },
+  { value: 'outgoing', label: 'Outgoing Call' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'email', label: 'Email' },
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'sms', label: 'SMS' },
+];
+
+const TOPICS = [
+  { value: 'quotation', label: 'Quotation' },
+  { value: 'project', label: 'Project' },
+  { value: 'issue', label: 'Issue/Complaint' },
+  { value: 'site_visit', label: 'Site Visit' },
+  { value: 'approval', label: 'Approval' },
+  { value: 'payment', label: 'Payment' },
+  { value: 'general', label: 'General Inquiry' },
+  { value: 'other', label: 'Other' },
+];
+
+export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo = false }) => {
+  const [loading, setLoading] = useState(true);
+  const [activeView, setActiveView] = useState<'list' | 'create'>('list');
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  // Data State
+  const [comms, setComms] = useState<CommItem[]>([]);
+  const [selectedComm, setSelectedComm] = useState<CommItem | null>(null);
+  
+  // Form Lists
+  const [clients, setClients] = useState<PartyOption[]>([]);
+  const [vendors, setVendors] = useState<PartyOption[]>([]);
+  const [subcontractors, setSubcontractors] = useState<PartyOption[]>([]);
+  const [leads, setLeads] = useState<PartyOption[]>([]);
+  
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterPartyType, setFilterPartyType] = useState('');
+  const [filterPartyId, setFilterPartyId] = useState('');
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+
+  // Form State
+  const [editingCommId, setEditingCommId] = useState<string | null>(null);
+  const [formPartyType, setFormPartyType] = useState('client');
+  const [formPartyId, setFormPartyId] = useState('');
+  const [formSubject, setFormSubject] = useState('');
+  const [formCategory, setFormCategory] = useState('incoming');
+  const [formRegarding, setFormRegarding] = useState('general');
+  const [formBrief, setFormBrief] = useState('');
+  const [formNextAction, setFormNextAction] = useState('');
+  const [formFollowUp, setFormFollowUp] = useState('');
+  const [formPriority, setFormPriority] = useState('normal');
+  const [formStatus, setFormStatus] = useState('open');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Demo Mock Data
+  const [demoComms, setDemoComms] = useState<CommItem[]>([
+    {
+      id: 'demo-c1',
+      subject: 'Quotation Feedback',
+      party_type: 'client',
+      call_category: 'incoming',
+      call_regarding: 'quotation',
+      call_brief: 'Client called to request a 5% discount on the structural works quotation. They are ready to sign if we can adjust the pricing.',
+      next_action: 'Discuss discount margin with management and revise quotation.',
+      follow_up_date: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString().split('T')[0], // Tomorrow
+      priority: 'high',
+      status: 'Open',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
+      client: { client_name: 'Acme Developments' }
+    },
+    {
+      id: 'demo-c2',
+      subject: 'Cement Delivery Delay',
+      party_type: 'vendor',
+      call_category: 'outgoing',
+      call_regarding: 'project',
+      call_brief: 'Followed up with supplier regarding delayed cement bags. They confirmed shipment is stuck in transit and will arrive by tomorrow morning.',
+      next_action: 'Coordinate with site supervisor to reschedule concrete casting.',
+      follow_up_date: null,
+      priority: 'high',
+      status: 'In Progress',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
+      vendor: { company_name: 'UltraTech Cement Suppliers' }
+    },
+    {
+      id: 'demo-c3',
+      subject: 'Initial Call - Commercial Lead',
+      party_type: 'lead',
+      call_category: 'whatsapp',
+      call_regarding: 'general',
+      call_brief: 'Shared project portfolio and company presentation on WhatsApp. Lead responded positively and asked for a brief introductory meeting.',
+      next_action: 'Schedule intro call for Monday.',
+      follow_up_date: new Date(Date.now() + 1000 * 60 * 60 * 72).toISOString().split('T')[0],
+      priority: 'normal',
+      status: 'Open',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
+      lead: { company_name: 'Nexus Retailers', contact_name: 'Rajesh Kumar' }
+    }
+  ]);
+
+  const demoClients = [
+    { id: 'demo-cl1', name: 'Acme Developments' },
+    { id: 'demo-cl2', name: 'Metro Infra Projects' }
+  ];
+  const demoVendors = [
+    { id: 'demo-vn1', name: 'UltraTech Cement Suppliers' },
+    { id: 'demo-vn2', name: 'Apex Steel Distributors' }
+  ];
+  const demoSubcontractors = [
+    { id: 'demo-sb1', name: 'Shiva Electricals' },
+    { id: 'demo-sb2', name: 'Royal Plumbing Works' }
+  ];
+  const demoLeads = [
+    { id: 'demo-ld1', name: 'Nexus Retailers (Rajesh Kumar)' }
+  ];
+
+  useEffect(() => {
+    if (isDemo) {
+      setClients(demoClients);
+      setVendors(demoVendors);
+      setSubcontractors(demoSubcontractors);
+      setLeads(demoLeads);
+      setComms(demoComms);
+      setLoading(false);
+    } else {
+      initSessionAndFetch();
+    }
+  }, [isDemo, demoComms]);
+
+  const initSessionAndFetch = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('User not authenticated');
+        setLoading(false);
+        return;
+      }
+      setUserId(user.id);
+
+      const { data: memberData } = await supabase
+        .from('org_members')
+        .select('organisation_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+
+      const userOrgId = memberData?.organisation_id;
+      if (!userOrgId) {
+        setError('No organization associated with this account');
+        setLoading(false);
+        return;
+      }
+      setOrgId(userOrgId);
+
+      // Load form selector data
+      const [clientsRes, vendorsRes, subRes, leadsRes] = await Promise.all([
+        supabase.from('clients').select('id, client_name').eq('organisation_id', userOrgId).order('client_name'),
+        supabase.from('purchase_vendors').select('id, company_name').eq('organisation_id', userOrgId).order('company_name'),
+        supabase.from('subcontractors').select('id, company_name').eq('organisation_id', userOrgId).order('company_name'),
+        supabase.from('leads').select('id, company_name, contact_name').eq('organisation_id', userOrgId).order('company_name')
+      ]);
+
+      setClients(clientsRes.data?.map(c => ({ id: c.id, name: c.client_name })) || []);
+      setVendors(vendorsRes.data?.map(v => ({ id: v.id, name: v.company_name })) || []);
+      setSubcontractors(subRes.data?.map(s => ({ id: s.id, name: s.company_name })) || []);
+      setLeads(leadsRes.data?.map(l => ({ id: l.id, name: l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name })) || []);
+
+      await fetchCommunications(userOrgId);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'Failed to load communications');
+      setLoading(false);
+    }
+  };
+
+  const fetchCommunications = async (userOrgId: string) => {
+    try {
+      const { data, error: fetchErr } = await supabase
+        .from('client_communication')
+        .select(`
+          *,
+          client_id,
+          vendor_id,
+          subcontractor_id,
+          lead_id,
+          client:clients(client_name),
+          vendor:purchase_vendors(company_name),
+          subcontractor:subcontractors(company_name),
+          lead:leads(company_name, contact_name)
+        `)
+        .eq('organisation_id', userOrgId)
+        .order('created_at', { ascending: false });
+
+      if (fetchErr) throw fetchErr;
+      setComms(data || []);
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to fetch past communications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    const payload: any = {
+      subject: formSubject,
+      party_type: formPartyType,
+      call_category: formCategory,
+      call_regarding: formRegarding,
+      call_brief: formBrief,
+      next_action: formNextAction,
+      follow_up_date: formFollowUp || null,
+      priority: formPriority,
+      status: formStatus === 'open' ? 'Open' : formStatus === 'in_progress' ? 'In Progress' : formStatus === 'resolved' ? 'Resolved' : 'Closed',
+      client_id: formPartyType === 'client' ? formPartyId : null,
+      vendor_id: formPartyType === 'vendor' ? formPartyId : null,
+      subcontractor_id: formPartyType === 'subcontractor' ? formPartyId : null,
+      lead_id: formPartyType === 'lead' ? formPartyId : null,
+      assigned_to: userId,
+      call_received_by: userId,
+      call_entered_by: userId,
+    };
+
+    if (editingCommId) {
+      if (isDemo) {
+        setTimeout(() => {
+          setDemoComms(prev =>
+            prev.map(item => (item.id === editingCommId ? { ...item, ...payload } : item))
+          );
+          setSaving(false);
+          setActiveView('list');
+          setEditingCommId(null);
+          resetForm();
+        }, 600);
+        return;
+      }
+
+      try {
+        const { error: updateErr } = await supabase
+          .from('client_communication')
+          .update(payload)
+          .eq('id', editingCommId);
+
+        if (updateErr) throw updateErr;
+
+        await fetchCommunications(orgId!);
+        setSaving(false);
+        setActiveView('list');
+        setEditingCommId(null);
+        resetForm();
+      } catch (err: any) {
+        console.error(err);
+        setError(err?.message || 'Failed to update communication log');
+        setSaving(false);
+      }
+      return;
+    }
+
+    if (isDemo) {
+      // Simulate save delay
+      setTimeout(() => {
+        const newMockComm: CommItem = {
+          id: `demo-new-${Date.now()}`,
+          ...payload,
+          created_at: new Date().toISOString(),
+          client: formPartyType === 'client' ? { client_name: clients.find(c => c.id === formPartyId)?.name || 'Unknown Client' } : undefined,
+          vendor: formPartyType === 'vendor' ? { company_name: vendors.find(v => v.id === formPartyId)?.name || 'Unknown Vendor' } : undefined,
+          subcontractor: formPartyType === 'subcontractor' ? { company_name: subcontractors.find(s => s.id === formPartyId)?.name || 'Unknown Subcontractor' } : undefined,
+          lead: formPartyType === 'lead' ? { company_name: leads.find(l => l.id === formPartyId)?.name || 'Unknown Lead', contact_name: '' } : undefined,
+        };
+        
+        setDemoComms(prev => [newMockComm, ...prev]);
+        setSaving(false);
+        setActiveView('list');
+        resetForm();
+      }, 600);
+      return;
+    }
+
+    try {
+      const { error: insertErr } = await supabase
+        .from('client_communication')
+        .insert({
+          ...payload,
+          organisation_id: orgId
+        });
+
+      if (insertErr) throw insertErr;
+      
+      await fetchCommunications(orgId!);
+      setSaving(false);
+      setActiveView('list');
+      resetForm();
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'Failed to save communication log');
+      setSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormPartyId('');
+    setFormSubject('');
+    setFormCategory('incoming');
+    setFormRegarding('general');
+    setFormBrief('');
+    setFormNextAction('');
+    setFormFollowUp('');
+    setFormPriority('normal');
+    setFormStatus('open');
+    setEditingCommId(null);
+  };
+
+  const handleEditClick = (item: CommItem) => {
+    setEditingCommId(item.id);
+    setFormPartyType(item.party_type);
+    const pId = item.client_id || item.vendor_id || item.subcontractor_id || item.lead_id || '';
+    setFormPartyId(pId);
+    setFormSubject(item.subject || '');
+    setFormCategory(item.call_category || 'incoming');
+    setFormRegarding(item.call_regarding || 'general');
+    setFormBrief(item.call_brief || '');
+    setFormNextAction(item.next_action || '');
+    setFormFollowUp(item.follow_up_date || '');
+    setFormPriority(item.priority || 'normal');
+    setFormStatus(
+      (item.status || '').toLowerCase() === 'open' ? 'open' :
+      (item.status || '').toLowerCase() === 'in_progress' ? 'in_progress' :
+      (item.status || '').toLowerCase() === 'resolved' ? 'resolved' :
+      (item.status || '').toLowerCase() === 'closed' ? 'closed' : 'open'
+    );
+    setSelectedComm(null);
+    setActiveView('create');
+  };
+
+  const getPartyOptions = () => {
+    switch (formPartyType) {
+      case 'client': return clients;
+      case 'vendor': return vendors;
+      case 'subcontractor': return subcontractors;
+      case 'lead': return leads;
+      default: return [];
+    }
+  };
+
+  const getFilterPartyOptions = () => {
+    switch (filterPartyType) {
+      case 'client': return clients;
+      case 'vendor': return vendors;
+      case 'subcontractor': return subcontractors;
+      case 'lead': return leads;
+      default: return [];
+    }
+  };
+
+  const getPartyNameById = (id: string) => {
+    const list = [...clients, ...vendors, ...subcontractors, ...leads];
+    return list.find(item => item.id === id)?.name || 'Specific Party';
+  };
+
+  const getPartyDisplayName = (item: CommItem) => {
+    if (item.client) return item.client.client_name;
+    if (item.vendor) return item.vendor.company_name;
+    if (item.subcontractor) return item.subcontractor.company_name;
+    if (item.lead) return item.lead.company_name || item.lead.contact_name;
+    return 'General / Internal';
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'incoming':
+      case 'outgoing':
+        return <Phone className="h-4 w-4" />;
+      case 'email':
+        return <Mail className="h-4 w-4" />;
+      case 'whatsapp':
+      case 'sms':
+        return <MessageSquare className="h-4 w-4" />;
+      case 'meeting':
+        return <Users className="h-4 w-4" />;
+      default:
+        return <MessageSquare className="h-4 w-4" />;
+    }
+  };
+
+  // Filter communications
+  const filteredComms = comms.filter(item => {
+    const partyName = getPartyDisplayName(item).toLowerCase();
+    const subject = (item.subject || '').toLowerCase();
+    const brief = (item.call_brief || '').toLowerCase();
+    const nextAction = (item.next_action || '').toLowerCase();
+    const matchesSearch = partyName.includes(searchQuery.toLowerCase()) || 
+                          subject.includes(searchQuery.toLowerCase()) || 
+                          brief.includes(searchQuery.toLowerCase()) || 
+                          nextAction.includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = filterCategory ? item.call_category === filterCategory : true;
+    const matchesPartyType = filterPartyType ? item.party_type === filterPartyType : true;
+    const matchesPartyId = filterPartyId ? (
+      item.client_id === filterPartyId ||
+      item.vendor_id === filterPartyId ||
+      item.subcontractor_id === filterPartyId ||
+      item.lead_id === filterPartyId
+    ) : true;
+    
+    return matchesSearch && matchesCategory && matchesPartyType && matchesPartyId;
+  });
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between border-b border-border bg-card">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
+          <span className="font-bold text-base tracking-tight text-foreground">
+            {activeView === 'create' && editingCommId ? 'Edit Comm Log' : 'Communications'}
+          </span>
+        </div>
+        {activeView === 'list' ? (
+          <button
+            onClick={() => setActiveView('create')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs transition-all active:scale-[0.97]"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Log Comm</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => { setActiveView('list'); resetForm(); }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-input text-muted-foreground font-semibold text-xs active:scale-[0.97] transition-all"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{editingCommId ? 'Cancel' : 'Back'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {error && (
+          <div className="p-3 text-xs rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {activeView === 'list' ? (
+          <>
+            {/* Search & Filter Bar */}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search communications..."
+                  className="w-full pl-9 pr-4 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                />
+              </div>
+              <button
+                onClick={() => setShowFiltersModal(true)}
+                className={`p-2 rounded-xl border border-input flex items-center justify-center bg-card active:scale-[0.97] transition-all ${
+                  filterCategory || filterPartyType || filterPartyId ? 'border-primary text-primary bg-primary/5' : 'text-muted-foreground'
+                }`}
+              >
+                <Filter className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Active filters display */}
+            {(filterCategory || filterPartyType || filterPartyId) && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[10px] text-muted-foreground font-medium">Active:</span>
+                {filterPartyType && (
+                  <span className="text-[9px] font-bold uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                    {filterPartyType}
+                    <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => { setFilterPartyType(''); setFilterPartyId(''); }} />
+                  </span>
+                )}
+                {filterPartyId && (
+                  <span className="text-[9px] font-bold uppercase bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Search className="h-2.5 w-2.5" />
+                    {getPartyNameById(filterPartyId)}
+                    <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setFilterPartyId('')} />
+                  </span>
+                )}
+                {filterCategory && (
+                  <span className="text-[9px] font-bold uppercase bg-secondary/10 text-secondary-foreground px-2 py-0.5 rounded-full flex items-center gap-1">
+                    {CATEGORIES.find(c => c.value === filterCategory)?.label || filterCategory}
+                    <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setFilterCategory('')} />
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Comms List */}
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : filteredComms.length === 0 ? (
+              <div className="text-center py-16 space-y-2">
+                <MessageSquare className="h-10 w-10 text-muted-foreground/30 mx-auto" />
+                <p className="text-xs font-semibold text-muted-foreground">No communication logs found</p>
+                <p className="text-[10px] text-muted-foreground/75">Try clearing filters or log a new call.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredComms.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => setSelectedComm(item)}
+                    className="glass-card rounded-xl p-4 shadow-sm border border-border/40 hover:border-primary/20 transition-all cursor-pointer flex flex-col space-y-2"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-primary/5 text-primary">
+                          {getCategoryIcon(item.call_category)}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-foreground truncate max-w-[180px]">
+                            {getPartyDisplayName(item)}
+                          </h4>
+                          <p className="text-[9px] font-semibold uppercase text-muted-foreground/70">
+                            {item.party_type} • {item.call_regarding}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        item.priority === 'urgent' ? 'bg-red-500/10 text-red-500' :
+                        item.priority === 'high' ? 'bg-orange-500/10 text-orange-500' :
+                        item.priority === 'normal' ? 'bg-blue-500/10 text-blue-500' :
+                        'bg-slate-500/10 text-slate-500'
+                      }`}>
+                        {item.priority}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-foreground truncate">{item.subject}</p>
+                      <p className="text-[10px] text-muted-foreground/90 line-clamp-2 leading-relaxed">{item.call_brief}</p>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-border/20 text-[9px] text-muted-foreground font-semibold">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" />
+                        <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                      </div>
+                      {item.follow_up_date && (
+                        <div className="flex items-center gap-1 bg-amber-500/5 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/10">
+                          <Calendar className="h-3 w-3" />
+                          <span>Follow up: {item.follow_up_date}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Create Log Form */
+          <form onSubmit={handleCreateSubmit} className="space-y-4 pb-10">
+            {/* Party Type Tabs */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Party Type</label>
+              <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/60 border border-border/30">
+                {['client', 'vendor', 'lead', 'subcontractor'].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => { setFormPartyType(type); setFormPartyId(''); }}
+                    className={`py-1.5 rounded-lg text-[10px] font-bold capitalize transition-all ${
+                      formPartyType === type
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Select Party Dropdown */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Select {formPartyType}</label>
+              <select
+                value={formPartyId}
+                onChange={(e) => setFormPartyId(e.target.value)}
+                className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                required
+              >
+                <option value="">-- Choose {formPartyType} --</option>
+                {getPartyOptions().map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Subject */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Subject / Topic Summary</label>
+              <input
+                type="text"
+                value={formSubject}
+                onChange={(e) => setFormSubject(e.target.value)}
+                placeholder="E.g., Revision of scope, delayed payments..."
+                className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                required
+              />
+            </div>
+
+            {/* Category & Regarding */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Comm. Category</label>
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Regarding Topic</label>
+                <select
+                  value={formRegarding}
+                  onChange={(e) => setFormRegarding(e.target.value)}
+                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {TOPICS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Priority & Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Priority</label>
+                <select
+                  value={formPriority}
+                  onChange={(e) => setFormPriority(e.target.value)}
+                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none"
+                >
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Status</label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value)}
+                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none"
+                >
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Brief Summary */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Brief Summary (Notes)</label>
+              <textarea
+                value={formBrief}
+                onChange={(e) => setFormBrief(e.target.value)}
+                placeholder="What did you discuss? Key takeaways..."
+                rows={3}
+                className="w-full p-3 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                required
+              />
+            </div>
+
+            {/* Next Action */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Next Action Required</label>
+              <input
+                type="text"
+                value={formNextAction}
+                onChange={(e) => setFormNextAction(e.target.value)}
+                placeholder="E.g., Send updated invoice details..."
+                className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none"
+              />
+            </div>
+
+            {/* Follow Up Date */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Follow-Up Date</label>
+              <input
+                type="date"
+                value={formFollowUp}
+                onChange={(e) => setFormFollowUp(e.target.value)}
+                className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-all hover:bg-primary/95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-4"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingCommId ? 'Save Changes' : 'Save Communication Log')}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Details Sheet Modal */}
+      {selectedComm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-[1px] p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-lg p-6 flex flex-col space-y-4 animate-slide-up">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/5 text-primary">
+                  {getCategoryIcon(selectedComm.call_category)}
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-foreground">{getPartyDisplayName(selectedComm)}</h3>
+                  <p className="text-[9px] font-semibold uppercase text-muted-foreground/75">{selectedComm.party_type} • {selectedComm.call_regarding}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleEditClick(selectedComm)}
+                  className="p-1 rounded-full hover:bg-muted text-primary active:scale-95 transition-all"
+                  title="Edit Log"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={() => setSelectedComm(null)}
+                  className="p-1 rounded-full hover:bg-muted text-muted-foreground active:scale-95 transition-all"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Subject</span>
+                <p className="text-xs font-bold text-foreground leading-relaxed">{selectedComm.subject}</p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Discussion Notes</span>
+                <div className="p-3 rounded-lg bg-muted/40 border border-border/20 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {selectedComm.call_brief}
+                </div>
+              </div>
+
+              {selectedComm.next_action && (
+                <div className="space-y-1">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Next Action</span>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span>{selectedComm.next_action}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border/30 text-[10px]">
+                <div>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Priority</span>
+                  <p className="font-semibold capitalize text-foreground">{selectedComm.priority}</p>
+                </div>
+                <div>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Status</span>
+                  <p className="font-semibold capitalize text-foreground">{selectedComm.status}</p>
+                </div>
+                <div>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Date Logged</span>
+                  <p className="font-semibold text-foreground">{new Date(selectedComm.created_at).toLocaleString()}</p>
+                </div>
+                {selectedComm.follow_up_date && (
+                  <div>
+                    <span className="text-[8px] font-bold text-muted-foreground uppercase text-amber-600">Follow-Up Date</span>
+                    <p className="font-semibold text-amber-600">{selectedComm.follow_up_date}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters Modal */}
+      {showFiltersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[1px] p-6">
+          <div className="w-full max-w-xs rounded-2xl bg-card border border-border shadow-lg p-5 flex flex-col space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold text-foreground">Filter Logs</h3>
+              <button onClick={() => setShowFiltersModal(false)} className="text-muted-foreground"><X className="h-4 w-4" /></button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground">Party Type</label>
+                <select
+                  value={filterPartyType}
+                  onChange={(e) => { setFilterPartyType(e.target.value); setFilterPartyId(''); }}
+                  className="w-full px-2 h-8 rounded-lg border border-input bg-card text-xs focus:outline-none"
+                >
+                  <option value="">All Party Types</option>
+                  <option value="client">Client</option>
+                  <option value="vendor">Vendor</option>
+                  <option value="lead">Lead</option>
+                  <option value="subcontractor">Subcontractor</option>
+                </select>
+              </div>
+
+              {filterPartyType && (
+                <div className="space-y-1">
+                  <label className="font-semibold text-muted-foreground capitalize flex items-center gap-1">
+                    <Search className="h-3.5 w-3.5 text-primary" />
+                    <span>Search {filterPartyType}</span>
+                  </label>
+                  <select
+                    value={filterPartyId}
+                    onChange={(e) => setFilterPartyId(e.target.value)}
+                    className="w-full px-2 h-8 rounded-lg border border-input bg-card text-xs focus:outline-none"
+                  >
+                    <option value="">All {filterPartyType}s</option>
+                    {getFilterPartyOptions().map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="font-semibold text-muted-foreground">Category</label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full px-2 h-8 rounded-lg border border-input bg-card text-xs focus:outline-none"
+                >
+                  <option value="">All Categories</option>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => { setFilterCategory(''); setFilterPartyType(''); setFilterPartyId(''); setShowFiltersModal(false); }}
+                className="flex-1 h-9 rounded-lg border border-input text-[10px] font-bold text-muted-foreground active:scale-95 transition-all"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowFiltersModal(false)}
+                className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold active:scale-95 transition-all"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

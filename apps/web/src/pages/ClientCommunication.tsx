@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
@@ -10,6 +10,8 @@ import { Input, Select, TextArea } from '../components/ui/input';
 import { Modal } from '../components/ui/Modal';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
 import { Calendar } from '../components/ui/Calendar';
+import { createIssue } from '../issues/api';
+import type { IssueType, IssueSeverity } from '../issues/types';
 import {
   Plus,
   Search,
@@ -52,6 +54,7 @@ const CALL_CATEGORIES = [
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'email', label: 'Email' },
   { value: 'meeting', label: 'Meeting' },
+  { value: 'sms', label: 'SMS' },
 ];
 
 const CALL_REGARDING = [
@@ -106,6 +109,7 @@ const TYPE_DISPLAY: Record<string, { label: string; color: string; bgColor: stri
   whatsapp: { label: 'WhatsApp', color: '#059669', bgColor: '#DCFCE7', icon: <Smartphone size={13} /> },
   email: { label: 'Email', color: '#3B82F6', bgColor: '#DBEAFE', icon: <Mail size={13} /> },
   meeting: { label: 'Meeting', color: '#D97706', bgColor: '#FEF3C7', icon: <Users size={13} /> },
+  sms: { label: 'SMS', color: '#0891B2', bgColor: '#ECFEFF', icon: <Smartphone size={13} /> },
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -173,6 +177,146 @@ function formatCommTime(dateStr: string): { time: string; date: string } {
   }
 }
 
+function buildThreadTree(comms: any[]): any[] {
+  const map = new Map<string, any>();
+  const roots: any[] = [];
+  comms.forEach(comm => { map.set(comm.id, { ...comm, children: [] }); });
+  comms.forEach(comm => {
+    const node = map.get(comm.id);
+    if (comm.parent_communication_id && map.has(comm.parent_communication_id)) {
+      map.get(comm.parent_communication_id).children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+function checkCycle(comms: any[], parentId: string | null, currentId: string): boolean {
+  if (!parentId) return false;
+  let id: string | null = parentId;
+  const visited = new Set<string>();
+  while (id) {
+    if (id === currentId) return true;
+    if (visited.has(id)) return true;
+    visited.add(id);
+    const parent = comms.find(c => c.id === id);
+    id = parent?.parent_communication_id || null;
+  }
+  return false;
+}
+
+function ThreadedTimeline({ items, onSelect, users: userList, TYPE_DISPLAY: td, formatCommTime: fct }: {
+  items: any[]; onSelect: (item: any) => void; users: any[];
+  TYPE_DISPLAY: Record<string, any>; formatCommTime: (d: string) => { time: string; date: string };
+}) {
+  const threadTree = useMemo(() => buildThreadTree(items), [items]);
+
+  const renderThreadNode = (node: any, depth: number): React.ReactNode => {
+    const itemTime = fct(node.created_at);
+    const catKey = (node.call_category || '').toLowerCase();
+    const typeInfo = td[catKey] || { label: node.call_category || '—', color: '#64748B', bgColor: '#F1F5F9', icon: null };
+    const isRoot = depth === 0;
+    const indent = depth * 16;
+
+    return (
+      <div key={node.id} style={{ marginLeft: indent }}>
+        <div
+          onClick={() => onSelect(node)}
+          style={{ position: 'relative', cursor: 'pointer', marginBottom: node.children?.length ? '4px' : '0' }}
+        >
+          <div style={{
+            background: isRoot ? '#F8FAFC' : '#fff',
+            border: `1px solid ${isRoot ? '#E2E8F0' : '#E5E7EB'}`,
+            borderLeft: `3px solid ${typeInfo.color}`,
+            borderRadius: '8px',
+            padding: '8px 10px',
+            transition: 'all 150ms ease',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.background = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = isRoot ? '#E2E8F0' : '#E5E7EB'; e.currentTarget.style.background = isRoot ? '#F8FAFC' : '#fff'; }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px', gap: '6px' }}>
+              <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {itemTime.date} at {itemTime.time}
+              </span>
+              <span style={{ fontSize: '8px', padding: '1px 4px', background: typeInfo.bgColor, color: typeInfo.color, borderRadius: '3px', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                {typeInfo.label}
+              </span>
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#0F172A', marginBottom: '1px', lineHeight: 1.3 }}>
+              {node.subject || (isRoot ? 'General Discussion' : 'Re: ' + (node.subject || '...'))}
+            </div>
+            {node.assigned_to && (
+              <div style={{ fontSize: '9px', color: '#94A3B8', marginBottom: '3px' }}>
+                Assigned: {userList.find((u: any) => u.id === node.assigned_to)?.full_name || userList.find((u: any) => u.id === node.assigned_to)?.email || '—'}
+              </div>
+            )}
+            <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{node.call_brief}</div>
+            {node.next_action && (
+              <div style={{ marginTop: '4px', fontSize: '9px', color: '#4F46E5', fontWeight: 500, borderTop: '1px dashed #E2E8F0', paddingTop: '3px' }}>
+                Next: <span style={{ color: '#475569', fontStyle: 'italic' }}>{node.next_action}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        {node.children && node.children.length > 0 && (
+          <div style={{ borderLeft: `2px solid ${typeInfo.color}40`, marginLeft: '8px', paddingLeft: '12px' }}>
+            {depth < 2
+              ? node.children.map((child: any) => renderThreadNode(child, depth + 1))
+              : (
+                <ThreadCollapsed count={node.children.length} items={node.children} onSelect={onSelect} />
+              )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const sortedRoots = useMemo(() =>
+    [...threadTree].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [threadTree]
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '0 4px' }}>
+      {sortedRoots.map(root => renderThreadNode(root, 0))}
+    </div>
+  );
+}
+
+function ThreadCollapsed({ count, items, onSelect }: { count: number; items: any[]; onSelect: (item: any) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        style={{ fontSize: '10px', color: '#4F46E5', fontWeight: 600, border: '1px dashed #C7D2FE', borderRadius: '6px', background: '#EEF2FF', padding: '4px 10px', cursor: 'pointer', marginTop: '4px', width: '100%', textAlign: 'center' }}
+      >
+        Show {count} more repl{count === 1 ? 'y' : 'ies'}
+      </button>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {items.map((item: any) => (
+        <div key={item.id} onClick={() => onSelect(item)} style={{ cursor: 'pointer', fontSize: '10px', color: '#475569', padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: '6px', background: '#fff' }}>
+          {item.subject || 'Reply'} — {item.call_brief?.slice(0, 60) || ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function escapeCSV(value: string | null | undefined): string {
+  if (!value) return '';
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ClientCommunication() {
@@ -196,6 +340,11 @@ export function ClientCommunication() {
   const [paramsProcessed, setParamsProcessed] = useState(false);
   const [requireSiteVisit, setRequireSiteVisit] = useState(false);
   const [issueSiteVisitDate, setIssueSiteVisitDate] = useState('');
+  const [issueProjectId, setIssueProjectId] = useState('');
+  const [issueType, setIssueType] = useState<IssueType>('installation');
+  const [issueSeverity, setIssueSeverity] = useState<IssueSeverity>('major');
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -211,6 +360,7 @@ export function ClientCommunication() {
     priority: '',
     dateFrom: '',
     dateTo: '',
+    assignee: '',
   });
 
   // ── Queries ──
@@ -275,6 +425,21 @@ export function ClientCommunication() {
     staleTime: 1000 * 60 * 30,
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, project_name')
+        .eq('organisation_id', organisation?.id)
+        .order('project_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 30,
+  });
+
   const { data: communications = [], isLoading } = useQuery({
     queryKey: ['client-communications', filters, organisation?.id],
     queryFn: async () => {
@@ -304,6 +469,8 @@ export function ClientCommunication() {
       }
       if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
       if (filters.dateTo) query = query.lte('created_at', filters.dateTo + 'T23:59:59');
+      if (filters.assignee === 'unassigned') query = query.is('assigned_to', null);
+      else if (filters.assignee) query = query.eq('assigned_to', filters.assignee);
 
       const { data, error } = await query;
       if (error) {
@@ -379,11 +546,41 @@ export function ClientCommunication() {
     staleTime: 1000 * 60 * 30,
   });
 
+  const getUserId = (u: any) => u.user_id || u.id;
+
+  const currentUserProfileId = useMemo(() => {
+    if (!user?.id) return null;
+    const match = (users as any[]).find(u => getUserId(u) === user?.id);
+    return match ? getUserId(match) : null;
+  }, [users, user?.id]);
+
   // ── Mutations ──
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       let resolvedSiteVisitId = data.site_visit_id && data.site_visit_id !== '' ? data.site_visit_id : null;
+
+      if (data.parent_communication_id) {
+        const { data: parentComm, error: parentErr } = await supabase
+          .from('client_communication')
+          .select('id, party_type, client_id, vendor_id, lead_id, subcontractor_id, parent_communication_id')
+          .eq('id', data.parent_communication_id)
+          .single();
+        if (parentErr || !parentComm) throw new Error('Parent communication not found');
+        const parentPartyType = parentComm.party_type;
+        const childPartyType = data.party_type;
+        if (parentPartyType !== childPartyType) throw new Error('Reply must be to the same party type');
+        let parentPartyId: string | null = null;
+        let childPartyId: string | null = null;
+        if (parentPartyType === 'client') { parentPartyId = parentComm.client_id; childPartyId = data.client_id; }
+        else if (parentPartyType === 'vendor') { parentPartyId = parentComm.vendor_id; childPartyId = data.vendor_id; }
+        else if (parentPartyType === 'lead') { parentPartyId = parentComm.lead_id; childPartyId = data.lead_id; }
+        else if (parentPartyType === 'subcontractor') { parentPartyId = parentComm.subcontractor_id; childPartyId = data.subcontractor_id; }
+        if (parentPartyId !== childPartyId) throw new Error('Reply must be to the same party');
+        if (checkCycle([parentComm], data.parent_communication_id, data.parent_communication_id)) {
+          throw new Error('Cannot create a cycle in the reply chain');
+        }
+      }
 
       if (requireSiteVisit && issueSiteVisitDate && data.call_regarding === 'issue') {
         const { data: sv, error: svErr } = await supabase
@@ -392,9 +589,7 @@ export function ClientCommunication() {
             client_id: data.party_type === 'client' ? data.client_id : null,
             project_id: null,
             visit_date: issueSiteVisitDate,
-            purpose: `[Issue] ${data.subject || 'Issue follow-up'} — ${data.call_brief?.slice(0, 200) || ''}`,
-            assigned_to: data.call_received_by || null,
-            notes: `Origin: Issue communication.\nBrief: ${data.call_brief || ''}\nNext action: ${data.next_action || '—'}`,
+            purpose_of_visit: `[Issue] ${data.subject || 'Issue follow-up'} — ${data.call_brief?.slice(0, 200) || ''}`,
             organisation_id: organisation?.id,
             created_at: new Date().toISOString(),
           })
@@ -413,12 +608,14 @@ export function ClientCommunication() {
         vendor_id: data.party_type === 'vendor' && data.vendor_id ? data.vendor_id : null,
         lead_id: data.party_type === 'lead' && data.lead_id ? data.lead_id : null,
         subcontractor_id: data.party_type === 'subcontractor' && data.subcontractor_id ? data.subcontractor_id : null,
-        call_received_by: data.call_received_by && data.call_received_by !== '' ? data.call_received_by : (user?.id || null),
-        call_entered_by: data.call_entered_by && data.call_entered_by !== '' ? data.call_entered_by : (user?.id || null),
+        call_received_by: data.call_received_by && data.call_received_by !== '' ? data.call_received_by : currentUserProfileId,
+        call_entered_by: data.call_entered_by && data.call_entered_by !== '' ? data.call_entered_by : currentUserProfileId,
         linked_id: data.linked_id && data.linked_id !== '' ? data.linked_id : null,
         site_visit_id: resolvedSiteVisitId,
         follow_up_date: data.follow_up_date && data.follow_up_date !== '' ? data.follow_up_date : null,
         subject: data.subject && data.subject !== '' ? data.subject : null,
+        assigned_to: data.assigned_to && data.assigned_to !== '' ? data.assigned_to : currentUserProfileId,
+        parent_communication_id: data.parent_communication_id && data.parent_communication_id !== '' ? data.parent_communication_id : null,
       };
       const { data: result, error } = await supabase
         .from('client_communication')
@@ -426,6 +623,54 @@ export function ClientCommunication() {
         .select()
         .single();
       if (error) throw error;
+
+      if (data.call_regarding === 'issue' && issueProjectId) {
+        const userName = (user as any)?.full_name || user?.email || 'Unknown User';
+        await createIssue(
+          {
+            organisation_id: organisation?.id || '',
+            project_id: issueProjectId,
+            client_id: data.party_type === 'client' ? data.client_id : null,
+            title: data.subject || `Issue: ${(data.call_brief || '').slice(0, 80)}`,
+            description: data.call_brief || null,
+            issue_type: issueType,
+            severity: issueSeverity,
+            priority: data.priority || 'normal',
+            assigned_to: data.assigned_to || null,
+            due_date: data.follow_up_date || null,
+          },
+          user?.id || '',
+          userName
+        );
+      }
+
+      if (attachmentFiles.length > 0 && result) {
+        setUploadingAttachments(true);
+        const attachmentsMeta: { name: string; url: string; type: string; size: number }[] = [];
+        for (const file of attachmentFiles) {
+          const filePath = `${organisation?.id}/${result.id}/${file.name}`;
+          const { error: uploadErr } = await supabase.storage
+            .from('communication-attachments')
+            .upload(filePath, file, { upsert: false });
+          if (uploadErr) throw uploadErr;
+          const { data: signedUrl } = await supabase.storage
+            .from('communication-attachments')
+            .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+          attachmentsMeta.push({
+            name: file.name,
+            url: signedUrl?.signedUrl || filePath,
+            type: file.type,
+            size: file.size,
+          });
+        }
+        const { error: updateErr } = await supabase
+          .from('client_communication')
+          .update({ attachments: attachmentsMeta })
+          .eq('id', result.id);
+        if (updateErr) throw updateErr;
+        setUploadingAttachments(false);
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -434,8 +679,10 @@ export function ClientCommunication() {
       queryClient.invalidateQueries({ queryKey: ['party-communication-history'] });
       setShowCreateModal(false);
       resetForm();
+      setAttachmentFiles([]);
     },
     onError: (error: any) => {
+      setUploadingAttachments(false);
       alert('Failed to save communication: ' + (error?.message || 'Unknown error'));
     },
   });
@@ -465,6 +712,15 @@ export function ClientCommunication() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (organisation?.id) {
+        const { data: existingFiles, error: listErr } = await supabase.storage
+          .from('communication-attachments')
+          .list(`${organisation.id}/${id}`);
+        if (!listErr && existingFiles && existingFiles.length > 0) {
+          const pathsToRemove = existingFiles.map(f => `${organisation.id}/${id}/${f.name}`);
+          await supabase.storage.from('communication-attachments').remove(pathsToRemove);
+        }
+      }
       const { error } = await supabase
         .from('client_communication')
         .delete()
@@ -506,8 +762,8 @@ export function ClientCommunication() {
     vendor_id: '',
     subcontractor_id: '',
     lead_id: '',
-    call_received_by: user?.id || '',
-    call_entered_by: user?.id || '',
+    call_received_by: '',
+    call_entered_by: '',
     call_type: 'Incoming',
     call_category: 'incoming',
     call_regarding: '',
@@ -519,6 +775,8 @@ export function ClientCommunication() {
     status: 'open',
     linked_type: '',
     linked_id: '',
+    assigned_to: '',
+    parent_communication_id: '',
   });
 
   const [siteVisitData, setSiteVisitData] = useState({
@@ -602,14 +860,14 @@ export function ClientCommunication() {
   ]);
 
   useEffect(() => {
-    if (user?.id) {
+    if (currentUserProfileId) {
       setFormData(prev => ({
         ...prev,
-        call_received_by: prev.call_received_by || user.id,
-        call_entered_by: prev.call_entered_by || user.id,
+        call_received_by: prev.call_received_by || currentUserProfileId,
+        call_entered_by: prev.call_entered_by || currentUserProfileId,
       }));
     }
-  }, [user]);
+  }, [currentUserProfileId]);
 
   useEffect(() => {
     const handleDocumentClick = () => {
@@ -629,8 +887,8 @@ export function ClientCommunication() {
       vendor_id: '',
       subcontractor_id: '',
       lead_id: '',
-      call_received_by: user?.id || '',
-      call_entered_by: user?.id || '',
+      call_received_by: currentUserProfileId || '',
+      call_entered_by: currentUserProfileId || '',
       call_type: 'Incoming',
       call_category: 'incoming',
       call_regarding: '',
@@ -642,9 +900,14 @@ export function ClientCommunication() {
       status: 'open',
       linked_type: '',
       linked_id: '',
+      assigned_to: '',
+      parent_communication_id: '',
     });
     setRequireSiteVisit(false);
     setIssueSiteVisitDate('');
+    setIssueProjectId('');
+    setIssueType('installation');
+    setIssueSeverity('major');
   };
 
   // ── Helpers ──
@@ -662,7 +925,7 @@ export function ClientCommunication() {
   };
 
   const clearFilters = () => {
-    setFilters({ search: '', partyType: '', clientId: '', vendorId: '', subcontractorId: '', leadId: '', callCategory: '', callRegarding: '', status: '', priority: '', dateFrom: '', dateTo: '' });
+    setFilters({ search: '', partyType: '', clientId: '', vendorId: '', subcontractorId: '', leadId: '', callCategory: '', callRegarding: '', status: '', priority: '', dateFrom: '', dateTo: '', assignee: '' });
     setCurrentPage(1);
   };
 
@@ -673,6 +936,50 @@ export function ClientCommunication() {
     (formData.party_type === 'vendor' && !!formData.vendor_id) ||
     (formData.party_type === 'lead' && !!formData.lead_id) ||
     (formData.party_type === 'subcontractor' && !!formData.subcontractor_id);
+
+  const handleExportCSV = () => {
+    const rows = communications.map(comm => {
+      const timeInfo = formatCommTime(comm.created_at);
+      const catKey = (comm.call_category || '').toLowerCase();
+      const typeInfo = TYPE_DISPLAY[catKey];
+      const regardingLabel = CALL_REGARDING.find(r => r.value === comm.call_regarding)?.label || '';
+      let linkedUrl = '';
+      if (comm.linked_type && comm.linked_id) {
+        const route = getLinkedRoute(comm.linked_type, comm.linked_id);
+        if (route) linkedUrl = window.location.origin + route;
+      }
+      return [
+        timeInfo.time,
+        timeInfo.date,
+        getPartyName(comm),
+        getPartyTypeLabel(comm),
+        comm.subject || '',
+        comm.call_brief || '',
+        typeInfo?.label || comm.call_category || '',
+        regardingLabel,
+        comm.next_action || '',
+        comm.status || '',
+        comm.priority || '',
+        comm.follow_up_date || '',
+        linkedUrl,
+      ].map(v => escapeCSV(v)).join(',');
+    });
+
+    const header = [
+      'Time', 'Date', 'Party', 'Party Type', 'Subject', 'Brief',
+      'Type', 'Regarding', 'Next Action', 'Status', 'Priority',
+      'Follow-Up Date', 'Linked Record URL',
+    ].join(',');
+
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `communications-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleCreateSiteVisit = () => {
     if (!selectedCommunication || !siteVisitData.visit_date) return;
@@ -686,6 +993,24 @@ export function ClientCommunication() {
   // Pagination
   const totalPages = Math.max(1, Math.ceil(communications.length / PAGE_SIZE));
   const paginatedComms = communications.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const recentPartyComms = useMemo(() => {
+    if (!hasPartySelected || !formData.party_type) return [];
+    const partyField = formData.party_type === 'client' ? 'client_id'
+      : formData.party_type === 'vendor' ? 'vendor_id'
+        : formData.party_type === 'lead' ? 'lead_id' : 'subcontractor_id';
+    const partyId = formData[partyField as keyof typeof formData] as string;
+    if (!partyId) return [];
+    return communications
+      .filter(c => {
+        if (formData.party_type === 'client' && c.client_id === partyId) return true;
+        if (formData.party_type === 'vendor' && c.vendor_id === partyId) return true;
+        if (formData.party_type === 'lead' && c.lead_id === partyId) return true;
+        if (formData.party_type === 'subcontractor' && c.subcontractor_id === partyId) return true;
+        return false;
+      })
+      .slice(0, 20);
+  }, [communications, formData.party_type, formData.client_id, formData.vendor_id, formData.lead_id, formData.subcontractor_id, hasPartySelected]);
 
   const groupedComms = useMemo(() => {
     if (groupBy === 'none') return null;
@@ -746,6 +1071,16 @@ export function ClientCommunication() {
     background: '#fff',
     cursor: 'pointer',
     outline: 'none',
+  };
+
+  const getLinkedRoute = (linked_type: string, linked_id: string): string | null => {
+    const routes: Record<string, string> = {
+      quotation: `/quotations/${linked_id}`,
+      invoice: `/invoices/${linked_id}`,
+      podc: `/projects/${linked_id}`,
+      site_visit: `/site-visits/${linked_id}`,
+    };
+    return routes[linked_type] || null;
   };
 
   const renderCommRow = (comm: any) => {
@@ -812,11 +1147,25 @@ export function ClientCommunication() {
         {/* Subject / Topic */}
         <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', maxWidth: '280px', minWidth: '220px' }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {comm.subject || regardingLabel || 'General'}
+            {comm.linked_type && comm.linked_id ? (
+              <Link
+                to={getLinkedRoute(comm.linked_type, comm.linked_id) || '#'}
+                style={{ color: '#4F46E5', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                onClick={e => e.stopPropagation()}
+              >
+                {comm.subject || `${comm.linked_type}: ${comm.linked_id}`}
+              </Link>
+            ) : (comm.subject || regardingLabel || 'General')}
           </div>
           {comm.call_brief && (
             <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', whiteSpace: 'pre-wrap', lineHeight: 1.4, minWidth: '200px' }}>
               {comm.call_brief}
+            </div>
+          )}
+          {comm.attachments && Array.isArray(comm.attachments) && comm.attachments.length > 0 && (
+            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#0891B2' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+              <span>{comm.attachments.length} file{comm.attachments.length > 1 ? 's' : ''}</span>
             </div>
           )}
         </td>
@@ -850,6 +1199,16 @@ export function ClientCommunication() {
           <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, background: isOpen ? '#DBEAFE' : statusLower === 'resolved' ? '#D1FAE5' : '#F1F5F9', color: isOpen ? '#1D4ED8' : statusLower === 'resolved' ? '#065F46' : '#64748B' }}>
             {statusLabel}
           </span>
+        </td>
+        {/* Assignee */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          {comm.assigned_to ? (
+            <span style={{ fontSize: '12px', color: '#475569', fontWeight: 500 }}>
+              {users.find(u => u.id === comm.assigned_to)?.full_name || users.find(u => u.id === comm.assigned_to)?.email || '—'}
+            </span>
+          ) : (
+            <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
+          )}
         </td>
         {/* Priority */}
         <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
@@ -919,6 +1278,8 @@ export function ClientCommunication() {
                       status: (comm.status || '').toLowerCase() === 'open' ? 'open' : (comm.status || '').toLowerCase() === 'in_progress' ? 'in_progress' : (comm.status || '').toLowerCase() === 'resolved' ? 'resolved' : (comm.status || '').toLowerCase() === 'closed' ? 'closed' : comm.status || 'open',
                       linked_type: comm.linked_type || '',
                       linked_id: comm.linked_id || '',
+                      assigned_to: comm.assigned_to || '',
+                      parent_communication_id: comm.parent_communication_id || '',
                     });
                     setShowCreateModal(true);
                     setOpenMenuId(null);
@@ -1076,7 +1437,7 @@ export function ClientCommunication() {
             return (
               <button
                 key={chip.value}
-                onClick={() => { setFilters(f => ({ ...f, partyType: active ? '' : chip.value })); setCurrentPage(1); }}
+                onClick={() => { setFilters(f => ({ ...f, partyType: active ? '' : chip.value, clientId: '', vendorId: '', subcontractorId: '', leadId: '' })); setCurrentPage(1); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   padding: '6px 14px',
@@ -1185,33 +1546,51 @@ export function ClientCommunication() {
                 style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '7px', fontSize: '13px', color: '#334155', background: '#fff', outline: 'none', boxSizing: 'border-box' }} />
             </div>
 
-            {/* Select specific parties (Client, Vendor, Lead, Subcontractor) */}
+            {/* Select specific parties (Client, Vendor, Lead, Subcontractor) conditionally */}
+            {filters.partyType === 'client' && (
+              <div>
+                <label style={labelStyle}>Client</label>
+                <select style={selectStyle} value={filters.clientId} onChange={e => { setFilters(f => ({ ...f, clientId: e.target.value })); setCurrentPage(1); }}>
+                  <option value="">All Clients</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
+                </select>
+              </div>
+            )}
+            {filters.partyType === 'vendor' && (
+              <div>
+                <label style={labelStyle}>Vendor</label>
+                <select style={selectStyle} value={filters.vendorId} onChange={e => { setFilters(f => ({ ...f, vendorId: e.target.value })); setCurrentPage(1); }}>
+                  <option value="">All Vendors</option>
+                  {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+                </select>
+              </div>
+            )}
+            {filters.partyType === 'subcontractor' && (
+              <div>
+                <label style={labelStyle}>Subcontractor</label>
+                <select style={selectStyle} value={filters.subcontractorId} onChange={e => { setFilters(f => ({ ...f, subcontractorId: e.target.value })); setCurrentPage(1); }}>
+                  <option value="">All Subcontractors</option>
+                  {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
+                </select>
+              </div>
+            )}
+            {filters.partyType === 'lead' && (
+              <div>
+                <label style={labelStyle}>Lead</label>
+                <select style={selectStyle} value={filters.leadId} onChange={e => { setFilters(f => ({ ...f, leadId: e.target.value })); setCurrentPage(1); }}>
+                  <option value="">All Leads</option>
+                  {leads.map(l => <option key={l.id} value={l.id}>{l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Assignee Filter */}
             <div>
-              <label style={labelStyle}>Client</label>
-              <select style={selectStyle} value={filters.clientId} onChange={e => { setFilters(f => ({ ...f, clientId: e.target.value, partyType: e.target.value ? 'client' : f.partyType })); setCurrentPage(1); }}>
-                <option value="">All Clients</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Vendor</label>
-              <select style={selectStyle} value={filters.vendorId} onChange={e => { setFilters(f => ({ ...f, vendorId: e.target.value, partyType: e.target.value ? 'vendor' : f.partyType })); setCurrentPage(1); }}>
-                <option value="">All Vendors</option>
-                {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Subcontractor</label>
-              <select style={selectStyle} value={filters.subcontractorId} onChange={e => { setFilters(f => ({ ...f, subcontractorId: e.target.value, partyType: e.target.value ? 'subcontractor' : f.partyType })); setCurrentPage(1); }}>
-                <option value="">All Subcontractors</option>
-                {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Lead</label>
-              <select style={selectStyle} value={filters.leadId} onChange={e => { setFilters(f => ({ ...f, leadId: e.target.value, partyType: e.target.value ? 'lead' : f.partyType })); setCurrentPage(1); }}>
-                <option value="">All Leads</option>
-                {leads.map(l => <option key={l.id} value={l.id}>{l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name}</option>)}
+              <label style={labelStyle}>Assignee</label>
+              <select style={selectStyle} value={filters.assignee} onChange={e => { setFilters(f => ({ ...f, assignee: e.target.value })); setCurrentPage(1); }}>
+                <option value="">All Assignees</option>
+                <option value="unassigned">Unassigned</option>
+                {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}</option>)}
               </select>
             </div>
           </div>
@@ -1283,6 +1662,13 @@ export function ClientCommunication() {
               </div>
 
               <button
+                onClick={handleExportCSV}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#059669', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                <ChevronDown size={13} style={{ transform: 'rotate(-90deg)' }} />
+                Export CSV
+              </button>
+              <button
                 onClick={() => setShowCalendar(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#4F46E5', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
               >
@@ -1308,7 +1694,7 @@ export function ClientCommunication() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
-                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Next Action', 'Status', 'Priority', 'Follow Up', ''].map((col, i) => (
+                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Next Action', 'Status', 'Assignee', 'Priority', 'Follow Up', ''].map((col, i) => (
                     <th
                       key={i}
                       style={{
@@ -1332,13 +1718,13 @@ export function ClientCommunication() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>
+                    <td colSpan={10} style={{ padding: '48px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>
                       Loading communications...
                     </td>
                   </tr>
                 ) : paginatedComms.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <div style={{ padding: '60px 24px', textAlign: 'center' }}>
                         <MessageSquare size={42} style={{ color: '#CBD5E1', display: 'block', margin: '0 auto 12px' }} />
                         <p style={{ fontSize: '15px', fontWeight: 600, color: '#475569', margin: '0 0 6px' }}>No communications found</p>
@@ -1357,7 +1743,7 @@ export function ClientCommunication() {
                   groupedComms.map(([groupName, comms]) => (
                     <React.Fragment key={groupName}>
                       <tr>
-                        <td colSpan={9} style={{ padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', borderTop: '1px solid #E2E8F0' }}>
+                        <td colSpan={10} style={{ padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', borderTop: '1px solid #E2E8F0' }}>
                           <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {groupName} ({comms.length})
                           </span>
@@ -1466,69 +1852,13 @@ export function ClientCommunication() {
                     <p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>Log a communication to start the history chain.</p>
                   </div>
                 ) : (
-                  <div style={{ position: 'relative', paddingLeft: '20px', borderLeft: '2px solid #E2E8F0', margin: '8px 4px 8px 12px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {partyHistory.map(item => {
-                      const itemTime = formatCommTime(item.created_at);
-                      const catKey = (item.call_category || '').toLowerCase();
-                      const typeInfo = TYPE_DISPLAY[catKey] || { label: item.call_category || '—', color: '#64748B', bgColor: '#F1F5F9', icon: <MessageSquare size={13} /> };
-                      
-                      return (
-                        <div 
-                          key={item.id} 
-                          onClick={() => setSelectedCommunication(item)}
-                          style={{ position: 'relative', cursor: 'pointer' }}
-                        >
-                          {/* Timeline dot */}
-                          <div style={{ 
-                            position: 'absolute', 
-                            left: '-27px', 
-                            top: '4px', 
-                            width: '12px', 
-                            height: '12px', 
-                            borderRadius: '50%', 
-                            background: typeInfo.color, 
-                            border: '3px solid #fff',
-                            boxShadow: '0 0 0 1px #E2E8F0',
-                          }} />
-                          
-                          {/* Card */}
-                          <div 
-                            style={{ 
-                              background: '#F8FAFC', 
-                              border: '1px solid #E2E8F0', 
-                              borderRadius: '8px', 
-                              padding: '10px 12px',
-                              transition: 'all 150ms ease',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.background = '#fff'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#F8FAFC'; }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
-                              <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                                {itemTime.date} at {itemTime.time}
-                              </span>
-                              <span style={{ fontSize: '9px', padding: '1px 5px', background: typeInfo.bgColor, color: typeInfo.color, borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                                {typeInfo.label}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F172A', marginBottom: '2px', lineHeight: 1.3 }}>
-                              {item.subject || 'General Discussion'}
-                            </div>
-                             <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
-                              {item.call_brief}
-                            </div>
-                            
-                            {item.next_action && (
-                              <div style={{ marginTop: '6px', fontSize: '10px', color: '#4F46E5', fontWeight: 500, display: 'flex', alignItems: 'flex-start', gap: '2px', borderTop: '1px dashed #E2E8F0', paddingTop: '4px' }}>
-                                <span style={{ flexShrink: 0 }}>Next:</span>
-                                <span style={{ color: '#475569', fontStyle: 'italic' }}>{item.next_action}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <ThreadedTimeline
+                    items={partyHistory}
+                    onSelect={setSelectedCommunication}
+                    users={users}
+                    TYPE_DISPLAY={TYPE_DISPLAY}
+                    formatCommTime={formatCommTime}
+                  />
                 )}
               </div>
             </>
@@ -1595,6 +1925,11 @@ export function ClientCommunication() {
                                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B' }}>{getPartyName(item)}</span>
                                 <span style={{ fontSize: '10px', fontWeight: 600, color: '#EF4444' }}>{formatFollowUpDate(item.follow_up_date)}</span>
                               </div>
+                              {item.assigned_to && (
+                                <div style={{ fontSize: '10px', color: '#B91C1C', marginTop: '1px', opacity: 0.7 }}>
+                                  Assigned to: {users.find(u => u.id === item.assigned_to)?.full_name || users.find(u => u.id === item.assigned_to)?.email || '—'}
+                                </div>
+                              )}
                               <div style={{ fontSize: '11px', color: '#7F1D1D', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {item.subject || 'Follow-up Call'}
                               </div>
@@ -1631,6 +1966,11 @@ export function ClientCommunication() {
                                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#92400E' }}>{getPartyName(item)}</span>
                                 <span style={{ fontSize: '10px', fontWeight: 600, color: '#D97706' }}>Today</span>
                               </div>
+                              {item.assigned_to && (
+                                <div style={{ fontSize: '10px', color: '#92400E', marginTop: '1px', opacity: 0.7 }}>
+                                  Assigned to: {users.find(u => u.id === item.assigned_to)?.full_name || users.find(u => u.id === item.assigned_to)?.email || '—'}
+                                </div>
+                              )}
                               <div style={{ fontSize: '11px', color: '#78350F', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {item.subject || 'Follow-up Call'}
                               </div>
@@ -1667,6 +2007,11 @@ export function ClientCommunication() {
                                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#1E293B' }}>{getPartyName(item)}</span>
                                 <span style={{ fontSize: '10px', fontWeight: 600, color: '#4F46E5' }}>{formatFollowUpDate(item.follow_up_date)}</span>
                               </div>
+                              {item.assigned_to && (
+                                <div style={{ fontSize: '10px', color: '#64748B', marginTop: '1px', opacity: 0.7 }}>
+                                  Assigned to: {users.find(u => u.id === item.assigned_to)?.full_name || users.find(u => u.id === item.assigned_to)?.email || '—'}
+                                </div>
+                              )}
                               <div style={{ fontSize: '11px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {item.subject || 'Follow-up Call'}
                               </div>
@@ -1727,9 +2072,15 @@ export function ClientCommunication() {
                     call_brief: formData.call_brief,
                     next_action: formData.next_action || null,
                     call_received_by: formData.call_received_by || null,
+                    assigned_to: formData.assigned_to || null,
+                    parent_communication_id: formData.parent_communication_id || null,
                   };
                   updateMutation.mutate({ id: editingCommunication.id, data: updatedData });
                 } else {
+                  if (formData.call_regarding === 'issue' && !issueProjectId) {
+                    alert('Please select a project for the issue.');
+                    return;
+                  }
                   createMutation.mutate({ ...formData, created_at: new Date().toISOString() });
                 }
               }}
@@ -1791,6 +2142,21 @@ export function ClientCommunication() {
                 </div>
               </div>
 
+              {/* In Reply To */}
+              {hasPartySelected && recentPartyComms.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={labelStyle}>In Reply To (optional)</label>
+                  <select value={formData.parent_communication_id} onChange={e => setFormData(f => ({ ...f, parent_communication_id: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                    <option value="">New conversation thread</option>
+                    {recentPartyComms.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.subject || TYPE_DISPLAY[c.call_category?.toLowerCase()]?.label || 'Communication'} — {format(parseISO(c.created_at), 'MMM d, h:mm a')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Grid fields */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 {/* Subject */}
@@ -1843,7 +2209,15 @@ export function ClientCommunication() {
                   <label style={labelStyle}>Received By</label>
                   <select value={formData.call_received_by} onChange={e => setFormData(f => ({ ...f, call_received_by: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                     <option value="">Select user</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
+                    {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}</option>)}
+                  </select>
+                </div>
+                {/* Assignee */}
+                <div>
+                  <label style={labelStyle}>Assignee</label>
+                  <select value={formData.assigned_to} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                    <option value="">Unassigned</option>
+                    {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}</option>)}
                   </select>
                 </div>
               </div>
@@ -1873,9 +2247,66 @@ export function ClientCommunication() {
                 />
               </div>
 
-              {/* Issue → Site Visit */}
+              {/* Attachments */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={labelStyle}>Attachments (optional, max 10MB each)</label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={e => {
+                    const files = Array.from(e.target.files || []);
+                    const valid = files.filter(f => f.size <= 10 * 1024 * 1024);
+                    if (valid.length !== files.length) alert('Some files exceed 10MB and were skipped.');
+                    setAttachmentFiles(prev => [...prev, ...valid]);
+                  }}
+                  style={{ width: '100%', padding: '8px 0', fontSize: '13px', color: '#334155' }}
+                />
+                {attachmentFiles.length > 0 && (
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {attachmentFiles.map((f, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '12px' }}>
+                        <span style={{ color: '#334155' }}>{f.name}</span>
+                        <button type="button" onClick={() => setAttachmentFiles(prev => prev.filter((_, j) => j !== i))} style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '2px' }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Issue → Project & Type */}
               {formData.call_regarding === 'issue' && (
                 <div style={{ marginBottom: '24px', padding: '16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                    <div>
+                      <label style={{ ...labelStyle, color: '#92400E' }}>Project *</label>
+                      <select value={issueProjectId} onChange={e => setIssueProjectId(e.target.value)} required style={{ width: '100%', padding: '10px 12px', border: '1px solid #FDE68A', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', outline: 'none' }}>
+                        <option value="">Select project...</option>
+                        {projects.map(p => <option key={p.id} value={p.id}>{p.project_name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ ...labelStyle, color: '#92400E' }}>Issue Type *</label>
+                      <select value={issueType} onChange={e => setIssueType(e.target.value as IssueType)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #FDE68A', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', outline: 'none' }}>
+                        <option value="installation">Installation</option>
+                        <option value="quality">Quality</option>
+                        <option value="design">Design</option>
+                        <option value="safety">Safety</option>
+                        <option value="breakdown">Breakdown</option>
+                        <option value="punchlist">Punch List</option>
+                        <option value="ncr">NCR</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ ...labelStyle, color: '#92400E' }}>Severity *</label>
+                      <select value={issueSeverity} onChange={e => setIssueSeverity(e.target.value as IssueSeverity)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #FDE68A', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', outline: 'none' }}>
+                        <option value="critical">Critical</option>
+                        <option value="major">Major</option>
+                        <option value="minor">Minor</option>
+                      </select>
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: requireSiteVisit ? '14px' : 0 }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400E' }}>Require site visit?</span>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
@@ -2082,10 +2513,17 @@ export function ClientCommunication() {
               </div>
 
               <div>
-                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Associated Ref ID</span>
-                <span style={{ fontSize: '13px', fontWeight: 500, fontFamily: 'monospace', color: selectedCommunication.linked_id ? '#4F46E5' : '#9CA3AF' }}>
-                  {selectedCommunication.linked_id || 'None'}
-                </span>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Associated Ref</span>
+                {selectedCommunication.linked_type && selectedCommunication.linked_id ? (
+                  <Link
+                    to={getLinkedRoute(selectedCommunication.linked_type, selectedCommunication.linked_id) || '#'}
+                    style={{ fontSize: '13px', fontWeight: 500, fontFamily: 'monospace', color: '#4F46E5', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                  >
+                    {selectedCommunication.linked_type}: {selectedCommunication.linked_id}
+                  </Link>
+                ) : (
+                  <span style={{ fontSize: '13px', fontWeight: 500, fontFamily: 'monospace', color: '#9CA3AF' }}>None</span>
+                )}
               </div>
             </div>
 
@@ -2149,10 +2587,36 @@ export function ClientCommunication() {
               </div>
             )}
 
+            {/* Attachments Gallery */}
+            {selectedCommunication.attachments && Array.isArray(selectedCommunication.attachments) && selectedCommunication.attachments.length > 0 && (
+              <div style={{ padding: '0 4px' }}>
+                <span style={{ fontSize: '11px', color: '#6B7280', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Attachments ({selectedCommunication.attachments.length})</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {selectedCommunication.attachments.map((att: any, i: number) => (
+                    <a
+                      key={i}
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '6px 10px', border: '1px solid #E2E8F0', borderRadius: '6px',
+                        background: '#F8FAFC', fontSize: '12px', color: '#4F46E5',
+                        textDecoration: 'none', maxWidth: '200px',
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Ownership / Log history */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: '1fr 1fr 1fr',
               gap: '12px',
               padding: '10px 14px',
               background: '#F8FAFC',
@@ -2169,6 +2633,14 @@ export function ClientCommunication() {
                 <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Entered / Logged By</span>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
                   {users.find(u => u.id === selectedCommunication.call_entered_by)?.full_name || users.find(u => u.id === selectedCommunication.call_entered_by)?.email || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Assignee</span>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
+                  {selectedCommunication.assigned_to
+                    ? (users.find(u => u.id === selectedCommunication.assigned_to)?.full_name || users.find(u => u.id === selectedCommunication.assigned_to)?.email)
+                    : 'Unassigned'}
                 </span>
               </div>
             </div>

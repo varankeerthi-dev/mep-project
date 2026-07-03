@@ -32,7 +32,7 @@ const TYPE_LABELS: Record<string, string> = {
   EXPENSE_CLAIM: 'Expense Claim',
 };
 
-export const Approvals: React.FC = () => {
+export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -42,9 +42,91 @@ export const Approvals: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null);
 
+  // Mock database state for Demo Mode
+  const [demoApprovals, setDemoApprovals] = useState<ApprovalItem[]>([
+    {
+      id: 'demo-a1',
+      title: 'Cement Procurement - MLE',
+      description: 'Procurement of 500 bags of OPC cement',
+      amount: 150000,
+      approval_type: 'PURCHASE_ORDER',
+      status: 'PENDING',
+      priority: 'HIGH',
+      requester_name: 'John Doe',
+      project_name: 'Metro Line Expansion',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    },
+    {
+      id: 'demo-a2',
+      title: 'Electrical Subcontractor Invoice',
+      description: 'Invoice for phase 1 wiring works',
+      amount: 420000,
+      approval_type: 'WORK_ORDER',
+      status: 'PENDING',
+      priority: 'URGENT',
+      requester_name: 'Sarah Connor',
+      project_name: 'Commercial Complex B',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+    },
+    {
+      id: 'demo-a3',
+      title: 'Site Inspection Travel Claims',
+      description: 'Travel expenses for Site inspection',
+      amount: 8500,
+      approval_type: 'EXPENSE_CLAIM',
+      status: 'PENDING',
+      priority: 'NORMAL',
+      requester_name: 'Bob Johnson',
+      project_name: 'Metro Line Expansion',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
+    },
+    {
+      id: 'demo-a4',
+      title: 'Aggregate Purchase - Complex B',
+      description: 'Purchase of coarse aggregate',
+      amount: 98000,
+      approval_type: 'PURCHASE_ORDER',
+      status: 'APPROVED',
+      priority: 'NORMAL',
+      requester_name: 'Jane Smith',
+      project_name: 'Commercial Complex B',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), // 3 days ago
+    },
+    {
+      id: 'demo-a5',
+      title: 'Cabling Work Order',
+      description: 'Work order for cabling',
+      amount: 75000,
+      approval_type: 'WORK_ORDER',
+      status: 'REJECTED',
+      priority: 'HIGH',
+      requester_name: 'Bob Johnson',
+      project_name: 'Metro Line Expansion',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(), // 4 days ago
+    }
+  ]);
+
   useEffect(() => {
-    initSessionAndFetch();
-  }, [activeTab]);
+    if (isDemo) {
+      loadDemoApprovals();
+    } else {
+      initSessionAndFetch();
+    }
+  }, [activeTab, isDemo]);
+
+  const loadDemoApprovals = () => {
+    setLoading(true);
+    // Filter local mock array by tab
+    const items = demoApprovals.filter(item => {
+      if (activeTab === 'pending') {
+        return item.status === 'PENDING';
+      } else {
+        return item.status === 'APPROVED' || item.status === 'REJECTED';
+      }
+    });
+    setApprovals(items);
+    setLoading(false);
+  };
 
   const initSessionAndFetch = async () => {
     setLoading(true);
@@ -108,10 +190,24 @@ export const Approvals: React.FC = () => {
   };
 
   const handleAction = async (id: string, action: 'APPROVED' | 'REJECTED') => {
-    if (!orgId || !userId) return;
     setProcessingId(id);
     setError(null);
 
+    if (isDemo) {
+      // Simulate network request delay
+      setTimeout(() => {
+        // Update mock database state locally
+        setDemoApprovals(prev =>
+          prev.map(item => (item.id === id ? { ...item, status: action } : item))
+        );
+        // Remove from list locally for smooth micro-animations
+        setApprovals((prev) => prev.filter((item) => item.id !== id));
+        setProcessingId(null);
+      }, 500);
+      return;
+    }
+
+    if (!orgId || !userId) return;
     try {
       // 1. Insert into approval_actions
       const { error: actionErr } = await supabase.from('approval_actions').insert({

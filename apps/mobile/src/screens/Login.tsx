@@ -3,12 +3,12 @@ import { supabase } from '../lib/supabase';
 import { Loader2 } from 'lucide-react';
 
 interface LoginProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (isDemo?: boolean) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('demo@billfast.com');
+  const [password, setPassword] = useState('demo12345');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +37,17 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
+    // Demo Mode bypass: if credentials match our demo defaults
+    if (email === 'demo@billfast.com' && password === 'demo12345') {
+      // Simulate network request delay
+      setTimeout(() => {
+        setLoading(false);
+        onLoginSuccess(true);
+      }, 800);
+      return;
+    }
+
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -46,7 +57,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       if (authError) {
         setError(authError.message);
       } else if (data.user) {
-        onLoginSuccess();
+        onLoginSuccess(false);
       }
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred');
@@ -63,7 +74,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             BF
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">BillFast Mobile</h1>
-          <p className="text-xs text-muted-foreground">Sign in to your account</p>
+          <p className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+            Enter details or use pre-filled Demo Mode
+          </p>
         </div>
 
         {error && (
@@ -106,15 +119,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       }`}
                     />
                   ))}
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Password strength</span>
-                  <span>
-                    {strengthScore <= 1 && 'Weak'}
-                    {strengthScore === 2 && 'Fair'}
-                    {strengthScore === 3 && 'Good'}
-                    {strengthScore >= 4 && 'Strong'}
-                  </span>
                 </div>
               </div>
             )}
