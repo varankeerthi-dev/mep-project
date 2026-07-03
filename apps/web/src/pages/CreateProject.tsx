@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../App';
 import { ArrowLeft, Save, Building2, DollarSign, Calendar, Activity } from 'lucide-react';
+import { useProjectFormDraft } from '../hooks/useProjectFormDraft';
+import { useAuditLog } from '../hooks/useAuditLog';
 
-type ProjectFormData = {
+export type ProjectFormData = {
   client_id: string
   project_name: string
   parent_project_id: string
@@ -367,8 +369,9 @@ if (typeof document !== 'undefined') {
 }
 
 export default function CreateProject() {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const navigate = useNavigate();
+  const auditLog = useAuditLog(organisation?.id, user?.id);
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
 
@@ -378,7 +381,7 @@ export default function CreateProject() {
   const [projects, setProjects] = useState<any[]>([]);
   const [clientPOs, setClientPOs] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState<ProjectFormData>({
+  const initialFormData: ProjectFormData = {
     client_id: '',
     project_name: '',
     parent_project_id: '',
@@ -399,7 +402,27 @@ export default function CreateProject() {
     excluded_scope: '',
     pending_approval: '',
     site_instructions: ''
-  });
+  };
+
+  const [formData, setFormData, clearDraft] = useProjectFormDraft(editId, initialFormData);
+  const [draftCleared, setDraftCleared] = useState(false);
+
+  useEffect(() => {
+    if (!editId && draftCleared) {
+      setFormData(initialFormData as any)
+    }
+  }, [editId, draftCleared]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!editId) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [editId])
 
   useEffect(() => {
     loadClients();
@@ -550,7 +573,7 @@ export default function CreateProject() {
 
     setSaving(true);
     try {
-      const projectData = {
+      const projectData: Record<string, unknown> = {
         client_id: formData.client_id,
         name: formData.project_name.trim(),
         project_name: formData.project_name.trim(),
@@ -576,6 +599,7 @@ export default function CreateProject() {
       };
 
       if (editId) {
+        projectData.updated_by = user?.id;
         const { error } = await supabase
           .from('projects')
           .update(projectData)
@@ -583,13 +607,20 @@ export default function CreateProject() {
           .eq('organisation_id', organisation.id);
         
         if (error) throw error;
+        auditLog.log('updated', 'project', editId, projectData as Record<string, unknown>);
         alert('Project updated successfully!');
       } else {
-        const { error } = await supabase
+        projectData.created_by = user?.id;
+        const { data: newProject, error } = await supabase
           .from('projects')
-          .insert(projectData);
+          .insert(projectData)
+          .select('id')
+          .single();
         
         if (error) throw error;
+        clearDraft();
+        setDraftCleared(true);
+        auditLog.log('created', 'project', newProject?.id || '', projectData as Record<string, unknown>);
         alert('Project created successfully!');
       }
       
@@ -646,9 +677,14 @@ export default function CreateProject() {
           <div>
             <h1 className="pf-title">{editId ? 'Edit Project' : 'New Project'}</h1>
             <p className="pf-subtitle">{editId ? 'Update project details' : 'Create a new project'}</p>
+            {!editId && localStorage.getItem('mep-create-project-draft') && (
+              <p className="pf-subtitle" style={{ color: 'var(--accent)', marginTop: 4 }}>
+                Draft restored from previous session
+              </p>
+            )}
           </div>
           <div className="pf-actions">
-            <button className="pf-btn pf-btn-secondary" onClick={() => navigate('/projects')}>
+            <button className="pf-btn pf-btn-secondary" onClick={() => { clearDraft(); setDraftCleared(true); navigate('/projects'); }}>
               Cancel
             </button>
           </div>
@@ -1025,7 +1061,7 @@ export default function CreateProject() {
           <div className="pf-section">
             <div className="pf-section-body">
               <div className="flex justify-end gap-3">
-                <button type="button" className="pf-btn pf-btn-secondary" onClick={() => navigate('/projects')}>
+                <button type="button" className="pf-btn pf-btn-secondary" onClick={() => { clearDraft(); setDraftCleared(true); navigate('/projects'); }}>
                   Cancel
                 </button>
                 <button type="submit" className="pf-btn pf-btn-primary" disabled={saving}>

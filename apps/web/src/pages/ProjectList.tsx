@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder,
   TrendingUp, Clock, DollarSign, MoreHorizontal, X,
-  ChevronDown, ChevronUp, Link2, AlertTriangle, FilePlus2,
+  ChevronDown, ChevronUp, Link2, AlertTriangle, FilePlus2, FileText,
   Download, Calendar
 } from 'lucide-react';
 import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
@@ -51,6 +51,10 @@ type Project = {
   excluded_scope?: string;
   pending_approval?: string;
   site_instructions?: string;
+  created_by?: string;
+  updated_by?: string;
+  created_by_user?: { full_name?: string } | null;
+  updated_by_user?: { full_name?: string } | null;
 };
 
 type ProjectDetails = {
@@ -92,43 +96,7 @@ const ALL_COLUMNS = [
   { id: 'actions', label: 'Action' },
 ];
 
-// ─── ErrorBoundary ──────────────────────────────────────────────────────────────
-
-import { Component, type ReactNode } from 'react';
-
-class TabErrorBoundary extends Component<{ children: ReactNode; tabName: string }, { hasError: boolean; error: Error | null }> {
-  state = { hasError: false, error: null as Error | null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <AlertTriangle size={32} style={{ color: '#f59e0b', marginBottom: '0.75rem' }} />
-          <h3 style={{ fontWeight: 600, color: '#1f2937', marginBottom: '0.5rem' }}>
-            {this.props.tabName} failed to load
-          </h3>
-          <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            style={{
-              padding: '0.5rem 1rem', background: '#3b82f6', color: '#fff',
-              border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', cursor: 'pointer'
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { TabErrorBoundary } from '../components/projects/TabErrorBoundary';
 
 // ─── ProjectList ──────────────────────────────────────────────────────────────
 
@@ -356,7 +324,7 @@ export default function ProjectList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(id, client_name), pos:client_purchase_orders(po_total_value)')
+        .select('*, client:clients(id, client_name), pos:client_purchase_orders(po_total_value), created_by_user:user_profiles!created_by(full_name), updated_by_user:user_profiles!updated_by(full_name)')
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -1216,6 +1184,16 @@ export default function ProjectList() {
                     {selectedProject.site_instructions || 'N/A'}
                   </span>
                 </div>
+              </div>
+
+              {/* Audit Info */}
+              <div className="pl-card" style={{ padding: '1rem 1.25rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {selectedProject.created_by_user?.full_name && (
+                  <span>Created by: <strong>{selectedProject.created_by_user.full_name}</strong></span>
+                )}
+                {selectedProject.updated_by_user?.full_name && (
+                  <span>Last updated by: <strong>{selectedProject.updated_by_user.full_name}</strong></span>
+                )}
               </div>
             </>
           )}
@@ -4710,269 +4688,5 @@ export default function ProjectList() {
 }
 
 // ─── Subcontractor Work Orders Tab for Project Detail ─────────────────────────
-function ProjectSubcontractorWorkOrders({
-  projectId,
-  fmt,
-  fmtD,
-}: {
-  projectId: string;
-  fmt: (n: any) => string;
-  fmtD: (d?: string | null) => string;
-}) {
-  const [expandedWoId, setExpandedWoId] = useState<string | null>(null);
-
-  const { data: workOrders = [], isLoading } = useQuery({
-    queryKey: ['project-subcontractor-work-orders', projectId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('subcontractor_work_orders')
-        .select('*, subcontractor:subcontractors(company_name, pan_number, gstin)')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!projectId,
-    staleTime: 30_000,
-  });
-
-  if (isLoading) {
-    return <div className="pl-empty">Loading work orders…</div>;
-  }
-
-  const statusColors: Record<string, string> = {
-    'Draft': '#94a3b8',
-    'Pending Approval': '#f59e0b',
-    'Approved': '#10b981',
-    'Issued': '#3b82f6',
-    'Completed': '#8b5cf6',
-    'Cancelled': '#ef4444',
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px' }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
-            Subcontractor Work Orders
-          </h3>
-          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Terms &amp; conditions for on-site reference — read only
-          </p>
-        </div>
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: '#f1f5f9', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
-          {workOrders.length} work order{workOrders.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {workOrders.length === 0 ? (
-        <div className="pl-empty">
-          <Folder className="pl-empty-icon" />
-          <p className="pl-empty-text">No subcontractor work orders linked to this project yet.</p>
-        </div>
-      ) : (
-        workOrders.map((wo: any) => {
-          const isExpanded = expandedWoId === wo.id;
-          const statusColor = statusColors[wo.status] || '#94a3b8';
-          const subName = wo.subcontractor?.company_name || 'Unknown';
-          const taxBadge = wo.tax_type === 'TDS'
-            ? { label: `TDS ${wo.tds_percent || 0}%`, bg: '#fffbeb', color: '#92400e', border: '#f59e0b' }
-            : wo.tax_type === 'GST'
-            ? { label: 'GST', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }
-            : { label: 'Exempt', bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' };
-
-          return (
-            <div
-              key={wo.id}
-              style={{
-                background: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                overflow: 'hidden',
-              }}
-            >
-              {/* WO Header Row */}
-              <div
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '16px',
-                  padding: '16px 20px', cursor: 'pointer',
-                  background: isExpanded ? '#f8fafc' : '#fff',
-                  borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none',
-                  transition: 'background 0.15s',
-                }}
-                onClick={() => setExpandedWoId(isExpanded ? null : wo.id)}
-              >
-                {/* WO Number */}
-                <div style={{ minWidth: '120px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#1a202c' }}>{wo.work_order_no}</div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{fmtD(wo.issue_date)}</div>
-                </div>
-
-                {/* Subcontractor */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#2d3748' }}>{subName}</div>
-                  {wo.work_description && (
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
-                      {wo.work_description}
-                    </div>
-                  )}
-                </div>
-
-                {/* Tax badge */}
-                <div style={{
-                  padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700',
-                  background: taxBadge.bg, color: taxBadge.color, border: `1px solid ${taxBadge.border}`,
-                }}>
-                  {taxBadge.label}
-                </div>
-
-                {/* Retention badge */}
-                {wo.retention_held && (
-                  <div style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '600', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
-                    Retention {wo.retention_percent || 0}%
-                  </div>
-                )}
-
-                {/* Contract value */}
-                <div style={{ textAlign: 'right', minWidth: '100px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a202c' }}>{fmt(wo.total_amount)}</div>
-                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>contract value</div>
-                </div>
-
-                {/* Status */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '100px' }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
-                  <span style={{ fontSize: '12px', color: '#4a5568', fontWeight: '500' }}>{wo.status || 'Draft'}</span>
-                </div>
-
-                {/* Expand icon */}
-                <div style={{ color: '#94a3b8', marginLeft: '8px' }}>
-                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-              </div>
-
-              {/* Expanded Terms Section */}
-              {isExpanded && (
-                <div style={{ padding: '20px 24px', background: '#f8fafc' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-
-                    {/* Left: Key Info */}
-                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8', marginBottom: '12px' }}>Contract Details</div>
-                      {[
-                        ['Start Date', fmtD(wo.start_date)],
-                        ['End Date', fmtD(wo.end_date)],
-                        ['Payment Terms', wo.payment_terms || '-'],
-                        ['Delivery Terms', wo.delivery_terms || '-'],
-                        wo.tax_type === 'TDS' && wo.subcontractor?.pan_number ? ['PAN', wo.subcontractor.pan_number] : null,
-                        wo.tax_type === 'GST' && wo.subcontractor?.gstin ? ['GSTIN', wo.subcontractor.gstin] : null,
-                      ].filter(Boolean).map(([k, v]: any) => (
-                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
-                          <span style={{ color: '#64748b' }}>{k}</span>
-                          <span style={{ fontWeight: '600', color: '#1a202c', textAlign: 'right', maxWidth: '60%' }}>{v}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Right: Retention + Tax */}
-                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8', marginBottom: '12px' }}>Tax & Retention</div>
-                      {wo.retention_held ? (
-                        <>
-                          <div style={{ marginBottom: '10px', padding: '10px 12px', background: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#1d4ed8', marginBottom: '4px' }}>Retention Terms</div>
-                            <div style={{ fontSize: '12px', color: '#1e40af' }}>Hold {wo.retention_percent || 0}% for {wo.retention_duration_months || '-'} months</div>
-                            {wo.retention_conditions && (
-                              <div style={{ fontSize: '11px', color: '#3b82f6', marginTop: '4px', fontStyle: 'italic' }}>{wo.retention_conditions}</div>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', marginBottom: '10px' }}>No retention configured</div>
-                      )}
-
-                      {wo.tax_type === 'TDS' && (
-                        <div style={{ padding: '10px 12px', background: '#fffbeb', borderRadius: '6px', border: '1px solid #f59e0b' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '700', color: '#92400e', marginBottom: '2px' }}>⚠️ TDS Applicable</div>
-                          <div style={{ fontSize: '12px', color: '#92400e' }}>Deduct {wo.tds_percent || 0}% TDS before payment</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Terms & Conditions */}
-                  {wo.terms_conditions && wo.terms_conditions.length > 0 && (
-                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8', marginBottom: '12px' }}>Terms &amp; Conditions</div>
-                      <ol style={{ margin: 0, padding: '0 0 0 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {wo.terms_conditions.map((term: any, idx: number) => (
-                          <li key={term.id || idx} style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
-                            {term.text}
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
-
-// Kanban Card helper component for Continuous Improvement Action Items
-function KanbanCard({ insight, onMove, teamMembers, onEdit, userRole }: { insight: any; onMove: (status: string) => void; teamMembers: any[]; onEdit: () => void; userRole: string }) {
-  const assigneeName = teamMembers.find(m => m.user_id === insight.assigned_to)?.full_name || 'Unassigned';
-  const isPrivileged = userRole === 'Project Manager' || userRole === 'Admin';
-  
-  return (
-    <div style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '0.625rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.625rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{insight.category === 'Improvement Opportunity' ? 'Opportunity' : insight.category === 'Cost Saving Idea' ? 'Cost Saving' : insight.category}</span>
-        {insight.is_repeat_issue && (
-          <span style={{ fontSize: '0.625rem', color: '#b91c1c', fontWeight: 600 }}>Repeat ({insight.repeat_issue_count}x)</span>
-        )}
-      </div>
-      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{insight.title}</span>
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.375rem', borderTop: '1px dashed #f1f5f9', paddingTop: '0.25rem', fontSize: '0.6875rem', color: '#64748b' }}>
-        <span>Owner: <strong>{assigneeName}</strong></span>
-        {insight.target_date && (
-          <span>Due: <strong>{insight.target_date}</strong></span>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.25rem', marginTop: '0.375rem' }}>
-        {isPrivileged ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            style={{ border: 'none', background: 'none', color: 'var(--primary-color, #2563eb)', fontSize: '0.6875rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-          >
-            Edit
-          </button>
-        ) : <div />}
-        <div style={{ display: 'flex', gap: '0.25rem' }}>
-          {isPrivileged && (
-            <>
-              {insight.status !== 'Open' && (
-                <button onClick={() => onMove('Open')} style={{ border: 'none', background: '#f1f5f9', color: '#475569', fontSize: '0.625rem', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}>To Open</button>
-              )}
-              {insight.status !== 'In Progress' && (
-                <button onClick={() => onMove('In Progress')} style={{ border: 'none', background: '#fef3c7', color: '#92400e', fontSize: '0.625rem', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}>Start</button>
-              )}
-              {insight.status !== 'Closed' && (
-                <button onClick={() => onMove('Closed')} style={{ border: 'none', background: '#d1fae5', color: '#065f46', fontSize: '0.625rem', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}>Resolve</button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { ProjectSubcontractorWorkOrders } from '../components/projects/ProjectSubcontractorWorkOrders';
+import { KanbanCard } from '../components/projects/KanbanCard';
