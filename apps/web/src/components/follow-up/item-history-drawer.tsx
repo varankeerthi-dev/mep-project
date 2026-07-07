@@ -185,6 +185,7 @@ export function ItemHistoryDrawer({
           : linkedType === 'invoice' ? 'Invoice'
             : linkedType === 'podc' ? 'PO/DC'
               : linkedType === 'lead' ? 'Lead'
+              : linkedType === 'procurement' ? 'Procurement'
                 : 'Follow-up';
       setSubject(`${typeLabel} Follow-up — ${itemLabel}`);
     }
@@ -228,6 +229,7 @@ export function ItemHistoryDrawer({
           linkedType === 'quotation' ? 'quotation'
             : linkedType === 'invoice' ? 'payment'
               : linkedType === 'podc' ? 'project'
+              : linkedType === 'procurement' ? 'project'
                 : 'general',
         subject: subject || `${linkedType || 'followup'} Log`,
         call_brief: callBrief,
@@ -549,13 +551,36 @@ export function ItemHistoryDrawer({
             )}
           </div>
 
-          <div className="px-4 py-3 border-t border-zinc-100 bg-[#f8f9fa] shrink-0">
+          <div className="px-4 py-3 border-t border-zinc-100 bg-[#f8f9fa] shrink-0 flex gap-2">
+            <button
+              onClick={onClose}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '7px 16px',
+                border: '1px solid #d1d5db',
+                background: '#fff',
+                color: '#374151',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+            >
+              Close
+            </button>
             <button
               onClick={() => setIsLogging(true)}
               onMouseEnter={() => setHoverLogBtn(true)}
               onMouseLeave={() => setHoverLogBtn(false)}
               style={{
-                width: '100%',
+                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

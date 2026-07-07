@@ -6,6 +6,7 @@ import {
   Receipt,
   Clock,
   UserPlus,
+  ShoppingBag,
 } from 'lucide-react';
 import type { FollowUpTab } from '@/types/followup';
 
@@ -20,6 +21,7 @@ const TABS: {
   { id: 'quotation', label: 'Quotations', description: 'Outstanding quotes → work orders', icon: FileText },
   { id: 'podc', label: 'PO/DC Backlog', description: 'Delivered work, PO pending', icon: Truck },
   { id: 'invoice', label: 'Invoices', description: 'Overdue escalation matrix', icon: Receipt },
+  { id: 'procurement', label: 'Procurement', description: 'Vendor PO follow-up', icon: ShoppingBag },
   { id: 'activity', label: 'Activity', description: 'Unified follow-up trail', icon: Clock },
 ];
 

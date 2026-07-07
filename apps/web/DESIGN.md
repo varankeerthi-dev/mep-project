@@ -231,7 +231,7 @@ onMouseLeave: revert
 ```
 
 ---
-
+dont use this below reference unless user expclity use "quoteui"
 # quoteui
 
 This is the shared design pattern for quotation-style document entry screens.

@@ -94,6 +94,46 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
   const [formStatus, setFormStatus] = useState('open');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Add Client Modal State
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newContactPerson, setNewContactPerson] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newCity, setNewCity] = useState('');
+  const [addingClient, setAddingClient] = useState(false);
+  const [addClientError, setAddClientError] = useState<string | null>(null);
+
+  // Add Vendor Modal State
+  const [showAddVendorModal, setShowAddVendorModal] = useState(false);
+  const [newVendorName, setNewVendorName] = useState('');
+  const [newVendorContact, setNewVendorContact] = useState('');
+  const [newVendorPhone, setNewVendorPhone] = useState('');
+  const [newVendorEmail, setNewVendorEmail] = useState('');
+  const [newVendorAddress, setNewVendorAddress] = useState('');
+  const [addingVendor, setAddingVendor] = useState(false);
+  const [addVendorError, setAddVendorError] = useState<string | null>(null);
+
+  // Add Subcontractor Modal State
+  const [showAddSubcontractorModal, setShowAddSubcontractorModal] = useState(false);
+  const [newSubCompanyName, setNewSubCompanyName] = useState('');
+  const [newSubContact, setNewSubContact] = useState('');
+  const [newSubPhone, setNewSubPhone] = useState('');
+  const [newSubEmail, setNewSubEmail] = useState('');
+  const [newSubAddress, setNewSubAddress] = useState('');
+  const [addingSubcontractor, setAddingSubcontractor] = useState(false);
+  const [addSubcontractorError, setAddSubcontractorError] = useState<string | null>(null);
+
+  // Add Lead Modal State
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [newLeadContactName, setNewLeadContactName] = useState('');
+  const [newLeadCompanyName, setNewLeadCompanyName] = useState('');
+  const [newLeadPhone, setNewLeadPhone] = useState('');
+  const [newLeadEmail, setNewLeadEmail] = useState('');
+  const [newLeadCity, setNewLeadCity] = useState('');
+  const [addingLead, setAddingLead] = useState(false);
+  const [addLeadError, setAddLeadError] = useState<string | null>(null);
 
   // Demo Mock Data
   const [demoComms, setDemoComms] = useState<CommItem[]>([
@@ -344,6 +384,297 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       console.error(err);
       setError(err?.message || 'Failed to save communication log');
       setSaving(false);
+    }
+  };
+
+  const handleAddClientSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName.trim() || !orgId) return;
+
+    setAddingClient(true);
+    setAddClientError(null);
+
+    if (isDemo) {
+      setTimeout(() => {
+        const mockId = `demo-client-${Date.now()}`;
+        const option: PartyOption = {
+          id: mockId,
+          name: newClientName
+        };
+        setClients(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(mockId);
+        
+        // Reset form
+        setNewClientName('');
+        setNewContactPerson('');
+        setNewPhone('');
+        setNewEmail('');
+        setNewCity('');
+        setAddingClient(false);
+        setShowAddClientModal(false);
+      }, 500);
+      return;
+    }
+
+    try {
+      const { data, error: insertErr } = await supabase
+        .from('clients')
+        .insert([{
+          client_name: newClientName,
+          contact_person: newContactPerson,
+          phone: newPhone,
+          email: newEmail,
+          city: newCity,
+          organisation_id: orgId,
+          client_id: `CL-${Date.now()}`,
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (insertErr) throw insertErr;
+
+      const newClient = data?.[0];
+      if (newClient) {
+        // Add to clients state list
+        const option: PartyOption = {
+          id: newClient.id,
+          name: newClient.client_name
+        };
+        setClients(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(newClient.id);
+      }
+
+      // Reset form
+      setNewClientName('');
+      setNewContactPerson('');
+      setNewPhone('');
+      setNewEmail('');
+      setNewCity('');
+      setShowAddClientModal(false);
+    } catch (err: any) {
+      console.error(err);
+      setAddClientError(err?.message || 'Failed to add client');
+    } finally {
+      setAddingClient(false);
+    }
+  };
+
+  const handleAddVendorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVendorName.trim() || !orgId) return;
+
+    setAddingVendor(true);
+    setAddVendorError(null);
+
+    if (isDemo) {
+      setTimeout(() => {
+        const mockId = `demo-vendor-${Date.now()}`;
+        const option: PartyOption = {
+          id: mockId,
+          name: newVendorName
+        };
+        setVendors(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(mockId);
+        
+        setNewVendorName('');
+        setNewVendorContact('');
+        setNewVendorPhone('');
+        setNewVendorEmail('');
+        setNewVendorAddress('');
+        setAddingVendor(false);
+        setShowAddVendorModal(false);
+      }, 500);
+      return;
+    }
+
+    try {
+      const { data, error: insertErr } = await supabase
+        .from('purchase_vendors')
+        .insert([{
+          company_name: newVendorName,
+          contact_person: newVendorContact,
+          phone: newVendorPhone,
+          email: newVendorEmail,
+          address: newVendorAddress,
+          organisation_id: orgId,
+          vendor_code: `VN-${Date.now()}`,
+          status: 'Active',
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (insertErr) throw insertErr;
+
+      const newVendor = data?.[0];
+      if (newVendor) {
+        const option: PartyOption = {
+          id: newVendor.id,
+          name: newVendor.company_name
+        };
+        setVendors(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(newVendor.id);
+      }
+
+      setNewVendorName('');
+      setNewVendorContact('');
+      setNewVendorPhone('');
+      setNewVendorEmail('');
+      setNewVendorAddress('');
+      setShowAddVendorModal(false);
+    } catch (err: any) {
+      console.error(err);
+      setAddVendorError(err?.message || 'Failed to add vendor');
+    } finally {
+      setAddingVendor(false);
+    }
+  };
+
+  const handleAddSubcontractorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubCompanyName.trim() || !orgId) return;
+
+    setAddingSubcontractor(true);
+    setAddSubcontractorError(null);
+
+    if (isDemo) {
+      setTimeout(() => {
+        const mockId = `demo-sub-${Date.now()}`;
+        const option: PartyOption = {
+          id: mockId,
+          name: newSubCompanyName
+        };
+        setSubcontractors(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(mockId);
+        
+        setNewSubCompanyName('');
+        setNewSubContact('');
+        setNewSubPhone('');
+        setNewSubEmail('');
+        setNewSubAddress('');
+        setAddingSubcontractor(false);
+        setShowAddSubcontractorModal(false);
+      }, 500);
+      return;
+    }
+
+    try {
+      const { data, error: insertErr } = await supabase
+        .from('subcontractors')
+        .insert([{
+          company_name: newSubCompanyName,
+          contact_person: newSubContact,
+          phone: newSubPhone,
+          email: newSubEmail,
+          address: newSubAddress,
+          organisation_id: orgId,
+          sub_number: `SUB-${Date.now()}`,
+          status: 'Active',
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (insertErr) throw insertErr;
+
+      const newSub = data?.[0];
+      if (newSub) {
+        const option: PartyOption = {
+          id: newSub.id,
+          name: newSub.company_name
+        };
+        setSubcontractors(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(newSub.id);
+      }
+
+      setNewSubCompanyName('');
+      setNewSubContact('');
+      setNewSubPhone('');
+      setNewSubEmail('');
+      setNewSubAddress('');
+      setShowAddSubcontractorModal(false);
+    } catch (err: any) {
+      console.error(err);
+      setAddSubcontractorError(err?.message || 'Failed to add subcontractor');
+    } finally {
+      setAddingSubcontractor(false);
+    }
+  };
+
+  const handleAddLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadContactName.trim() || !orgId) return;
+
+    setAddingLead(true);
+    setAddLeadError(null);
+
+    if (isDemo) {
+      setTimeout(() => {
+        const mockId = `demo-lead-${Date.now()}`;
+        const option: PartyOption = {
+          id: mockId,
+          name: newLeadCompanyName ? `${newLeadCompanyName} (${newLeadContactName})` : newLeadContactName
+        };
+        setLeads(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(mockId);
+        
+        setNewLeadContactName('');
+        setNewLeadCompanyName('');
+        setNewLeadPhone('');
+        setNewLeadEmail('');
+        setNewLeadCity('');
+        setAddingLead(false);
+        setShowAddLeadModal(false);
+      }, 500);
+      return;
+    }
+
+    try {
+      const { data: statusRows } = await supabase
+        .from('lead_statuses')
+        .select('id')
+        .eq('name', 'New')
+        .limit(1);
+      
+      const leadStatusId = statusRows && statusRows.length > 0 ? statusRows[0].id : null;
+
+      const { data, error: insertErr } = await supabase
+        .from('leads')
+        .insert([{
+          contact_name: newLeadContactName,
+          company_name: newLeadCompanyName,
+          contact_phone: newLeadPhone,
+          contact_email: newLeadEmail,
+          city: newLeadCity,
+          status: 'New',
+          lead_status_id: leadStatusId,
+          organisation_id: orgId,
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (insertErr) throw insertErr;
+
+      const newLead = data?.[0];
+      if (newLead) {
+        const displayName = newLead.company_name ? `${newLead.company_name} (${newLead.contact_name})` : newLead.contact_name;
+        const option: PartyOption = {
+          id: newLead.id,
+          name: displayName
+        };
+        setLeads(prev => [...prev, option].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormPartyId(newLead.id);
+      }
+
+      setNewLeadContactName('');
+      setNewLeadCompanyName('');
+      setNewLeadPhone('');
+      setNewLeadEmail('');
+      setNewLeadCity('');
+      setShowAddLeadModal(false);
+    } catch (err: any) {
+      console.error(err);
+      setAddLeadError(err?.message || 'Failed to add lead');
+    } finally {
+      setAddingLead(false);
     }
   };
 
@@ -634,7 +965,21 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
 
             {/* Select Party Dropdown */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Select {formPartyType}</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-muted-foreground">Select {formPartyType}</label>
+                {formPartyType === 'client' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddClientError(null);
+                      setShowAddClientModal(true);
+                    }}
+                    className="text-[11px] font-bold text-primary active:scale-95 transition-all flex items-center gap-1"
+                  >
+                    + Add Client
+                  </button>
+                )}
+              </div>
               <select
                 value={formPartyId}
                 onChange={(e) => setFormPartyId(e.target.value)}
@@ -914,6 +1259,414 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                 Apply
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {showAddClientModal && (
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-card rounded-2xl border border-border/50 shadow-xl overflow-hidden flex flex-col p-5 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-foreground">Add New Client</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddClientModal(false)}
+                className="text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Error Message if any */}
+            {addClientError && (
+              <div className="mb-3 text-[11px] font-semibold text-rose-500 bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-xl">
+                {addClientError}
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleAddClientSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Client Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="e.g. Acme Corporation"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Contact Person (POC)</label>
+                <input
+                  type="text"
+                  value={newContactPerson}
+                  onChange={(e) => setNewContactPerson(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Phone Number</label>
+                <input
+                  type="tel"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="e.g. email@company.com"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">City</label>
+                <input
+                  type="text"
+                  value={newCity}
+                  onChange={(e) => setNewCity(e.target.value)}
+                  placeholder="e.g. Mumbai"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-border/30 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddClientModal(false)}
+                  className="flex-1 h-10 rounded-xl border border-border text-xs font-semibold text-muted-foreground active:scale-95 transition-all bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingClient}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {addingClient ? 'Saving...' : 'Add Client'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Vendor Modal */}
+      {showAddVendorModal && (
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-card rounded-2xl border border-border/50 shadow-xl overflow-hidden flex flex-col p-5 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-foreground">Add New Vendor</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddVendorModal(false)}
+                className="text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Error Message if any */}
+            {addVendorError && (
+              <div className="mb-3 text-[11px] font-semibold text-rose-500 bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-xl">
+                {addVendorError}
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleAddVendorSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Vendor / Company Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newVendorName}
+                  onChange={(e) => setNewVendorName(e.target.value)}
+                  placeholder="e.g. Acme Corporation"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Contact Person (POC)</label>
+                <input
+                  type="text"
+                  value={newVendorContact}
+                  onChange={(e) => setNewVendorContact(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Phone Number</label>
+                <input
+                  type="tel"
+                  value={newVendorPhone}
+                  onChange={(e) => setNewVendorPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
+                <input
+                  type="email"
+                  value={newVendorEmail}
+                  onChange={(e) => setNewVendorEmail(e.target.value)}
+                  placeholder="e.g. email@company.com"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Address</label>
+                <input
+                  type="text"
+                  value={newVendorAddress}
+                  onChange={(e) => setNewVendorAddress(e.target.value)}
+                  placeholder="e.g. Street Address"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-border/30 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddVendorModal(false)}
+                  className="flex-1 h-10 rounded-xl border border-border text-xs font-semibold text-muted-foreground active:scale-95 transition-all bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingVendor}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {addingVendor ? 'Saving...' : 'Add Vendor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Subcontractor Modal */}
+      {showAddSubcontractorModal && (
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-card rounded-2xl border border-border/50 shadow-xl overflow-hidden flex flex-col p-5 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-foreground">Add Subcontractor</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddSubcontractorModal(false)}
+                className="text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Error Message if any */}
+            {addSubcontractorError && (
+              <div className="mb-3 text-[11px] font-semibold text-rose-500 bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-xl">
+                {addSubcontractorError}
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleAddSubcontractorSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Subcontractor Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newSubCompanyName}
+                  onChange={(e) => setNewSubCompanyName(e.target.value)}
+                  placeholder="e.g. Acme Contracting"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Contact Person (POC)</label>
+                <input
+                  type="text"
+                  value={newSubContact}
+                  onChange={(e) => setNewSubContact(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Phone Number</label>
+                <input
+                  type="tel"
+                  value={newSubPhone}
+                  onChange={(e) => setNewSubPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
+                <input
+                  type="email"
+                  value={newSubEmail}
+                  onChange={(e) => setNewSubEmail(e.target.value)}
+                  placeholder="e.g. email@company.com"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Address</label>
+                <input
+                  type="text"
+                  value={newSubAddress}
+                  onChange={(e) => setNewSubAddress(e.target.value)}
+                  placeholder="e.g. Street Address"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-border/30 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSubcontractorModal(false)}
+                  className="flex-1 h-10 rounded-xl border border-border text-xs font-semibold text-muted-foreground active:scale-95 transition-all bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingSubcontractor}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {addingSubcontractor ? 'Saving...' : 'Add Subcontractor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Lead Modal */}
+      {showAddLeadModal && (
+        <div className="fixed inset-0 bg-zinc-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-card rounded-2xl border border-border/50 shadow-xl overflow-hidden flex flex-col p-5 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-foreground">Add New Lead</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddLeadModal(false)}
+                className="text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Error Message if any */}
+            {addLeadError && (
+              <div className="mb-3 text-[11px] font-semibold text-rose-500 bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-xl">
+                {addLeadError}
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleAddLeadSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Lead Contact Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newLeadContactName}
+                  onChange={(e) => setNewLeadContactName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Company Name</label>
+                <input
+                  type="text"
+                  value={newLeadCompanyName}
+                  onChange={(e) => setNewLeadCompanyName(e.target.value)}
+                  placeholder="e.g. Acme Corp"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Phone Number</label>
+                <input
+                  type="tel"
+                  value={newLeadPhone}
+                  onChange={(e) => setNewLeadPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
+                <input
+                  type="email"
+                  value={newLeadEmail}
+                  onChange={(e) => setNewLeadEmail(e.target.value)}
+                  placeholder="e.g. email@company.com"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">City</label>
+                <input
+                  type="text"
+                  value={newLeadCity}
+                  onChange={(e) => setNewLeadCity(e.target.value)}
+                  placeholder="e.g. Mumbai"
+                  className="w-full px-3 h-10 rounded-xl border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-border/30 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddLeadModal(false)}
+                  className="flex-1 h-10 rounded-xl border border-border text-xs font-semibold text-muted-foreground active:scale-95 transition-all bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingLead}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {addingLead ? 'Saving...' : 'Add Lead'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

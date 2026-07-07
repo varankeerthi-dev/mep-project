@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../App';
-import { ArrowLeft, Save, Building2, DollarSign, Calendar, Activity } from 'lucide-react';
+import { ArrowLeft, Save, Building2, DollarSign, Calendar, Activity, Search } from 'lucide-react';
 import { useProjectFormDraft } from '../hooks/useProjectFormDraft';
 import { useAuditLog } from '../hooks/useAuditLog';
 
@@ -37,335 +37,90 @@ const STATUS_CONFIG = {
   'Closed': { bg: '#f1f5f9', color: '#475569' },
 };
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-  
-  :root {
-    --bg-page: #faf9f7;
-    --bg-card: #ffffff;
-    --bg-hover: #f5f3f0;
-    --bg-input: #fafaf9;
-    --border: #e8e5e1;
-    --border-hover: #d4d0ca;
-    --border-focus: #e85d04;
-    --text-primary: #1a1a1a;
-    --text-secondary: #6b6b6b;
-    --text-muted: #9ca3af;
-    --accent: #e85d04;
-    --accent-hover: #dc4c00;
-    --accent-light: #fff4ed;
-  }
-  
-  * { box-sizing: border-box; }
-  
-  body { background: var(--bg-page); }
-  
-  .pf-page {
-    font-family: 'DM Sans', system-ui, sans-serif;
-    background: var(--bg-page);
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  
-  .pf-container {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-  
-  .pf-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-  
-  .pf-back {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.5rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  
-  .pf-back:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-    color: var(--text-primary);
-  }
-  
-  .pf-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-  
-  .pf-subtitle {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-    margin-top: 0.125rem;
-  }
-  
-  .pf-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-left: auto;
-  }
-  
-  .pf-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.125rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: inherit;
-  }
-  
-  .pf-btn-primary {
-    background: var(--accent);
-    color: white;
-  }
-  
-  .pf-btn-primary:hover {
-    background: var(--accent-hover);
-    transform: translateY(-1px);
-  }
-  
-  .pf-btn-secondary {
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-  }
-  
-  .pf-btn-secondary:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-  }
-  
-  /* Form Sections */
-  .pf-section {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    margin-bottom: 1rem;
-    overflow: hidden;
-  }
-  
-  .pf-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.875rem 1.25rem;
-    background: var(--bg-page);
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .pf-section-icon {
-    color: var(--accent);
-  }
-  
-  .pf-section-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-  
-  .pf-section-body {
-    padding: 1rem 1.25rem;
-  }
-  
-  /* Form Grid */
-  .pf-grid {
-    display: grid;
-    gap: 0.875rem;
-  }
-  
-  .pf-grid-2 { grid-template-columns: repeat(2, 1fr); }
-  .pf-grid-4 { grid-template-columns: repeat(4, 1fr); }
-  
-  @media (max-width: 768px) {
-    .pf-grid-2, .pf-grid-4 { grid-template-columns: 1fr; }
-  }
-  
-  /* Form Field */
-  .pf-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-  
-  .pf-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-  }
-  
-  .pf-label-required::after {
-    content: ' *';
-    color: var(--accent);
-  }
-  
-  .pf-input,
-  .pf-select,
-  .pf-textarea {
-    width: 100%;
-    padding: 0.625rem 0.875rem;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-family: inherit;
-    color: var(--text-primary);
-    transition: all 0.15s ease;
-  }
-  
-  .pf-input:focus,
-  .pf-select:focus,
-  .pf-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.08);
-    background: white;
-  }
-  
-  .pf-input::placeholder,
-  .pf-textarea::placeholder {
-    color: var(--text-muted);
-  }
-  
-  .pf-select {
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    padding-right: 2.5rem;
-  }
-  
-  .pf-textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-  
-  .pf-input-mono {
-    font-family: 'JetBrains Mono', monospace;
-  }
-  
-  /* Radio Group */
-  .pf-radio-group {
-    display: flex;
-    gap: 1.5rem;
-    padding: 0.5rem 0;
-  }
-  
-  .pf-radio {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    transition: color 0.15s ease;
-  }
-  
-  .pf-radio:hover {
-    color: var(--text-primary);
-  }
-  
-  .pf-radio input[type="radio"] {
-    appearance: none;
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid var(--border);
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    position: relative;
-  }
-  
-  .pf-radio input[type="radio"]:checked {
-    border-color: var(--accent);
-    background: var(--accent);
-    box-shadow: inset 0 0 0 3px white;
-  }
-  
-  /* Status Pills */
-  .pf-status-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.5rem 0;
-  }
-  
-  .pf-status-pill {
-    padding: 0.375rem 0.875rem;
-    border-radius: 2rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    border: 1px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-secondary);
-  }
-  
-  .pf-status-pill:hover {
-    border-color: var(--border-hover);
-    background: var(--bg-hover);
-  }
-  
-  .pf-status-pill.active {
-    border-color: transparent;
-  }
-  
-  /* Loading */
-  .pf-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
-    color: var(--text-muted);
-    font-size: 0.875rem;
-  }
-  
-  .pf-skeleton {
-    background: linear-gradient(90deg, var(--bg-page) 0%, var(--bg-card) 50%, var(--bg-page) 100%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 0.5rem;
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-`;
+const BRAND_BLUE = '#185FA5';
 
-if (typeof document !== 'undefined') {
-  const styleId = 'pf-styles';
-  if (!document.getElementById(styleId)) {
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    styleEl.textContent = styles;
-    document.head.appendChild(styleEl);
-  }
+const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
+const labelColStyle: React.CSSProperties = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+const fieldColStyle: React.CSSProperties = { flex: 1 };
+const sectionHeaderStyle: React.CSSProperties = { fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' };
+const inputStyle: React.CSSProperties = { padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid #d4d4d8', background: '#fff', width: '100%', outline: 'none', color: '#1f2937', fontFamily: 'inherit' };
+const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
+const textareaStyle: React.CSSProperties = { ...inputStyle, resize: 'vertical', minHeight: '60px', lineHeight: 1.4 };
+
+const sectionBoxStyle: React.CSSProperties = { background: '#f8f9fa', padding: '12px', borderRadius: '6px' };
+
+const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+  <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+    <span style={labelColStyle}>{label}</span>
+    <div style={fieldColStyle}>{field}</div>
+  </div>
+);
+
+const primaryBtnStyle: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: '6px',
+  padding: '6px 14px', border: `1px solid ${BRAND_BLUE}`,
+  background: BRAND_BLUE, color: '#fff',
+  borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+  cursor: 'pointer', transition: 'all 0.15s',
+};
+
+const secondaryBtnStyle: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: '6px',
+  padding: '6px 14px', border: '1px solid #d1d5db',
+  background: '#fff', color: '#374151',
+  borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+  cursor: 'pointer', transition: 'all 0.15s',
+};
+
+function SearchableClientSelect({ clients, value, onChange }: { clients: any[]; value: string; onChange: (id: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.dropdown-container')) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selected = clients.find(c => c.id === value);
+  const filtered = clients.filter(c =>
+    !searchText || c.client_name.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="dropdown-container" style={{ position: 'relative' }}>
+      <input
+        value={isOpen ? searchText : (selected?.client_name || '')}
+        onChange={e => { setSearchText(e.target.value); setIsOpen(true); }}
+        onFocus={() => setIsOpen(true)}
+        placeholder="Search client..."
+        style={inputStyle}
+      />
+      {isOpen && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0,
+          zIndex: 50, background: 'white', border: '1px solid #d1d5db',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+          maxHeight: '200px', overflowY: 'auto',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No clients found</div>
+          ) : filtered.map(c => (
+            <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+              onMouseLeave={e => e.currentTarget.style.background = 'white'}
+              onClick={() => { onChange(c.id); setSearchText(''); setIsOpen(false); }}
+            >{c.client_name}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function CreateProject() {
@@ -520,12 +275,10 @@ export default function CreateProject() {
       setFormData((prev: any) => {
         let newStatus = prev.status;
         
-        // Rule 2: If percentage is 100, status becomes Execution Completed (if currently Active or Draft)
         if (pct === 100 && (prev.status === 'Draft' || prev.status === 'Active')) {
           newStatus = 'Execution Completed';
         }
         
-        // Rule 3: If percentage is less than 100 and status is completed/closed, status reverts to Active
         if (pct < 100 && (prev.status === 'Execution Completed' || prev.status === 'Closed' || prev.status === 'Financially Closed')) {
           newStatus = 'Active';
         }
@@ -555,7 +308,6 @@ export default function CreateProject() {
       return false;
     }
 
-    // Submit Validation fallback gate
     const isCompleted = ['Execution Completed', 'Closed', 'Financially Closed'].includes(formData.status);
     if (isCompleted && parseFloat(String(formData.completion_percentage)) < 100) {
       alert('A completed project must have a completion percentage of 100%');
@@ -657,419 +409,248 @@ export default function CreateProject() {
     });
   };
 
+  const pageStyle: React.CSSProperties = {
+    background: '#faf9f7',
+    minHeight: '100vh',
+    padding: '2rem',
+    fontFamily: "'DM Sans', system-ui, sans-serif",
+  };
+
   if (loading) {
     return (
-      <div className="pf-page">
-        <div className="pf-container">
-          <div className="pf-skeleton" style={{ width: '100%', height: '400px' }} />
+      <div style={pageStyle}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', color: '#9ca3af', fontSize: '14px', textAlign: 'center', padding: '40px' }}>
+          Loading...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="pf-page">
-      <div className="pf-container">
-        <div className="pf-header">
-          <button className="pf-back" onClick={() => navigate('/projects')}>
+    <div style={pageStyle}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+          <button onClick={() => navigate('/projects')} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '2.5rem', height: '2.5rem', borderRadius: '8px',
+            background: '#fff', border: '1px solid #e8e5e1',
+            color: '#6b6b6b', cursor: 'pointer',
+          }}>
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="pf-title">{editId ? 'Edit Project' : 'New Project'}</h1>
-            <p className="pf-subtitle">{editId ? 'Update project details' : 'Create a new project'}</p>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a1a1a', letterSpacing: '-0.02em', margin: 0 }}>
+              {editId ? 'Edit Project' : 'New Project'}
+            </h1>
+            <p style={{ fontSize: '0.8125rem', color: '#9ca3af', marginTop: '2px' }}>
+              {editId ? 'Update project details' : 'Create a new project'}
+            </p>
             {!editId && localStorage.getItem('mep-create-project-draft') && (
-              <p className="pf-subtitle" style={{ color: 'var(--accent)', marginTop: 4 }}>
+              <p style={{ fontSize: '0.8125rem', color: BRAND_BLUE, marginTop: 4 }}>
                 Draft restored from previous session
               </p>
             )}
-          </div>
-          <div className="pf-actions">
-            <button className="pf-btn pf-btn-secondary" onClick={() => { clearDraft(); setDraftCleared(true); navigate('/projects'); }}>
-              Cancel
-            </button>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           {/* Identity Section */}
-          <div className="pf-section">
-            <div className="pf-section-header">
-              <Building2 size={16} className="pf-section-icon" />
-              <h2 className="pf-section-title">Identity</h2>
+          <div style={{ background: '#fff', border: '1px solid #e8e5e1', borderRadius: '12px', marginBottom: '1rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.875rem 24px', background: '#faf9f7', borderBottom: '1px solid #e8e5e1' }}>
+              <Building2 size={16} color={BRAND_BLUE} />
+              <h2 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b6b6b', margin: 0 }}>Identity</h2>
             </div>
-            <div className="pf-section-body">
-              <div className="pf-grid pf-grid-2">
-                <div className="pf-field">
-                  <label className="pf-label pf-label-required">Client</label>
-                  <select
-                    name="client_id"
-                    className="pf-select"
-                    value={formData.client_id}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">Select Client</option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.client_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label pf-label-required">Project Name</label>
-                  <input
-                    type="text"
-                    name="project_name"
-                    className="pf-input"
-                    value={formData.project_name}
-                    onChange={handleInputChange}
-                    placeholder="Enter project name"
-                    required
-                  />
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">Parent Project</label>
-                  <select
-                    name="parent_project_id"
-                    className="pf-select"
-                    value={formData.parent_project_id}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">Select Parent Project</option>
-                    {projects.filter(p => p.id !== editId).map(p => (
-                      <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">Project Type</label>
-                  <select
-                    name="project_type"
-                    className="pf-select"
-                    value={formData.project_type}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Main">Main</option>
-                    <option value="Expansion">Expansion</option>
-                    <option value="Service">Service</option>
-                  </select>
+            <div style={{ padding: '24px' }}>
+              <div style={sectionBoxStyle}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Client & Project</div>
+                    {renderHeaderField('Client', <SearchableClientSelect clients={clients} value={formData.client_id} onChange={id => handleInputChange({ target: { name: 'client_id', value: id } })} />)}
+                    {renderHeaderField('Name', <input name="project_name" value={formData.project_name} onChange={handleInputChange} placeholder="Enter project name" required style={inputStyle} />)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Categorization</div>
+                    {renderHeaderField('Parent', <select name="parent_project_id" value={formData.parent_project_id} onChange={handleInputChange} style={selectStyle}>
+                      <option value="">Select Parent Project</option>
+                      {projects.filter(p => p.id !== editId).map(p => (
+                        <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
+                      ))}
+                    </select>)}
+                    {renderHeaderField('Type', <select name="project_type" value={formData.project_type} onChange={handleInputChange} style={selectStyle}>
+                      <option value="Main">Main</option>
+                      <option value="Expansion">Expansion</option>
+                      <option value="Service">Service</option>
+                    </select>, true)}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Commercial Section */}
-          <div className="pf-section">
-            <div className="pf-section-header">
-              <DollarSign size={16} className="pf-section-icon" />
-              <h2 className="pf-section-title">Commercial</h2>
+          <div style={{ background: '#fff', border: '1px solid #e8e5e1', borderRadius: '12px', marginBottom: '1rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.875rem 24px', background: '#faf9f7', borderBottom: '1px solid #e8e5e1' }}>
+              <DollarSign size={16} color={BRAND_BLUE} />
+              <h2 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b6b6b', margin: 0 }}>Commercial</h2>
             </div>
-            <div className="pf-section-body">
-              <div className="pf-grid pf-grid-3">
-                <div className="pf-field">
-                  <label className="pf-label">Estimated Value</label>
-                  <input
-                    type="number"
-                    name="project_estimated_value"
-                    className="pf-input pf-input-mono"
-                    value={formData.project_estimated_value}
-                    onChange={handleInputChange}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">PO Required</label>
-                  <div className="pf-radio-group">
-                    <label className="pf-radio">
-                      <input
-                        type="radio"
-                        name="po_required"
-                        checked={formData.po_required === true}
-                        onChange={() => setFormData(prev => ({ ...prev, po_required: true }))}
-                      />
-                      Yes
-                    </label>
-                    <label className="pf-radio">
-                      <input
-                        type="radio"
-                        name="po_required"
-                        checked={formData.po_required === false}
-                        onChange={() => setFormData(prev => ({ ...prev, po_required: false, po_status: 'Not Required' }))}
-                      />
-                      No
-                    </label>
+            <div style={{ padding: '24px' }}>
+              <div style={sectionBoxStyle}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Value</div>
+                    {renderHeaderField('Est. Value', <input type="number" name="project_estimated_value" value={formData.project_estimated_value} onChange={handleInputChange} placeholder="0.00" min="0" step="0.01" style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }} />)}
                   </div>
-                </div>
-
-                {formData.po_required && (
-                  <>
-                    <div className="pf-field">
-                      <label className="pf-label">PO Status</label>
-                      <select
-                        name="po_status"
-                        className="pf-select"
-                        value={formData.po_status}
-                        onChange={handleInputChange}
-                      >
-                        <option value="Not Required">Not Required</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Received">Received</option>
-                      </select>
-                    </div>
-
-                    {formData.po_status === 'Received' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Purchase Order</div>
+                    {renderHeaderField('PO Req\'d', <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
+                      <input type="radio" name="po_required" checked={formData.po_required === true} onChange={() => setFormData(prev => ({ ...prev, po_required: true }))} /> Yes
+                      <input type="radio" name="po_required" checked={formData.po_required === false} onChange={() => setFormData(prev => ({ ...prev, po_required: false, po_status: 'Not Required' }))} /> No
+                    </label>)}
+                    {formData.po_required && (
                       <>
-                        <div className="pf-field">
-                          <label className="pf-label">Select PO</label>
-                          <select
-                            className="pf-select"
-                            value={formData.po_number}
-                            onChange={(e) => {
+                        {renderHeaderField('Status', <select name="po_status" value={formData.po_status} onChange={handleInputChange} style={selectStyle}>
+                          <option value="Not Required">Not Required</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Received">Received</option>
+                        </select>)}
+                        {formData.po_status === 'Received' && (
+                          <>
+                            {renderHeaderField('Select PO', <select value={formData.po_number} onChange={e => {
                               const selectedPO = clientPOs.find(po => po.po_number === e.target.value);
                               if (selectedPO) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  po_number: selectedPO.po_number,
-                                  po_date: selectedPO.po_date
-                                }));
+                                setFormData(prev => ({ ...prev, po_number: selectedPO.po_number, po_date: selectedPO.po_date }));
                               } else {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  po_number: e.target.value,
-                                  po_date: ''
-                                }));
+                                setFormData(prev => ({ ...prev, po_number: e.target.value, po_date: '' }));
                               }
-                            }}
-                          >
-                            <option value="">Select existing PO or enter manually</option>
-                            {clientPOs.map(po => (
-                              <option key={po.id} value={po.po_number}>
-                                {po.po_number} - {po.po_date} (₹{po.po_total_value})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="pf-field">
-                          <label className="pf-label">PO Number</label>
-                          <input
-                            type="text"
-                            name="po_number"
-                            className="pf-input"
-                            value={formData.po_number}
-                            onChange={handleInputChange}
-                            placeholder="Enter PO number"
-                          />
-                        </div>
-
-                        <div className="pf-field">
-                          <label className="pf-label">PO Date</label>
-                          <input
-                            type="date"
-                            name="po_date"
-                            className="pf-input"
-                            value={formData.po_date}
-                            onChange={handleInputChange}
-                          />
-                        </div>
+                            }} style={selectStyle}>
+                              <option value="">Select existing PO or enter manually</option>
+                              {clientPOs.map(po => (
+                                <option key={po.id} value={po.po_number}>{po.po_number} - {po.po_date} (₹{po.po_total_value})</option>
+                              ))}
+                            </select>)}
+                            {renderHeaderField('PO Number', <input type="text" name="po_number" value={formData.po_number} onChange={handleInputChange} placeholder="Enter PO number" style={inputStyle} />)}
+                            {renderHeaderField('PO Date', <input type="date" name="po_date" value={formData.po_date} onChange={handleInputChange} style={inputStyle} />, true)}
+                          </>
+                        )}
                       </>
                     )}
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Timeline Section */}
-          <div className="pf-section">
-            <div className="pf-section-header">
-              <Calendar size={16} className="pf-section-icon" />
-              <h2 className="pf-section-title">Timeline</h2>
+          <div style={{ background: '#fff', border: '1px solid #e8e5e1', borderRadius: '12px', marginBottom: '1rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.875rem 24px', background: '#faf9f7', borderBottom: '1px solid #e8e5e1' }}>
+              <Calendar size={16} color={BRAND_BLUE} />
+              <h2 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b6b6b', margin: 0 }}>Timeline</h2>
             </div>
-            <div className="pf-section-body">
-              <div className="pf-grid pf-grid-4">
-                <div className="pf-field">
-                  <label className="pf-label">Start Date</label>
-                  <input
-                    type="date"
-                    name="start_date"
-                    className="pf-input"
-                    value={formData.start_date}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">Expected End</label>
-                  <input
-                    type="date"
-                    name="expected_end_date"
-                    className="pf-input"
-                    value={formData.expected_end_date}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">Actual End</label>
-                  <input
-                    type="date"
-                    name="actual_end_date"
-                    className="pf-input"
-                    value={formData.actual_end_date}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">Completion %</label>
-                  <input
-                    type="number"
-                    name="completion_percentage"
-                    className="pf-input pf-input-mono"
-                    value={formData.completion_percentage}
-                    onChange={handleInputChange}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
+            <div style={{ padding: '24px' }}>
+              <div style={sectionBoxStyle}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Dates</div>
+                    {renderHeaderField('Start', <input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} style={inputStyle} />)}
+                    {renderHeaderField('Expected', <input type="date" name="expected_end_date" value={formData.expected_end_date} onChange={handleInputChange} style={inputStyle} />)}
+                    {renderHeaderField('Actual', <input type="date" name="actual_end_date" value={formData.actual_end_date} onChange={handleInputChange} style={inputStyle} />)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Progress</div>
+                    {renderHeaderField('Completion', <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input type="number" name="completion_percentage" value={formData.completion_percentage} onChange={handleInputChange} min="0" max="100" step="0.01" style={{ ...inputStyle, width: '80px', fontFamily: "'JetBrains Mono', monospace" }} />
+                      <span style={{ fontSize: '12px', color: '#6b7280' }}>%</span>
+                    </div>, true)}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Scope & Instructions Section */}
-          <div className="pf-section">
-            <div className="pf-section-header">
-              <Building2 size={16} className="pf-section-icon" />
-              <h2 className="pf-section-title">Project Scope & Site Engineer Instructions</h2>
+          <div style={{ background: '#fff', border: '1px solid #e8e5e1', borderRadius: '12px', marginBottom: '1rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.875rem 24px', background: '#faf9f7', borderBottom: '1px solid #e8e5e1' }}>
+              <Building2 size={16} color={BRAND_BLUE} />
+              <h2 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b6b6b', margin: 0 }}>Project Scope & Site Engineer Instructions</h2>
             </div>
-            <div className="pf-section-body">
-              <div className="pf-grid pf-grid-2" style={{ marginBottom: '16px' }}>
-                <div className="pf-field">
-                  <label className="pf-label">Contractor Scope</label>
-                  <textarea
-                    name="contractor_scope"
-                    className="pf-textarea"
-                    value={formData.contractor_scope}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="Specify subcontractor scope/deliverables..."
-                  />
+            <div style={{ padding: '24px' }}>
+              <div style={sectionBoxStyle}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Scope</div>
+                    {renderHeaderField('Contractor', <textarea name="contractor_scope" value={formData.contractor_scope} onChange={handleInputChange} rows={3} placeholder="Subcontractor scope/deliverables..." style={textareaStyle} />)}
+                    {renderHeaderField('Client', <textarea name="client_scope" value={formData.client_scope} onChange={handleInputChange} rows={3} placeholder="Client responsibilities/inputs..." style={textareaStyle} />)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Exclusions</div>
+                    {renderHeaderField('Excluded', <textarea name="excluded_scope" value={formData.excluded_scope} onChange={handleInputChange} rows={3} placeholder="Items outside contract..." style={textareaStyle} />)}
+                    {renderHeaderField('Pending', <textarea name="pending_approval" value={formData.pending_approval} onChange={handleInputChange} rows={3} placeholder="Variations awaiting sign-off..." style={textareaStyle} />)}
+                  </div>
                 </div>
-                <div className="pf-field">
-                  <label className="pf-label">Client Scope</label>
-                  <textarea
-                    name="client_scope"
-                    className="pf-textarea"
-                    value={formData.client_scope}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="Specify client responsibilities/inputs..."
-                  />
+                <div style={{ marginTop: '10px' }}>
+                  {renderHeaderField('Instructions', <textarea name="site_instructions" value={formData.site_instructions} onChange={handleInputChange} rows={3} placeholder="Operational instructions for onsite engineers..." style={textareaStyle} />, true)}
                 </div>
-              </div>
-              
-              <div className="pf-grid pf-grid-2" style={{ marginBottom: '16px' }}>
-                <div className="pf-field">
-                  <label className="pf-label">Not Our Scope (Excluded)</label>
-                  <textarea
-                    name="excluded_scope"
-                    className="pf-textarea"
-                    value={formData.excluded_scope}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="Explicitly exclude items outside contract..."
-                  />
-                </div>
-                <div className="pf-field">
-                  <label className="pf-label">Scope Awaiting Approval</label>
-                  <textarea
-                    name="pending_approval"
-                    className="pf-textarea"
-                    value={formData.pending_approval}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="List variations awaiting sign-off..."
-                  />
-                </div>
-              </div>
-              
-              <div className="pf-field">
-                <label className="pf-label">Instructions to Site Engineer</label>
-                <textarea
-                  name="site_instructions"
-                  className="pf-textarea"
-                  value={formData.site_instructions}
-                  onChange={handleInputChange}
-                  rows={3}
-                  placeholder="Operational instructions for onsite engineers..."
-                />
               </div>
             </div>
           </div>
 
-          {/* Status Section */}
-          <div className="pf-section">
-            <div className="pf-section-header">
-              <Activity size={16} className="pf-section-icon" />
-              <h2 className="pf-section-title">Status & Notes</h2>
+          {/* Status & Notes Section */}
+          <div style={{ background: '#fff', border: '1px solid #e8e5e1', borderRadius: '12px', marginBottom: '1rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.875rem 24px', background: '#faf9f7', borderBottom: '1px solid #e8e5e1' }}>
+              <Activity size={16} color={BRAND_BLUE} />
+              <h2 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b6b6b', margin: 0 }}>Status & Notes</h2>
             </div>
-            <div className="pf-section-body">
-              <div className="pf-grid pf-grid-2">
-                <div className="pf-field">
-                  <label className="pf-label">Project Status</label>
-                  <div className="pf-status-group">
-                    {['Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'].map(status => {
-                      const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
-                      const isActive = formData.status === status;
-                      return (
-                        <button
-                          key={status}
-                          type="button"
-                          className={`pf-status-pill ${isActive ? 'active' : ''}`}
-                          style={isActive ? { background: cfg.bg, color: cfg.color, borderColor: cfg.color } : {}}
-                          onClick={() => handleStatusChange(status)}
-                        >
-                          {status}
-                        </button>
-                      );
-                    })}
+            <div style={{ padding: '24px' }}>
+              <div style={sectionBoxStyle}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Status</div>
+                    {renderHeaderField('Status', <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {['Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'].map(status => {
+                        const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+                        const isActive = formData.status === status;
+                        return (
+                          <button key={status} type="button"
+                            onClick={() => handleStatusChange(status)}
+                            style={{
+                              padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
+                              cursor: 'pointer', border: isActive ? `1px solid ${cfg.color}` : '1px solid #d1d5db',
+                              background: isActive ? cfg.bg : '#fff',
+                              color: isActive ? cfg.color : '#6b7280',
+                              transition: 'all 0.15s',
+                            }}
+                          >{status}</button>
+                        );
+                      })}
+                    </div>)}
                   </div>
-                </div>
-
-                <div className="pf-field">
-                  <label className="pf-label">Remarks</label>
-                  <textarea
-                    name="remarks"
-                    className="pf-textarea"
-                    value={formData.remarks}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="Add any additional notes..."
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={sectionHeaderStyle}>Notes</div>
+                    {renderHeaderField('Remarks', <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={4} placeholder="Additional notes..." style={textareaStyle} />, true)}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Form Actions */}
-          <div className="pf-section">
-            <div className="pf-section-body">
-              <div className="flex justify-end gap-3">
-                <button type="button" className="pf-btn pf-btn-secondary" onClick={() => { clearDraft(); setDraftCleared(true); navigate('/projects'); }}>
-                  Cancel
-                </button>
-                <button type="submit" className="pf-btn pf-btn-primary" disabled={saving}>
-                  <Save size={16} />
-                  {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '24px 0' }}>
+            <button type="button" onClick={() => { clearDraft(); setDraftCleared(true); navigate('/projects'); }}
+              style={secondaryBtnStyle}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
+            >
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              style={{ ...primaryBtnStyle, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}
+              onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+              onMouseLeave={e => { if (!saving) { e.currentTarget.style.background = BRAND_BLUE; e.currentTarget.style.borderColor = BRAND_BLUE; }}}
+            >
+              <Save size={14} />
+              {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
+            </button>
           </div>
         </form>
       </div>

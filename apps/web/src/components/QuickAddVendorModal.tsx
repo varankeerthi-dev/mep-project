@@ -2,78 +2,79 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { toast } from '@/lib/logger';
-import { 
-  Building2, 
-  X, 
-  User, 
-  PhoneCall, 
-  Mail, 
-  Tags, 
-  MapPin,
-  Sparkles
-} from 'lucide-react';
-import { cn } from '../lib/utils';
-import { Button } from './ui/button';
+import { Building2, X, User, PhoneCall, Mail, Tags } from 'lucide-react';
+import { currentOrgId } from '../lib/supabase';
 
-interface QuickAddClientModalProps {
+interface QuickAddVendorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (client: any) => void;
+  onSuccess?: (vendor: any) => void;
 }
 
-export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClientModalProps) {
+export function QuickAddVendorModal({ isOpen, onClose, onSuccess }: QuickAddVendorModalProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    client_name: '',
-    client_type: '',
+    company_name: '',
     contact_person: '',
     phone: '',
     email: '',
-    city: '',
+    address: '',
+    gstin: '',
+    pan: '',
+    gst_treatment: '',
     msme_register_type: '',
-    msme_number: '',
-    gst_treatment: ''
+    msme_number: ''
   });
 
-  const addClientMutation = useMutation({
-    mutationFn: async (newClient: any) => {
+  const addVendorMutation = useMutation({
+    mutationFn: async (newVendor: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const organisationId = await currentOrgId(user.id);
+      if (!organisationId) throw new Error('User not associated with any organisation');
+
       const { data, error } = await supabase
-        .from('clients')
+        .from('purchase_vendors')
         .insert([{
-          ...newClient,
-          client_id: `CL-${Date.now()}`,
+          ...newVendor,
+          organisation_id: organisationId,
+          vendor_code: `VN-${Date.now()}`,
+          status: 'Active',
           created_at: new Date().toISOString()
         }])
         .select();
+
       if (error) throw error;
       return data[0];
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Client onboarded successfully');
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+      toast.success('Vendor onboarded successfully');
       setFormData({
-        client_name: '',
-        client_type: '',
+        company_name: '',
         contact_person: '',
         phone: '',
         email: '',
-        city: '',
+        address: '',
+        gstin: '',
+        pan: '',
+        gst_treatment: '',
         msme_register_type: '',
-        msme_number: '',
-        gst_treatment: ''
+        msme_number: ''
       });
       if (onSuccess) onSuccess(data);
       onClose();
     },
     onError: (error: any) => {
-      toast.error(`Error adding client: ${error.message}`);
+      toast.error(`Error adding vendor: ${error.message}`);
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.client_name) return;
-    addClientMutation.mutate(formData);
+    if (!formData.company_name) return;
+    addVendorMutation.mutate(formData);
   };
 
   if (!isOpen) return null;
@@ -97,7 +98,7 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
             </div>
             <div>
               <h2 className="text-base font-semibold text-zinc-900 leading-none">
-                Add New Client
+                Add New Vendor
               </h2>
             </div>
           </div>
@@ -114,18 +115,18 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
         {/* Body & Form */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-auto">
           <div className="p-6 space-y-4">
-            {/* Field: Client Name */}
+            {/* Field: Company Name */}
             <div className="group">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                Client / Company Name <span className="text-rose-500">*</span>
+                Vendor Company Name <span className="text-rose-500">*</span>
               </label>
               <input
                 autoFocus
                 type="text"
                 required
-                value={formData.client_name}
-                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                placeholder="Acme Industries LLC"
+                value={formData.company_name}
+                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                placeholder="Acme Supplies Ltd"
                 className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
               />
             </div>
@@ -146,21 +147,6 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
               </div>
               <div className="group">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Type
-                </label>
-                <input
-                  type="text"
-                  value={formData.client_type}
-                  onChange={(e) => setFormData({ ...formData, client_type: e.target.value })}
-                  placeholder="e.g. Architect, Builder"
-                  className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="group">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Phone Number
                 </label>
                 <input
@@ -171,37 +157,58 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                   className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] font-mono text-zinc-700 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
                 />
               </div>
-              <div className="group">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  City
-                </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  placeholder="City"
-                  className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
-                />
-              </div>
             </div>
-             
+
             <div className="group">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                 Email Address
               </label>
-              <div className="relative">
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="sales@company.com"
+                className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] font-mono text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
+              />
+            </div>
+
+            <div className="group">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
+                Street Address
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="123 Industrial Area"
+                className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="group">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
+                  GSTIN
+                </label>
                 <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="name@company.com"
-                  className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] font-mono text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
+                  type="text"
+                  value={formData.gstin}
+                  onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                  placeholder="22AAAAA0000A1Z5"
+                  className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] font-mono text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all uppercase"
                 />
-                {formData.email.includes('@') && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500">
-                    <Sparkles className="w-3.5 h-3.5 animate-in zoom-in" />
-                  </div>
-                )}
+              </div>
+              <div className="group">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
+                  PAN
+                </label>
+                <input
+                  type="text"
+                  value={formData.pan}
+                  onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                  placeholder="ABCDE1234F"
+                  className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] font-mono text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all uppercase"
+                />
               </div>
             </div>
 
@@ -271,11 +278,11 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
             </button>
             <button
               type="submit"
-              disabled={addClientMutation.isPending}
+              disabled={addVendorMutation.isPending}
               className="px-4 py-2 rounded-md text-[12px] font-semibold text-white bg-[#185FA5] border border-[#185FA5] hover:bg-[#0C447C] hover:border-[#0C447C] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm"
               style={{ padding: '7px 16px' }}
             >
-              {addClientMutation.isPending ? 'Saving...' : 'Add Client'}
+              {addVendorMutation.isPending ? 'Saving...' : 'Add Vendor'}
             </button>
           </div>
         </form>

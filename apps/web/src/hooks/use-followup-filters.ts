@@ -6,7 +6,7 @@ import {
   type FollowUpTab,
 } from '../types/followup';
 
-const TAB_VALUES: FollowUpTab[] = ['queue', 'lead', 'quotation', 'podc', 'invoice', 'activity'];
+const TAB_VALUES: FollowUpTab[] = ['queue', 'lead', 'quotation', 'podc', 'invoice', 'procurement', 'activity'];
 
 function parseTab(value: string | null): FollowUpTab {
   if (value && TAB_VALUES.includes(value as FollowUpTab)) {

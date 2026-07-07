@@ -135,13 +135,78 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      const userIds = [...new Set((approvals || []).map((a: any) => a.requested_by).filter(Boolean))];
+      // Filter out approvals where the referenced document has been deleted
+      const validApprovals: any[] = [];
+
+      if (approvals && approvals.length > 0) {
+        const groupedRefs: Record<string, string[]> = {};
+        for (const app of approvals) {
+          if (app.reference_type && app.reference_id) {
+            if (!groupedRefs[app.reference_type]) {
+              groupedRefs[app.reference_type] = [];
+            }
+            groupedRefs[app.reference_type].push(app.reference_id);
+          } else {
+            validApprovals.push(app);
+          }
+        }
+
+        const existingMap: Record<string, Set<string>> = {};
+        const typeToTableMap: Record<string, string> = {
+          'purchase_orders': 'purchase_orders',
+          'work_orders': 'subcontractor_work_orders',
+          'invoices': 'invoices',
+          'quotations': 'quotation_header',
+          'payment_requests': 'payment_requests',
+          'purchase_payments': 'purchase_payments',
+          'subcontractor_payments': 'subcontractor_payments',
+          'proforma_invoices': 'proforma_invoices',
+          'expense_claims': 'expense_claims',
+          'advances_expenses': 'advances_expenses',
+          'site_visits': 'site_visits',
+          'job_cards': 'job_cards',
+          'sales_orders': 'sales_orders',
+          'material_dispatches': 'material_dispatches',
+          'site_reports': 'site_reports'
+        };
+
+        await Promise.all(
+          Object.entries(groupedRefs).map(async ([refType, refIds]) => {
+            const tableName = typeToTableMap[refType] || refType;
+            try {
+              const { data, error: fetchError } = await supabase
+                .from(tableName)
+                .select('id')
+                .in('id', refIds);
+              
+              if (!fetchError && data) {
+                existingMap[refType] = new Set(data.map((row: any) => row.id));
+              } else {
+                existingMap[refType] = new Set();
+              }
+            } catch (err) {
+              existingMap[refType] = new Set();
+            }
+          })
+        );
+
+        for (const app of approvals) {
+          if (app.reference_type && app.reference_id) {
+            const existingIds = existingMap[app.reference_type];
+            if (existingIds && existingIds.has(app.reference_id)) {
+              validApprovals.push(app);
+            }
+          }
+        }
+      }
+
+      const userIds = [...new Set(validApprovals.map((a: any) => a.requested_by).filter(Boolean))];
       const { data: profiles } = userIds.length > 0
         ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', userIds)
         : { data: [] };
       const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name]));
 
-      const enriched = (approvals || []).map((a: any) => ({
+      const enriched = validApprovals.map((a: any) => ({
         ...a,
         requester_name: profileMap[a.requested_by] || a.requester_name || null,
       }));

@@ -186,7 +186,7 @@ export const PriorityQueueRow = memo(function PriorityQueueRow({
         </div>
       </div>
 
-      <div className="w-[130px] shrink-0 px-2 text-right flex flex-col gap-0.5">
+      <div className="w-[130px] shrink-0 px-2 text-left flex flex-col gap-0.5">
         <span className="text-sm font-bold tabular-nums text-zinc-950">
           {formatFollowUpCurrency(item.amount)}
         </span>
@@ -259,7 +259,7 @@ export const priorityQueueTableHeader = (
     <span className="w-[160px] shrink-0 px-2 text-left">Entity / Reference</span>
     <span className="w-[240px] shrink-0 px-2 text-left">Client / Project</span>
     <span className="w-[260px] shrink-0 px-2 text-left">Next Action & Status</span>
-    <span className="w-[130px] shrink-0 px-2 text-right">Amount</span>
+    <span className="w-[130px] shrink-0 px-2 text-left">Amount</span>
     <span className="w-[120px] shrink-0 px-2 text-center">Timeline</span>
     <span className="w-[150px] shrink-0 px-2 text-left">Owner</span>
     <span className="w-[140px] shrink-0 px-2 text-left">Last Activity</span>

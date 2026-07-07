@@ -88,7 +88,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
       <span className="truncate text-zinc-600" title={item.project_name}>
         {item.project_name}
       </span>
-      <span className="tabular-nums font-medium text-zinc-900 text-right">
+      <span className="tabular-nums font-medium text-zinc-900 text-left">
         {formatFollowUpCurrency(item.total_value)}
       </span>
       <span
@@ -207,7 +207,7 @@ export const quotationTableHeader = (
     <span>Quote #</span>
     <span>Client</span>
     <span>Project</span>
-    <span className="text-right">Value</span>
+    <span className="text-left">Value</span>
     <span>Status</span>
     <span>Valid till</span>
     <span>Assignee</span>

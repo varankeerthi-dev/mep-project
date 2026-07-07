@@ -108,21 +108,7 @@ export default function CreatePO() {
   });
 
   
-  // Load materials for inventory selection
-  const { data: materials = [] } = useQuery({
-    queryKey: ['materials', organisation?.id],
-    queryFn: async () => {
-      if (!organisation?.id) return [];
-      const { data, error } = await supabase
-        .from('materials')
-        .select('id, name, display_name, hsn_code, make, unit, sale_price')
-        .eq('organisation_id', organisation.id)
-        .order('name');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organisation?.id
-  });
+
   
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState('');
