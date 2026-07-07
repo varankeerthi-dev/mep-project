@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { z } from 'zod';
+import { BottomSheetPicker } from '../components/BottomSheetPicker';
 import {
   ClipboardCheck,
   Plus,
@@ -43,6 +45,11 @@ interface SiteReportItem {
 interface ClientItem {
   id: string;
   client_name: string;
+}
+
+interface SubcontractorItem {
+  id: string;
+  company_name: string;
 }
 
 interface Project {
@@ -188,6 +195,11 @@ const DEMO_CLIENTS = [
   { id: 'demo-c2', client_name: 'BuildIt Infra' },
 ];
 
+const DEMO_SUBCONTRACTORS = [
+  { id: 'demo-s1', company_name: 'Alpha MEP Services' },
+  { id: 'demo-s2', company_name: 'Beta Civil Works' },
+];
+
 // =============================================
 // Main Component
 // =============================================
@@ -197,6 +209,7 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
   const [reports, setReports] = useState<SiteReportItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<ClientItem[]>([]);
+  const [subcontractors, setSubcontractors] = useState<SubcontractorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedReport, setSelectedReport] = useState<SiteReportItem | null>(null);
@@ -215,7 +228,7 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
     start_time: '08:00',
     end_time: '17:00',
     // Subcontractors
-    subcontractors: [] as Array<{ name: string; count: string; start: string; end: string }>,
+    subcontractors: [] as Array<{ subcontractor_id?: string; name: string; count: string; start: string; end: string }>,
     // Work
     work_carried_out: [{ value: '', trade: 'MEP' }],
     work_plan_next_day: [{ value: '' }],
@@ -259,6 +272,7 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
       setReports(DEMO_REPORTS);
       setProjects(DEMO_PROJECTS);
       setClients(DEMO_CLIENTS);
+      setSubcontractors(DEMO_SUBCONTRACTORS);
       setLoading(false);
     } else {
       fetchData();
@@ -283,8 +297,8 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
       const orgId = memberData?.organisation_id;
       if (!orgId) return;
 
-      // Fetch site reports — join projects + clients FK (same as web)
-      const [reportsRes, projectsRes, clientsRes] = await Promise.all([
+      // Fetch site reports, projects, clients, and subcontractors
+      const [reportsRes, projectsRes, clientsRes, subcontractorsRes] = await Promise.all([
         supabase
           .from('site_reports')
           .select('id, report_date, pm_status, engineer_name, client_id, project_id, created_at, total_manpower, percent_complete, projects(project_name), clients(client_name)')
@@ -301,6 +315,12 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
           .select('id, client_name')
           .eq('organisation_id', orgId)
           .order('client_name'),
+        supabase
+          .from('subcontractors')
+          .select('id, company_name')
+          .eq('organisation_id', orgId)
+          .eq('status', 'Active')
+          .order('company_name'),
       ]);
 
       // Normalize reports — extract project_name and client from FK joins
@@ -312,11 +332,14 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
 
       setReports(normalizedReports);
 
-      // Map projects — include client lookup via client_id if needed
+      // Map projects
       setProjects((projectsRes.data || []).map((p: any) => ({ ...p, client: '' })));
 
       // Store clients separately for the dropdown
       setClients((clientsRes.data || []) as ClientItem[]);
+
+      // Store subcontractors separately
+      setSubcontractors((subcontractorsRes.data || []) as SubcontractorItem[]);
 
     } catch (e) {
       console.error('fetchData error:', e);
@@ -327,6 +350,23 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
 
 
   const handleSubmitWithStatus = async (overrideStatus?: string) => {
+    // Zod validation for report date (cannot be in the future)
+    const reportDateSchema = z.string().refine((val) => {
+      const selectedDate = new Date(val);
+      const today = new Date();
+      selectedDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      return selectedDate <= today;
+    }, {
+      message: "Report cannot be created for future dates",
+    });
+
+    const dateResult = reportDateSchema.safeParse(form.report_date);
+    if (!dateResult.success) {
+      alert(dateResult.error.errors[0].message);
+      return;
+    }
+
     const proj = projects.find(p => p.id === form.project_id);
     const payload = {
       project_id: form.project_id || null,
@@ -408,6 +448,7 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
             count: s.count,
             start_time: s.start || null,
             end_time: s.end || null,
+            subcontractor_id: s.subcontractor_id || null,
           }))
       );
     }
@@ -636,36 +677,30 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
         return (
           <div className="space-y-4">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Project *</label>
-              <select
-                value={form.project_id}
-                onChange={e => {
-                  const p = projects.find(pr => pr.id === e.target.value);
-                  setForm(f => ({ ...f, project_id: e.target.value, client: p?.client || '' }));
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Client *</label>
+              <BottomSheetPicker
+                label="Select Client"
+                placeholder="Select client..."
+                options={clients.map(c => ({ id: c.id, name: c.client_name }))}
+                value={form.client_id}
+                onChange={val => {
+                  const c = clients.find(cl => cl.id === val);
+                  setForm(f => ({ ...f, client_id: val, client: c?.client_name || '' }));
                 }}
-                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="">Select project…</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.project_name} {p.project_code ? `(${p.project_code})` : ''}</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Client *</label>
-              <select
-                value={form.client_id}
-                onChange={e => {
-                  const c = clients.find(cl => cl.id === e.target.value);
-                  setForm(f => ({ ...f, client_id: e.target.value, client: c?.client_name || '' }));
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Project *</label>
+              <BottomSheetPicker
+                label="Select Project"
+                placeholder="Select project..."
+                options={projects.map(p => ({ id: p.id, name: p.project_code ? `${p.project_name} (${p.project_code})` : p.project_name }))}
+                value={form.project_id}
+                onChange={val => {
+                  const p = projects.find(pr => pr.id === val);
+                  setForm(f => ({ ...f, project_id: val, client: p?.client || f.client, client_id: p?.client_id || f.client_id }));
                 }}
-                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                <option value="">Select client…</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.client_name}</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Report Date *</label>
@@ -776,12 +811,25 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="col-span-2">
-                          <input
-                            type="text"
-                            value={sc.name}
-                            onChange={e => setForm(f => { const arr = [...f.subcontractors]; arr[i] = { ...arr[i], name: e.target.value }; return { ...f, subcontractors: arr }; })}
-                            placeholder="Company / Name"
-                            className="w-full h-9 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          <BottomSheetPicker
+                            label="Select Subcontractor"
+                            placeholder="Select Subcontractor..."
+                            options={subcontractors.map(s => ({ id: s.id, name: s.company_name }))}
+                            value={sc.subcontractor_id || ''}
+                            onChange={val => {
+                              const selectedSub = subcontractors.find(s => s.id === val);
+                              if (selectedSub) {
+                                setForm(f => {
+                                  const arr = [...f.subcontractors];
+                                  arr[i] = {
+                                    ...arr[i],
+                                    name: selectedSub.company_name,
+                                    subcontractor_id: selectedSub.id
+                                  };
+                                  return { ...f, subcontractors: arr };
+                                });
+                              }
+                            }}
                           />
                         </div>
                         <input

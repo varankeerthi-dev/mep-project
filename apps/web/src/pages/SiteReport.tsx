@@ -329,6 +329,8 @@ export function SiteReport() {
     affected_work: string;
     reason_detail: string;
     expected_resolution_date: string;
+    planned_restart_date: string;
+    create_site_visit: boolean;
   };
   const [stoppages, setStoppages] = useState<StoppageDraft[]>([]);
   const [stoppagesLoaded, setStoppagesLoaded] = useState(false);
@@ -341,7 +343,7 @@ export function SiteReport() {
 
   const addStoppageRow = () => setStoppages((prev) => [
     ...prev,
-    { category: 'payment', blocking_party: 'unknown', affected_work: '', reason_detail: '', expected_resolution_date: '' },
+    { category: 'payment', blocking_party: 'unknown', affected_work: '', reason_detail: '', expected_resolution_date: '', planned_restart_date: '', create_site_visit: false },
   ]);
   const updateStoppageRow = (idx: number, patch: Partial<StoppageDraft>) =>
     setStoppages((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -378,6 +380,8 @@ export function SiteReport() {
           affected_work: s.affected_work,
           reason_detail: s.reason_detail,
           expected_resolution_date: s.expected_resolution_date ?? '',
+          planned_restart_date: s.planned_restart_date ?? '',
+          create_site_visit: false,
         })),
       );
       setStoppagesLoaded(true);
@@ -999,6 +1003,51 @@ export function SiteReport() {
       pendingPhotos.forEach(revokePendingPhoto);
       setPendingPhotos([]);
 
+      // Save stoppages on create (bug fix — previously only saved on edit)
+      const hasStoppages = (stoppages || []).some((s) => s.affected_work.trim() || s.reason_detail.trim() || s.expected_resolution_date);
+      if (hasStoppages && report.id && organisation?.id) {
+        const stoppageRows = (stoppages || [])
+          .filter((s) => s.affected_work.trim() || s.reason_detail.trim() || s.expected_resolution_date)
+          .map((s, idx) => ({
+            organisation_id: organisation.id,
+            report_id: report.id,
+            category: s.category,
+            blocking_party: s.blocking_party,
+            affected_work: s.affected_work,
+            reason_detail: s.reason_detail,
+            expected_resolution_date: s.expected_resolution_date || null,
+            planned_restart_date: s.planned_restart_date || null,
+            task_id: stoppageTaskIds[idx] || null,
+          }));
+        const inserted = await createStoppages.mutateAsync(stoppageRows as any);
+        const savedIds = (inserted || []).map((s: any) => s.id).filter(Boolean);
+
+        for (let idx = 0; idx < (stoppages || []).length; idx++) {
+          const s = stoppages[idx];
+          if (!s.create_site_visit || !s.planned_restart_date || !savedIds[idx]) continue;
+          const resolvedClientId = form.getValues('client') || null;
+          const purposeText = `Restart: ${s.affected_work}`.slice(0, 255);
+          const reportDate = form.getValues('date');
+          const visitStatus = s.planned_restart_date >= reportDate ? 'scheduled' : 'completed';
+
+          const { data: visit } = await supabase.from('site_visits').insert({
+            organisation_id: organisation.id,
+            project_id: form.getValues('projectName') || null,
+            client_id: resolvedClientId,
+            visit_date: s.planned_restart_date,
+            purpose: purposeText,
+            status: visitStatus,
+            engineer: user?.id || null,
+          }).select('id').single();
+
+          if (visit) {
+            await supabase.from('site_report_work_stoppages')
+              .update({ planned_restart_visit_id: visit.id })
+              .eq('id', savedIds[idx]);
+          }
+        }
+      }
+
       let saved = true;
       let lastErr: any = null;
       try {
@@ -1170,10 +1219,42 @@ export function SiteReport() {
           affected_work: s.affected_work,
           reason_detail: s.reason_detail,
           expected_resolution_date: s.expected_resolution_date || null,
+          planned_restart_date: s.planned_restart_date || null,
           task_id: stoppageTaskIds[idx] || null,
         }));
+      let savedStoppageIds: string[] = [];
       if (stoppageRows.length > 0) {
-        await createStoppages.mutateAsync(stoppageRows as any);
+        const inserted = await createStoppages.mutateAsync(stoppageRows as any);
+        savedStoppageIds = (inserted || []).map((s: any) => s.id).filter(Boolean);
+      }
+
+      // Create site visits for eligible stoppages (no existing visit + checkbox checked)
+      for (let idx = 0; idx < (stoppages || []).length; idx++) {
+        const s = stoppages[idx];
+        if (!s.create_site_visit || !s.planned_restart_date || !savedStoppageIds[idx]) continue;
+        const existingVisitId = existingStoppages[idx]?.planned_restart_visit_id;
+        if (existingVisitId) continue;
+
+        const resolvedClientId = form.getValues('client') || null;
+        const reportDate = form.getValues('date');
+        const purposeText = `Restart: ${s.affected_work}`.slice(0, 255);
+        const visitStatus = s.planned_restart_date >= reportDate ? 'scheduled' : 'completed';
+
+        const { data: visit } = await supabase.from('site_visits').insert({
+          organisation_id: organisation?.id,
+          project_id: form.getValues('projectName') || null,
+          client_id: resolvedClientId,
+          visit_date: s.planned_restart_date,
+          purpose: purposeText,
+          status: visitStatus,
+          engineer: user?.id || null,
+        }).select('id').single();
+
+        if (visit) {
+          await supabase.from('site_report_work_stoppages')
+            .update({ planned_restart_visit_id: visit.id })
+            .eq('id', savedStoppageIds[idx]);
+        }
       }
 
       await supabase
@@ -1211,6 +1292,8 @@ export function SiteReport() {
       // Invalidate task queries so "Last Report" column and drawer history refresh
       queryClient.invalidateQueries({ queryKey: ['task-site-reports'] });
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      // Invalidate site visits if any were created from stoppages
+      queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setView('list');
       setSelectedReportId(null);
     },
@@ -2939,18 +3022,63 @@ export function SiteReport() {
                                   readOnly={view === 'view'}
                                 />
                               </div>
-                              <div>
-                                <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>
-                                  Expected restart date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(leave blank if unknown)</span>
-                                </label>
-                                <Input
-                                  type="date"
-                                  className="h-9 text-sm bg-white mt-1"
-                                  value={s.expected_resolution_date}
-                                  onChange={(e) => updateStoppageRow(index, { expected_resolution_date: e.target.value })}
-                                  readOnly={view === 'view'}
-                                />
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div>
+                                  <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>
+                                    Expected restart <span style={{ fontWeight: 400, color: '#9ca3af' }}>(estimate)</span>
+                                  </label>
+                                  <Input
+                                    type="date"
+                                    className="h-9 text-sm bg-white mt-1"
+                                    value={s.expected_resolution_date}
+                                    onChange={(e) => updateStoppageRow(index, { expected_resolution_date: e.target.value })}
+                                    readOnly={view === 'view'}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>
+                                    Planned restart <span style={{ fontWeight: 400, color: '#9ca3af' }}>(confirmed)</span>
+                                  </label>
+                                  <Input
+                                    type="date"
+                                    className="h-9 text-sm bg-white mt-1"
+                                    value={s.planned_restart_date}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      updateStoppageRow(index, {
+                                        planned_restart_date: val,
+                                        create_site_visit: val ? s.create_site_visit : false,
+                                      });
+                                    }}
+                                    readOnly={view === 'view'}
+                                  />
+                                </div>
                               </div>
+                              {s.planned_restart_date && s.planned_restart_date < s.expected_resolution_date && s.expected_resolution_date && (
+                                <div style={{ fontSize: '11px', color: '#d97706', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <AlertCircle className="w-3 h-3" />
+                                  Planned restart is before expected restart — please confirm this is correct
+                                </div>
+                              )}
+                              {s.planned_restart_date && view !== 'view' && (
+                                <div style={{ marginTop: '8px' }}>
+                                  {existingStoppages[index]?.planned_restart_visit_id ? (
+                                    <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>Site visit created</span>
+                                      <a href={`/site-visits`} className="underline font-medium ml-auto" target="_blank" rel="noreferrer">View calendar</a>
+                                    </div>
+                                  ) : (
+                                    <label className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2 cursor-pointer">
+                                      <Checkbox
+                                        checked={s.create_site_visit}
+                                        onCheckedChange={(c) => updateStoppageRow(index, { create_site_visit: !!c })}
+                                      />
+                                      Create site visit for planned restart
+                                    </label>
+                                  )}
+                                </div>
+                              )}
                               <div style={{ marginTop: '8px' }}>
                                 <TaskLinkSelector
                                   label="Affected Task (optional)"

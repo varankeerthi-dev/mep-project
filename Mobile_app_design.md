@@ -145,6 +145,9 @@ border-primary bg-primary/10 ring-1 ring-primary/30   /* selected */
 border-border bg-card hover:border-primary/40          /* unselected */
 ```
 
+### Dropdown Picker
+Dropdown selection components must use the custom `BottomSheetPicker` component to provide a clean search and selection experience on mobile, avoiding the standard native browser dropdowns. This must be followed in future screen designs as well.
+
 ---
 
 ## 5. Border Radius

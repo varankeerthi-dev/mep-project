@@ -5,9 +5,10 @@ import { Dashboard } from './screens/Dashboard';
 import { Approvals } from './screens/Approvals';
 import { ClientCommunication } from './screens/ClientCommunication';
 import { SiteReport } from './screens/SiteReport';
-import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck } from 'lucide-react';
+import { SiteVisits } from './screens/SiteVisits';
+import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin } from 'lucide-react';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report';
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits';
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -72,10 +73,11 @@ function App() {
   }
 
   const NAV_ITEMS = [
-    { key: 'dashboard',    label: 'Dashboard',  Icon: Home },
-    { key: 'approvals',    label: 'Approvals',  Icon: ClipboardList },
-    { key: 'site_report',  label: 'Site Report', Icon: ClipboardCheck },
-    { key: 'communications', label: 'Comms',    Icon: MessageSquare },
+    { key: 'dashboard',      label: 'Dashboard',   Icon: Home },
+    { key: 'approvals',      label: 'Approvals',   Icon: ClipboardList },
+    { key: 'site_report',    label: 'Site Report', Icon: ClipboardCheck },
+    { key: 'site_visits',    label: 'Site Visit',  Icon: MapPin },
+    { key: 'communications', label: 'Comms',       Icon: MessageSquare },
   ] as const;
 
   return (
@@ -91,6 +93,7 @@ function App() {
         )}
         {currentScreen === 'approvals' && <Approvals isDemo={isDemo} />}
         {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} />}
+        {currentScreen === 'site_visits' && <SiteVisits isDemo={isDemo} />}
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
       </div>
 

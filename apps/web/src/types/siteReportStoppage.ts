@@ -30,6 +30,8 @@ export interface WorkStoppage {
   created_at: string;
   updated_at: string;
   task_id?: string | null;
+  planned_restart_date?: string | null;
+  planned_restart_visit_id?: string | null;
 }
 
 export interface WorkStoppageWithReport extends WorkStoppage {

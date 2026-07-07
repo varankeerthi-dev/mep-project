@@ -508,6 +508,7 @@ export default function ProjectOverview() {
                     const projectName = proj?.project_name || proj?.name || '\u2014';
                     const tone = toneClassForCategory(s.category);
                     const isOverdue = s.expected_resolution_date && s.expected_resolution_date < today;
+                    const isPastPlanned = s.planned_restart_date && s.planned_restart_date < today && !isOverdue;
 
                     return (
                       <div
@@ -520,7 +521,7 @@ export default function ProjectOverview() {
                         <div
                           className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
                           style={{
-                            backgroundColor: isOverdue ? '#dc2626' : '#d97706',
+                            backgroundColor: isOverdue ? '#dc2626' : isPastPlanned ? '#ea580c' : '#d97706',
                           }}
                         />
                         <div className="flex-1 min-w-0">
@@ -551,7 +552,23 @@ export default function ProjectOverview() {
                                 overdue
                               </span>
                             )}
-                            {!s.expected_resolution_date && (
+                            {isPastPlanned && (
+                              <span
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: '#fff7ed', color: '#ea580c' }}
+                              >
+                                past planned
+                              </span>
+                            )}
+                            {s.planned_restart_date && !isPastPlanned && (
+                              <span
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: '#ecfdf5', color: '#059669' }}
+                              >
+                                planned restart {formatDate(s.planned_restart_date)}
+                              </span>
+                            )}
+                            {!s.expected_resolution_date && !s.planned_restart_date && (
                               <span
                                 className="text-[10px] font-medium px-2 py-0.5 rounded-full"
                                 style={{ backgroundColor: '#fffbeb', color: '#d97706' }}
@@ -571,6 +588,9 @@ export default function ProjectOverview() {
                             Logged on report {report ? formatDate(report.report_date) : '\u2014'}
                             {s.expected_resolution_date && (
                               <> &middot; expected restart {formatDate(s.expected_resolution_date)}</>
+                            )}
+                            {s.planned_restart_visit_id && (
+                              <> &middot; <a href="/site-visits" className="underline hover:text-stone-600" target="_blank" rel="noreferrer">view site visit</a></>
                             )}
                           </div>
                         </div>
@@ -725,6 +745,14 @@ export default function ProjectOverview() {
                 {resolving.expected_resolution_date && (
                   <div className="mt-1" style={{ color: '#a8a29e' }}>
                     Expected restart: {formatDate(resolving.expected_resolution_date)}
+                  </div>
+                )}
+                {resolving.planned_restart_date && (
+                  <div className="mt-1" style={{ color: '#059669' }}>
+                    Planned restart: {formatDate(resolving.planned_restart_date)}
+                    {resolving.planned_restart_visit_id && (
+                      <a href="/site-visits" className="underline ml-2" target="_blank" rel="noreferrer">view site visit</a>
+                    )}
                   </div>
                 )}
               </div>
