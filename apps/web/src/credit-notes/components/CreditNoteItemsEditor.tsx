@@ -498,11 +498,13 @@ export function CNItemsEditor({
                         {getFilteredMaterials(index).length === 0 && <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>No materials found</div>}
                       </div>
                     )}
-                    <InlineDescriptionCell
-                      materialName=""
-                      description={item.description}
-                      onSave={(desc) => setValue(`items.${index}.description`, desc, { shouldDirty: true })}
-                    />
+                    {materialId && (
+                      <InlineDescriptionCell
+                        materialName=""
+                        description={item.description}
+                        onSave={(desc) => setValue(`items.${index}.description`, desc, { shouldDirty: true })}
+                      />
+                    )}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input {...register(`items.${index}.hsn_code`)} placeholder="HSN" style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', textAlign: 'left' }} />

@@ -174,7 +174,8 @@ export default function InvoiceView() {
           amount: item.amount,
           meta_json: item.meta_json,
         }));
-        await supabase.from('invoice_items').insert(itemInserts);
+        const { error: itemsErr } = await supabase.from('invoice_items').insert(itemInserts);
+        if (itemsErr) throw itemsErr;
       }
 
       // Duplicate materials
@@ -187,7 +188,8 @@ export default function InvoiceView() {
           amount: mat.amount,
           meta_json: mat.meta_json,
         }));
-        await supabase.from('invoice_materials').insert(matInserts);
+        const { error: matsErr } = await supabase.from('invoice_materials').insert(matInserts);
+        if (matsErr) throw matsErr;
       }
 
       navigate(`/invoices/view?id=${newInvoice.id}`);

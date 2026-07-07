@@ -44,7 +44,10 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
 
   if (isEditing) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <div 
+        className="inline-description-cell-container is-editing"
+        style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}
+      >
         <textarea
           ref={textareaRef}
           value={draft}
@@ -115,7 +118,10 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', position: 'relative', marginTop: '4px' }}>
+    <div 
+      className={`inline-description-cell-container ${description ? 'has-description' : ''}`}
+      style={{ display: 'flex', flexDirection: 'column', gap: '1px', position: 'relative', marginTop: '4px' }}
+    >
       {description ? (
         <div
           onClick={() => setIsEditing(true)}

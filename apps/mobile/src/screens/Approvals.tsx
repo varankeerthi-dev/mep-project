@@ -255,11 +255,13 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: '2-digit',
-      });
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '—';
+      const day = String(d.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`; // dd-mmm-yyyy
     } catch {
       return '—';
     }

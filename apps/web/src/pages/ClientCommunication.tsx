@@ -1246,11 +1246,17 @@ export function ClientCommunication() {
         <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
           {comm.assigned_to ? (
             <span style={{ fontSize: '12px', color: '#475569', fontWeight: 500 }}>
-              {users.find(u => u.id === comm.assigned_to)?.full_name || users.find(u => u.id === comm.assigned_to)?.email || '—'}
+              {users.find(u => getUserId(u) === comm.assigned_to)?.full_name || users.find(u => getUserId(u) === comm.assigned_to)?.email || '—'}
             </span>
           ) : (
             <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
           )}
+        </td>
+        {/* Received By */}
+        <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '12px', color: '#475569', fontWeight: 500 }}>
+            {users.find(u => getUserId(u) === comm.call_received_by)?.full_name || users.find(u => getUserId(u) === comm.call_received_by)?.email || '—'}
+          </span>
         </td>
 
         {/* Follow Up */}
@@ -1737,7 +1743,7 @@ export function ClientCommunication() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
-                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Next Action', 'Status', 'Assignee', 'Follow Up', ''].map((col, i) => (
+                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Next Action', 'Status', 'Assignee', 'Received By', 'Follow Up', ''].map((col, i) => (
                     <th
                       key={i}
                       style={{
@@ -1750,7 +1756,7 @@ export function ClientCommunication() {
                         letterSpacing: '0.05em',
                         borderBottom: '1px solid #E2E8F0',
                         whiteSpace: 'nowrap',
-                        width: i === 8 ? '40px' : undefined,
+                        width: i === 9 ? '40px' : undefined,
                       }}
                     >
                       {col}
@@ -1761,13 +1767,13 @@ export function ClientCommunication() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={10} style={{ padding: '48px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>
+                    <td colSpan={11} style={{ padding: '48px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>
                       Loading communications...
                     </td>
                   </tr>
                 ) : paginatedComms.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <div style={{ padding: '60px 24px', textAlign: 'center' }}>
                         <MessageSquare size={42} style={{ color: '#CBD5E1', display: 'block', margin: '0 auto 12px' }} />
                         <p style={{ fontSize: '15px', fontWeight: 600, color: '#475569', margin: '0 0 6px' }}>No communications found</p>
@@ -1786,7 +1792,7 @@ export function ClientCommunication() {
                   groupedComms.map(([groupName, comms]) => (
                     <React.Fragment key={groupName}>
                       <tr>
-                        <td colSpan={10} style={{ padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', borderTop: '1px solid #E2E8F0' }}>
+                        <td colSpan={11} style={{ padding: '8px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', borderTop: '1px solid #E2E8F0' }}>
                           <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {groupName} ({comms.length})
                           </span>
@@ -2805,20 +2811,20 @@ export function ClientCommunication() {
               <div>
                 <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Received / Handled By</span>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
-                  {users.find(u => u.id === selectedCommunication.call_received_by)?.full_name || users.find(u => u.id === selectedCommunication.call_received_by)?.email || 'N/A'}
+                  {users.find(u => getUserId(u) === selectedCommunication.call_received_by)?.full_name || users.find(u => getUserId(u) === selectedCommunication.call_received_by)?.email || 'N/A'}
                 </span>
               </div>
               <div>
                 <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Entered / Logged By</span>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
-                  {users.find(u => u.id === selectedCommunication.call_entered_by)?.full_name || users.find(u => u.id === selectedCommunication.call_entered_by)?.email || 'N/A'}
+                  {users.find(u => getUserId(u) === selectedCommunication.call_entered_by)?.full_name || users.find(u => getUserId(u) === selectedCommunication.call_entered_by)?.email || 'N/A'}
                 </span>
               </div>
               <div>
                 <span style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Assignee</span>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#475569' }}>
                   {selectedCommunication.assigned_to
-                    ? (users.find(u => u.id === selectedCommunication.assigned_to)?.full_name || users.find(u => u.id === selectedCommunication.assigned_to)?.email)
+                    ? (users.find(u => getUserId(u) === selectedCommunication.assigned_to)?.full_name || users.find(u => getUserId(u) === selectedCommunication.assigned_to)?.email)
                     : 'Unassigned'}
                 </span>
               </div>

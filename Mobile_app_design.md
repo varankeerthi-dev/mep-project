@@ -379,6 +379,16 @@ All tokens defined under `.dark` in `index.css`. Toggled via `next-themes` with 
 
 ---
 
+## 18. Date Formatting
+
+All dates displayed in the mobile application must adhere to one of the following formats:
+- **`dd-mm-yyyy`** (e.g., `07-07-2026`) - Used for compact layouts and tabular lists.
+- **`dd-mmm-yyyy`** (e.g., `07-Jul-2026`) - Used where months are preferred as text to prevent regional ambiguity (e.g., details cards, logging headers).
+
+Always use consistent formats within a module to maintain design alignment.
+
+---
+
 ## Quick Start: Copy these to your `index.css`
 
 ```css

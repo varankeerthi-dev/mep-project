@@ -135,11 +135,13 @@ export function InvoiceMaterialsEditor({
                       </option>
                     ))}
                   </select>
-                  <InlineDescriptionCell
-                    materialName=""
-                    description={watch(`materials.${index}.description`) as string}
-                    onSave={(desc) => setValue(`materials.${index}.description`, desc, { shouldDirty: true })}
-                  />
+                  {watch(`materials.${index}.material_id`) && (
+                    <InlineDescriptionCell
+                      materialName=""
+                      description={watch(`materials.${index}.description`) as string}
+                      onSave={(desc) => setValue(`materials.${index}.description`, desc, { shouldDirty: true })}
+                    />
+                  )}
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   <input

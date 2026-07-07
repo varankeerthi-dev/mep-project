@@ -665,11 +665,13 @@ export const DebitNotes: React.FC = () => {
                               <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                             ))}
                           </select>
-                          <InlineDescriptionCell
-                            materialName=""
-                            description={item.description}
-                            onSave={(desc) => updateItem(index, 'description', desc)}
-                          />
+                          {item.material_id && (
+                            <InlineDescriptionCell
+                              materialName=""
+                              description={item.description}
+                              onSave={(desc) => updateItem(index, 'description', desc)}
+                            />
+                          )}
                         </td>
                         <td className="px-3 py-1.5">
                           <Input

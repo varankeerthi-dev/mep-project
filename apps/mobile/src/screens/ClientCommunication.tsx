@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase';
 import { 
   MessageSquare, Plus, Search, Filter, Calendar, Phone, 
   Mail, Users, ArrowLeft, Loader2, 
-  X, Clock, AlertCircle, Sparkles, Edit
+  X, AlertCircle, Sparkles, Edit
 } from 'lucide-react';
+import { BottomSheetPicker } from '../components/BottomSheetPicker';
 
 interface ClientCommunicationProps {
   isDemo?: boolean;
@@ -22,6 +23,8 @@ interface CommItem {
   priority: string;
   status: string;
   created_at: string;
+  call_entered_by: string;
+  call_received_by: string;
   client_id?: string | null;
   vendor_id?: string | null;
   subcontractor_id?: string | null;
@@ -79,6 +82,7 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
   const [filterPartyType, setFilterPartyType] = useState('');
   const [filterPartyId, setFilterPartyId] = useState('');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [userProfilesMap, setUserProfilesMap] = useState<Record<string, string>>({});
 
   // Form State
   const [editingCommId, setEditingCommId] = useState<string | null>(null);
@@ -149,7 +153,9 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       priority: 'high',
       status: 'Open',
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
-      client: { client_name: 'Acme Developments' }
+      client: { client_name: 'Acme Developments' },
+      call_entered_by: 'demo-user-id',
+      call_received_by: 'demo-user-id'
     },
     {
       id: 'demo-c2',
@@ -163,7 +169,9 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       priority: 'high',
       status: 'In Progress',
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
-      vendor: { company_name: 'UltraTech Cement Suppliers' }
+      vendor: { company_name: 'UltraTech Cement Suppliers' },
+      call_entered_by: 'demo-user-id',
+      call_received_by: 'demo-user-id'
     },
     {
       id: 'demo-c3',
@@ -177,7 +185,9 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       priority: 'normal',
       status: 'Open',
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
-      lead: { company_name: 'Nexus Retailers', contact_name: 'Rajesh Kumar' }
+      lead: { company_name: 'Nexus Retailers', contact_name: 'Rajesh Kumar' },
+      call_entered_by: 'demo-user-id',
+      call_received_by: 'demo-user-id'
     }
   ]);
 
@@ -204,6 +214,7 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       setSubcontractors(demoSubcontractors);
       setLeads(demoLeads);
       setComms(demoComms);
+      setUserProfilesMap({ 'demo-user-id': 'Demo User' });
       setLoading(false);
     } else {
       initSessionAndFetch();
@@ -237,13 +248,25 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       }
       setOrgId(userOrgId);
 
-      // Load form selector data
-      const [clientsRes, vendorsRes, subRes, leadsRes] = await Promise.all([
+      // Load form selector data & user profiles
+      const [clientsRes, vendorsRes, subRes, leadsRes, profilesRes] = await Promise.all([
         supabase.from('clients').select('id, client_name').eq('organisation_id', userOrgId).order('client_name'),
         supabase.from('purchase_vendors').select('id, company_name').eq('organisation_id', userOrgId).order('company_name'),
         supabase.from('subcontractors').select('id, company_name').eq('organisation_id', userOrgId).order('company_name'),
-        supabase.from('leads').select('id, company_name, contact_name').eq('organisation_id', userOrgId).order('company_name')
+        supabase.from('leads').select('id, company_name, contact_name').eq('organisation_id', userOrgId).order('company_name'),
+        supabase.from('user_profiles').select('id, user_id, full_name')
       ]);
+
+      const profileMap: Record<string, string> = {};
+      if (profilesRes.data) {
+        profilesRes.data.forEach((p: any) => {
+          const uId = p.user_id || p.id;
+          if (uId) {
+            profileMap[uId] = p.full_name || 'System User';
+          }
+        });
+      }
+      setUserProfilesMap(profileMap);
 
       setClients(clientsRes.data?.map(c => ({ id: c.id, name: c.client_name })) || []);
       setVendors(vendorsRes.data?.map(v => ({ id: v.id, name: v.company_name })) || []);
@@ -678,6 +701,41 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
     }
   };
 
+  const formatDate = (dateStr: string | null | undefined, useTextMonth = true) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '—';
+      const day = String(d.getDate()).padStart(2, '0');
+      if (useTextMonth) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months[d.getMonth()];
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`; // dd-mmm-yyyy
+      } else {
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}-${month}-${year}`; // dd-mm-yyyy
+      }
+    } catch {
+      return '—';
+    }
+  };
+
+  const formatDateTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '—';
+      const datePart = formatDate(dateStr, true);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${datePart} ${hours}:${minutes}`;
+    } catch {
+      return '—';
+    }
+  };
+
   const resetForm = () => {
     setFormPartyId('');
     setFormSubject('');
@@ -899,11 +957,16 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                           {getCategoryIcon(item.call_category)}
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-foreground truncate max-w-[180px]">
-                            {getPartyDisplayName(item)}
-                          </h4>
+                          <div className="flex items-baseline gap-2">
+                            <h4 className="text-xs font-bold text-foreground truncate max-w-[150px]">
+                              {getPartyDisplayName(item)}
+                            </h4>
+                            <span className="text-[9px] font-medium text-muted-foreground shrink-0">
+                              {formatDate(item.created_at, true)}
+                            </span>
+                          </div>
                           <p className="text-[9px] font-semibold uppercase text-muted-foreground/70">
-                            {item.party_type} • {item.call_regarding}
+                            {item.party_type} • {item.call_regarding} • Entered by: {userProfilesMap[item.call_entered_by] || 'System'} • Received by: {userProfilesMap[item.call_received_by] || 'System'}
                           </p>
                         </div>
                       </div>
@@ -922,18 +985,14 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                       <p className="text-[10px] text-muted-foreground/90 line-clamp-2 leading-relaxed">{item.call_brief}</p>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2 border-t border-border/20 text-[9px] text-muted-foreground font-semibold">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3 w-3" />
-                        <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                      </div>
-                      {item.follow_up_date && (
+                    {item.follow_up_date && (
+                      <div className="flex justify-between items-center pt-2 border-t border-border/20 text-[9px] text-muted-foreground font-semibold">
                         <div className="flex items-center gap-1 bg-amber-500/5 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/10">
                           <Calendar className="h-3 w-3" />
-                          <span>Follow up: {item.follow_up_date}</span>
+                          <span>Follow up: {formatDate(item.follow_up_date, true)}</span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -980,17 +1039,13 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                   </button>
                 )}
               </div>
-              <select
+              <BottomSheetPicker
+                label={`Select ${formPartyType.charAt(0).toUpperCase() + formPartyType.slice(1)}`}
+                options={getPartyOptions()}
                 value={formPartyId}
-                onChange={(e) => setFormPartyId(e.target.value)}
-                className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                required
-              >
-                <option value="">-- Choose {formPartyType} --</option>
-                {getPartyOptions().map((opt) => (
-                  <option key={opt.id} value={opt.id}>{opt.name}</option>
-                ))}
-              </select>
+                onChange={(val) => setFormPartyId(val)}
+                placeholder={`-- Choose ${formPartyType} --`}
+              />
             </div>
 
             {/* Subject */}
@@ -1077,7 +1132,7 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
 
             {/* Next Action */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Next Action Required</label>
+              <label className="text-xs font-semibold text-muted-foreground">Next Action Required / Next plan</label>
               <input
                 type="text"
                 value={formNextAction}
@@ -1155,7 +1210,7 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
 
               {selectedComm.next_action && (
                 <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Next Action</span>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Next Action / Next plan</span>
                   <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                     <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                     <span>{selectedComm.next_action}</span>
@@ -1173,13 +1228,21 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                   <p className="font-semibold capitalize text-foreground">{selectedComm.status}</p>
                 </div>
                 <div>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Entered By</span>
+                  <p className="font-semibold text-foreground">{userProfilesMap[selectedComm.call_entered_by] || 'System'}</p>
+                </div>
+                <div>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Received By</span>
+                  <p className="font-semibold text-foreground">{userProfilesMap[selectedComm.call_received_by] || 'System'}</p>
+                </div>
+                <div>
                   <span className="text-[8px] font-bold text-muted-foreground uppercase">Date Logged</span>
-                  <p className="font-semibold text-foreground">{new Date(selectedComm.created_at).toLocaleString()}</p>
+                  <p className="font-semibold text-foreground">{formatDateTime(selectedComm.created_at)}</p>
                 </div>
                 {selectedComm.follow_up_date && (
                   <div>
                     <span className="text-[8px] font-bold text-muted-foreground uppercase text-amber-600">Follow-Up Date</span>
-                    <p className="font-semibold text-amber-600">{selectedComm.follow_up_date}</p>
+                    <p className="font-semibold text-amber-600">{formatDate(selectedComm.follow_up_date, true)}</p>
                   </div>
                 )}
               </div>

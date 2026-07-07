@@ -1018,7 +1018,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         organisation_id: dcData.organisation_id
       }));
       
-      await supabase.from('delivery_challan_items').insert(itemsToSave);
+      const { error: itemsError } = await supabase.from('delivery_challan_items').insert(itemsToSave);
+      if (itemsError) throw itemsError;
 
       // Update intent status if creating DC from intent
       if (intentId && organisation?.id && user?.id) {
@@ -1634,7 +1635,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
           <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
               <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
               <span style={{ marginLeft: '6px', fontSize: '11px', fontWeight: 600, padding: '2px 8px', background: '#f3f4f6', color: '#6b7280', borderRadius: '4px' }}>
                 {items.length} {items.length === 1 ? 'Item' : 'Items'}
@@ -1713,11 +1713,13 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                           onChange={(materialId) => handleItemChange(item.id, 'material_id', materialId)}
                         />
                       )}
-                      <InlineDescriptionCell
-                        materialName=""
-                        description={item.description}
-                        onSave={(desc) => handleItemChange(item.id, 'description', desc)}
-                      />
+                      {item.material_id && (
+                        <InlineDescriptionCell
+                          materialName=""
+                          description={item.description}
+                          onSave={(desc) => handleItemChange(item.id, 'description', desc)}
+                        />
+                      )}
                     </td>
                     <td className="col-shrink">
                       {!item.is_service ? (

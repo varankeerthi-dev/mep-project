@@ -1598,7 +1598,6 @@ export default function ProformaEditorPage() {
         <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
           <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
               <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
               <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
                 {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
@@ -1686,11 +1685,13 @@ export default function ProformaEditorPage() {
                             ×
                           </button>
                         )}
-                        <InlineDescriptionCell
-                          materialName=""
-                          description={item.description}
-                          onSave={(desc) => handleItemChange(index, 'description', desc)}
-                        />
+                        {item.item_id && (
+                          <InlineDescriptionCell
+                            materialName=""
+                            description={item.description}
+                            onSave={(desc) => handleItemChange(index, 'description', desc)}
+                          />
+                        )}
                       </td>
                     )}
                     {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
@@ -1799,7 +1800,7 @@ export default function ProformaEditorPage() {
                       </td>
                     )}
                     {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && (
-                      <td className="cell-input">
+                      <td className="cell-input col-rate-after-disc">
                         <input
                           type="number"
                           className="cell-input text-right bg-zinc-50/50 cursor-default font-medium"

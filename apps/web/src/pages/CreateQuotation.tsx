@@ -1376,20 +1376,20 @@ const loadQuoteNoPreview = useCallback(async () => {
   }, [discountPopup, items, materials]);
 
   const getTableMinWidth = useCallback(() => {
-    let width = 835;
+    let width = 680;
     const optional = templateSettings?.column_settings?.optional || {};
     
-    if (optional.hsn_code !== false) width += 80;
-    if (optional.client_part_no === true) width += 100;
-    if (optional.client_description === true) width += 250;
-    if (optional.make !== false) width += 80;
-    if (optional.variant !== false) width += 110;
-    if (optional.discount_percent !== false) width += 70;
-    if (optional.rate_after_discount !== false) width += 95;
-    if (optional.tax_percent !== false) width += 60;
+    if (optional.hsn_code !== false) width += 70;
+    if (optional.client_part_no === true) width += 90;
+    if (optional.client_description === true) width += 200;
+    if (optional.make !== false) width += 70;
+    if (optional.variant !== false) width += 100;
+    if (optional.discount_percent !== false) width += 55;
+    if (optional.rate_after_discount !== false) width += 70;
+    if (optional.tax_percent !== false) width += 50;
     
-    if (optional.custom1 !== false && templateSettings?.column_settings?.labels != null) width += 140;
-    if (optional.custom2 !== false && templateSettings?.column_settings?.labels != null) width += 140;
+    if (optional.custom1 !== false && templateSettings?.column_settings?.labels != null) width += 100;
+    if (optional.custom2 !== false && templateSettings?.column_settings?.labels != null) width += 100;
     
     return `${width}px`;
   }, [templateSettings]);
@@ -2725,7 +2725,6 @@ const itemsToInsert = items.map(item => ({
           original_discount_percent: parseFloat(item.original_discount_percent) || 0,
           discount_percent: parseFloat(item.discount_percent) || 0,
           discount_amount: item.discount_amount || 0,
-          discount_type: item.discount_type || 'percent',
           tax_percent: parseFloat(item.tax_percent) || 0,
           tax_amount: item.tax_amount || 0,
           line_total: item.line_total || 0,
@@ -2774,24 +2773,29 @@ const itemsToInsert = items.map(item => ({
         )
       ]);
 
-      // Insert new items and discounts in parallel
-      const insertPromises = [
-        withTimeout(
-          supabase.from('quotation_items').insert(itemsToInsert),
-          'saving quotation items',
-          35000
-        )
-      ];
-      if (variantDiscountRecords.length > 0) {
-        insertPromises.push(
-          withTimeout(
-            supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords),
-            'saving quotation discount overrides',
-            35000
-          )
-        );
+      // Save quotation items
+      const { error: itemsError } = await withTimeout(
+        supabase.from('quotation_items').insert(itemsToInsert),
+        'saving quotation items',
+        35000
+      );
+      if (itemsError) {
+        console.error('Error saving quotation items:', itemsError);
+        throw new Error(`Failed to save quotation items: ${itemsError.message} (${itemsError.code})`);
       }
-      await Promise.all(insertPromises);
+
+      // Save variant discount records
+      if (variantDiscountRecords.length > 0) {
+        const { error: discountError } = await withTimeout(
+          supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords),
+          'saving quotation discount overrides',
+          35000
+        );
+        if (discountError) {
+          console.error('Error saving quotation discounts:', discountError);
+          throw new Error(`Failed to save quotation discounts: ${discountError.message} (${discountError.code})`);
+        }
+      }
 
       // Save DC links for multi-DC conversion
       if (isMultiDC && quotationId && dcAllocations.length > 0) {
@@ -3041,8 +3045,8 @@ const itemsToInsert = items.map(item => ({
   }
 
   return (
-    <div>
-      <div ref={headerRef} className="flex items-center justify-between fixed top-0 left-0 right-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ top: '32px', left: '220px', marginBottom: 0 }}>
+    <div style={{ padding: '0 0 24px 0' }}>
+      <div ref={headerRef} className="flex items-center justify-between sticky top-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ top: 0, margin: '-24px -24px 24px -24px', padding: '16px 24px', zIndex: 100 }}>
         <div className="flex items-center gap-3">
           <h1 className="text-base font-bold text-zinc-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
@@ -3553,7 +3557,6 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
       <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
             <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
             <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
               {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
@@ -3759,6 +3762,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                                 item_id: materialId,
                                 material: mat,
                                 hsn_code: mat.hsn_code || '',
+                                uom: mat.unit || '',
                                 description: '',
                                 tax_percent: mat.gst_rate || 0,
                                 discount_category_id: dcId,
@@ -3774,6 +3778,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                                 item_id: '',
                                 material: null,
                                 hsn_code: '',
+                                uom: '',
                                 description: '',
                                 tax_percent: 0,
                                 discount_category_id: null,
@@ -3831,11 +3836,13 @@ className="text-center cell-static col-shrink row-drag-handle"
                             ×
                           </button>
                         )}
-                        <InlineDescriptionCell
-                          materialName=""
-                          description={item.description}
-                          onSave={(desc) => updateItem(item.id, 'description', desc)}
-                        />
+                        {item.item_id && (
+                          <InlineDescriptionCell
+                            materialName=""
+                            description={item.description}
+                            onSave={(desc) => updateItem(item.id, 'description', desc)}
+                          />
+                        )}
                       </td>
                       )}
                       {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
@@ -4055,7 +4062,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                           style={item.is_override ? { background: '#fef3c7', border: '1px solid #f59e0b' } : {}}
                         />
                       </td>
-                      <td className="col-shrink">
+                      <td className="col-shrink col-rate-after-disc">
                         <input
                           type="number"
                           className="cell-input text-right"
@@ -4065,7 +4072,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                           style={!formData.negotiation_mode ? { background: '#f8fafc' } : {}}
                         />
                       </td>
-                      <td className="col-shrink">
+                      <td className="col-gst">
                         <input type="number" className="cell-input text-right" value={item.tax_percent} onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)} />
                       </td>
                       {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels != null && (

@@ -4,9 +4,10 @@ import { Login } from './screens/Login';
 import { Dashboard } from './screens/Dashboard';
 import { Approvals } from './screens/Approvals';
 import { ClientCommunication } from './screens/ClientCommunication';
-import { Home, ClipboardList, Loader2, MessageSquare } from 'lucide-react';
+import { SiteReport } from './screens/SiteReport';
+import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck } from 'lucide-react';
 
-type Screen = 'dashboard' | 'approvals' | 'communications';
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report';
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -70,6 +71,13 @@ function App() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const NAV_ITEMS = [
+    { key: 'dashboard',    label: 'Dashboard',  Icon: Home },
+    { key: 'approvals',    label: 'Approvals',  Icon: ClipboardList },
+    { key: 'site_report',  label: 'Site Report', Icon: ClipboardCheck },
+    { key: 'communications', label: 'Comms',    Icon: MessageSquare },
+  ] as const;
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans select-none antialiased">
       {/* Active Screen */}
@@ -82,53 +90,28 @@ function App() {
           />
         )}
         {currentScreen === 'approvals' && <Approvals isDemo={isDemo} />}
+        {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} />}
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
       </div>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border pb-safe">
         <div className="flex items-end justify-around h-16 max-w-lg mx-auto px-2 pb-1">
-          {/* Dashboard Tab */}
-          <button
-            onClick={() => setCurrentScreen('dashboard')}
-            className={`flex-1 flex flex-col items-center justify-center h-full relative cursor-pointer ${
-              currentScreen === 'dashboard' ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            <Home className="h-5 w-5 mb-0.5" />
-            <span className="text-[9px] font-medium">Dashboard</span>
-            {currentScreen === 'dashboard' && (
-              <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
-
-          {/* Approvals Tab */}
-          <button
-            onClick={() => setCurrentScreen('approvals')}
-            className={`flex-1 flex flex-col items-center justify-center h-full relative cursor-pointer ${
-              currentScreen === 'approvals' ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            <ClipboardList className="h-5 w-5 mb-0.5" />
-            <span className="text-[9px] font-medium">Approvals</span>
-            {currentScreen === 'approvals' && (
-              <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
-
-          {/* Comms Tab */}
-          <button
-            onClick={() => setCurrentScreen('communications')}
-            className={`flex-1 flex flex-col items-center justify-center h-full relative cursor-pointer ${
-              currentScreen === 'communications' ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            <MessageSquare className="h-5 w-5 mb-0.5" />
-            <span className="text-[9px] font-medium">Comms</span>
-            {currentScreen === 'communications' && (
-              <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
-            )}
-          </button>
+          {NAV_ITEMS.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              onClick={() => setCurrentScreen(key as Screen)}
+              className={`flex-1 flex flex-col items-center justify-center h-full relative cursor-pointer ${
+                currentScreen === key ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <Icon className="h-5 w-5 mb-0.5" />
+              <span className="text-[9px] font-medium">{label}</span>
+              {currentScreen === key && (
+                <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+          ))}
         </div>
       </nav>
     </div>
@@ -136,3 +119,4 @@ function App() {
 }
 
 export default App;
+

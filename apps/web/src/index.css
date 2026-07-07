@@ -1660,42 +1660,53 @@ body {
 }
 
 .grid-table th.col-qty {
-  width: 70px;
+  width: 60px;
   text-align: center;
 }
 
 .grid-table th.col-unit {
-  width: 60px;
+  width: 50px;
   text-align: center;
 }
 
 .grid-table th.col-rate {
-  width: 100px;
+  width: 85px;
   text-align: right;
 }
 
 .grid-table th.col-rate-after-disc {
-  width: 95px;
-  text-align: right;
+  width: 70px !important;
+  text-align: center !important;
+  white-space: normal !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+}
+
+.grid-table td.col-rate-after-disc input {
+  font-size: 11px !important;
+  padding: 4px 2px !important;
 }
 
 .grid-table th.col-amount {
-  width: 120px;
+  width: 100px;
   text-align: right;
 }
 
 .grid-table th.col-disc {
-  width: 70px;
+  width: 55px;
   text-align: right;
 }
 
-.grid-table th.col-gst {
-  width: 60px;
+.grid-table th.col-gst,
+.grid-table .col-gst {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
   text-align: right;
 }
 
 .grid-table th.col-hsn {
-  width: 80px;
+  width: 70px;
 }
 
 .grid-table th.col-disc-cat,
@@ -1849,8 +1860,9 @@ body {
   white-space: nowrap;
 }
 .grid-table .col-custom {
-  min-width: 120px;
-  width: 140px;
+  min-width: 90px;
+  width: 100px;
+  max-width: 100px;
 }
 
 .grid-table .delete-cell {
@@ -3092,12 +3104,12 @@ body {
 
 /* Custom Table Header & Footer Styles for Create Quotation UI Refactoring */
 .grid-table .grid-table-header-dark th {
-  background: #1e3a8a !important;
-  color: white !important;
-  font-weight: 700 !important;
+  background: #e5e7eb !important;
+  color: #000000 !important;
+  font-weight: 500 !important;
   font-size: 11px !important;
   letter-spacing: 0.03em !important;
-  border-bottom: 2px solid #172554 !important;
+  border-bottom: 1px solid #d1d5db !important;
 }
 
 /* Override the universal border-radius 0 reset for card elements specifically if needed */
@@ -3291,4 +3303,31 @@ body {
 
 .sidebar-section-chevron.expanded {
   transform: rotate(90deg);
+}
+
+/* ==========================================
+   INLINE DESCRIPTION CELL SPACE OPTIMIZATION
+   ========================================== */
+
+.inline-description-cell-container:not(.has-description):not(.is-editing) {
+  margin-top: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  transition: opacity 0.15s ease-in-out;
+}
+
+tr:hover .inline-description-cell-container:not(.has-description):not(.is-editing),
+td:hover .inline-description-cell-container:not(.has-description):not(.is-editing) {
+  margin-top: 4px !important;
+  height: auto !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+}
+
+@media (min-width: 1024px) {
+  .grid-table.cq-editable {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
 }
