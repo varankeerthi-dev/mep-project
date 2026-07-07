@@ -226,6 +226,8 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
     // Equipment
     equipment_on_site: '',
     equipment_breakdown: '',
+    equipment_no_fault: false,
+    equipment_no_fault_notes: '',
     // Safety
     toolbox_meeting: false,
     ppe_complied: false,
@@ -341,7 +343,9 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
       actual_progress: form.actual_progress,
       percent_complete: form.percent_complete || '0',
       equipment_on_site: form.equipment_on_site,
-      equipment_breakdown: form.equipment_breakdown,
+      equipment_breakdown: form.equipment_no_fault ? '' : form.equipment_breakdown,
+      equipment_no_fault: form.equipment_no_fault,
+      equipment_no_fault_notes: form.equipment_no_fault ? form.equipment_no_fault_notes : '',
       toolbox_meeting: form.toolbox_meeting,
       ppe_followed: form.ppe_complied,
       inspection_status: form.quality_inspection,
@@ -910,14 +914,48 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Equipment Breakdown</label>
-              <input
-                type="text"
-                value={form.equipment_breakdown}
-                onChange={e => setForm(f => ({ ...f, equipment_breakdown: e.target.value }))}
-                placeholder="Any breakdown details or NIL"
-                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Equipment Status</label>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, equipment_no_fault: false }))}
+                  className={`flex-1 py-2 rounded-xl border text-xs font-semibold ${
+                    !form.equipment_no_fault
+                      ? 'bg-red-50 border-red-300 text-red-700'
+                      : 'bg-white border-border text-muted-foreground'
+                  }`}
+                >
+                  Breakdown / Fault
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, equipment_no_fault: true, equipment_breakdown: '' }))}
+                  className={`flex-1 py-2 rounded-xl border text-xs font-semibold ${
+                    form.equipment_no_fault
+                      ? 'bg-green-50 border-green-300 text-green-700'
+                      : 'bg-white border-border text-muted-foreground'
+                  }`}
+                >
+                  No Equipment Fault
+                </button>
+              </div>
+              {form.equipment_no_fault ? (
+                <input
+                  type="text"
+                  value={form.equipment_no_fault_notes}
+                  onChange={e => setForm(f => ({ ...f, equipment_no_fault_notes: e.target.value }))}
+                  placeholder="All equipment functioning normally. Optional notes..."
+                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={form.equipment_breakdown}
+                  onChange={e => setForm(f => ({ ...f, equipment_breakdown: e.target.value }))}
+                  placeholder="Any breakdown details or NIL"
+                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              )}
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Material Arrangement</label>

@@ -138,7 +138,9 @@ const siteReportSchema = z.object({
   
   equipment: z.object({
     onSite: z.string(),
-    breakdown: z.string()
+    breakdown: z.string(),
+    noFault: z.boolean().optional(),
+    noFaultNotes: z.string().optional()
   }),
   
   safety: z.object({
@@ -399,7 +401,7 @@ export function SiteReport() {
       workCarriedOut: [{ value: '', trade: 'General' }],
       milestonesCompleted: [{ value: '' }],
       progress: { planned: '', actual: '', percentComplete: '' },
-      equipment: { onSite: '', breakdown: '' },
+      equipment: { onSite: '', breakdown: '', noFault: false, noFaultNotes: '' },
       safety: { toolboxMeeting: false, ppe: false },
       quality: { inspection: 'Pending', satisfiedPercent: '', reworkRequiredReason: '' },
       rework: { isRework: false, reason: '', start: '', end: '', materialUsed: '', totalManpower: '' },
@@ -802,7 +804,7 @@ export function SiteReport() {
       workCarriedOut: (r._works || []).map((w: any) => ({ value: w.description || '', trade: w.trade || 'General' })),
       milestonesCompleted: (r._milestones || []).map((m: any) => ({ value: m.description || '' })),
       progress: { planned: r.planned_progress || '', actual: r.actual_progress || '', percentComplete: r.percent_complete || '' },
-      equipment: { onSite: r.equipment_on_site || '', breakdown: r.breakdown_issues || '' },
+      equipment: { onSite: r.equipment_on_site || '', breakdown: r.breakdown_issues || '', noFault: !!r.equipment_no_fault, noFaultNotes: r.equipment_no_fault_notes || '' },
       safety: { toolboxMeeting: !!r.toolbox_meeting, ppe: !!r.ppe_followed },
       quality: { inspection: (r.inspection_status as any) || 'Pending', satisfiedPercent: r.satisfied_percent || '', reworkRequiredReason: r.rework_required_reason || '' },
       rework: {
@@ -906,7 +908,9 @@ export function SiteReport() {
         actual_progress: values.progress.actual,
         percent_complete: values.progress.percentComplete,
         equipment_on_site: values.equipment.onSite,
-        breakdown_issues: values.equipment.breakdown,
+        breakdown_issues: values.equipment.noFault ? '' : values.equipment.breakdown,
+        equipment_no_fault: values.equipment.noFault || false,
+        equipment_no_fault_notes: values.equipment.noFault ? (values.equipment.noFaultNotes || '') : '',
         toolbox_meeting: values.safety.toolboxMeeting,
         ppe_followed: values.safety.ppe,
         inspection_status: values.quality.inspection,
@@ -1098,7 +1102,9 @@ export function SiteReport() {
         actual_progress: values.progress.actual,
         percent_complete: values.progress.percentComplete,
         equipment_on_site: values.equipment.onSite,
-        breakdown_issues: values.equipment.breakdown,
+        breakdown_issues: values.equipment.noFault ? '' : values.equipment.breakdown,
+        equipment_no_fault: values.equipment.noFault || false,
+        equipment_no_fault_notes: values.equipment.noFault ? (values.equipment.noFaultNotes || '') : '',
         toolbox_meeting: values.safety.toolboxMeeting,
         ppe_followed: values.safety.ppe,
         inspection_status: values.quality.inspection,
@@ -1324,7 +1330,9 @@ export function SiteReport() {
       actual_progress: values.progress?.actual || '',
       percent_complete: values.progress?.percentComplete || '',
       equipment_on_site: values.equipment?.onSite || '',
-      breakdown_issues: values.equipment?.breakdown || '',
+      breakdown_issues: values.equipment?.noFault ? '' : (values.equipment?.breakdown || ''),
+      equipment_no_fault: values.equipment?.noFault || false,
+      equipment_no_fault_notes: values.equipment?.noFault ? (values.equipment?.noFaultNotes || '') : '',
       toolbox_meeting: values.safety?.toolboxMeeting || false,
       ppe_followed: values.safety?.ppe || false,
       inspection_status: values.quality?.inspection || '',
@@ -1462,7 +1470,9 @@ export function SiteReport() {
         actual_progress: report.actual_progress || '',
         percent_complete: report.percent_complete || '',
         equipment_on_site: report.equipment_on_site || '',
-        breakdown_issues: report.breakdown_issues || '',
+        breakdown_issues: report.equipment_no_fault ? '' : (report.breakdown_issues || ''),
+        equipment_no_fault: report.equipment_no_fault || false,
+        equipment_no_fault_notes: report.equipment_no_fault ? (report.equipment_no_fault_notes || '') : '',
         toolbox_meeting: report.toolbox_meeting,
         ppe_followed: report.ppe_followed,
         inspection_status: report.inspection_status || '',
@@ -2499,8 +2509,41 @@ export function SiteReport() {
                     <Textarea className="min-h-[80px] text-sm bg-white" {...form.register('equipment.onSite')} placeholder="List tools and machinery on site..." />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#dc2626' }}>Issues / breakdowns</label>
-                    <Textarea className="min-h-[80px] text-sm bg-white" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues or breakdowns..." />
+                    <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Issues / breakdowns</label>
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => { form.setValue('equipment.noFault', false); }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                          !form.watch('equipment.noFault')
+                            ? 'bg-red-50 border-red-300 text-red-700'
+                            : 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50'
+                        }`}
+                      >
+                        Breakdown / Fault
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { form.setValue('equipment.noFault', true); form.setValue('equipment.breakdown', ''); }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                          form.watch('equipment.noFault')
+                            ? 'bg-green-50 border-green-300 text-green-700'
+                            : 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50'
+                        }`}
+                      >
+                        No Equipment Fault
+                      </button>
+                    </div>
+                    {form.watch('equipment.noFault') ? (
+                      <Textarea
+                        className="min-h-[60px] text-sm bg-white"
+                        value={form.watch('equipment.noFaultNotes') || ''}
+                        onChange={(e) => form.setValue('equipment.noFaultNotes', e.target.value)}
+                        placeholder="All equipment functioning normally. Optional notes..."
+                      />
+                    ) : (
+                      <Textarea className="min-h-[80px] text-sm bg-white" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues or breakdowns..." />
+                    )}
                   </div>
                 </div>
 
