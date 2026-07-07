@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+const uuidv4 = () => crypto.randomUUID();
 import { useCreateMeasurementSheet, MeasurementLineItem } from '../hooks/useMeasurementSheets';
 import { exportMeasurementSheetPDF } from '../utils/exportMeasurementSheetPDF';
 import { formatCurrency } from '../utils/formatters';
