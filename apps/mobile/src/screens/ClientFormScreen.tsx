@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, Save, Info, Building2, User, MapPin, FileText, Tag, Percent, Users, PhoneCall, Plus } from 'lucide-react';
+import { ChevronLeft, Save, Info, Building2, User, MapPin, FileText, Tag, Percent, Users, PhoneCall, Plus, Trash2 } from 'lucide-react';
 
 interface ClientFormScreenProps {
   onBack: () => void;
@@ -63,6 +63,8 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
   const [pricelists, setPricelists] = useState<PriceList[]>([]);
   const [discountCategories, setDiscountCategories] = useState<DiscountCategory[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (clientData) {
@@ -165,6 +167,30 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
       setSaveMsg('Error: ' + (err?.message || err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!clientData?.id) return;
+    setDeleting(true);
+    try {
+      if (isDemo) {
+        await new Promise(r => setTimeout(r, 500));
+        setShowDeleteModal(false);
+        onBack();
+        return;
+      }
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientData.id);
+      if (error) throw error;
+      setShowDeleteModal(false);
+      onBack();
+    } catch (err: any) {
+      console.error('Delete error:', err);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -670,6 +696,16 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
 
       {/* Sticky Save Footer */}
       <div className="sticky bottom-0 left-0 right-0 z-50 px-4 py-3 bg-card/95 backdrop-blur-xl border-t border-border">
+        {editMode && (
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            disabled={saving}
+            className="w-full h-12 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mb-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Client
+          </button>
+        )}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -679,6 +715,44 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
           {saving ? 'Saving…' : editMode ? 'Update Client' : 'Save Client'}
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-6" onClick={() => { if (!deleting) setShowDeleteModal(false); }}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-card rounded-2xl p-6 max-w-sm w-full border border-border shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Delete Client</h3>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Are you sure you want to permanently delete <strong className="text-foreground">{form.client_name}</strong>? This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="h-10 px-5 rounded-xl bg-card border border-border text-sm font-semibold text-muted-foreground active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="h-10 px-5 rounded-xl bg-destructive text-white text-sm font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

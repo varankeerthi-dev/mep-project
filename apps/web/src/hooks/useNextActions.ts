@@ -545,6 +545,7 @@ export function useNextActions() {
   return {
     nextActions: nextActionsQuery.data || [],
     history: historyQuery.data || [],
+    nextActionsHistory: historyQuery.data || [],
     isLoading: nextActionsQuery.isLoading || historyQuery.isLoading,
     refetch: () => {
       nextActionsQuery.refetch();

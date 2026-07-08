@@ -69,7 +69,7 @@ export default function QuotationView() {
   const [previewTemplate, setPreviewTemplate] = useState(null);
   
   const quotationQuery = useQuery({
-    queryKey: ['quotation', quotationId],
+    queryKey: ['quotation', quotationId, organisation?.id],
     queryFn: async () => {
       if (!quotationId) return null;
       const query = supabase
@@ -87,7 +87,7 @@ export default function QuotationView() {
       const data = await timedSupabaseQuery(query, 'Quotation view');
       return data;
     },
-    enabled: !!quotationId,
+    enabled: !!quotationId && !!organisation?.id,
   });
 
   const templatesQuery = useQuery({
@@ -2254,3 +2254,4 @@ export default function QuotationView() {
     </div>
   );
 }
+

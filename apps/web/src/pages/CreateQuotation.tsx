@@ -3045,8 +3045,8 @@ const itemsToInsert = items.map(item => ({
   }
 
   return (
-    <div style={{ padding: '0 0 24px 0' }}>
-      <div ref={headerRef} className="flex items-center justify-between sticky top-0 z-50 bg-white pt-4 pb-3 border-b border-zinc-200" style={{ top: 0, margin: '-24px -24px 24px -24px', padding: '16px 24px', zIndex: 100 }}>
+    <div style={{ padding: '0 0 24px 0', marginTop: '-56px', background: '#f8fafc', minHeight: '100%' }}>
+      <div ref={headerRef} className="flex items-center justify-between sticky top-0 z-50 pt-4 pb-3 border-b border-zinc-200" style={{ top: 0, margin: '0 -24px 24px -24px', padding: '16px 24px', zIndex: 100, backgroundColor: '#ffffff', opacity: 1 }}>
         <div className="flex items-center gap-3">
           <h1 className="text-base font-bold text-zinc-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
@@ -3182,7 +3182,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
           </div>
         </div>
       </div>
-      <div style={{ paddingTop: headerHeight, background: '#f8fafc', padding: '16px', minHeight: 'calc(100vh - 64px)' }}>
+      <div style={{ background: '#f8fafc', padding: '0 16px 16px 16px', minHeight: 'calc(100vh - 64px)' }}>
         {activeImportSessionId && (
           <div className="bg-indigo-900/40 border border-indigo-800/60 text-indigo-200 px-6 py-3 rounded-lg flex items-center justify-between text-xs font-semibold mb-4 animate-in slide-in-from-top">
             <div className="flex items-center gap-2">
@@ -4112,180 +4112,64 @@ className="text-center cell-static col-shrink row-drag-handle"
                 })
               )}
               
-              {(() => {
-                const visibleItems = items.filter(item => {
-                  if (activeSection === 'materials') {
-                    return item.section !== 'erection';
-                  } else {
-                    return item.section === 'erection';
-                  }
-                });
-                
-                const totalQty = visibleItems.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
-                const totalAmount = visibleItems.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0);
-                
-                return (
-                  <>
-                    <tr className="total-row">
-                      <td colSpan={getColsBeforeQty()} className="total-label text-right font-bold pr-4">TOTAL</td>
-                      <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>
-                        {totalQty.toFixed(2)}
-                      </td>
-                      <td className="cell-static"></td> {/* Unit */}
-                      <td className="cell-static"></td> {/* Rate */}
-                      <td className="cell-static"></td> {/* Disc % */}
-                      <td className="cell-static"></td> {/* Rate After Disc */}
-                      <td className="cell-static"></td> {/* GST % */}
-                      {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
-                        <td className="cell-static"></td>
-                      )}
-                      {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
-                        <td className="cell-static"></td>
-                      )}
-                      <td className="text-right font-bold amount-value pr-4" style={{ fontSize: '15px', color: '#111827' }}>
-                        {formatCurrency(totalAmount)}
-                      </td>
-                      <td className="cell-static"></td> {/* Actions/Delete */}
-                    </tr>
-
-                    {/* Aligned Footer Calculations Rows */}
-                    <tr className="footer-breakdown-row">
-                      <td colSpan={getColsBeforeAmount()} className="text-right font-bold pr-4" style={{ textAlign: 'right' }}>Subtotal</td>
-                      <td className="text-right font-semibold pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                        {formatCurrency(calculations.subtotal)}
-                      </td>
-                      <td></td>
-                    </tr>
-                    {calculations.totalItemDiscount > 0 && (
-                      <tr className="footer-breakdown-row">
-                        <td colSpan={getColsBeforeAmount()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>Total Item Discount</td>
-                        <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                          - {formatCurrency(calculations.totalItemDiscount)}
-                        </td>
-                        <td></td>
-                      </tr>
-                    )}
-                    {calculations.extraDiscountAmount > 0 && (
-                      <tr className="footer-breakdown-row">
-                        <td colSpan={getColsBeforeAmount()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>Extra Discount</td>
-                        <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                          - {formatCurrency(calculations.extraDiscountAmount)}
-                        </td>
-                        <td></td>
-                      </tr>
-                    )}
-                    <tr className="footer-breakdown-row">
-                      <td colSpan={getColsBeforeAmount()} className="text-right font-semibold text-zinc-700 pr-4" style={{ textAlign: 'right' }}>Taxable Value</td>
-                      <td className="text-right font-semibold text-zinc-700 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                        {formatCurrency(calculations.subtotal - calculations.extraDiscountAmount)}
-                      </td>
-                      <td></td>
-                    </tr>
-                    
-                    {/* GST Rows */}
-                    {calculations.isInterState ? (
-                      <tr className="footer-breakdown-row">
-                        <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>IGST</td>
-                        <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>
-                          {Object.keys(calculations.taxGroups || {}).length > 0 
-                            ? Object.keys(calculations.taxGroups).map(rate => `${rate}%`).join(', ') 
-                            : '-'}
-                        </td>
-                        {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && <td></td>}
-                        {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && <td></td>}
-                        <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                          {formatCurrency(calculations.igst)}
-                        </td>
-                        <td></td>
-                      </tr>
-                    ) : (
-                      <>
-                        {Object.keys(calculations.taxGroups || {}).length > 0 ? (
-                          Object.entries(calculations.taxGroups).map(([rate, taxes]) => {
-                            const hasCustom1 = templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels;
-                            const hasCustom2 = templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels;
-                            return (
-                              <React.Fragment key={rate}>
-                                <tr className="footer-breakdown-row">
-                                  <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>CGST</td>
-                                  <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>
-                                    {`${Number(rate) / 2}%`}
-                                  </td>
-                                  {hasCustom1 && <td></td>}
-                                  {hasCustom2 && <td></td>}
-                                  <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                                    {formatCurrency(taxes.cgst)}
-                                  </td>
-                                  <td></td>
-                                </tr>
-                                <tr className="footer-breakdown-row">
-                                  <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>SGST</td>
-                                  <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>
-                                    {`${Number(rate) / 2}%`}
-                                  </td>
-                                  {hasCustom1 && <td></td>}
-                                  {hasCustom2 && <td></td>}
-                                  <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                                    {formatCurrency(taxes.sgst)}
-                                  </td>
-                                  <td></td>
-                                </tr>
-                              </React.Fragment>
-                            );
-                          })
-                        ) : (
-                          <>
-                            <tr className="footer-breakdown-row">
-                              <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>CGST</td>
-                              <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>-</td>
-                              {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && <td></td>}
-                              {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && <td></td>}
-                              <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                                {formatCurrency(calculations.cgst)}
-                              </td>
-                              <td></td>
-                            </tr>
-                            <tr className="footer-breakdown-row">
-                              <td colSpan={getColsBeforeGst()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>SGST</td>
-                              <td className="text-center text-zinc-500" style={{ textAlign: 'center' }}>-</td>
-                              {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && <td></td>}
-                              {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && <td></td>}
-                              <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                                {formatCurrency(calculations.sgst)}
-                              </td>
-                              <td></td>
-                            </tr>
-                          </>
-                        )}
-                      </>
-                    )}
-                    
-                    <tr className="footer-breakdown-row">
-                      <td colSpan={getColsBeforeAmount()} className="text-right text-zinc-500 pr-4" style={{ textAlign: 'right' }}>Round Off</td>
-                      <td className="text-right text-zinc-600 pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                        {formatCurrency(calculations.roundOff)}
-                      </td>
-                      <td></td>
-                    </tr>
-                    
-                    <tr className="footer-breakdown-row grand-total-row">
-                      <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>Grand Total</td>
-                      <td className="text-right pr-4" style={{ textAlign: 'right', paddingRight: '14px' }}>
-                        {formatCurrency(calculations.grandTotal)}
-                      </td>
-                      <td></td>
-                    </tr>
-                    
-                    <tr className="footer-breakdown-row amount-words-row">
-                      <td colSpan={getVisibleColumnCount()} className="text-right pr-4" style={{ textAlign: 'right' }}>
-                        INR {calculations.amountInWords}
-                      </td>
-                    </tr>
-                  </>
-                );
-              })()}
             </tbody>
           </table>
+        </div>
+      </div>
+
+
+      <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-4 p-6">
+        <div className="flex justify-end">
+          <div className="w-full max-w-sm space-y-4">
+            <div className="flex justify-between text-[13px] text-zinc-500">
+              <span>Subtotal</span>
+              <span className="font-bold text-zinc-900">{formatCurrency(calculations.subtotal)}</span>
+            </div>
+            {calculations.totalItemDiscount > 0 && (
+              <div className="flex justify-between text-[13px] text-zinc-500">
+                <span>Total Item Discount</span>
+                <span className="text-red-500 font-bold">- {formatCurrency(calculations.totalItemDiscount)}</span>
+              </div>
+            )}
+            {calculations.extraDiscountAmount > 0 && (
+              <div className="flex justify-between text-[13px] text-zinc-500">
+                <span>Extra Discount ({formData.extra_discount_percent}%)</span>
+                <span className="text-red-500 font-bold">- {formatCurrency(calculations.extraDiscountAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-[13px] text-zinc-500">
+              <span>Taxable Value</span>
+              <span className="font-bold text-zinc-900">{formatCurrency(calculations.subtotal - calculations.extraDiscountAmount)}</span>
+            </div>
+            {calculations.isInterState ? (
+              <div className="flex justify-between text-[13px] text-zinc-500">
+                <span>IGST</span>
+                <span className="font-bold text-zinc-900">{formatCurrency(calculations.igst)}</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between text-[13px] text-zinc-500">
+                  <span>CGST</span>
+                  <span className="font-bold text-zinc-900">{formatCurrency(calculations.cgst)}</span>
+                </div>
+                <div className="flex justify-between text-[13px] text-zinc-500">
+                  <span>SGST</span>
+                  <span className="font-bold text-zinc-900">{formatCurrency(calculations.sgst)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between text-[13px] text-zinc-500">
+              <span>Round Off</span>
+              <span className="font-bold text-zinc-900">{formatCurrency(calculations.roundOff)}</span>
+            </div>
+            <div className="pt-4 border-t-2 border-zinc-900 flex justify-between items-center">
+              <span className="text-[15px] font-bold text-zinc-900 uppercase">Grand Total</span>
+              <span className="text-2xl font-black text-zinc-900">{formatCurrency(calculations.grandTotal)}</span>
+            </div>
+            <div className="text-right text-sm text-zinc-500">
+              INR {calculations.amountInWords}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -5094,3 +4978,10 @@ className="text-center cell-static col-shrink row-drag-handle"
     </div>
   );
 }
+
+
+
+
+
+
+

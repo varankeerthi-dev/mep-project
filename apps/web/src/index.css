@@ -299,6 +299,19 @@ html, body {
   margin-left: 80px;
 }
 
+.main-content.quotation-shell-tight {
+  margin-top: 0;
+  padding: 0;
+  background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .main-content.quotation-shell-tight {
+    margin-top: 0;
+    padding: 0;
+  }
+}
+
 .sidebar-backdrop {
   position: fixed;
   top: 0;
@@ -3331,3 +3344,4 @@ td:hover .inline-description-cell-container:not(.has-description):not(.is-editin
     width: 100% !important;
   }
 }
+
