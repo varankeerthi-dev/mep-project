@@ -169,7 +169,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
       <header className="px-4 pt-10 pb-4 flex justify-between items-center border-b border-border bg-card">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">Welcome, {userName}!</h1>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">{orgName}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase">{orgName}</p>
         </div>
         <button
           onClick={handleSignOut}
@@ -183,7 +183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
       {/* Main Content */}
       <main className="px-4 pt-6 space-y-6 flex-1 overflow-y-auto">
         {error && (
-          <div className="p-3 text-xs rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-center">
+          <div className="p-3 text-sm rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-center">
             {error}
           </div>
         )}
@@ -198,7 +198,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
             <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-4">
               <ClipboardList className="h-5 w-5" />
             </div>
-            <p className="text-xs font-medium text-muted-foreground">Pending Approvals</p>
+            <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
             <p className="text-3xl font-bold tracking-tight text-foreground mt-1 tabular-nums">
               {pendingApprovalsCount}
             </p>
@@ -212,7 +212,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
               <Folder className="h-5 w-5" />
             </div>
-            <p className="text-xs font-medium text-muted-foreground">Active Projects</p>
+            <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
             <p className="text-3xl font-bold tracking-tight text-foreground mt-1 tabular-nums">
               {projectsCount}
             </p>
@@ -229,8 +229,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
               <Phone className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Quick Lookup</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Verify dispatch status & scope on client calls</p>
+              <p className="text-base font-semibold text-foreground">Quick Lookup</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Verify dispatch status & scope on client calls</p>
             </div>
           </div>
           <div className="text-muted-foreground group-hover:translate-x-1 transition-transform mr-1">
@@ -254,16 +254,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                 <h2 className="text-base font-semibold text-foreground flex items-center gap-1.5">
                   Next Actions & Follow-ups
                   {overdueCount > 0 && (
-                    <span className="inline-flex items-center bg-destructive/10 text-destructive text-[9px] font-bold px-2 py-0.5 rounded-full">
+                    <span className="inline-flex items-center bg-destructive/10 text-destructive text-xs font-bold px-2 py-0.5 rounded-full">
                       {overdueCount} Overdue
                     </span>
                   )}
                 </h2>
-                <p className="text-[11px] text-muted-foreground">Aggregated follow-ups across your active modules</p>
+                <p className="text-xs text-muted-foreground">Aggregated follow-ups across your active modules</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-muted-foreground tabular-nums">
+              <span className="text-xs font-bold text-muted-foreground tabular-nums">
                 {nextActions.length} Total
               </span>
               <div className="text-muted-foreground">
@@ -288,7 +288,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                   <button
                     key={tab.key}
                     onClick={() => setNextActionsFilter(tab.key)}
-                    className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border transition-all shrink-0 cursor-pointer ${
+                    className={`inline-flex items-center gap-1 px-3 py-1 text-sm font-semibold rounded-full border transition-all shrink-0 cursor-pointer ${
                       nextActionsFilter === tab.key
                         ? 'bg-primary border-primary text-white shadow-sm'
                         : 'bg-card border-border text-muted-foreground hover:text-foreground active:bg-secondary'
@@ -296,7 +296,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                   >
                     <span>{tab.label}</span>
                     {tab.count > 0 && (
-                      <span className={`inline-flex items-center justify-center min-w-[16px] h-4 rounded-full text-[9px] font-bold px-1 ${
+                      <span className={`inline-flex items-center justify-center min-w-[16px] h-4 rounded-full text-xs font-bold px-1 ${
                         nextActionsFilter === tab.key
                           ? 'bg-white/25 text-white'
                           : 'bg-secondary text-muted-foreground'
@@ -315,7 +315,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : filteredNextActions.length === 0 ? (
-                  <div className="glass-card rounded-2xl p-6 text-center text-xs text-muted-foreground border border-dashed border-border">
+                  <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground border border-dashed border-border">
                     {nextActionsFilter === 'history' 
                       ? 'No recently noted or resolved actions.' 
                       : nextActionsFilter === 'overdue' 
@@ -360,24 +360,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                         <div className="flex flex-col gap-1.5">
                           {/* Badge Row */}
                           <div>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide uppercase border border-current/15 ${config.text} ${config.bg}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold tracking-wide uppercase border border-current/15 ${config.text} ${config.bg}`}>
                               {displayCategory}
                             </span>
                           </div>
 
                           {/* Next Action Title */}
-                          <p className="text-sm font-normal text-foreground leading-snug">
+                          <p className="text-base font-normal text-foreground leading-snug">
                             {item.title}
                           </p>
 
                           {/* Context / Subtitle */}
-                          <p className="text-[11px] text-muted-foreground leading-normal">
+                          <p className="text-xs text-muted-foreground leading-normal">
                             {item.contextInfo}
                           </p>
 
                           {/* Metadata Row */}
                           <div className="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
-                            <div className="flex items-center gap-1.5 text-[10px]">
+                            <div className="flex items-center gap-1.5 text-xs">
                               {item.date ? (
                                 <span className={item.isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}>
                                   {item.isOverdue ? 'Overdue: ' : 'Due: '}
@@ -393,7 +393,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                               )}
                             </div>
                             {creatorText && (
-                              <span className="text-[10px] text-muted-foreground/80 italic">
+                              <span className="text-xs text-muted-foreground/80 italic">
                                 {creatorText}
                               </span>
                             )}
@@ -402,12 +402,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                           {/* History / Replies rendering */}
                           {nextActionsFilter === 'history' && raw?.replies && raw.replies.length > 0 && (
                             <div className="mt-2 p-3 bg-secondary/30 rounded-xl border border-border/50 flex flex-col gap-2">
-                              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Comments & History</p>
+                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Comments & History</p>
                               <div className="flex flex-col gap-1.5">
                                 {raw.replies.map((reply: any) => (
-                                  <p key={reply.id} className="text-xs text-foreground/80 leading-normal">
+                                  <p key={reply.id} className="text-sm text-foreground/80 leading-normal">
                                     • <span className="font-medium text-foreground">{reply.call_brief}</span>
-                                    <span className="text-[9px] text-muted-foreground ml-1.5">
+                                    <span className="text-xs text-muted-foreground ml-1.5">
                                       ({new Date(reply.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })})
                                     </span>
                                   </p>
@@ -424,7 +424,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                                 placeholder="Add reply comment note..."
                                 value={actionComments[item.id] || ''}
                                 onChange={(e) => setActionComments(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                className="flex-1 h-8 px-3 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors"
+                                className="flex-1 h-8 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors"
                               />
                             </div>
                           )}
@@ -438,7 +438,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                                 acknowledge(item, actionComments[item.id]);
                                 setActionComments(prev => ({ ...prev, [item.id]: '' }));
                               }}
-                              className="flex-1 h-9 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground active:bg-secondary transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                              className="flex-1 h-9 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground active:bg-secondary transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                             >
                               <Check className="h-4 w-4" />
                               <span>Noted</span>
@@ -449,7 +449,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                                   resolve(item.id, item.rawItem, actionComments[item.id]);
                                   setActionComments(prev => ({ ...prev, [item.id]: '' }));
                                 }}
-                                className="flex-1 h-9 rounded-xl bg-primary/10 border border-primary/20 text-xs font-semibold text-primary flex items-center justify-center gap-1.5 active:bg-primary/20 transition-colors cursor-pointer"
+                                className="flex-1 h-9 rounded-xl bg-primary/10 border border-primary/20 text-sm font-semibold text-primary flex items-center justify-center gap-1.5 active:bg-primary/20 transition-colors cursor-pointer"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 <span>Resolve</span>
@@ -470,14 +470,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <h2 className="text-base font-semibold text-foreground">Active Projects</h2>
-            <span className="text-[10px] font-semibold bg-secondary px-2.5 py-1 rounded-full text-muted-foreground uppercase">
+            <span className="text-xs font-semibold bg-secondary px-2.5 py-1 rounded-full text-muted-foreground uppercase">
               {projects.length} Total
             </span>
           </div>
 
           <div className="space-y-3">
             {projects.length === 0 ? (
-              <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">
+              <div className="glass-card rounded-2xl p-6 text-center text-base text-muted-foreground">
                 No active projects found.
               </div>
             ) : (
@@ -487,10 +487,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                   className="glass-card rounded-xl p-4 flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all"
                 >
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-foreground">
+                    <p className="text-base font-semibold text-foreground">
                       {proj.project_name || proj.name || 'Unnamed Project'}
                     </p>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Code: {proj.project_code || 'N/A'}
                     </p>
                   </div>
@@ -514,8 +514,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
               <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Phone className="h-5 w-5" />
               </div>
-              <p className="text-xs font-semibold text-foreground">Client</p>
-              <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{clientCount} total</span>
+              <p className="text-sm font-semibold text-foreground">Client</p>
+              <span className="text-xs font-bold text-muted-foreground tabular-nums">{clientCount} total</span>
             </button>
             <button
               onClick={() => onOpenModule('project')}
@@ -524,8 +524,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
               <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <Folder className="h-5 w-5" />
               </div>
-              <p className="text-xs font-semibold text-foreground">Project</p>
-              <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{projectsCount} total</span>
+              <p className="text-sm font-semibold text-foreground">Project</p>
+              <span className="text-xs font-bold text-muted-foreground tabular-nums">{projectsCount} total</span>
             </button>
             <button
               onClick={() => onOpenModule('purchase')}
@@ -534,8 +534,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
               <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
                 <ClipboardList className="h-5 w-5" />
               </div>
-              <p className="text-xs font-semibold text-foreground">Purchase</p>
-              <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{purchaseCount} total</span>
+              <p className="text-sm font-semibold text-foreground">Purchase</p>
+              <span className="text-xs font-bold text-muted-foreground tabular-nums">{purchaseCount} total</span>
             </button>
           </div>
         </div>

@@ -35,8 +35,8 @@ const indianStates = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
 ];
 
-const inputCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors';
-const selectCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-sm text-foreground outline-none focus:border-primary/50 transition-colors appearance-none';
+const inputCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors';
+const selectCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground outline-none focus:border-primary/50 transition-colors appearance-none';
 
 export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clientData, isDemo = false }) => {
   const editMode = !!clientData?.id;
@@ -245,7 +245,6 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
         </button>
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">{editMode ? 'Edit Client' : 'Add Client'}</h1>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Module</p>
         </div>
       </motion.header>
 
@@ -255,7 +254,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               tab === key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -269,7 +268,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
       {/* Content */}
       <main className="flex-1 overflow-y-auto px-4 pt-5 pb-24 space-y-5">
         {saveMsg && (
-          <div className="p-3 text-xs rounded-xl bg-primary/10 border border-primary/20 text-primary text-center">{saveMsg}</div>
+          <div className="p-3 text-sm rounded-xl bg-primary/10 border border-primary/20 text-primary text-center">{saveMsg}</div>
         )}
 
         {/* ═══════════════════ GENERAL INFO ═══════════════════ */}
@@ -277,25 +276,25 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
           <div className="space-y-5">
             {/* Client Information */}
             <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 <Building2 className="h-4 w-4" />
                 Client Information
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Client Name *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Client Name *</label>
                   <input type="text" required value={form.client_name} onChange={set('client_name')} placeholder="Enter client name" className={inputCn} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Type</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Type</label>
                     <select value={form.client_type} onChange={set('client_type')} className={selectCn}>
                       <option value="Business">Business</option>
                       <option value="Individual">Individual</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Status</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Status</label>
                     <select value={form.category} onChange={set('category')} className={selectCn}>
                       <option value="Active">Active</option>
                       <option value="Prospect">Prospect</option>
@@ -304,7 +303,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">GSTIN</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">GSTIN</label>
                   <input type="text" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })} placeholder="15 Digit GST Number" maxLength={15} className={`${inputCn} uppercase font-mono`} />
                 </div>
               </div>
@@ -312,28 +311,28 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
 
             {/* Primary Contact */}
             <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 <User className="h-4 w-4" />
                 Primary Contact
               </div>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Name</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Name</label>
                     <input type="text" value={form.contact_person} onChange={set('contact_person')} placeholder="Contact person" className={inputCn} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Designation</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Designation</label>
                     <input type="text" value={form.contact_designation} onChange={set('contact_designation')} placeholder="e.g. Manager" className={inputCn} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
                     <input type="tel" value={form.contact} onChange={set('contact')} placeholder="Phone number" className={inputCn} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
                     <input type="email" value={form.email} onChange={set('email')} placeholder="Email address" className={inputCn} />
                   </div>
                 </div>
@@ -344,14 +343,14 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
             {showSecondary ? (
               <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                     <PhoneCall className="h-4 w-4" />
                     Secondary Contact
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowSecondary(false)}
-                    className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   >
                     Remove
                   </button>
@@ -359,21 +358,21 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Name</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Name</label>
                       <input type="text" value={form.contact_person_2} onChange={set('contact_person_2')} placeholder="Secondary contact" className={inputCn} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Designation</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Designation</label>
                       <input type="text" value={form.contact_designation_2} onChange={set('contact_designation_2')} placeholder="e.g. Engineer" className={inputCn} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
                       <input type="tel" value={form.contact_person_2_contact} onChange={set('contact_person_2_contact')} placeholder="Phone number" className={inputCn} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
                       <input type="email" value={form.contact_person_2_email} onChange={set('contact_person_2_email')} placeholder="Email address" className={inputCn} />
                     </div>
                   </div>
@@ -389,8 +388,8 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                   <Plus className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Add Secondary Contact</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Additional contact person</p>
+                  <p className="text-base font-semibold text-foreground">Add Secondary Contact</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Additional contact person</p>
                 </div>
               </button>
             )}
@@ -399,14 +398,14 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
             {showPurchase ? (
               <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                     <PhoneCall className="h-4 w-4" />
                     Purchase Contact
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowPurchase(false)}
-                    className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   >
                     Remove
                   </button>
@@ -414,21 +413,21 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Name</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Name</label>
                       <input type="text" value={form.purchase_person} onChange={set('purchase_person')} placeholder="Purchase person" className={inputCn} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Designation</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Designation</label>
                       <input type="text" value={form.purchase_designation} onChange={set('purchase_designation')} placeholder="e.g. Procurement" className={inputCn} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Phone</label>
                       <input type="tel" value={form.purchase_contact} onChange={set('purchase_contact')} placeholder="Phone number" className={inputCn} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Email</label>
                       <input type="email" value={form.purchase_email} onChange={set('purchase_email')} placeholder="Email address" className={inputCn} />
                     </div>
                   </div>
@@ -444,15 +443,15 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                   <Plus className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Add Purchase Contact</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Procurement contact person</p>
+                  <p className="text-base font-semibold text-foreground">Add Purchase Contact</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Procurement contact person</p>
                 </div>
               </button>
             )}
 
             {/* Address */}
             <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 <MapPin className="h-4 w-4" />
                 Address
               </div>
@@ -461,19 +460,19 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 <input type="text" value={form.address2} onChange={set('address2')} placeholder="Address Line 2" className={inputCn} />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">State</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">State</label>
                     <select value={form.state} onChange={set('state')} className={selectCn}>
                       <option value="">Select State</option>
                       {indianStates.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">City</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">City</label>
                     <input type="text" value={form.city} onChange={set('city')} placeholder="City" className={inputCn} />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">PIN Code</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">PIN Code</label>
                   <input type="text" value={form.pincode} onChange={set('pincode')} placeholder="PIN code" className={`${inputCn} font-mono`} />
                 </div>
               </div>
@@ -481,13 +480,13 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
 
             {/* Tax & Registration */}
             <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 <FileText className="h-4 w-4" />
                 Tax & Registration
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">GST Treatment</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">GST Treatment</label>
                   <select value={form.gst_treatment} onChange={set('gst_treatment')} className={selectCn}>
                     <option value="">Select GST Treatment</option>
                     <option value="Registered Business Regular">Registered Business Regular</option>
@@ -504,7 +503,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">MSME Type</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">MSME Type</label>
                     <select value={form.msme_register_type} onChange={set('msme_register_type')} className={selectCn}>
                       <option value="">Select Type</option>
                       <option value="micro">Micro Enterprise</option>
@@ -513,7 +512,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">MSME Number</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">MSME Number</label>
                     <input type="text" value={form.msme_number} onChange={(e) => setForm({ ...form, msme_number: e.target.value.toUpperCase() })} placeholder="UDYAM number" className={`${inputCn} uppercase font-mono`} />
                   </div>
                 </div>
@@ -522,7 +521,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
 
             {/* Remarks */}
             <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                 <Info className="h-4 w-4" />
                 Notes
               </div>
@@ -531,7 +530,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 value={form.remarks}
                 onChange={set('remarks')}
                 placeholder="Internal remarks…"
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors resize-none"
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors resize-none"
               />
             </div>
           </div>
@@ -541,23 +540,23 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
         {tab === 'discount' && (
           <div className="space-y-5">
             {loadingMeta ? (
-              <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">Loading discount data…</div>
+              <div className="glass-card rounded-2xl p-6 text-center text-base text-muted-foreground">Loading discount data…</div>
             ) : (
               <>
                 {/* Billing & Tax Details */}
                 <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                     <Percent className="h-4 w-4" />
                     Billing & Tax Details
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Pricing Tier</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Pricing Tier</label>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, discount_type: 'Standard', standard_pricelist_id: null })}
-                          className={`flex-1 h-11 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
                             form.discount_type === 'Standard'
                               ? 'bg-primary border-primary text-white shadow-sm'
                               : 'bg-card border-border text-muted-foreground hover:text-foreground active:bg-secondary'
@@ -568,7 +567,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, discount_type: 'Bulk' })}
-                          className={`flex-1 h-11 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
                             form.discount_type === 'Bulk'
                               ? 'bg-primary border-primary text-white shadow-sm'
                               : 'bg-card border-border text-muted-foreground hover:text-foreground active:bg-secondary'
@@ -580,7 +579,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                     </div>
                     {form.discount_type === 'Standard' && (
                       <div>
-                        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Price List</label>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Price List</label>
                         <select
                           value={form.standard_pricelist_id || ''}
                           onChange={(e) => setForm({ ...form, standard_pricelist_id: e.target.value })}
@@ -600,14 +599,14 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 {form.discount_type !== 'Standard' && (
                   <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                         <Tag className="h-4 w-4" />
                         Customized Discounts
                       </div>
                       <button
                         onClick={handleSaveCustomDiscounts}
                         disabled={discountSaving}
-                        className="h-8 px-3 rounded-xl bg-primary text-white text-[10px] font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                        className="h-8 px-3 rounded-xl bg-primary text-white text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                       >
                         <Save className="h-3 w-3" />
                         {discountSaving ? 'Saving…' : 'Save'}
@@ -615,7 +614,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                     </div>
 
                     {discountSaveMsg && (
-                      <div className={`p-2.5 text-xs rounded-xl text-center ${
+                      <div className={`p-2.5 text-sm rounded-xl text-center ${
                         discountSaveMsg.includes('Error')
                           ? 'bg-destructive/10 border border-destructive/20 text-destructive'
                           : 'bg-primary/10 border border-primary/20 text-primary'
@@ -626,11 +625,11 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
 
                     <div className="space-y-2">
                       {discountCategories.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">No discount categories configured.</p>
+                        <p className="text-sm text-muted-foreground text-center py-4">No discount categories configured.</p>
                       ) : (
                         discountCategories.map((dc) => (
                           <div key={dc.id} className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-secondary/30 border border-border/50">
-                            <span className="text-xs font-semibold text-foreground">{dc.name}</span>
+                            <span className="text-sm font-semibold text-foreground">{dc.name}</span>
                             <div className="flex items-center gap-2">
                               <input
                                 type="number"
@@ -642,9 +641,9 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                                 min="0"
                                 max="100"
                                 step="0.01"
-                                className="w-20 h-9 px-2 rounded-lg border border-border bg-background text-sm font-semibold text-right text-foreground outline-none focus:border-primary/50 transition-colors"
+                                className="w-20 h-9 px-2 rounded-lg border border-border bg-background text-base font-semibold text-right text-foreground outline-none focus:border-primary/50 transition-colors"
                               />
-                              <span className="text-xs text-muted-foreground">%</span>
+                              <span className="text-sm text-muted-foreground">%</span>
                             </div>
                           </div>
                         ))
@@ -655,13 +654,13 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
 
                 {/* Discount Matrix Preview */}
                 <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
                     <Users className="h-4 w-4" />
                     Discount Matrix Preview
                   </div>
                   {form.discount_type === 'Standard' ? (
                     <div className="p-4 rounded-xl bg-secondary/30 text-center">
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         Standard pricing active —{' '}
                         <strong className="text-foreground">
                           {pricelists.find((pl) => pl.id === form.standard_pricelist_id)?.discount_percent || 0}%
@@ -671,14 +670,14 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <div className="flex items-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">
+                      <div className="flex items-center text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">
                         <span className="flex-1">Category</span>
                         <span className="w-16 text-center">Default</span>
                         <span className="w-16 text-center">Min</span>
                         <span className="w-16 text-center">Max</span>
                       </div>
                       {discountCategories.map((dc) => (
-                        <div key={dc.id} className="flex items-center text-xs px-3 py-2 rounded-lg bg-secondary/20">
+                        <div key={dc.id} className="flex items-center text-sm px-3 py-2 rounded-lg bg-secondary/20">
                           <span className="flex-1 font-medium text-foreground">{dc.name}</span>
                           <span className="w-16 text-center text-muted-foreground">{dc.default_discount_percent}%</span>
                           <span className="w-16 text-center text-muted-foreground">{dc.min_discount_percent}%</span>
@@ -700,7 +699,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
           <button
             onClick={() => setShowDeleteModal(true)}
             disabled={saving}
-            className="w-full h-12 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mb-2"
+            className="w-full h-12 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-base font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 mb-2"
           >
             <Trash2 className="h-4 w-4" />
             Delete Client
@@ -709,7 +708,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full h-12 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+          className="w-full h-12 rounded-xl bg-primary text-white text-base font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
           {saving ? 'Saving…' : editMode ? 'Update Client' : 'Save Client'}
@@ -729,7 +728,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 <h3 className="text-base font-bold text-foreground">Delete Client</h3>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-base text-muted-foreground mb-6">
               Are you sure you want to permanently delete <strong className="text-foreground">{form.client_name}</strong>? This cannot be undone.
             </p>
             <div className="flex gap-2 justify-end">
@@ -737,7 +736,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
                 disabled={deleting}
-                className="h-10 px-5 rounded-xl bg-card border border-border text-sm font-semibold text-muted-foreground active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                className="h-10 px-5 rounded-xl bg-card border border-border text-base font-semibold text-muted-foreground active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -745,7 +744,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="h-10 px-5 rounded-xl bg-destructive text-white text-sm font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+                className="h-10 px-5 rounded-xl bg-destructive text-white text-base font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
               >
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>

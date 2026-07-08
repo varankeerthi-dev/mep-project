@@ -60,7 +60,7 @@ const statusPill = (s?: string) => {
   const key = (s || '').toLowerCase();
   const cls = STATUS_COLORS[key] || 'bg-secondary text-muted-foreground';
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
       {s || 'N/A'}
     </span>
   );
@@ -209,7 +209,6 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold tracking-tight text-foreground">Client</h1>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase">Module</p>
         </div>
         <button
           onClick={() => setFormClient('new')}
@@ -226,7 +225,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
           <button
             key={key}
             onClick={() => switchTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               view === key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -234,7 +233,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
           >
             <Icon className="h-3.5 w-3.5" />
             <span>{label}</span>
-            <span className="text-[10px] text-muted-foreground/70">({counts[key]})</span>
+            <span className="text-xs text-muted-foreground/70">({counts[key]})</span>
           </button>
         ))}
       </div>
@@ -242,10 +241,10 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
       <main className="px-4 pt-5 space-y-5 flex-1 overflow-y-auto">
         {loading ? (
           <div className="glass-card rounded-2xl p-6 flex justify-center items-center">
-            <span className="text-sm text-muted-foreground">Loading…</span>
+            <span className="text-base text-muted-foreground">Loading…</span>
           </div>
         ) : error ? (
-          <div className="p-3 text-xs rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-center">{error}</div>
+          <div className="p-3 text-sm rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-center">{error}</div>
         ) : (
           <>
             {view === 'list' && (
@@ -255,10 +254,10 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
                   placeholder="Search clients by name or code…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full h-11 px-3 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors"
+                  className="w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors"
                 />
                 {filteredClients.length === 0 ? (
-                  <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">No clients found.</div>
+                  <div className="glass-card rounded-2xl p-6 text-center text-base text-muted-foreground">No clients found.</div>
                 ) : (
                   filteredClients.map(c => (
                     <div key={c.id} className="glass-card rounded-xl border border-border/50 overflow-hidden">
@@ -267,11 +266,11 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
                         className="w-full p-4 flex items-center justify-between text-left active:bg-secondary/40 transition-colors"
                       >
                         <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{c.client_name}</p>
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Code: {c.client_id || 'N/A'}</p>
+                          <p className="text-base font-semibold text-foreground">{c.client_name}</p>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Code: {c.client_id || 'N/A'}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {c.category && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{c.category}</span>}
+                          {c.category && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{c.category}</span>}
                           <div className={`h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-primary transition-transform ${expanded === c.id ? 'rotate-180' : ''}`}>
                             <ChevronDown className="h-4 w-4" />
                           </div>
@@ -281,7 +280,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
-                          className="px-4 pb-4 pt-1 border-t border-border/40 space-y-1.5 text-xs"
+                          className="px-4 pb-4 pt-1 border-t border-border/40 space-y-1.5 text-sm"
                         >
                           <p className="text-muted-foreground"><span className="font-medium text-foreground">Contact:</span> {c.contact || '—'}</p>
                           <p className="text-muted-foreground"><span className="font-medium text-foreground">Email:</span> {c.email || '—'}</p>
@@ -289,7 +288,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
                           <p className="text-muted-foreground"><span className="font-medium text-foreground">State:</span> {c.state || '—'}</p>
                           <button
                             onClick={() => setFormClient(c)}
-                            className="mt-2 w-full h-8 rounded-lg bg-primary/10 border border-primary/20 text-xs font-semibold text-primary flex items-center justify-center active:bg-primary/20 transition-colors cursor-pointer"
+                            className="mt-2 w-full h-8 rounded-lg bg-primary/10 border border-primary/20 text-sm font-semibold text-primary flex items-center justify-center active:bg-primary/20 transition-colors cursor-pointer"
                           >
                             Edit Client
                           </button>
@@ -304,16 +303,16 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
             {view === 'po' && (
               <div className="space-y-3">
                 {pos.length === 0 ? (
-                  <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">No client purchase orders found.</div>
+                  <div className="glass-card rounded-2xl p-6 text-center text-base text-muted-foreground">No client purchase orders found.</div>
                 ) : (
                   pos.map(p => (
                     <div key={p.id} className="glass-card rounded-xl p-4 flex items-center justify-between border border-border/50">
                       <div className="space-y-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{p.po_number || p.po_no || 'PO'}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{fmtDate(p.po_date)}</p>
+                        <p className="text-base font-semibold text-foreground truncate">{p.po_number || p.po_no || 'PO'}</p>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{fmtDate(p.po_date)}</p>
                       </div>
                       <div className="text-right space-y-1">
-                        <p className="text-sm font-bold text-foreground tabular-nums">{formatCurrency(p.po_total_value)}</p>
+                        <p className="text-base font-bold text-foreground tabular-nums">{formatCurrency(p.po_total_value)}</p>
                         {statusPill(p.status)}
                       </div>
                     </div>
@@ -325,18 +324,18 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
             {view === 'meetings' && (
               <div className="space-y-3">
                 {meetings.length === 0 ? (
-                  <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">No meetings found.</div>
+                  <div className="glass-card rounded-2xl p-6 text-center text-base text-muted-foreground">No meetings found.</div>
                 ) : (
                   meetings.map(m => (
                     <div key={m.id} className="glass-card rounded-xl p-4 flex items-center justify-between border border-border/50">
                       <div className="space-y-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{m.client_name || 'Meeting'}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <p className="text-base font-semibold text-foreground truncate">{m.client_name || 'Meeting'}</p>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                           <Building2 className="h-3 w-3" />{m.location || '—'}
                         </p>
                       </div>
                       <div className="text-right space-y-1">
-                        <p className="text-xs font-medium text-foreground tabular-nums">{fmtDate(m.meeting_date)}{m.meeting_time ? ' · ' + m.meeting_time : ''}</p>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{fmtDate(m.meeting_date)}{m.meeting_time ? ' · ' + m.meeting_time : ''}</p>
                         {statusPill(m.status)}
                       </div>
                     </div>

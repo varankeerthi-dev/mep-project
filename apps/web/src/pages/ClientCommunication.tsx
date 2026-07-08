@@ -620,6 +620,7 @@ export function ClientCommunication() {
         ...data,
         organisation_id: organisation?.id,
         status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
+        is_resolved: (data.status === 'resolved' || data.status === 'closed' || data.status === 'Resolved' || data.status === 'Closed'),
         priority: data.priority === 'low' ? 'Low' : data.priority === 'normal' ? 'Normal' : data.priority === 'high' ? 'High' : data.priority === 'urgent' ? 'Urgent' : data.priority,
         client_id: data.party_type === 'client' && data.client_id ? data.client_id : null,
         vendor_id: data.party_type === 'vendor' && data.vendor_id ? data.vendor_id : null,
@@ -706,9 +707,14 @@ export function ClientCommunication() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const updateData = { ...data };
+      if (data.status !== undefined) {
+        updateData.is_resolved = (data.status === 'resolved' || data.status === 'closed' || data.status === 'Resolved' || data.status === 'Closed');
+        updateData.status = data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status;
+      }
       const { error } = await supabase
         .from('client_communication')
-        .update({ ...data, updated_at: new Date().toISOString() })
+        .update({ ...updateData, updated_at: new Date().toISOString() })
         .eq('id', id)
         .eq('organisation_id', organisation?.id);
       if (error) throw error;

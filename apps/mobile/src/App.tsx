@@ -10,7 +10,7 @@ import { ClientLookup } from './screens/ClientLookup';
 import { ClientModule } from './screens/ClientModule';
 import { ProjectModule } from './screens/ProjectModule';
 import { PurchaseModule } from './screens/PurchaseModule';
-import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin } from 'lucide-react';
+import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, LogOut } from 'lucide-react';
 
 type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup';
 type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
@@ -21,6 +21,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [activeModule, setActiveModule] = useState<ModuleScreen>('none');
+  const [showExitDialog, setShowExitDialog] = useState(false);
 
   useEffect(() => {
     // 1. Get initial session
@@ -46,6 +47,29 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, [isDemo]);
+
+  const handleBack = () => {
+    if (activeModule !== 'none') {
+      setActiveModule('none');
+      return true;
+    }
+    if (currentScreen !== 'dashboard') {
+      setCurrentScreen('dashboard');
+      return true;
+    }
+    setShowExitDialog(true);
+    return true;
+  };
+
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href);
+    const onPopState = () => {
+      handleBack();
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [currentScreen, activeModule]);
 
   const handleLoginSuccess = (demoMode = false) => {
     if (demoMode) {
@@ -141,6 +165,42 @@ function App() {
           ))}
         </div>
         </nav>
+      )}
+
+      {/* Exit Confirmation Dialog */}
+      {showExitDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-6" onClick={() => setShowExitDialog(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-card rounded-2xl p-6 max-w-sm w-full border border-border shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                <LogOut className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Exit App?</h3>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Are you sure you want to leave the app?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowExitDialog(false)}
+                className="h-10 px-5 rounded-xl bg-card border border-border text-sm font-semibold text-muted-foreground active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                onClick={() => window.close()}
+                className="h-10 px-5 rounded-xl bg-destructive text-white text-sm font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

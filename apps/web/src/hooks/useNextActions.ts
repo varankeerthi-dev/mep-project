@@ -501,12 +501,12 @@ export function useNextActions() {
       const orgId = organisation.id;
       
       const realId = itemId.substring(itemId.indexOf('-') + 1);
-      const { error } = await supabase
+       const { error } = await supabase
         .from('client_communication')
-        .update({ is_resolved: true })
+        .update({ is_resolved: true, status: 'Closed' })
         .eq('id', realId);
  
-      if (error) throw error;
+       if (error) throw error;
 
       // Create a thread/reply note if comment is provided
       if (comment && rawItem) {

@@ -1484,6 +1484,7 @@ function ItemsTab() {
         { table: 'stock_transfer_items', key: 'material_id', name: 'Stock Transfers' },
         { table: 'quick_check_items', key: 'item_id', name: 'Quick Check' },
         { table: 'boq_items', key: 'material_id', name: 'BOQ' },
+        { table: 'bom_items', key: 'material_id', name: 'Bills of Materials (BOM)' },
       ].map(async ({ table, key, name }) => {
         const { data } = await supabase.from(table).select('id').eq(key, id).limit(1);
         if (data?.length) linkedTables.push(name);
@@ -4079,10 +4080,17 @@ function ItemsTab() {
                     .eq('material_id', baseItemId)
                     .limit(1);
 
+                  const { data: bomItems } = await supabase
+                    .from('bom_items')
+                    .select('id')
+                    .eq('material_id', baseItemId)
+                    .limit(1);
+
                   const hasTransactions = (invoiceItems?.length || 0) > 0 ||
                     (quotationItems?.length || 0) > 0 ||
                     (proformaItems?.length || 0) > 0 ||
-                    (dcItems?.length || 0) > 0;
+                    (dcItems?.length || 0) > 0 ||
+                    (bomItems?.length || 0) > 0;
 
                   if (hasTransactions) {
                     // Mark as inactive instead of deleting
