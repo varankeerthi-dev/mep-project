@@ -107,6 +107,13 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'quick_lookup',
+    label: 'Quick Lookup',
+    actions: [
+      { key: make('quick_lookup', 'read'), label: 'Access' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [

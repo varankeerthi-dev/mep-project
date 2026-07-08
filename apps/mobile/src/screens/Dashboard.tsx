@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Loader2, Folder, ArrowRight, ClipboardList, LogOut,
-  Check, CheckCircle2, Bell, ChevronDown, ChevronUp
+  Check, CheckCircle2, Bell, ChevronDown, ChevronUp, Phone
 } from 'lucide-react';
 import { useNextActionsMobile } from '../lib/useNextActionsMobile';
 
 interface DashboardProps {
   onLogout: () => void;
   onNavigateToApprovals: () => void;
+  onNavigateToLookup: () => void;
   isDemo?: boolean;
 }
 
@@ -19,7 +20,7 @@ interface Project {
   project_code: string;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToApprovals, isDemo = false }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToApprovals, onNavigateToLookup, isDemo = false }) => {
   const {
     nextActions,
     history: nextActionsHistory,
@@ -199,6 +200,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
             <p className="text-3xl font-bold tracking-tight text-foreground mt-1 tabular-nums">
               {projectsCount}
             </p>
+          </div>
+        </div>
+
+        {/* Quick Lookup Action Card */}
+        <div
+          onClick={onNavigateToLookup}
+          className="glass-card rounded-2xl p-4 text-left cursor-pointer active:scale-[0.98] transition-all relative overflow-hidden group border border-border flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400">
+              <Phone className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Quick Lookup</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Verify dispatch status & scope on client calls</p>
+            </div>
+          </div>
+          <div className="text-muted-foreground group-hover:translate-x-1 transition-transform mr-1">
+            <ArrowRight className="h-4 w-4" />
           </div>
         </div>
 

@@ -6,9 +6,10 @@ import { Approvals } from './screens/Approvals';
 import { ClientCommunication } from './screens/ClientCommunication';
 import { SiteReport } from './screens/SiteReport';
 import { SiteVisits } from './screens/SiteVisits';
+import { ClientLookup } from './screens/ClientLookup';
 import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin } from 'lucide-react';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits';
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup';
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -88,6 +89,7 @@ function App() {
           <Dashboard
             onLogout={handleLogout}
             onNavigateToApprovals={() => setCurrentScreen('approvals')}
+            onNavigateToLookup={() => setCurrentScreen('lookup')}
             isDemo={isDemo}
           />
         )}
@@ -95,6 +97,12 @@ function App() {
         {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} />}
         {currentScreen === 'site_visits' && <SiteVisits isDemo={isDemo} />}
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
+        {currentScreen === 'lookup' && (
+          <ClientLookup 
+            onBack={() => setCurrentScreen('dashboard')} 
+            isDemo={isDemo} 
+          />
+        )}
       </div>
 
       {/* Bottom Navigation */}

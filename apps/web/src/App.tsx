@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
+import { PermissionGuard } from './rbac';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
@@ -199,6 +200,7 @@ const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
 const EmployeeCheckIn = lazyAny(() => import('./pages/EmployeeCheckIn'));
 const HRAdminDashboard = lazyAny(() => import('./pages/HRAdminDashboard'));
+const ClientLookup = lazyAny(() => import('./pages/ClientLookup'));
 
 type CreateOrganisationResult = {
   data?: Organisation | null;
@@ -388,6 +390,7 @@ export default function App() {
       case '/sales-orders/create': return <SalesOrderCreate onSuccess={() => navigate('/sales-orders')} onCancel={() => navigate('/sales-orders')} />;
       case '/sales-orders/edit': return <SalesOrderCreate onSuccess={() => navigate('/sales-orders')} onCancel={() => navigate('/sales-orders')} editMode={true} />;
       case '/sales-orders/view': return <SalesOrderDetail />;
+      case '/client-lookup': return <PermissionGuard permission="quick_lookup.read" fallback={<div className="p-6">Access Denied</div>}><ClientLookup /></PermissionGuard>;
       case '/invoices': return <InvoiceListPage />;
       case '/invoices/view': return <InvoiceView />;
       case '/invoices/create': return <InvoiceEditorPage />;

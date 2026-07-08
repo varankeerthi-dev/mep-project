@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import * as HeroIcons from '@heroicons/react/24/outline';
 import { useOrgModules } from '../hooks/useOrgModules';
+import { useHasPermission } from '../rbac';
 
 type SubmenuItem = {
   id: string;
@@ -78,7 +79,8 @@ const menuData: MenuSection[] = [
       { id: 'approvals', label: 'Approvals', path: '/approvals' },
       { id: 'todo', label: 'To do', path: '/todo' },
       { id: 'follow-up', label: 'Follow-up', path: '/follow-up' },
-      { id: 'client-communication', label: 'Communication log', path: '/client-communication' }
+      { id: 'client-communication', label: 'Communication log', path: '/client-communication' },
+      { id: 'client-lookup', label: 'Quick Lookup', path: '/client-lookup' }
     ]
   },
   {
@@ -299,6 +301,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   tools: 'WrenchIcon',
   'site-report': 'ClipboardDocumentCheckIcon',
   'client-communication': 'ChatBubbleLeftRightIcon',
+  'client-lookup': 'PhoneIcon',
   subcontractor: 'UserGroupIcon',
   'client-requests': 'InboxIcon',
   leads: 'UserPlusIcon',
@@ -365,12 +368,17 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     return enabledModuleIds.has(moduleId);
   }, [enabledModuleIds]);
 
+  const hasLookupPermission = useHasPermission('quick_lookup.read');
+
   const filteredMenuData = useMemo(() => {
     return menuData.map(section => ({
       ...section,
-      items: section.items.filter(item => isModuleEnabled(item.id))
+      items: section.items.filter(item => {
+        if (item.id === 'client-lookup' && !hasLookupPermission) return false;
+        return isModuleEnabled(item.id);
+      })
     })).filter(section => section.items.length > 0);
-  }, [isModuleEnabled]);
+  }, [isModuleEnabled, hasLookupPermission]);
 
   // Extract Settings section
   const settingsSection = useMemo(() => {
