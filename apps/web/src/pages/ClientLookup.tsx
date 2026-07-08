@@ -150,6 +150,7 @@ export default function ClientLookup() {
   // Selection state
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [isClientChanging, setIsClientChanging] = useState<boolean>(false);
   
   // Search state
   const [scopeKeyword, setScopeKeyword] = useState<string>('');
@@ -167,6 +168,7 @@ export default function ClientLookup() {
   const [requestedAdditionalScope, setRequestedAdditionalScope] = useState<boolean>(false);
   const [additionalScopeText, setAdditionalScopeText] = useState<string>('');
   const [isSavingLog, setIsSavingLog] = useState<boolean>(false);
+  const [historyTab, setHistoryTab] = useState<'pos' | 'quotations' | 'invoices' | 'history'>('pos');
 
   // Resolve legacy role snapshot
   const currentMember = organisations.find(o => o.organisation_id === organisation?.id);
@@ -259,6 +261,70 @@ export default function ClientLookup() {
     enabled: !!organisation?.id,
   });
 
+  // 6. Fetch Client Purchase Orders (POs)
+  const { data: clientPOs = [], isLoading: isPosLoading } = useQuery<any[]>({
+    queryKey: ['quick-lookup-pos', organisation?.id, selectedClientId],
+    queryFn: async () => {
+      if (!organisation?.id || !selectedClientId) return [];
+      const { data, error } = await supabase
+        .from('client_purchase_orders')
+        .select('id, po_number, po_date, po_expiry_date, po_total_value, po_utilized_value, po_available_value, status')
+        .eq('client_id', selectedClientId)
+        .order('po_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && !!selectedClientId,
+  });
+
+  // 7. Fetch Quotations
+  const { data: clientQuotes = [], isLoading: isQuotesLoading } = useQuery<any[]>({
+    queryKey: ['quick-lookup-quotes', organisation?.id, selectedClientId],
+    queryFn: async () => {
+      if (!organisation?.id || !selectedClientId) return [];
+      const { data, error } = await supabase
+        .from('quotations')
+        .select('id, quotation_no, quotation_date, status, total_value, project_id, projects(name)')
+        .eq('client_id', selectedClientId)
+        .order('quotation_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && !!selectedClientId,
+  });
+
+  // 8. Fetch Invoices
+  const { data: clientInvoices = [], isLoading: isInvoicesLoading } = useQuery<any[]>({
+    queryKey: ['quick-lookup-invoices', organisation?.id, selectedClientId],
+    queryFn: async () => {
+      if (!organisation?.id || !selectedClientId) return [];
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_no, invoice_date, total, status, project_id, projects(name)')
+        .eq('client_id', selectedClientId)
+        .order('invoice_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && !!selectedClientId,
+  });
+
+  // 9. Fetch Communication History
+  const { data: commHistory = [], isLoading: isHistoryLoading } = useQuery<any[]>({
+    queryKey: ['quick-lookup-comm-history', organisation?.id, selectedClientId],
+    queryFn: async () => {
+      if (!organisation?.id || !selectedClientId) return [];
+      const { data, error } = await supabase
+        .from('client_communication')
+        .select('id, created_at, call_type, call_category, call_brief, next_action, status, priority, logged_by_role, call_received_by')
+        .eq('client_id', selectedClientId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && !!selectedClientId,
+  });
+
   // Auto-set the project and pre-select assignees
   useEffect(() => {
     setSelectedProjectId('');
@@ -266,6 +332,14 @@ export default function ClientLookup() {
     setSearchTriggered(false);
     setScopeMatches([]);
     setScopeInScope(null);
+
+    if (selectedClientId) {
+      setIsClientChanging(true);
+      const timer = setTimeout(() => {
+        setIsClientChanging(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
   }, [selectedClientId]);
 
   useEffect(() => {
@@ -318,8 +392,8 @@ export default function ClientLookup() {
 
   // Submit Call Log
   const handleLogCall = async () => {
-    if (!selectedClientId || !selectedProjectId) {
-      toast.error('Client and Project are required to log a call.');
+    if (!selectedClientId) {
+      toast.error('Client is required to log a call.');
       return;
     }
     setIsSavingLog(true);
@@ -347,6 +421,7 @@ export default function ClientLookup() {
         .insert({
           organisation_id: organisation?.id,
           client_id: selectedClientId,
+          project_id: selectedProjectId || null,
           call_type: 'Incoming',
           call_category: callCategory,
           call_regarding: 'Quick Lookup Resolution',
@@ -436,6 +511,18 @@ export default function ClientLookup() {
     return 'bg-zinc-50 border-zinc-200 text-zinc-900 dark:bg-zinc-900/40 dark:border-zinc-800';
   };
 
+  // DESIGN.md Document Section Pattern
+  const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle: React.CSSProperties = { minWidth: '100px', maxWidth: '100px', fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' };
+  const fieldColStyle: React.CSSProperties = { flex: 1 };
+  
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
+
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       {/* Page Header */}
@@ -450,52 +537,80 @@ export default function ClientLookup() {
         </div>
       </div>
 
-      {/* Selectors Panel — Padding 24px (p-6) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white dark:bg-zinc-900/45 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-        <div className="space-y-2">
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Client</label>
-          {isClientsLoading ? (
-            <div className="h-10 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />
-          ) : (
-            <SearchableSelect
-              items={clients}
-              selectedId={selectedClientId}
-              onSelect={setSelectedClientId}
-              getLabel={(c) => `${c.client_name} (${c.client_id})`}
-              getId={(c) => c.id}
-              placeholder="Search and select client..."
-              errorText="No clients found"
-            />
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">Project / Site</label>
-          {isProjectsLoading ? (
-            <div className="h-10 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />
-          ) : (
-            <SearchableSelect
-              items={filteredProjects}
-              selectedId={selectedProjectId}
-              onSelect={setSelectedProjectId}
-              getLabel={(p) => p.name}
-              getId={(p) => p.id}
-              placeholder={selectedClientId ? "Search and select project..." : "Select client first"}
-              disabled={!selectedClientId}
-              errorText="No projects found"
-            />
-          )}
+      {/* Selectors Panel — Card Padding 24px */}
+      <div style={{ padding: '24px', borderRadius: '12px' }} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+          {/* Column 1 */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {renderHeaderField('Client:', isClientsLoading ? (
+              <div className="h-9 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />
+            ) : (
+              <SearchableSelect
+                items={clients}
+                selectedId={selectedClientId}
+                onSelect={setSelectedClientId}
+                getLabel={(c) => `${c.client_name} (${c.client_id})`}
+                getId={(c) => c.id}
+                placeholder="Search and select client..."
+                heightClass="h-9"
+                errorText="No clients found"
+              />
+            ), true)}
+          </div>
+          {/* Column 2 */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {renderHeaderField('Project:', isProjectsLoading ? (
+              <div className="h-9 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-lg" />
+            ) : (
+              <SearchableSelect
+                items={filteredProjects}
+                selectedId={selectedProjectId}
+                onSelect={setSelectedProjectId}
+                getLabel={(p) => p.name}
+                getId={(p) => p.id}
+                placeholder={selectedClientId ? "Search and select project..." : "Select client first"}
+                disabled={!selectedClientId}
+                heightClass="h-9"
+                errorText="No projects found"
+              />
+            ), true)}
+          </div>
         </div>
       </div>
 
-      {!selectedProjectId ? (
+      {!selectedClientId ? (
         <div className="p-12 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-400">
           <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
-          <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">Select Client and Project to begin Lookup</h3>
+          <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">Select Client to begin Lookup</h3>
           <p className="text-xs text-zinc-500 mt-1">This tool dynamically compiles active orders, invoices, and quotations.</p>
         </div>
+      ) : isClientChanging ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-pulse">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Blocker Skeleton */}
+            <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-4">
+              <div className="h-3.5 bg-zinc-200 dark:bg-zinc-800 rounded w-1/4"></div>
+              <div className="h-16 bg-zinc-50 dark:bg-zinc-950 rounded-xl"></div>
+            </div>
+            {/* Scope Skeleton */}
+            <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-4">
+              <div className="h-3.5 bg-zinc-200 dark:bg-zinc-800 rounded w-1/4"></div>
+              <div className="h-10 bg-zinc-50 dark:bg-zinc-950 rounded-xl"></div>
+            </div>
+          </div>
+          {/* Logging Skeleton */}
+          <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-4 h-fit">
+            <div className="h-3.5 bg-zinc-200 dark:bg-zinc-800 rounded w-1/3"></div>
+            <div className="space-y-3 pt-2">
+              <div className="h-8 bg-zinc-50 dark:bg-zinc-950 rounded-lg"></div>
+              <div className="h-16 bg-zinc-50 dark:bg-zinc-950 rounded-lg"></div>
+              <div className="h-8 bg-zinc-50 dark:bg-zinc-950 rounded-lg"></div>
+            </div>
+          </div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main lookup results column */}
           <div className="lg:col-span-2 space-y-6">
             
@@ -503,7 +618,11 @@ export default function ClientLookup() {
             <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">1. Dispatch & Order Blocker Check</h2>
               
-              {isSoLoading || isDispatchLoading ? (
+              {!selectedProjectId ? (
+                <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-500 border border-zinc-200/50 dark:border-zinc-800/40 text-center">
+                  Select a Project/Site to verify dispatch blockers.
+                </div>
+              ) : isSoLoading || isDispatchLoading ? (
                 <div className="flex justify-center items-center py-6">
                   <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
                 </div>
@@ -537,71 +656,78 @@ export default function ClientLookup() {
             <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">2. Scope & Quotation Verification</h2>
               
-              <form onSubmit={handleScopeSearch} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
-                  <input
-                    type="text"
-                    placeholder="Search approved Quotation (e.g. false ceiling, wiring)..."
-                    className="w-full h-9 pl-9 pr-3 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-lg text-sm focus:outline-none focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-900 dark:text-zinc-100"
-                    value={scopeKeyword}
-                    onChange={(e) => setScopeKeyword(e.target.value)}
-                    required
-                  />
+              {!selectedProjectId ? (
+                <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-500 border border-zinc-200/50 dark:border-zinc-800/40 text-center">
+                  Select a Project/Site to verify quotation scope.
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSearchingScope}
-                  className="px-4 h-9 bg-[#185FA5] border border-[#185FA5] hover:bg-[#0C447C] hover:border-[#0C447C] text-white rounded-lg text-xs font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  {isSearchingScope ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check Scope'}
-                </button>
-              </form>
-
-              {searchTriggered && (
-                <div className="space-y-3 pt-2">
-                  {scopeInScope ? (
-                    <div className="space-y-3">
-                      <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-950 flex items-center gap-2 text-xs font-semibold dark:bg-emerald-950/15 dark:border-emerald-900/30">
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
-                        In Agreed Scope — Found matching items in Quotation.
-                      </div>
-                      
-                      {/* Matches list */}
-                      <div className="divide-y divide-zinc-100 dark:divide-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-                        {scopeMatches.map((m, idx) => (
-                          <div key={idx} className="p-3 flex justify-between items-center text-xs bg-zinc-50/30 hover:bg-zinc-50 dark:bg-zinc-950/30 dark:hover:bg-zinc-950 transition-colors">
-                            <div className="space-y-0.5">
-                              <p className="font-semibold text-zinc-850 dark:text-zinc-200">{m.item_name}</p>
-                              <p className="text-[10px] text-zinc-400">Approved on: {m.approved_date}</p>
-                            </div>
-                            <div className="text-right space-y-0.5">
-                              <p className="font-bold text-zinc-900 dark:text-zinc-50">₹{m.rate.toLocaleString('en-IN')}</p>
-                              <span className="inline-block text-[9px] font-bold text-zinc-400 border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5 rounded">
-                                {m.quotation_no}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+              ) : (
+                <>
+                  <form onSubmit={handleScopeSearch} className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                      <input
+                        type="text"
+                        placeholder="Search approved Quotation (e.g. false ceiling, wiring)..."
+                        className="w-full h-9 pl-9 pr-3 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-lg text-sm focus:outline-none focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-900 dark:text-zinc-100"
+                        value={scopeKeyword}
+                        onChange={(e) => setScopeKeyword(e.target.value)}
+                        required
+                      />
                     </div>
-                  ) : (
-                    <div className="p-3.5 bg-red-50/50 border border-red-100 rounded-xl text-red-950 flex items-start gap-2.5 text-xs leading-normal dark:bg-red-950/15 dark:border-red-900/30">
-                      <ShieldAlert className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-bold text-red-950">Not Found in Scope</p>
-                        <p className="opacity-90 mt-0.5">Keyword "{scopeKeyword}" matches no items in approved Quotations. Verify spelling or check original BOQ files.</p>
-                      </div>
+                    <button
+                      type="submit"
+                      disabled={isSearchingScope}
+                      className="px-4 h-9 bg-[#185FA5] border border-[#185FA5] hover:bg-[#0C447C] hover:border-[#0C447C] text-white rounded-lg text-xs font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      {isSearchingScope ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check Scope'}
+                    </button>
+                  </form>
+
+                  {searchTriggered && (
+                    <div className="space-y-3 pt-2">
+                      {scopeInScope ? (
+                        <div className="space-y-3">
+                          <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-950 flex items-center gap-2 text-xs font-semibold dark:bg-emerald-950/15 dark:border-emerald-900/30">
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            In Agreed Scope — Found matching items in Quotation.
+                          </div>
+                          
+                          {/* Matches list */}
+                          <div className="divide-y divide-zinc-100 dark:divide-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+                            {scopeMatches.map((m, idx) => (
+                              <div key={idx} className="p-3 flex justify-between items-center text-xs bg-zinc-50/30 hover:bg-zinc-50 dark:bg-zinc-950/30 dark:hover:bg-zinc-950 transition-colors">
+                                <div className="space-y-0.5">
+                                  <p className="font-semibold text-zinc-850 dark:text-zinc-200">{m.item_name}</p>
+                                  <p className="text-[10px] text-zinc-400">Approved on: {m.approved_date}</p>
+                                </div>
+                                <div className="text-right space-y-0.5">
+                                  <p className="font-bold text-zinc-900 dark:text-zinc-50">₹{m.rate.toLocaleString('en-IN')}</p>
+                                  <span className="inline-block text-[9px] font-bold text-zinc-400 border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5 rounded">
+                                    {m.quotation_no}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 bg-red-50/50 border border-red-100 rounded-xl text-red-950 flex items-start gap-2.5 text-xs leading-normal dark:bg-red-950/15 dark:border-red-900/30">
+                          <ShieldAlert className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-bold text-red-950">Not Found in Scope</p>
+                            <p className="opacity-90 mt-0.5">Keyword "{scopeKeyword}" matches no items in approved Quotations. Verify spelling or check original BOQ files.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
-
           </div>
 
-          {/* Logging Form Panel — Padding 24px (p-6) */}
-          <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4 h-fit">
+                  {/* Logging Form Panel — Card Padding 24px */}
+          <div style={{ padding: '24px' }} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4 h-fit">
             <div className="border-b border-zinc-100 dark:border-zinc-850 pb-2">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">3. Log Client Interaction</h2>
               <p className="text-[10px] text-zinc-450 mt-0.5">Save resolving actions and route notifications immediately.</p>
@@ -609,8 +735,7 @@ export default function ClientLookup() {
 
             <div className="space-y-3">
               {/* Category */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5 block">Party Type</label>
+              {renderHeaderField('Party Type:', (
                 <div className="flex gap-2">
                   {['CLIENT', 'VENDOR'].map(c => (
                     <button
@@ -627,11 +752,10 @@ export default function ClientLookup() {
                     </button>
                   ))}
                 </div>
-              </div>
+              ))}
 
               {/* Priority */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5 block">Call Priority</label>
+              {renderHeaderField('Priority:', (
                 <div className="flex gap-2">
                   {['Normal', 'Urgent'].map(p => (
                     <button
@@ -650,45 +774,45 @@ export default function ClientLookup() {
                     </button>
                   ))}
                 </div>
-              </div>
+              ))}
 
               {/* Notes */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5 block">Call Discussion Notes</label>
+              {renderHeaderField('Notes:', (
                 <textarea
                   placeholder="Enter details of client request or discussion..."
                   className="w-full min-h-[70px] p-2.5 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-lg text-xs focus:outline-none focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-900 dark:text-zinc-100"
                   value={callNotes}
                   onChange={(e) => setCallNotes(e.target.value)}
                 />
-              </div>
+              ))}
 
               {/* Additional Scope Checkbox */}
-              <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={requestedAdditionalScope}
-                    onChange={(e) => setRequestedAdditionalScope(e.target.checked)}
-                    className="rounded border-zinc-300 text-[#185FA5] focus:ring-[#185FA5] h-3.5 w-3.5 cursor-pointer"
-                  />
-                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Requested Extra Scope</span>
-                </label>
-                
-                {requestedAdditionalScope && (
-                  <textarea
-                    placeholder="Describe the additional work requested (e.g. extra ceiling wiring requested by GM)..."
-                    className="w-full min-h-[50px] p-2 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-lg text-xs focus:outline-none focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-900 dark:text-zinc-100"
-                    value={additionalScopeText}
-                    onChange={(e) => setAdditionalScopeText(e.target.value)}
-                    required
-                  />
-                )}
-              </div>
+              {renderHeaderField('Extra Scope:', (
+                <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={requestedAdditionalScope}
+                      onChange={(e) => setRequestedAdditionalScope(e.target.checked)}
+                      className="rounded border-zinc-300 text-[#185FA5] focus:ring-[#185FA5] h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Requested Extra Scope</span>
+                  </label>
+                  
+                  {requestedAdditionalScope && (
+                    <textarea
+                      placeholder="Describe the additional work requested (e.g. extra ceiling wiring requested by GM)..."
+                      className="w-full min-h-[50px] p-2 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-lg text-xs focus:outline-none focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-900 dark:text-zinc-100"
+                      value={additionalScopeText}
+                      onChange={(e) => setAdditionalScopeText(e.target.value)}
+                      required
+                    />
+                  )}
+                </div>
+              ))}
 
               {/* Routing Assignee */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5 block">Route & Assign Follow-up To</label>
+              {renderHeaderField('Assign To:', (
                 <SearchableSelect
                   items={orgMembers}
                   selectedId={assignedToId}
@@ -699,18 +823,20 @@ export default function ClientLookup() {
                   heightClass="h-9"
                   errorText="No members found"
                 />
-              </div>
+              ))}
 
               {/* Resolve Inline */}
-              <label className="flex items-center gap-2 pt-1 pb-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isResolvedOnCall}
-                  onChange={(e) => setIsResolvedOnCall(e.target.checked)}
-                  className="rounded border-zinc-300 text-[#185FA5] focus:ring-[#185FA5] h-3.5 w-3.5 cursor-pointer"
-                />
-                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Resolved on the Call</span>
-              </label>
+              {renderHeaderField('Resolved:', (
+                <label className="flex items-center gap-2 pt-1 pb-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isResolvedOnCall}
+                    onChange={(e) => setIsResolvedOnCall(e.target.checked)}
+                    className="rounded border-zinc-300 text-[#185FA5] focus:ring-[#185FA5] h-3.5 w-3.5 cursor-pointer"
+                  />
+                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Resolved on the Call</span>
+                </label>
+              ))}
 
               {/* Save Button — Primary button geometry and colors */}
               <button
@@ -724,7 +850,249 @@ export default function ClientLookup() {
             </div>
           </div>
         </div>
-      )}
+
+        {/* 4. 360° Client History Container */}
+        <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-6">
+          <div className="border-b border-zinc-150 dark:border-zinc-800 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">4. 360° Connected History</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">View real-time connected records and historical logs for this client.</p>
+            </div>
+            
+            {/* Tab Selector Buttons */}
+            <div className="flex border border-zinc-200 dark:border-zinc-800 rounded-lg p-0.5 bg-zinc-50 dark:bg-zinc-950 overflow-x-auto">
+              <button
+                onClick={() => setHistoryTab('pos')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
+                  historyTab === 'pos'
+                    ? 'bg-white dark:bg-zinc-900 shadow text-[#185FA5] dark:text-blue-400'
+                    : 'text-zinc-550 hover:text-zinc-700 dark:text-zinc-400'
+                }`}
+              >
+                Client POs ({clientPOs.length})
+              </button>
+              <button
+                onClick={() => setHistoryTab('quotations')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
+                  historyTab === 'quotations'
+                    ? 'bg-white dark:bg-zinc-900 shadow text-[#185FA5] dark:text-blue-400'
+                    : 'text-zinc-550 hover:text-zinc-700 dark:text-zinc-400'
+                }`}
+              >
+                Quotations ({clientQuotes.length})
+              </button>
+              <button
+                onClick={() => setHistoryTab('invoices')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
+                  historyTab === 'invoices'
+                    ? 'bg-white dark:bg-zinc-900 shadow text-[#185FA5] dark:text-blue-400'
+                    : 'text-zinc-550 hover:text-zinc-700 dark:text-zinc-400'
+                }`}
+              >
+                Invoices ({clientInvoices.length})
+              </button>
+              <button
+                onClick={() => setHistoryTab('history')}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
+                  historyTab === 'history'
+                    ? 'bg-white dark:bg-zinc-900 shadow text-[#185FA5] dark:text-blue-400'
+                    : 'text-zinc-550 hover:text-zinc-700 dark:text-zinc-400'
+                }`}
+              >
+                Call History ({commHistory.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Contents */}
+          <div className="min-h-[200px]">
+            {/* Purchase Orders */}
+            {historyTab === 'pos' && (
+              isPosLoading ? (
+                <div className="flex justify-center items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+              ) : clientPOs.length === 0 ? (
+                <div className="text-center py-10 text-xs text-zinc-400">No client purchase orders found.</div>
+              ) : (
+                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 border-b border-zinc-200 dark:border-zinc-800 font-semibold">
+                      <tr>
+                        <th className="p-3">PO Number</th>
+                        <th className="p-3">PO Date</th>
+                        <th className="p-3">Expiry Date</th>
+                        <th className="p-3 text-right">Total Value</th>
+                        <th className="p-3 text-right">Utilized Value</th>
+                        <th className="p-3 text-right">Available Value</th>
+                        <th className="p-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 dark:bg-zinc-950/20">
+                      {clientPOs.map(po => (
+                        <tr key={po.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
+                          <td className="p-3 font-semibold text-[#185FA5] dark:text-blue-400">{po.po_number}</td>
+                          <td className="p-3">{po.po_date}</td>
+                          <td className="p-3">{po.po_expiry_date || '—'}</td>
+                          <td className="p-3 text-right font-semibold">₹{Number(po.po_total_value).toLocaleString('en-IN')}</td>
+                          <td className="p-3 text-right text-amber-600 dark:text-amber-500">₹{Number(po.po_utilized_value).toLocaleString('en-IN')}</td>
+                          <td className="p-3 text-right text-emerald-600 dark:text-emerald-500 font-semibold">₹{Number(po.po_available_value).toLocaleString('en-IN')}</td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              po.status === 'Open'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40'
+                                : po.status === 'Partially Billed'
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/40'
+                                  : 'bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                            }`}>
+                              {po.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {/* Quotations */}
+            {historyTab === 'quotations' && (
+              isQuotesLoading ? (
+                <div className="flex justify-center items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+              ) : clientQuotes.length === 0 ? (
+                <div className="text-center py-10 text-xs text-zinc-400">No quotations found for this client.</div>
+              ) : (
+                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 border-b border-zinc-200 dark:border-zinc-800 font-semibold">
+                      <tr>
+                        <th className="p-3">Quotation Number</th>
+                        <th className="p-3">Quotation Date</th>
+                        <th className="p-3">Project / Site</th>
+                        <th className="p-3 text-right">Total Value</th>
+                        <th className="p-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 dark:bg-zinc-950/20">
+                      {clientQuotes.map(q => (
+                        <tr key={q.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
+                          <td className="p-3 font-semibold text-[#185FA5] dark:text-blue-400">{q.quotation_no}</td>
+                          <td className="p-3">{q.quotation_date}</td>
+                          <td className="p-3">{q.projects?.name || '—'}</td>
+                          <td className="p-3 text-right font-semibold">₹{Number(q.total_value).toLocaleString('en-IN')}</td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              q.status.toLowerCase() === 'approved' || q.status.toLowerCase() === 'converted'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40'
+                                : 'bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                            }`}>
+                              {q.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {/* Invoices */}
+            {historyTab === 'invoices' && (
+              isInvoicesLoading ? (
+                <div className="flex justify-center items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+              ) : clientInvoices.length === 0 ? (
+                <div className="text-center py-10 text-xs text-zinc-400">No invoices found for this client.</div>
+              ) : (
+                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 border-b border-zinc-200 dark:border-zinc-800 font-semibold">
+                      <tr>
+                        <th className="p-3">Invoice Number</th>
+                        <th className="p-3">Invoice Date</th>
+                        <th className="p-3">Project / Site</th>
+                        <th className="p-3 text-right">Total Value</th>
+                        <th className="p-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 dark:bg-zinc-950/20">
+                      {clientInvoices.map(inv => (
+                        <tr key={inv.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
+                          <td className="p-3 font-semibold text-[#185FA5] dark:text-blue-400">{inv.invoice_no}</td>
+                          <td className="p-3">{inv.invoice_date}</td>
+                          <td className="p-3">{inv.projects?.name || '—'}</td>
+                          <td className="p-3 text-right font-semibold">₹{Number(inv.total).toLocaleString('en-IN')}</td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              inv.status.toLowerCase() === 'paid'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40'
+                                : inv.status.toLowerCase() === 'partial' || inv.status.toLowerCase() === 'unpaid'
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/40'
+                                  : 'bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                            }`}>
+                              {inv.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {/* Call History */}
+            {historyTab === 'history' && (
+              isHistoryLoading ? (
+                <div className="flex justify-center items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+              ) : commHistory.length === 0 ? (
+                <div className="text-center py-10 text-xs text-zinc-400">No past call interactions logged for this client.</div>
+              ) : (
+                <div className="space-y-4">
+                  {commHistory.map(comm => {
+                    const receiver = orgMembers.find(m => m.user_id === comm.call_received_by);
+                    return (
+                      <div key={comm.id} className="p-4 bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/60 dark:border-zinc-800 rounded-xl space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-zinc-850 dark:text-zinc-200">
+                              {comm.call_type} Inflow — {comm.call_category}
+                            </span>
+                            <span className="text-[10px] text-zinc-450 dark:text-zinc-500 font-medium">
+                              {new Date(comm.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                              comm.status === 'Closed'
+                                ? 'bg-zinc-100 text-zinc-650 dark:bg-zinc-850 dark:text-zinc-400'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
+                            }`}>
+                              {comm.status}
+                            </span>
+                            {comm.priority === 'Urgent' && (
+                              <span className="bg-red-50 text-red-650 dark:bg-red-950/20 dark:text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">
+                                Urgent
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-850 leading-relaxed">
+                          {comm.call_brief}
+                        </p>
+                        <div className="flex items-center justify-between text-[10px] text-zinc-450 dark:text-zinc-500 pt-1">
+                          <p>Logged by: <span className="font-medium text-zinc-600 dark:text-zinc-300">{receiver?.full_name || 'System'} ({comm.logged_by_role || 'member'})</span></p>
+                          {comm.next_action && <p className="font-semibold text-[#185FA5] dark:text-blue-400">Action: {comm.next_action}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

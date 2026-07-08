@@ -90,7 +90,7 @@ function App() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans select-none antialiased">
       {/* Active Screen */}
       <div className="flex-1 overflow-hidden">
-        {currentScreen === 'dashboard' && (
+        {currentScreen === 'dashboard' && activeModule === 'none' && (
           <Dashboard
             onLogout={handleLogout}
             onNavigateToApprovals={() => setCurrentScreen('approvals')}
@@ -120,8 +120,9 @@ function App() {
         )}
       </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border pb-safe">
+      {/* Bottom Navigation — hidden when a module is open (full-screen drill-down) */}
+      {activeModule === 'none' && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border pb-safe">
         <div className="flex items-end justify-around h-16 max-w-lg mx-auto px-2 pb-1">
           {NAV_ITEMS.map(({ key, label, Icon }) => (
             <button
@@ -139,7 +140,8 @@ function App() {
             </button>
           ))}
         </div>
-      </nav>
+        </nav>
+      )}
     </div>
   );
 }

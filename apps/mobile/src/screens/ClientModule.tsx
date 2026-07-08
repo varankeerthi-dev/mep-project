@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, FileText, Users, ChevronDown, Calendar, Building2 } from 'lucide-react';
+import { ChevronLeft, FileText, Users, ChevronDown, Calendar, Building2, Plus } from 'lucide-react';
+import { ClientFormScreen } from './ClientFormScreen';
 
 interface ClientModuleProps {
   onBack: () => void;
@@ -37,13 +38,7 @@ interface MeetingItem {
   status?: string;
 }
 
-const TABS = [
-  { key: 'list', label: 'List' },
-  { key: 'po', label: 'Client PO' },
-  { key: 'meetings', label: 'Meetings' },
-] as const;
-
-type TabKey = typeof TABS[number]['key'];
+type View = 'list' | 'po' | 'meetings';
 
 const fmtDate = (d?: string) => {
   if (!d) return '—';
@@ -92,8 +87,19 @@ const DEMO_MEETINGS: MeetingItem[] = [
   { id: 'm3', meeting_date: '2026-07-15', meeting_time: '11:00', client_name: 'L&T Construction', location: 'Site Office', status: 'upcoming' },
 ];
 
+const formatCurrency = (n?: number) => {
+  if (n == null) return '—';
+  return '₹' + Number(n).toLocaleString('en-IN');
+};
+
+const TABS: { key: View; label: string; count: number; Icon: any }[] = [
+  { key: 'list', label: 'Client List', count: 0, Icon: Users },
+  { key: 'po', label: 'Client PO', count: 0, Icon: FileText },
+  { key: 'meetings', label: 'Meetings', count: 0, Icon: Calendar },
+];
+
 export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = false }) => {
-  const [activeTab, setActiveTab] = useState<TabKey>('list');
+  const [view, setView] = useState<View>('list');
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [pos, setPos] = useState<ClientPO[]>([]);
@@ -101,6 +107,14 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formClient, setFormClient] = useState<any>(null);
+
+  const refreshData = () => {
+    if (isDemo) {
+      return;
+    }
+    loadData();
+  };
 
   useEffect(() => {
     if (isDemo) {
@@ -155,48 +169,77 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
     );
   }, [clients, search]);
 
-  const formatCurrency = (n?: number) => {
-    if (n == null) return '—';
-    return '₹' + Number(n).toLocaleString('en-IN');
+  const counts = useMemo(() => ({
+    list: clients.length,
+    po: pos.length,
+    meetings: meetings.length,
+  }), [clients, pos, meetings]);
+
+  const switchTab = (tab: View) => {
+    setSearch('');
+    setExpanded(null);
+    setView(tab);
   };
 
+  const handleFormBack = () => {
+    setFormClient(null);
+    refreshData();
+  };
+
+  if (formClient) {
+    return (
+      <ClientFormScreen
+        onBack={handleFormBack}
+        clientData={formClient === 'new' ? null : formClient}
+        isDemo={isDemo}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background max-w-lg mx-auto flex flex-col pb-24">
-      {/* Header */}
+    <div className="min-h-screen bg-background max-w-lg mx-auto flex flex-col">
       <motion.header
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="px-4 pt-10 pb-4 flex items-center gap-3 border-b border-border bg-card sticky top-0 z-10"
+        className="px-4 pt-10 pb-4 flex items-center gap-3 border-b border-border bg-card"
       >
         <button onClick={onBack} className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground active:scale-95 transition-all cursor-pointer">
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold tracking-tight text-foreground">Client</h1>
           <p className="text-[10px] font-medium text-muted-foreground uppercase">Module</p>
         </div>
+        <button
+          onClick={() => setFormClient('new')}
+          className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white active:scale-95 transition-all cursor-pointer"
+          title="Add Client"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
       </motion.header>
 
-      <main className="px-4 pt-6 space-y-5 flex-1 overflow-y-auto">
-        {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-secondary">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === t.key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
-              }`}
-            >
-              {t.key === 'list' && <Users className="h-4 w-4" />}
-              {t.key === 'po' && <FileText className="h-4 w-4" />}
-              {t.key === 'meetings' && <Calendar className="h-4 w-4" />}
-              {t.label}
-            </button>
-          ))}
-        </div>
+      {/* Sub-tabs */}
+      <div className="flex px-4 pt-3 pb-0 bg-card border-b border-border">
+        {TABS.map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            onClick={() => switchTab(key)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+              view === key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span>{label}</span>
+            <span className="text-[10px] text-muted-foreground/70">({counts[key]})</span>
+          </button>
+        ))}
+      </div>
 
+      <main className="px-4 pt-5 space-y-5 flex-1 overflow-y-auto">
         {loading ? (
           <div className="glass-card rounded-2xl p-6 flex justify-center items-center">
             <span className="text-sm text-muted-foreground">Loading…</span>
@@ -205,7 +248,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
           <div className="p-3 text-xs rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-center">{error}</div>
         ) : (
           <>
-            {activeTab === 'list' && (
+            {view === 'list' && (
               <div className="space-y-3">
                 <input
                   type="text"
@@ -244,6 +287,12 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
                           <p className="text-muted-foreground"><span className="font-medium text-foreground">Email:</span> {c.email || '—'}</p>
                           <p className="text-muted-foreground"><span className="font-medium text-foreground">GSTIN:</span> {c.gstin || '—'}</p>
                           <p className="text-muted-foreground"><span className="font-medium text-foreground">State:</span> {c.state || '—'}</p>
+                          <button
+                            onClick={() => setFormClient(c)}
+                            className="mt-2 w-full h-8 rounded-lg bg-primary/10 border border-primary/20 text-xs font-semibold text-primary flex items-center justify-center active:bg-primary/20 transition-colors cursor-pointer"
+                          >
+                            Edit Client
+                          </button>
                         </motion.div>
                       )}
                     </div>
@@ -252,7 +301,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
               </div>
             )}
 
-            {activeTab === 'po' && (
+            {view === 'po' && (
               <div className="space-y-3">
                 {pos.length === 0 ? (
                   <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">No client purchase orders found.</div>
@@ -273,7 +322,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
               </div>
             )}
 
-            {activeTab === 'meetings' && (
+            {view === 'meetings' && (
               <div className="space-y-3">
                 {meetings.length === 0 ? (
                   <div className="glass-card rounded-2xl p-6 text-center text-sm text-muted-foreground">No meetings found.</div>
