@@ -10,6 +10,7 @@ import { ClientLookup } from './screens/ClientLookup';
 import { ClientModule } from './screens/ClientModule';
 import { ProjectModule } from './screens/ProjectModule';
 import { PurchaseModule } from './screens/PurchaseModule';
+import { AlertTriangle } from 'lucide-react';
 import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, LogOut } from 'lucide-react';
 
 type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup';
@@ -22,6 +23,8 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [activeModule, setActiveModule] = useState<ModuleScreen>('none');
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
+  const [showDirtyDialog, setShowDirtyDialog] = useState(false);
 
   useEffect(() => {
     // 1. Get initial session
@@ -49,6 +52,10 @@ function App() {
   }, [isDemo]);
 
   const handleBack = () => {
+    if (formDirty) {
+      setShowDirtyDialog(true);
+      return false;
+    }
     if (activeModule !== 'none') {
       setActiveModule('none');
       return true;
@@ -64,12 +71,25 @@ function App() {
   useEffect(() => {
     window.history.pushState(null, '', window.location.href);
     const onPopState = () => {
-      handleBack();
-      window.history.pushState(null, '', window.location.href);
+      if (handleBack()) {
+        window.history.pushState(null, '', window.location.href);
+      }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [currentScreen, activeModule]);
+  }, [currentScreen, activeModule, formDirty]);
+
+  const confirmDiscard = () => {
+    setFormDirty(false);
+    setShowDirtyDialog(false);
+    if (activeModule !== 'none') {
+      setActiveModule('none');
+    } else if (currentScreen !== 'dashboard') {
+      setCurrentScreen('dashboard');
+    } else {
+      setShowExitDialog(true);
+    }
+  };
 
   const handleLoginSuccess = (demoMode = false) => {
     if (demoMode) {
@@ -124,7 +144,7 @@ function App() {
           />
         )}
         {currentScreen === 'approvals' && <Approvals isDemo={isDemo} />}
-        {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} />}
+        {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} onFormDirtyChange={setFormDirty} />}
         {currentScreen === 'site_visits' && <SiteVisits isDemo={isDemo} />}
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
         {currentScreen === 'lookup' && (
@@ -134,7 +154,7 @@ function App() {
           />
         )}
         {activeModule === 'client' && (
-          <ClientModule onBack={() => setActiveModule('none')} isDemo={isDemo} />
+          <ClientModule onBack={() => setActiveModule('none')} isDemo={isDemo} onFormDirtyChange={setFormDirty} />
         )}
         {activeModule === 'project' && (
           <ProjectModule onBack={() => setActiveModule('none')} isDemo={isDemo} />
@@ -165,6 +185,42 @@ function App() {
           ))}
         </div>
         </nav>
+      )}
+
+      {/* Unsaved Changes Dialog */}
+      {showDirtyDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDirtyDialog(false)} />
+          <div className="relative bg-card rounded-2xl p-6 max-w-sm w-full border border-border shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Unsaved Changes</h3>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              You have unsaved form data. Going back will discard all changes.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDirtyDialog(false)}
+                className="h-10 px-5 rounded-xl bg-card border border-border text-sm font-semibold text-foreground active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                onClick={confirmDiscard}
+                className="h-10 px-5 rounded-xl bg-destructive text-white text-sm font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Exit Confirmation Dialog */}

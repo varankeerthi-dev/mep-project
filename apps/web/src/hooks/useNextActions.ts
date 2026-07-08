@@ -41,7 +41,7 @@ export function useNextActions() {
         .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
         .eq('organisation_id', orgId)
         .eq('is_resolved', false)
-        .in('status', ['Open', 'In Progress', 'open', 'in_progress']);
+        .in('status', ['Open', 'In Progress', 'open', 'in_progress', 'Awaiting Decision', 'awaiting_decision']);
 
       if (!isPowerUser) {
         commQuery = commQuery.or(`assigned_to.eq.${userId},call_entered_by.eq.${userId}`);

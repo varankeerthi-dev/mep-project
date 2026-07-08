@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { z } from 'zod';
 import { BottomSheetPicker } from '../components/BottomSheetPicker';
@@ -64,6 +64,7 @@ interface Project {
 
 interface SiteReportProps {
   isDemo?: boolean;
+  onFormDirtyChange?: (dirty: boolean) => void;
 }
 
 // ---------- Helpers ----------
@@ -204,7 +205,7 @@ const DEMO_SUBCONTRACTORS = [
 // =============================================
 // Main Component
 // =============================================
-export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
+export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false, onFormDirtyChange }) => {
   type ViewMode = 'list' | 'create' | 'view';
   const [view, setView] = useState<ViewMode>('list');
   const [reports, setReports] = useState<SiteReportItem[]>([]);
@@ -266,6 +267,33 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
   });
 
   const [form, setForm] = useState(blankForm());
+
+  // ---- Dirty form tracking ----
+  const blankFormStr = useMemo(() => JSON.stringify(blankForm()), []);
+  const isFormDirty = view === 'create' && JSON.stringify(form) !== blankFormStr;
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+  useEffect(() => {
+    onFormDirtyChange?.(isFormDirty);
+    return () => onFormDirtyChange?.(false);
+  }, [isFormDirty, onFormDirtyChange]);
+
+  const handleCreateCancel = () => {
+    if (isFormDirty) {
+      setShowUnsavedDialog(true);
+    } else {
+      setView('list');
+      setStep(0);
+      setForm(blankForm());
+    }
+  };
+
+  const confirmDiscardForm = () => {
+    setShowUnsavedDialog(false);
+    setView('list');
+    setStep(0);
+    setForm(blankForm());
+  };
 
   // ---- Load ----
   useEffect(() => {
@@ -601,6 +629,13 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
             <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full ${status.bg} ${status.text}`}>
               {status.label}
             </span>
+            <button
+              onClick={() => window.print()}
+              className="p-2 rounded-xl bg-secondary active:scale-95 transition-transform"
+              title="Download PDF"
+            >
+              <Download className="h-4 w-4 text-foreground" />
+            </button>
           </div>
         </div>
 
@@ -1290,7 +1325,7 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-3">
             <button
-              onClick={() => { setView('list'); setStep(0); setForm(blankForm()); }}
+              onClick={handleCreateCancel}
               className="p-2 rounded-xl bg-secondary active:scale-95 transition-transform"
             >
               <X className="h-4 w-4 text-foreground" />
@@ -1373,6 +1408,42 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false }) => {
           </button>
         </div>
       </div>
+
+      {/* Unsaved Changes Dialog */}
+      {showUnsavedDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowUnsavedDialog(false)} />
+          <div className="relative bg-card rounded-2xl p-6 max-w-sm w-full border border-border shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Unsaved Changes</h3>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              You have unsaved form data. Going back will discard all changes.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowUnsavedDialog(false)}
+                className="h-10 px-5 rounded-xl bg-card border border-border text-sm font-semibold text-foreground active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                onClick={confirmDiscardForm}
+                className="h-10 px-5 rounded-xl bg-destructive text-white text-sm font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

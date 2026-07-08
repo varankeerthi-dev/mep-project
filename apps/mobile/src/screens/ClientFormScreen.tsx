@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, Save, Info, Building2, User, MapPin, FileText, Tag, Percent, Users, PhoneCall, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Save, Info, Building2, User, MapPin, FileText, Tag, Percent, Users, PhoneCall, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
 interface ClientFormScreenProps {
   onBack: () => void;
   clientData?: any;
   isDemo?: boolean;
+  onFormDirtyChange?: (dirty: boolean) => void;
 }
 
 type Tab = 'general' | 'discount';
@@ -38,15 +39,14 @@ const indianStates = [
 const inputCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors';
 const selectCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground outline-none focus:border-primary/50 transition-colors appearance-none';
 
-export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clientData, isDemo = false }) => {
+export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clientData, isDemo = false, onFormDirtyChange }) => {
   const editMode = !!clientData?.id;
 
   const [tab, setTab] = useState<Tab>('general');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [showSecondary, setShowSecondary] = useState(false);
-  const [showPurchase, setShowPurchase] = useState(false);
-  const [form, setForm] = useState<any>({
+  const INITIAL_FORM = {
     client_name: '', client_type: 'Business', category: 'Active',
     contact_person: '', contact_designation: '', contact: '', email: '',
     contact_person_2: '', contact_designation_2: '', contact_person_2_contact: '', contact_person_2_email: '',
@@ -55,7 +55,9 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
     msme_register_type: '', msme_number: '',
     address1: '', address2: '', pincode: '', remarks: '',
     discount_type: 'Standard', standard_pricelist_id: null, custom_discounts: {},
-  });
+  };
+  const [showPurchase, setShowPurchase] = useState(false);
+  const [form, setForm] = useState<any>({ ...INITIAL_FORM });
   const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
   const [discountSaving, setDiscountSaving] = useState(false);
   const [discountSaveMsg, setDiscountSaveMsg] = useState('');
@@ -91,6 +93,33 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
       setLoadingMeta(false);
     }
   }, [isDemo]);
+
+  // ---- Dirty form tracking ----
+  const isFormDirty = useMemo(() => {
+    const clean = clientData
+      ? { ...INITIAL_FORM, ...clientData, custom_discounts: undefined }
+      : INITIAL_FORM;
+    return JSON.stringify(form) !== JSON.stringify(clean);
+  }, [form, clientData]);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+  useEffect(() => {
+    onFormDirtyChange?.(isFormDirty);
+    return () => onFormDirtyChange?.(false);
+  }, [isFormDirty, onFormDirtyChange]);
+
+  const handleBackWithCheck = () => {
+    if (isFormDirty) {
+      setShowUnsavedDialog(true);
+    } else {
+      onBack();
+    }
+  };
+
+  const confirmDiscardForm = () => {
+    setShowUnsavedDialog(false);
+    onBack();
+  };
 
   const loadMeta = async () => {
     setLoadingMeta(true);
@@ -240,7 +269,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
         transition={{ delay: 0.1 }}
         className="px-4 pt-10 pb-4 flex items-center gap-3 border-b border-border bg-card"
       >
-        <button onClick={onBack} className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground active:scale-95 transition-all cursor-pointer">
+        <button onClick={handleBackWithCheck} className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground active:scale-95 transition-all cursor-pointer">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div>
@@ -747,6 +776,42 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
                 className="h-10 px-5 rounded-xl bg-destructive text-white text-base font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
               >
                 {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Dialog */}
+      {showUnsavedDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowUnsavedDialog(false)} />
+          <div className="relative bg-card rounded-2xl p-6 max-w-sm w-full border border-border shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Unsaved Changes</h3>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              You have unsaved form data. Going back will discard all changes.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowUnsavedDialog(false)}
+                className="h-10 px-5 rounded-xl bg-card border border-border text-sm font-semibold text-foreground active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                onClick={confirmDiscardForm}
+                className="h-10 px-5 rounded-xl bg-destructive text-white text-sm font-semibold flex items-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Discard
               </button>
             </div>
           </div>

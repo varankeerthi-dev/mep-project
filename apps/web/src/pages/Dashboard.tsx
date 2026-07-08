@@ -1704,6 +1704,22 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
                               }}>
                                 {displayCategory}
                               </span>
+                              {raw?.status && (raw.status.toLowerCase() === 'awaiting decision' || raw.status.toLowerCase() === 'awaiting_decision') && (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  padding: '2px 8px',
+                                  borderRadius: radii.sm,
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  background: '#fffbeb',
+                                  color: '#b45309',
+                                  border: '1px solid #fef3c7',
+                                }}>
+                                  <Clock size={10} /> AWAITING DECISION
+                                </span>
+                              )}
                               {item.isOverdue && (
                                 <span style={{
                                   display: 'inline-flex',

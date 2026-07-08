@@ -7,6 +7,7 @@ import { ClientFormScreen } from './ClientFormScreen';
 interface ClientModuleProps {
   onBack: () => void;
   isDemo?: boolean;
+  onFormDirtyChange?: (dirty: boolean) => void;
 }
 
 interface ClientItem {
@@ -98,7 +99,7 @@ const TABS: { key: View; label: string; count: number; Icon: any }[] = [
   { key: 'meetings', label: 'Meetings', count: 0, Icon: Calendar },
 ];
 
-export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = false }) => {
+export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = false, onFormDirtyChange }) => {
   const [view, setView] = useState<View>('list');
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientItem[]>([]);
@@ -192,6 +193,7 @@ export const ClientModule: React.FC<ClientModuleProps> = ({ onBack, isDemo = fal
         onBack={handleFormBack}
         clientData={formClient === 'new' ? null : formClient}
         isDemo={isDemo}
+        onFormDirtyChange={onFormDirtyChange}
       />
     );
   }

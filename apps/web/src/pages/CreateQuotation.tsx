@@ -236,6 +236,38 @@ export default function CreateQuotation() {
   const { data: projects = [] } = useProjects();
   const { data: materials = [] } = useMaterials();
   const { data: variants = [] } = useVariants();
+  const { data: stockSnapshot = { stockRows: [], warehouses: [] } } = useQuery({
+    queryKey: ['quotation-stock-breakdown', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return { stockRows: [], warehouses: [] };
+      try {
+        const [stockRows, warehouses] = await Promise.all([
+          timedSupabaseQuery(
+            supabase
+              .from('item_stock')
+              .select('id, item_id, company_variant_id, warehouse_id, current_stock')
+              .eq('organisation_id', organisation.id),
+            'Quotation item stock'
+          ),
+          timedSupabaseQuery(
+            supabase
+              .from('warehouses')
+              .select('id, warehouse_name, name, warehouse_code')
+              .eq('organisation_id', organisation.id)
+              .eq('is_active', true)
+              .order('warehouse_name'),
+            'Quotation warehouses'
+          ),
+        ]);
+        return { stockRows: stockRows || [], warehouses: warehouses || [] };
+      } catch (error) {
+        console.warn('Stock breakdown unavailable:', error);
+        return { stockRows: [], warehouses: [] };
+      }
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+  });
   const [variantPricing, setVariantPricing] = useState({});
   const [itemMakes, setItemMakes] = useState({});
   const [companyState, setCompanyState] = useState(organisation?.state || 'Maharashtra');
@@ -279,6 +311,8 @@ export default function CreateQuotation() {
   } | null>(null);
   const [activeTab, setActiveTab] = useState('items');
   const [activeSection, setActiveSection] = useState('materials');
+  const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
+  const [activeStockPopoverId, setActiveStockPopoverId] = useState<string | number | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   
   const [templateSettings, setTemplateSettings] = useState<any>(null);
@@ -288,6 +322,33 @@ export default function CreateQuotation() {
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
   const [isSigDropdownOpen, setIsSigDropdownOpen] = useState(false);
 
+  const stockBreakdownByItem = useMemo(() => {
+    const warehouseNames = new Map(
+      (stockSnapshot.warehouses || []).map((warehouse: any) => [
+        warehouse.id,
+        warehouse.warehouse_name || warehouse.name || warehouse.warehouse_code || 'Warehouse',
+      ])
+    );
+    const variantNames = new Map(
+      (variants || []).map((variant: any) => [variant.id, variant.variant_name || 'Variant'])
+    );
+
+    return (stockSnapshot.stockRows || []).reduce((acc: Record<string, any[]>, row: any) => {
+      if (!row.item_id) return acc;
+      if (!acc[row.item_id]) acc[row.item_id] = [];
+      acc[row.item_id].push({
+        id: row.id,
+        warehouseId: row.warehouse_id,
+        warehouseName: warehouseNames.get(row.warehouse_id) || 'Unassigned warehouse',
+        variantName: row.company_variant_id ? variantNames.get(row.company_variant_id) || 'Variant' : 'Default',
+        currentStock: parseFloat(row.current_stock) || 0,
+      });
+      return acc;
+    }, {} as Record<string, any[]>);
+  }, [stockSnapshot.stockRows, stockSnapshot.warehouses, variants]);
+
+  const getStockRowsForItem = (item: any) => (item?.item_id ? stockBreakdownByItem[item.item_id] || [] : []);
+  const getStockTotalForItem = (item: any) => getStockRowsForItem(item).reduce((sum, row) => sum + row.currentStock, 0);
   const getVisibleColumnCount = () => {
     let count = 1;
     if (templateSettings?.column_settings?.optional?.hsn_code !== false) count++;
@@ -2316,6 +2377,26 @@ const loadQuoteNoPreview = useCallback(async () => {
     );
   };
 
+  const commitQtyInput = (itemId: string | number) => {
+    setQtyDrafts((prev) => {
+      if (!(itemId in prev)) return prev;
+      const rawValue = prev[itemId].trim();
+      const parsedQty = rawValue === '' ? 0 : Math.max(0, parseFloat(rawValue) || 0);
+      updateItem(itemId, 'qty', parsedQty);
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const resetQtyInput = (itemId: string | number) => {
+    setQtyDrafts((prev) => {
+      if (!(itemId in prev)) return prev;
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
   const removeItem = useCallback((id) => {
     const linkedErection = items.find(item => item.linked_material_id === id);
     
@@ -3931,8 +4012,94 @@ className="text-center cell-static col-shrink row-drag-handle"
                           return dc ? <span style={{ fontWeight: 600, color: '#0f172a' }}>{dc.name}</span> : <span style={{ color: '#94a3b8' }}>No Category</span>;
                         })()}
                       </td>
-                      <td className="col-shrink">
-                        <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" style={{appearance: 'textfield'}} />
+                      <td className="col-shrink" style={{ position: 'relative', minWidth: '94px' }}>
+                        {(() => {
+                          const stockRows = getStockRowsForItem(item);
+                          const stockTotal = getStockTotalForItem(item);
+                          const hasStockRows = stockRows.length > 0;
+                          return (
+                            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <input
+                                type="number"
+                                className="cell-input text-right"
+                                value={qtyDrafts[item.id] ?? String(item.qty ?? '')}
+                                onChange={(e) => setQtyDrafts(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                onFocus={() => setActiveStockPopoverId(item.id)}
+                                onClick={() => setActiveStockPopoverId(item.id)}
+                                onBlur={() => {
+                                  commitQtyInput(item.id);
+                                  window.setTimeout(() => setActiveStockPopoverId(current => current === item.id ? null : current), 120);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                  if (e.key === 'Escape') {
+                                    resetQtyInput(item.id);
+                                    setActiveStockPopoverId(null);
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                                min="0"
+                                style={{ appearance: 'textfield' }}
+                              />
+                              <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => setActiveStockPopoverId(current => current === item.id ? null : item.id)}
+                                style={{
+                                  border: 'none',
+                                  background: hasStockRows ? '#ecfdf5' : '#f8fafc',
+                                  color: hasStockRows ? '#047857' : '#94a3b8',
+                                  cursor: item.item_id ? 'pointer' : 'default',
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  lineHeight: '14px',
+                                  padding: '0 4px',
+                                  textAlign: 'right',
+                                }}
+                                title="Warehouse stock"
+                                disabled={!item.item_id}
+                              >
+                                Stock: {stockTotal.toFixed(2)}
+                              </button>
+                              {activeStockPopoverId === item.id && item.item_id && (
+                                <div
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: 0,
+                                    zIndex: 80,
+                                    width: '230px',
+                                    marginTop: '4px',
+                                    padding: '8px',
+                                    background: '#ffffff',
+                                    border: '1px solid #dbe4ee',
+                                    boxShadow: '0 12px 24px rgba(15, 23, 42, 0.16)',
+                                    fontSize: '11px',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', paddingBottom: '6px', borderBottom: '1px solid #e5e7eb', fontWeight: 800, color: '#0f172a' }}>
+                                    <span>Warehouse stock</span>
+                                    <span>{stockTotal.toFixed(2)}</span>
+                                  </div>
+                                  <div style={{ maxHeight: '160px', overflowY: 'auto', marginTop: '6px' }}>
+                                    {hasStockRows ? stockRows.map((row) => (
+                                      <div key={row.id || `${row.warehouseId}-${row.variantName}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
+                                        <div style={{ minWidth: 0 }}>
+                                          <div style={{ color: '#334155', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.warehouseName}</div>
+                                          <div style={{ color: '#94a3b8', fontSize: '10px' }}>{row.variantName}</div>
+                                        </div>
+                                        <div style={{ color: row.currentStock > 0 ? '#047857' : '#94a3b8', fontWeight: 800 }}>{row.currentStock.toFixed(2)}</div>
+                                      </div>
+                                    )) : (
+                                      <div style={{ color: '#94a3b8', padding: '8px 0' }}>No stock recorded for this item.</div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="col-shrink">
                         <input type="text" className="cell-input text-center" value={item.uom} readOnly style={{ background: '#f8fafc', cursor: 'default' }} />
@@ -4978,6 +5145,9 @@ className="text-center cell-static col-shrink row-drag-handle"
     </div>
   );
 }
+
+
+
 
 
 

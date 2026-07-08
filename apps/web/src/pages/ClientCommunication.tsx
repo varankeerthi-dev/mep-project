@@ -82,6 +82,7 @@ const PRIORITY_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: 'open', label: 'Open' },
   { value: 'in_progress', label: 'In Progress' },
+  { value: 'awaiting_decision', label: 'Awaiting Decision' },
   { value: 'resolved', label: 'Resolved' },
   { value: 'closed', label: 'Closed' },
 ];
