@@ -22,6 +22,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Download,
 } from 'lucide-react';
 
 // ---------- Types ----------

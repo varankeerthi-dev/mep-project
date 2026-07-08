@@ -12,6 +12,7 @@ export interface NextActionItem {
   date: string;
   isOverdue: boolean;
   rawItem: any;
+  createdAt?: string;
 }
 
 export function useNextActions() {
@@ -68,7 +69,8 @@ export function useNextActions() {
             authorName: c.party_type || 'Communication',
             date: dateVal,
             isOverdue,
-            rawItem: c
+            rawItem: c,
+            createdAt: c.created_at || ''
           });
         });
       }
@@ -106,7 +108,8 @@ export function useNextActions() {
               authorName: v.visited_by || v.engineer || 'Unknown',
               date: dateVal,
               isOverdue,
-              rawItem: v
+              rawItem: v,
+              createdAt: v.created_at || ''
             });
           }
         });
@@ -144,7 +147,8 @@ export function useNextActions() {
               authorName: r.created_by || 'Unknown',
               date: dateVal,
               isOverdue,
-              rawItem: r
+              rawItem: r,
+              createdAt: r.created_at || ''
             });
           }
         });
@@ -181,7 +185,8 @@ export function useNextActions() {
             authorName: i.reported_by_name || 'System',
             date: dateVal,
             isOverdue,
-            rawItem: i
+            rawItem: i,
+            createdAt: i.created_at || ''
           });
         });
       }
@@ -212,7 +217,8 @@ export function useNextActions() {
             authorName: 'Sales System',
             date: dateVal,
             isOverdue: false,
-            rawItem: q
+            rawItem: q,
+            createdAt: q.created_at || ''
           });
         });
       }
@@ -243,7 +249,8 @@ export function useNextActions() {
             authorName: p.site_engineer || 'System',
             date: dateVal,
             isOverdue: p.days_pending_po > 7,
-            rawItem: p
+            rawItem: p,
+            createdAt: p.created_at || ''
           });
         });
       }
@@ -273,7 +280,8 @@ export function useNextActions() {
             authorName: 'Finance Team',
             date: dateVal,
             isOverdue: inv.collection_risk === 'high' || inv.collection_risk === 'critical',
-            rawItem: inv
+            rawItem: inv,
+            createdAt: inv.created_at || ''
           });
         });
       }
@@ -310,7 +318,8 @@ export function useNextActions() {
               authorName: l.owner_name || 'System',
               date: dateVal,
               isOverdue,
-              rawItem: l
+              rawItem: l,
+              createdAt: l.created_at || ''
             });
           }
         });
@@ -319,11 +328,11 @@ export function useNextActions() {
       console.error('Error fetching leads next actions:', e);
     }
 
-    // Sort items chronologically (overdue/earliest first)
+    // Sort items by creation date descending (recent one on the top)
     return items.sort((a, b) => {
-      if (a.isOverdue && !b.isOverdue) return -1;
-      if (!a.isOverdue && b.isOverdue) return 1;
-      return a.date.localeCompare(b.date);
+      const dateA = a.createdAt || '';
+      const dateB = b.createdAt || '';
+      return dateB.localeCompare(dateA);
     });
   };
 
@@ -359,7 +368,8 @@ export function useNextActions() {
             authorName: c.party_type || 'Communication',
             date: c.follow_up_date || '',
             isOverdue: false,
-            rawItem: c
+            rawItem: c,
+            createdAt: c.created_at || ''
           });
         });
       }
@@ -388,7 +398,8 @@ export function useNextActions() {
             authorName: v.visited_by || 'Unknown',
             date: v.visit_date || '',
             isOverdue: false,
-            rawItem: v
+            rawItem: v,
+            createdAt: v.created_at || ''
           });
         });
       }
@@ -396,7 +407,12 @@ export function useNextActions() {
       console.error('Error fetching history visits:', e);
     }
 
-    return items;
+    // Sort items by creation date descending (recent one on the top)
+    return items.sort((a, b) => {
+      const dateA = a.createdAt || '';
+      const dateB = b.createdAt || '';
+      return dateB.localeCompare(dateA);
+    });
   };
 
   const nextActionsQuery = useQuery({
