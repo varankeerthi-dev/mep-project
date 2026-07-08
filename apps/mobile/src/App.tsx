@@ -7,15 +7,20 @@ import { ClientCommunication } from './screens/ClientCommunication';
 import { SiteReport } from './screens/SiteReport';
 import { SiteVisits } from './screens/SiteVisits';
 import { ClientLookup } from './screens/ClientLookup';
+import { ClientModule } from './screens/ClientModule';
+import { ProjectModule } from './screens/ProjectModule';
+import { PurchaseModule } from './screens/PurchaseModule';
 import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin } from 'lucide-react';
 
 type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup';
+type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
 
 function App() {
   const [session, setSession] = useState<any>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
+  const [activeModule, setActiveModule] = useState<ModuleScreen>('none');
 
   useEffect(() => {
     // 1. Get initial session
@@ -90,6 +95,7 @@ function App() {
             onLogout={handleLogout}
             onNavigateToApprovals={() => setCurrentScreen('approvals')}
             onNavigateToLookup={() => setCurrentScreen('lookup')}
+            onOpenModule={(m) => setActiveModule(m)}
             isDemo={isDemo}
           />
         )}
@@ -102,6 +108,15 @@ function App() {
             onBack={() => setCurrentScreen('dashboard')} 
             isDemo={isDemo} 
           />
+        )}
+        {activeModule === 'client' && (
+          <ClientModule onBack={() => setActiveModule('none')} isDemo={isDemo} />
+        )}
+        {activeModule === 'project' && (
+          <ProjectModule onBack={() => setActiveModule('none')} isDemo={isDemo} />
+        )}
+        {activeModule === 'purchase' && (
+          <PurchaseModule onBack={() => setActiveModule('none')} isDemo={isDemo} />
         )}
       </div>
 
