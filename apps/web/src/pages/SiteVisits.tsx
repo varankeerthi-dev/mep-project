@@ -2573,6 +2573,7 @@ export function SiteVisits() {
             maxWidth: '900px',
             maxHeight: '90vh',
             overflowY: 'auto',
+            overflowX: 'hidden',
             boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
           }}>
             {/* Header */}
@@ -2600,7 +2601,7 @@ export function SiteVisits() {
             </div>
 
             <form onSubmit={handleFormSubmit} style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
                 
                 {/* LEFT COLUMN */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
