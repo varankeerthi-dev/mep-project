@@ -11,7 +11,6 @@ import QuickAccessBar from './components/QuickAccessBar';
 import { PermissionGuard } from './rbac';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
-import LandingPage from './pages/LandingPage';
 import { Toaster } from './lib/logger';
 import ToolsManagement from './pages/ToolsManagement';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
@@ -126,6 +125,7 @@ const ClientRequests = lazyAny(() => import('./pages/ClientRequests'));
 const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ default: m.SiteVisits })));
 const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
 const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
+const ManagerAlerts = lazyAny(() => import('./pages/ManagerAlerts'));
 const Subcontractors = import('./pages/Subcontractors');
 const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDashboard })));
 const CreateSubcontractor = lazyAny(() => Subcontractors.then(m => ({ default: m.CreateSubcontractor })));
@@ -336,7 +336,9 @@ export default function App() {
     switch (pathKey) {
       case '/terms-conditions': return <TermsConditionsDashboard />;
       case '/': 
-        return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
+        if (user) return <Dashboard onNavigate={navigate} />;
+        window.location.href = 'https://astro-wheat-eight.vercel.app/';
+        return null;
       case '/login': 
         return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
       case '/dashboard': 
@@ -361,6 +363,7 @@ export default function App() {
       case '/handover': return <HandoverList />;
       case '/projects-overview': return <ProjectOverview />;
       case '/client-communication': return <ClientCommunication />;
+      case '/manager-alerts': return <ManagerAlerts />;
       case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
@@ -610,6 +613,24 @@ export default function App() {
 
   const initAuth = async (): Promise<(() => void) | undefined> => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('access_token');
+      const refresh = params.get('refresh_token');
+      if (token && refresh) {
+        console.log('🔑 Authenticating via URL session tokens...');
+        await supabase.auth.setSession({
+          access_token: token,
+          refresh_token: refresh
+        });
+        
+        // Remove token params from URL to prevent showing/sharing
+        params.delete('access_token');
+        params.delete('refresh_token');
+        const newSearch = params.toString();
+        const newPath = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+        window.history.replaceState(null, '', newPath);
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
@@ -792,6 +813,20 @@ export default function App() {
           onCreateNew={handleCreateOrganisation}
         />
       </Suspense>
+    );
+  }
+
+  const isEmbed = new URLSearchParams(window.location.search).get('embed') === 'true';
+
+  if (isEmbed) {
+    return (
+      <AuthContext.Provider value={authContextValue}>
+        <div className="embed-container bg-background min-h-screen w-full">
+          <Suspense fallback={<PageSkeleton />}>
+            {renderedPage}
+          </Suspense>
+        </div>
+      </AuthContext.Provider>
     );
   }
 
