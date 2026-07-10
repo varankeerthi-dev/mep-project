@@ -10,40 +10,20 @@
   ],
   "rewrites": [
     {
-      "source": "/_astro/:path*",
-      "destination": "https://astro-wheat-eight.vercel.app/_astro/:path*"
-    },
-    {
-      "source": "/favicon.:ext",
-      "destination": "https://astro-wheat-eight.vercel.app/favicon.:ext"
-    },
-    {
       "source": "/pricing",
-      "destination": "https://astro-wheat-eight.vercel.app/pricing"
+      "destination": "/pricing/index.html"
     },
     {
       "source": "/help",
-      "destination": "https://astro-wheat-eight.vercel.app/help"
+      "destination": "/help/index.html"
     },
     {
       "source": "/help/:path*",
-      "destination": "https://astro-wheat-eight.vercel.app/help/:path*"
+      "destination": "/help/:path*/index.html"
     },
     {
       "source": "/industries/:path*",
-      "destination": "https://astro-wheat-eight.vercel.app/industries/:path*"
-    },
-    {
-      "source": "/sitemap-:n.xml",
-      "destination": "https://astro-wheat-eight.vercel.app/sitemap-:n.xml"
-    },
-    {
-      "source": "/sitemap-index.xml",
-      "destination": "https://astro-wheat-eight.vercel.app/sitemap-index.xml"
-    },
-    {
-      "source": "/",
-      "destination": "https://astro-wheat-eight.vercel.app/"
+      "destination": "/industries/:path*/index.html"
     },
     {
       "source": "/(.*)",

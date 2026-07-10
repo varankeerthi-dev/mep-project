@@ -778,17 +778,30 @@ export default function App() {
   }
 
   if (!user) {
-    return (
-      <Suspense fallback={<div>Loading auth...</div>}>
-        {authView === 'login' ? (
-          <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />
-        ) : authView === 'signup' ? (
-          <Signup onSignup={() => setAuthView('login')} onSwitch={() => setAuthView('login')} />
-        ) : (
-          <AuthCallback />
-        )}
-      </Suspense>
-    );
+    const path = window.location.pathname;
+    const isAuthRoute = path === '/login' || path === '/signup' || path === '/callback';
+    const isLandingRoute = path === '/' || path.startsWith('/pricing') || path.startsWith('/help') || path.startsWith('/industries');
+
+    if (isAuthRoute) {
+      return (
+        <Suspense fallback={<div>Loading auth...</div>}>
+          {authView === 'login' ? (
+            <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />
+          ) : authView === 'signup' ? (
+            <Signup onSignup={() => setAuthView('login')} onSwitch={() => setAuthView('login')} />
+          ) : (
+            <AuthCallback />
+          )}
+        </Suspense>
+      );
+    }
+
+    if (isLandingRoute) {
+      return <LandingPage />;
+    }
+
+    window.location.href = '/';
+    return null;
   }
 
   if (organisations.length === 0) {
