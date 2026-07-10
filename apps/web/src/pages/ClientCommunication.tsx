@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { getOrganisationMembers } from '../supabase';
+import { initiateQuotationRevision, reassignRevisionTask } from '../lib/quotation-workflow';
 import { Button, IconButton } from '../components/ui/button';
 import { PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { Input, Select, TextArea } from '../components/ui/input';
@@ -65,6 +66,7 @@ const CALL_REGARDING = [
   { value: 'quotation', label: 'Quotation' },
   { value: 'project', label: 'Project' },
   { value: 'issue', label: 'Issue/Complaint' },
+  { value: 'operational_feedback', label: 'Operational Feedback' },
   { value: 'site_visit', label: 'Site Visit' },
   { value: 'approval', label: 'Approval' },
   { value: 'payment', label: 'Payment' },
@@ -326,7 +328,7 @@ function escapeCSV(value: string | null | undefined): string {
 export function ClientCommunication() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { organisation, user } = useAuth();
+  const { organisation, user, organisations } = useAuth();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
@@ -353,6 +355,40 @@ export function ClientCommunication() {
   const [issueSeverity, setIssueSeverity] = useState<IssueSeverity>('major');
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
+
+  // Quotation revision workflow
+  const [activeTab, setActiveTab] = useState<'all' | 'my_actions'>('all');
+  const [orgMembers, setOrgMembers] = useState<any[]>([]);
+  const [currentRevisionData, setCurrentRevisionData] = useState<any>(null);
+  const [auditTimeline, setAuditTimeline] = useState<any[]>([]);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [reassignReason, setReassignReason] = useState('');
+  const [targetAssignee, setTargetAssignee] = useState('');
+
+  const currentUserRole = useMemo(() => {
+    return organisations.find(o => o.organisation_id === organisation?.id)?.role;
+  }, [organisations, organisation?.id]);
+
+  const fetchWorkflowDetails = async (communicationId: string) => {
+    const { data: revision } = await supabase
+      .from('quotation_revisions')
+      .select('*')
+      .eq('communication_id', communicationId)
+      .maybeSingle();
+
+    if (revision) {
+      setCurrentRevisionData(revision);
+      const { data: logs } = await supabase
+        .from('quotation_revision_audit_logs')
+        .select('*')
+        .eq('revision_id', revision.id)
+        .order('created_at', { ascending: true });
+      setAuditTimeline(logs || []);
+    } else {
+      setCurrentRevisionData(null);
+      setAuditTimeline([]);
+    }
+  };
 
   // Filters
   const [filters, setFilters] = useState({
@@ -892,6 +928,23 @@ export function ClientCommunication() {
       }));
     }
   }, [currentUserProfileId]);
+
+  useEffect(() => {
+    async function loadOrgMembers() {
+      const members = await getOrganisationMembers(organisation?.id);
+      setOrgMembers((members || []) as any[]);
+    }
+    if (organisation?.id) loadOrgMembers();
+  }, [organisation?.id]);
+
+  useEffect(() => {
+    if (selectedCommunication?.id) {
+      fetchWorkflowDetails(selectedCommunication.id);
+    } else {
+      setCurrentRevisionData(null);
+      setAuditTimeline([]);
+    }
+  }, [selectedCommunication?.id]);
 
   useEffect(() => {
     const handleDocumentClick = () => {
@@ -1463,6 +1516,34 @@ export function ClientCommunication() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ════ TAB NAVIGATION ════ */}
+      <div style={{ background: '#ffffff', borderBottom: '1px solid #E2E8F0', padding: '0 24px' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', gap: '0' }}>
+          <button
+            className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveTab('all')}
+            style={{
+              padding: '10px 20px', fontSize: '13px', fontWeight: activeTab === 'all' ? 600 : 400,
+              color: activeTab === 'all' ? '#4F46E5' : '#64748B',
+              borderBottom: activeTab === 'all' ? '2px solid #4F46E5' : '2px solid transparent',
+              background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+              transition: 'all 150ms'
+            }}
+          >All Communications</button>
+          <button
+            className={`tab-btn ${activeTab === 'my_actions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('my_actions')}
+            style={{
+              padding: '10px 20px', fontSize: '13px', fontWeight: activeTab === 'my_actions' ? 600 : 400,
+              color: activeTab === 'my_actions' ? '#4F46E5' : '#64748B',
+              borderBottom: activeTab === 'my_actions' ? '2px solid #4F46E5' : '2px solid transparent',
+              background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+              transition: 'all 150ms'
+            }}
+          >My Action Items</button>
         </div>
       </div>
 
@@ -2836,9 +2917,127 @@ export function ClientCommunication() {
                 </span>
               </div>
             </div>
+
+            {/* Quotation Revision Workflow */}
+            {!currentRevisionData && selectedCommunication?.linked_type === 'quotation' && (
+              <button
+                onClick={async () => {
+                  const targetClientId = selectedCommunication.client_id;
+                  if (targetClientId && organisation?.id && user?.id) {
+                    await initiateQuotationRevision(
+                      organisation.id,
+                      selectedCommunication.linked_id,
+                      targetClientId,
+                      user.id,
+                      selectedCommunication.id
+                    );
+                    await fetchWorkflowDetails(selectedCommunication.id);
+                  }
+                }}
+                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                style={{ marginTop: '12px', width: '100%', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '8px 16px', border: 'none', fontSize: '13px', fontWeight: 500, borderRadius: '6px', color: '#fff', background: '#4F46E5', cursor: 'pointer' }}
+              >
+                Flag & Request Revised Quotation
+              </button>
+            )}
+
+            {currentRevisionData && (
+              <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg" style={{ marginTop: '12px', padding: '12px', border: '1px solid #FDE68A', background: '#FFFBEB', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h4 style={{ fontWeight: 600, color: '#92400E', fontSize: '13px', margin: 0 }}>Quotation Revision Workflow Active</h4>
+                    <p style={{ fontSize: '11px', color: '#B45309', margin: '4px 0 0 0' }}>
+                      Owner: <span style={{ fontWeight: 600 }}>{orgMembers.find((m: any) => m.user_id === currentRevisionData.current_owner_id)?.full_name || 'Unassigned'}</span> ({currentRevisionData.status})
+                    </p>
+                  </div>
+                  {(currentUserRole === 'MD' || currentUserRole === 'manager' || user?.id === currentRevisionData.current_owner_id) && (
+                    <button
+                      onClick={() => setIsReassignModalOpen(true)}
+                      style={{ padding: '6px 12px', background: '#D97706', color: '#fff', fontSize: '11px', fontWeight: 500, border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      {currentUserRole === 'MD' || currentUserRole === 'manager' ? 'Voluntarily Reassign' : 'Delegate'}
+                    </button>
+                  )}
+                </div>
+                <div style={{ marginTop: '12px', borderTop: '1px solid #FDE68A', paddingTop: '8px' }}>
+                  <h5 style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', margin: '0 0 6px 0' }}>Workflow Activity Log</h5>
+                  <ul style={{ margin: 0, padding: 0, listStyle: 'none', maxHeight: '120px', overflowY: 'auto', fontSize: '11px', color: '#6B7280' }}>
+                    {auditTimeline.map((log: any) => (
+                      <li key={log.id} style={{ padding: '6px 8px', marginBottom: '4px', background: '#fff', borderRadius: '4px', border: '1px solid #F3F4F6' }}>
+                        <span style={{ fontWeight: 600, color: '#374151' }}>{log.action_taken.replace(/_/g, ' ')}</span>
+                        {' by '}{orgMembers.find((m: any) => m.user_id === log.performed_by)?.full_name || 'System'}
+                        {log.remarks && <p style={{ fontStyle: 'italic', color: '#9CA3AF', margin: '2px 0 0 0', fontSize: '10px' }}>"{log.remarks}"</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>
+
+      {/* ════ REASSIGN MODAL ════ */}
+      {isReassignModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: '8px', maxWidth: '440px', width: '100%', padding: '24px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827', margin: '0 0 12px 0' }}>Reassign Task</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Select Colleague</label>
+                <select
+                  value={targetAssignee}
+                  onChange={e => setTargetAssignee(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px' }}
+                >
+                  <option value="">-- Choose Team Member --</option>
+                  {orgMembers.map((member: any) => (
+                    <option key={member.user_id} value={member.user_id}>
+                      {member.full_name} ({member.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#374151', marginBottom: '4px' }}>Reason for Hand-Off</label>
+                <textarea
+                  rows={2}
+                  value={reassignReason}
+                  onChange={e => setReassignReason(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '13px', resize: 'vertical' }}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button
+                onClick={() => setIsReassignModalOpen(false)}
+                style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 500, color: '#374151', background: '#F3F4F6', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >Cancel</button>
+              <button
+                disabled={!targetAssignee || !reassignReason}
+                onClick={async () => {
+                  if (organisation?.id && user?.id) {
+                    await reassignRevisionTask({
+                      revisionId: currentRevisionData.id,
+                      organisationId: organisation.id,
+                      performedBy: user.id,
+                      newAssigneeId: targetAssignee,
+                      currentAssigneeId: currentRevisionData.current_owner_id,
+                      reason: reassignReason,
+                      isMdVoluntary: currentUserRole === 'MD' || currentUserRole === 'manager'
+                    });
+                    setIsReassignModalOpen(false);
+                    setReassignReason('');
+                    setTargetAssignee('');
+                    await fetchWorkflowDetails(currentRevisionData.communication_id);
+                  }
+                }}
+                style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 500, color: '#fff', background: targetAssignee && reassignReason ? '#4F46E5' : '#9CA3AF', border: 'none', borderRadius: '4px', cursor: targetAssignee && reassignReason ? 'pointer' : 'not-allowed' }}
+              >Confirm Assignment</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ════ SITE VISIT MODAL ════ */}
       <Modal

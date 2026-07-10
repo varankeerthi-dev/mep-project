@@ -24,6 +24,7 @@ import { flushSync } from 'react-dom';
 import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 import { ApprovalAPI } from '../approvals/api';
+import { initiateQuotationRevision } from '../lib/quotation-workflow';
 
 
 
@@ -31,7 +32,12 @@ export default function QuotationView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('id');
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
+  
+  const isEmbed = searchParams.get('embed') === 'true';
+  const [embedPdfUrl, setEmbedPdfUrl] = useState<string | null>(null);
+  const [embedLoading, setEmbedLoading] = useState(false);
+  const [embedError, setEmbedError] = useState<string | null>(null);
 
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
@@ -39,6 +45,7 @@ export default function QuotationView() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showStockCheckModal, setShowStockCheckModal] = useState(false);
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
+  const [launchingRevision, setLaunchingRevision] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
   const [printLoading, setPrintLoading] = useState(false);
@@ -160,6 +167,83 @@ export default function QuotationView() {
       console.error('Error loading templates:', templatesQuery.error);
     }
   }, [templatesQuery.isError, templatesQuery.error]);
+
+  const generateEmbedPdf = async () => {
+    try {
+      setEmbedLoading(true);
+      setEmbedError(null);
+
+      const templates = templatesQuery.data || [];
+      // Prioritize the default template from Template Settings
+      let template = templates.find(t => t.is_default);
+
+      if (!template) {
+        // Fetch default manually
+        const { data } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Quotation')
+          .eq('is_default', true)
+          .maybeSingle();
+        if (data) {
+          template = data;
+        }
+      }
+
+      // Fallback: If no default template exists, try the template from the quotation
+      if (!template && quotation?.template_id) {
+        template = templates.find(t => t.id === quotation.template_id);
+      }
+
+      // Fallback: If still no template, get the first active template
+      if (!template) {
+        template = templates[0];
+      }
+
+      // Fallback: Fetch any quotation template manually
+      if (!template) {
+        const { data } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Quotation')
+          .limit(1)
+          .maybeSingle();
+        template = data;
+      }
+
+      if (!template) {
+        throw new Error('No template found. Please set up a template.');
+      }
+
+      console.log('📄 Embed mode generating PDF with template:', template.template_name);
+      const blob = await downloadPDF(template, 'blob');
+      if (blob instanceof Blob) {
+        const url = URL.createObjectURL(blob);
+        setEmbedPdfUrl(url);
+      } else {
+        throw new Error('PDF generation did not return a valid Blob.');
+      }
+    } catch (err: any) {
+      console.error('Error generating embed PDF:', err);
+      setEmbedError(err?.message || 'Failed to generate quotation PDF');
+    } finally {
+      setEmbedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isEmbed && quotation && organisation && templatesQuery.data && !termsConditionsQuery.isPending && !embedPdfUrl && !embedLoading && !embedError) {
+      generateEmbedPdf();
+    }
+  }, [isEmbed, quotation, organisation, templatesQuery.data, termsConditionsQuery.isPending]);
+
+  useEffect(() => {
+    return () => {
+      if (embedPdfUrl) {
+        URL.revokeObjectURL(embedPdfUrl);
+      }
+    };
+  }, [embedPdfUrl]);
 
   const handleEdit = () => {
     navigate(`/quotation/edit?id=${quotationId}`);
@@ -854,6 +938,7 @@ export default function QuotationView() {
           .replace(/\s+/g, '_');
 
         const blob = await renderTemplateToPdf(template.template_content || '', htmlData, `${safeFileName}.pdf`);
+        if (action === 'blob') return blob;
         handleOutput(blob);
         return;
       }
@@ -892,6 +977,7 @@ export default function QuotationView() {
           // Wait longer for fonts and layout
           await new Promise(resolve => setTimeout(resolve, 2000));
           const blob = await htmlToPdf(container, `${safeFileName}.pdf`);
+          if (action === 'blob') return blob;
           handleOutput(blob);
         } catch (captureErr) {
           console.error('SaaS PDF Capture Error:', captureErr);
@@ -937,6 +1023,7 @@ export default function QuotationView() {
           // Wait longer for fonts and layout
           await new Promise(resolve => setTimeout(resolve, 3000));
           const blob = await htmlToPdf(container, `${safeFileName}.pdf`);
+          if (action === 'blob') return blob;
           handleOutput(blob);
         } catch (captureErr) {
           console.error('Vertical PDF Capture Error:', captureErr);
@@ -956,7 +1043,9 @@ export default function QuotationView() {
             terms_conditions: termsConditionsQuery.data?.custom_content || null
           };
           const zohoDoc = generateZohoTemplate(quotationWithTerms, organisation, template);
-          handleOutput(zohoDoc.output('blob'));
+          const blob = zohoDoc.output('blob');
+          if (action === 'blob') return blob;
+          handleOutput(blob);
           return;
         } catch (error) {
           console.error('Error generating Zoho template:', error);
@@ -979,7 +1068,9 @@ export default function QuotationView() {
           const safeFileName = String(quotation.quotation_no || 'quotation')
             .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
             .replace(/\s+/g, '_');
-          handleOutput(classicDoc.output('blob'));
+          const blob = classicDoc.output('blob');
+          if (action === 'blob') return blob;
+          handleOutput(blob);
           return;
         } catch (error) {
           console.error('Error generating Classic template:', error);
@@ -1000,7 +1091,9 @@ export default function QuotationView() {
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
-        handleOutput(gridDoc.output('blob'));
+        const blob = gridDoc.output('blob');
+        if (action === 'blob') return blob;
+        handleOutput(blob);
         return;
       }
 
@@ -1100,7 +1193,9 @@ export default function QuotationView() {
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
-        handleOutput(enterpriseDoc.output('blob'));
+        const blob = enterpriseDoc.output('blob');
+        if (action === 'blob') return blob;
+        handleOutput(blob);
         return;
       }
 
@@ -1312,7 +1407,9 @@ export default function QuotationView() {
         doc.text(selectedSignatory?.name || 'Authorized Signature', 140, signStart + 20);
       }
 
-      handleOutput(doc.output('blob'));
+      const blob = doc.output('blob');
+      if (action === 'blob') return blob;
+      handleOutput(blob);
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('PDF export failed. Please check template settings and try again.');
@@ -1524,6 +1621,35 @@ export default function QuotationView() {
 
   if (!quotation) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Quotation not found</div>;
+  }
+
+  if (isEmbed) {
+    if (embedLoading || !embedPdfUrl) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 p-6">
+          <Loader2 className="w-8 h-8 animate-spin text-sky-500 mb-4" />
+          <p className="text-sm font-semibold text-zinc-600">Generating quotation PDF...</p>
+        </div>
+      );
+    }
+    if (embedError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 p-6 text-center">
+          <span className="text-3xl mb-3">⚠️</span>
+          <p className="text-sm font-semibold text-red-500 mb-2">Failed to generate PDF</p>
+          <p className="text-xs text-zinc-500">{embedError}</p>
+        </div>
+      );
+    }
+    return (
+      <div className="w-full h-screen bg-zinc-800">
+        <iframe 
+          src={`${embedPdfUrl}#view=FitH`}
+          className="w-full h-full border-none" 
+          title="Quotation PDF" 
+        />
+      </div>
+    );
   }
 
 
@@ -1767,6 +1893,35 @@ export default function QuotationView() {
                     <div>
                       <div>Stock Check</div>
                       <div className="text-[10px] font-normal text-zinc-400">Create procurement tracker</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setShowActionsMenu(false);
+                      setLaunchingRevision(true);
+                      try {
+                        if (organisation?.id && quotationId) {
+                          await initiateQuotationRevision(
+                            organisation.id,
+                            quotationId
+                          );
+                        }
+                      } finally {
+                        setLaunchingRevision(false);
+                      }
+                    }}
+                    disabled={launchingRevision}
+                    className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ padding: '12px' }}
+                  >
+                    {launchingRevision ? (
+                      <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
+                    ) : (
+                      <span className="text-base">📋</span>
+                    )}
+                    <div>
+                      <div>Request Revision</div>
+                      <div className="text-[10px] font-normal text-zinc-400">Flag for quotation revision</div>
                     </div>
                   </button>
                 </div>

@@ -4,6 +4,8 @@ import { MessageCircle, ChevronDown, ArrowRight, CheckCircle2, XCircle, Pause, C
 import type { QuotationFollowUp, QuotationResponseOption } from '@/types/followup';
 import { QUOTATION_RESPONSE_OPTIONS } from '@/types/followup';
 import { getAvailableTransitions, isTerminalStatus, TRANSITION_META } from '@/lib/followup/quotation-workflow';
+import { initiateQuotationRevision } from '@/lib/quotation-workflow';
+import { useAuth } from '@/App';
 import type { FollowUpAssigneeOption } from '@/hooks/use-followup-assignees';
 import { AssigneeSelect } from './assignee-select';
 import { formatFollowUpCurrency } from '@/lib/followup/currency-format';
@@ -38,6 +40,8 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
   onSelect,
 }: QuotationFollowupRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [revisionLoading, setRevisionLoading] = useState(false);
+  const { organisation, user } = useAuth();
   const expiring = isValidityExpiringSoon(item.valid_till);
   const expired = isFollowUpExpired(item.valid_till);
   const terminal = isTerminalStatus(item.status);
@@ -122,6 +126,31 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
           >
             <MessageCircle className="h-3 w-3" />
             Remind
+          </button>
+        )}
+        {!terminal && (
+          <button
+            type="button"
+            disabled={disabled || revisionLoading}
+            onClick={async (e) => {
+              e.stopPropagation();
+              setRevisionLoading(true);
+              try {
+                if (organisation?.id) {
+                  await initiateQuotationRevision(organisation.id, item.id);
+                }
+              } finally {
+                setRevisionLoading(false);
+              }
+            }}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 text-[11px] font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {revisionLoading ? (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+            ) : (
+              <span className="text-amber-600">&#8635;</span>
+            )}
+            Revise
           </button>
         )}
         {hasTransitions && (

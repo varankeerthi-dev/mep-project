@@ -8,6 +8,7 @@ import { useAuth } from '../App';
 import { PermissionGuard } from '../rbac';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { ApprovalAPI } from '../approvals/api';
+import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { generateQuotationTally } from './QuotationTallyTemplate';
@@ -76,7 +77,7 @@ const ALL_COLUMNS = [
 
 export default function QuotationList() {
   const navigate = useNavigate();
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -1141,10 +1142,26 @@ export default function QuotationList() {
                             >
                               Duplicate
                             </button>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                if (organisation?.id && q.id) {
+                                  await initiateQuotationRevision(
+                                    organisation.id,
+                                    q.id
+                                  );
+                                }
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-amber-700 transition-all hover:bg-amber-50 hover:text-amber-800 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
+                            >
+                              Request Revision
+                            </button>
 
                             <div className="my-1 border-t border-zinc-100" />
 
-                            {/* Section 3: Destructive */}
+                            {/* Section 4: Destructive */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
