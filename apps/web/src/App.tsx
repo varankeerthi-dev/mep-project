@@ -11,6 +11,7 @@ import QuickAccessBar from './components/QuickAccessBar';
 import { PermissionGuard } from './rbac';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
+import LandingPage from './pages/LandingPage';
 import { Toaster } from './lib/logger';
 import ToolsManagement from './pages/ToolsManagement';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
@@ -336,9 +337,7 @@ export default function App() {
     switch (pathKey) {
       case '/terms-conditions': return <TermsConditionsDashboard />;
       case '/': 
-        if (user) return <Dashboard onNavigate={navigate} />;
-        window.location.href = 'https://astro-wheat-eight.vercel.app/';
-        return null;
+        return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
       case '/login': 
         return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
       case '/dashboard': 
