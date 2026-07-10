@@ -780,7 +780,6 @@ export default function App() {
   if (!user) {
     const path = window.location.pathname;
     const isAuthRoute = path === '/login' || path === '/signup' || path === '/callback';
-    const isLandingRoute = path === '/' || path.startsWith('/pricing') || path.startsWith('/help') || path.startsWith('/industries');
 
     if (isAuthRoute) {
       return (
@@ -796,8 +795,13 @@ export default function App() {
       );
     }
 
-    if (isLandingRoute) {
+    if (path === '/') {
       return <LandingPage />;
+    }
+
+    if (path.startsWith('/pricing') || path.startsWith('/help') || path.startsWith('/industries')) {
+      window.location.href = path;
+      return null;
     }
 
     window.location.href = '/';
