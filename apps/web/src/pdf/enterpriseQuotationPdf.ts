@@ -286,7 +286,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const cols = buildColumns(columnSettings);
 
-  doc.setFont('Helvetica');
+  doc.setFont('helvetica');
   let curY = MARGIN;
 
   const drawPageHeader = (doc: jsPDF, pageNumber: number) => {
@@ -306,12 +306,12 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
       } catch (_) {}
     }
 
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(...C.primary);
     doc.text(org.name ?? 'Company Name', textStartX, y0 + 9);
 
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...C.muted);
     const orgMeta = [
@@ -324,7 +324,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     const stampX = PAGE_W - MARGIN - 38;
     doc.setFillColor(...C.primaryLight);
     doc.roundedRect(stampX, y0 + 2, 38, 10, 2, 2, 'F');
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...C.primary);
     doc.text('QUOTATION', stampX + 19, y0 + 8.5, { align: 'center' });
@@ -347,7 +347,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   doc.setLineWidth(0.25);
   doc.rect(MARGIN, metaY, halfW, 36);
 
-  doc.setFont('Helvetica', 'Bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(...C.primary);
   doc.text('DOCUMENT DETAILS', MARGIN + 3, metaY + 4.5);
@@ -366,16 +366,16 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     ['Prepared By',    header.prepared_by ?? '—'],
   ];
 
-  doc.setFont('Helvetica', 'Normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   let mY = metaY + 10;
   metaLeft.forEach(([label, val]) => {
     doc.setTextColor(...C.muted);
     doc.text(label + ':', MARGIN + 3, mY);
     doc.setTextColor(...C.text);
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(val, MARGIN + 38, mY);
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     mY += 3.8;
   });
 
@@ -386,7 +386,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   doc.setLineWidth(0.25);
   doc.rect(rightX, metaY, halfW, 36);
 
-  doc.setFont('Helvetica', 'Bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(...C.primary);
   doc.text('BILL TO', rightX + 3, metaY + 4.5);
@@ -395,12 +395,12 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   doc.setDrawColor(...C.accent);
   doc.line(rightX, metaY + 6, rightX + halfW, metaY + 6);
 
-  doc.setFont('Helvetica', 'Bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...C.text);
   doc.text(client.display_name ?? client.name ?? 'Client Name', rightX + 3, metaY + 10);
 
-  doc.setFont('Helvetica', 'Normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...C.muted);
 
@@ -422,7 +422,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     const pY = metaY + 36 + 2;
     doc.setFillColor(...C.sectionHdr);
     doc.rect(MARGIN, pY, CONTENT_W, 6, 'F');
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...C.primary);
     doc.text(`Project: ${header.project_name}`, MARGIN + 3, pY + 4);
@@ -530,18 +530,18 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
         const y = MARGIN;
         doc.setFillColor(...C.primary);
         doc.rect(MARGIN, y, CONTENT_W, 0.8, 'F');
-        doc.setFont('Helvetica', 'Bold');
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(7);
         doc.setTextColor(...C.primary);
         doc.text(org.name ?? '', MARGIN + 2, y + 4);
-        doc.setFont('Helvetica', 'Normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(...C.muted);
         doc.text(`Quotation: ${header.quotation_no}  |  Continued`, PAGE_W - MARGIN, y + 4, { align: 'right' });
         doc.setLineWidth(0.25);
         doc.setDrawColor(...C.border);
         doc.line(MARGIN, y + 6, PAGE_W - MARGIN, y + 6);
       }
-      doc.setFont('Helvetica', 'Normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(...C.muted);
       doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 4, { align: 'center' });
@@ -562,11 +562,11 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     const y = MARGIN;
     doc.setFillColor(...C.primary);
     doc.rect(MARGIN, y, CONTENT_W, 0.8, 'F');
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...C.primary);
     doc.text(org.name ?? '', MARGIN + 2, y + 4);
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...C.muted);
     doc.text(`Quotation: ${header.quotation_no}  |  Summary`, PAGE_W - MARGIN, y + 4, { align: 'right' });
     doc.setLineWidth(0.25);
@@ -575,7 +575,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     fY = y + 10;
 
     const pageNum = (doc.internal as any).getCurrentPageInfo().pageNumber;
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...C.muted);
     doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 4, { align: 'center' });
@@ -589,11 +589,11 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     const y0 = MARGIN;
     doc.setFillColor(...C.primary);
     doc.rect(MARGIN, y0, CONTENT_W, 1.5, 'F');
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...C.primary);
     doc.text(org.name ?? '', MARGIN + 2, y0 + 4);
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...C.muted);
     doc.text(`Quotation: ${header.quotation_no}  |  Terms & Conditions`, PAGE_W - MARGIN, y0 + 4, { align: 'right' });
     doc.setLineWidth(0.25);
@@ -602,13 +602,13 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     
     let leftY = y0 + 14;
     
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...C.primary);
     doc.text('Terms & Conditions', MARGIN, leftY);
     leftY += 6;
 
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
     termsAndConditions.forEach((t, i) => {
@@ -624,7 +624,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     });
 
     const pageNum = (doc.internal as any).getCurrentPageInfo().pageNumber;
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...C.muted);
     doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 4, { align: 'center' });
@@ -677,7 +677,7 @@ function drawSectionSubtotals(doc: jsPDF, y: number, subs: { label: string; valu
   doc.setDrawColor(...C.border);
   doc.setLineWidth(0.2);
   doc.rect(MARGIN, y, CONTENT_W, 6);
-  doc.setFont('Helvetica', 'Bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(...C.primary);
   doc.text('SECTION SUBTOTALS', MARGIN + 3, y + 4);
@@ -689,11 +689,11 @@ function drawSectionSubtotals(doc: jsPDF, y: number, subs: { label: string; valu
     doc.setDrawColor(...C.border);
     doc.setLineWidth(0.1);
     doc.rect(MARGIN, y, CONTENT_W, 5.5);
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.setTextColor(...C.text);
     doc.text(s.label, MARGIN + 3, y + 3.8);
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(...C.primary);
     doc.text(fmtCur(s.value), PAGE_W - MARGIN - 3, y + 3.8, { align: 'right' });
     y += 5.5;
@@ -718,7 +718,7 @@ function drawFooterBlock(
   const wordsText = calc.amountInWords || numberToWords(calc.grandTotal);
   doc.setFillColor(...C.primaryLight);
   doc.rect(MARGIN, y, CONTENT_W, 7, 'F');
-  doc.setFont('Helvetica', 'Italic');
+  doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
   doc.setTextColor(...C.primary);
   doc.text('Amount in Words: ' + wordsText, MARGIN + 3, y + 4.5);
@@ -740,7 +740,7 @@ function drawFooterBlock(
     doc.setLineWidth(0.2);
     doc.rect(summaryX, rightY, summaryW, rowH);
     doc.rect(summaryX + labelW, rightY, valW, rowH);
-    doc.setFont('Helvetica', isBold ? 'Bold' : 'Normal');
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...(isBold ? C.primary : C.text));
     doc.text(label, summaryX + 3, rightY + 4);
@@ -782,7 +782,7 @@ function drawFooterBlock(
   const gtH = 9;
   doc.setFillColor(...C.grandTotal);
   doc.rect(summaryX, rightY, summaryW, gtH, 'F');
-  doc.setFont('Helvetica', 'Bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...C.white);
   doc.text('GRAND TOTAL', summaryX + 3, rightY + 6);
@@ -790,11 +790,11 @@ function drawFooterBlock(
   rightY += gtH;
 
   if (remarks && remarks.trim()) {
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
     doc.text('Remarks:', MARGIN, leftY + 4);
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...C.muted);
     const rmLines = doc.splitTextToSize(remarks, leftW - 4);
     doc.text(rmLines, MARGIN, leftY + 8);
@@ -816,11 +816,11 @@ function drawFooterBlock(
       doc.setDrawColor(...C.border);
       doc.setLineWidth(0.2);
       doc.rect(MARGIN, y, CONTENT_W, 6);
-      doc.setFont('Helvetica', 'Bold');
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(...C.primary);
       doc.text('GST Summary  —  HSN / SAC wise', MARGIN + 3, y + 4);
-      doc.setFont('Helvetica', 'Normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...C.muted);
       doc.text(calc.isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST + SGST)',
@@ -862,7 +862,7 @@ function drawFooterBlock(
       doc.rect(MARGIN, y, CONTENT_W, hdrH, 'F');
       doc.setDrawColor(...C.border);
       doc.setLineWidth(0.15);
-      doc.setFont('Helvetica', 'Bold');
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(fSz);
       doc.setTextColor(...C.white);
 
@@ -914,7 +914,7 @@ function drawFooterBlock(
           const tx = col.align === 'right'  ? cx + col.width - cellPad
                    : col.align === 'center' ? cx + col.width / 2
                    : cx + cellPad;
-          doc.setFont('Helvetica', ci === 0 ? 'Bold' : 'Normal');
+          doc.setFont('helvetica', ci === 0 ? 'bold' : 'normal');
           doc.setFontSize(fSz);
           doc.setTextColor(ci === 0 ? C.primary[0] : C.text[0],
                            ci === 0 ? C.primary[1] : C.text[1],
@@ -943,7 +943,7 @@ function drawFooterBlock(
         const tx = col.align === 'right'  ? cx + col.width - cellPad
                  : col.align === 'center' ? cx + col.width / 2
                  : cx + cellPad;
-        doc.setFont('Helvetica', 'Bold');
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(fSz);
         doc.setTextColor(...C.primary);
         doc.text(cell, tx, y + rowH - 1.5, { align: col.align });
@@ -977,7 +977,7 @@ function drawFooterBlock(
   const drawColHeader = (x: number, w: number, label: string) => {
     doc.setFillColor(...C.primary);
     doc.rect(x, y, w, hdrH, 'F');
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.5);
     doc.setTextColor(...C.white);
     doc.text(label, x + w / 2, y + 4, { align: 'center' });
@@ -1002,11 +1002,11 @@ function drawFooterBlock(
   let by = bodyY + pad + 3;
 
   const drawBankRow = (label: string, value: string) => {
-    doc.setFont('Helvetica', 'Normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...C.muted);
     doc.text(label, col1X + pad, by);
-    doc.setFont('Helvetica', 'Bold');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(...C.text);
     const valLines = doc.splitTextToSize(value, colW - pad * 2 - 18);
     doc.text(valLines[0] ?? '', col1X + colW - pad, by, { align: 'right' });
@@ -1022,13 +1022,13 @@ function drawFooterBlock(
     if (bank.account_type) drawBankRow('Type',    bank.account_type);
     if (bank.swift)        drawBankRow('SWIFT',   bank.swift);
   } else {
-    doc.setFont('Helvetica', 'Italic');
+    doc.setFont('helvetica', 'italic');
     doc.setFontSize(6.5);
     doc.setTextColor(...C.muted);
     doc.text('Bank details not provided', col1X + colW / 2, bodyY + footerH / 2, { align: 'center' });
   }
 
-  doc.setFont('Helvetica', 'Italic');
+  doc.setFont('helvetica', 'italic');
   doc.setFontSize(6.5);
   doc.setTextColor(...C.muted);
   doc.text('Received with thanks', col2X + colW / 2, bodyY + 5, { align: 'center' });
@@ -1044,17 +1044,17 @@ function drawFooterBlock(
   doc.rect(sigAreaX, sigAreaY, sigAreaW, sigAreaH);
   doc.setLineDashPattern([], 0);
 
-  doc.setFont('Helvetica', 'Normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(...C.text);
   doc.text('Signature & Date', col2X + colW / 2, bodyY + footerH - pad, { align: 'center' });
 
-  doc.setFont('Helvetica', 'Bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...C.primary);
   doc.text(signatory?.name ?? '', col3X + colW / 2, bodyY + footerH - pad - 3.5, { align: 'center' });
 
-  doc.setFont('Helvetica', 'Normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(...C.muted);
   doc.text(signatory?.designation ?? 'Authorised Signatory', col3X + colW / 2, bodyY + footerH - pad, { align: 'center' });

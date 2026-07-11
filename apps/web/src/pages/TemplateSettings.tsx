@@ -633,6 +633,114 @@ export default function TemplateSettings() {
         print: { style: 'enterprise' }
       }
     },
+    {
+      template_name: 'Sakthi Style (Quotation)',
+      template_code: 'QTN_SAKTHI',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
+    {
+      template_name: 'Sakthi Style (Invoice)',
+      template_code: 'INV_SAKTHI',
+      document_type: 'Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
+    {
+      template_name: 'Sakthi Style (Proforma Invoice)',
+      template_code: 'PI_SAKTHI',
+      document_type: 'Proforma Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
+    {
+      template_name: 'Sakthi Style (Delivery Challan)',
+      template_code: 'DC_SAKTHI',
+      document_type: 'Delivery Challan',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
+    {
+      template_name: 'Sakthi Style (Credit Note)',
+      template_code: 'CN_SAKTHI',
+      document_type: 'Credit Note',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
+    {
+      template_name: 'Sakthi Style (Debit Note)',
+      template_code: 'DN_SAKTHI',
+      document_type: 'Debit Note',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
   ];
 
   const handleEdit = (template: any) => {
@@ -1417,6 +1525,7 @@ export default function TemplateSettings() {
                   <option value="grid_minimal">Grid Minimal (Manrope)</option>
                   <option value="saas">SAAS Style (Blue Header)</option>
                   <option value="vertical">Vertical High Fidelity (Premium)</option>
+                  <option value="sakthi">Sakthi Style (Centered Header)</option>
                 </select>
               </div>
 

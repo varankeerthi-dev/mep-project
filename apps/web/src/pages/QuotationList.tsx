@@ -17,6 +17,7 @@ import { generateZohoTemplate } from './ZohoTemplate';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
+import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import { generateGridMinimalQuotationPdfBlobWithTerms } from '../pdf/grid-minimal/quotation-with-terms';
 import {
   Search as SearchIcon,
@@ -258,6 +259,9 @@ export default function QuotationList() {
       } else if (template.template_code === 'QTN_GRID_PRO') {
         const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
         doc = generateProGridQuotationPdf(quotationWithTerms, org, template);
+      } else if (template.column_settings?.print?.style === 'sakthi' || template.template_code === 'QTN_SAKTHI') {
+        const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
+        doc = await generateSakthiPdf(quotationWithTerms, org, 'Quotation', template);
       } else {
         doc = new jsPDF();
         doc.setFontSize(16);

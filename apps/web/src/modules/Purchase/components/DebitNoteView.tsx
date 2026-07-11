@@ -7,6 +7,7 @@ import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useDebitNotes, useDeleteDebitNote } from '../hooks/usePurchaseQueries';
 import { generateProGridAdjustmentNotePdf } from '../../../pdf/proGridAdjustmentNotePdf';
+import { generateSakthiPdf } from '../../../pdf/sakthiTemplatePdf';
 
 const DN_TYPE_LABELS: Record<string, string> = {
   'Purchase Return': 'Purchase Return',
@@ -89,27 +90,81 @@ export const DebitNoteView: React.FC = () => {
     setPreviewModalOpen(true);
     setPreviewLoading(true);
     try {
+      let defaultTemplate = null;
+      try {
+        const { data } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Debit Note')
+          .eq('is_default', true)
+          .maybeSingle();
+        defaultTemplate = data;
+      } catch (e) {
+        console.warn(e);
+      }
+
       const pdfData = buildPdfData(selectedDN);
-      const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+      let pdfDoc;
+      if (defaultTemplate?.column_settings?.print?.style === 'sakthi') {
+        pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Debit Note', defaultTemplate);
+      } else {
+        pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+      }
       const blob = pdfDoc.output('blob');
       const url = URL.createObjectURL(blob);
       setPreviewPdfUrl(url);
     } finally {
       setPreviewLoading(false);
     }
-  }, [selectedDN, buildPdfData]);
+  }, [selectedDN, buildPdfData, organisation]);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (!selectedDN) return;
+    let defaultTemplate = null;
+    try {
+      const { data } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Debit Note')
+        .eq('is_default', true)
+        .maybeSingle();
+      defaultTemplate = data;
+    } catch (e) {
+      console.warn(e);
+    }
+
     const pdfData = buildPdfData(selectedDN);
-    const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+    let pdfDoc;
+    if (defaultTemplate?.column_settings?.print?.style === 'sakthi') {
+      pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Debit Note', defaultTemplate);
+    } else {
+      pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+    }
     pdfDoc.save(`${selectedDN.dn_number}.pdf`);
-  }, [selectedDN, buildPdfData]);
+  }, [selectedDN, buildPdfData, organisation]);
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
     if (!selectedDN) return;
+    let defaultTemplate = null;
+    try {
+      const { data } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Debit Note')
+        .eq('is_default', true)
+        .maybeSingle();
+      defaultTemplate = data;
+    } catch (e) {
+      console.warn(e);
+    }
+
     const pdfData = buildPdfData(selectedDN);
-    const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+    let pdfDoc;
+    if (defaultTemplate?.column_settings?.print?.style === 'sakthi') {
+      pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Debit Note', defaultTemplate);
+    } else {
+      pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
+    }
     const blob = pdfDoc.output('blob');
     const url = URL.createObjectURL(blob);
     const iframe = document.createElement('iframe');
@@ -120,7 +175,7 @@ export const DebitNoteView: React.FC = () => {
       try { iframe.contentWindow?.print(); } catch { window.print(); }
       setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
     };
-  }, [selectedDN, buildPdfData]);
+  }, [selectedDN, buildPdfData, organisation]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedDN) return;

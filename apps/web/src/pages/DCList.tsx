@@ -345,6 +345,17 @@ export default function DCList() {
         return row;
       });
 
+      if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'DC_SAKTHI') {
+        const { generateSakthiPdf } = await import('../pdf/sakthiTemplatePdf');
+        const sakthiDoc = await generateSakthiPdf(dcWithItems, organisation, 'Delivery Challan', template);
+        const safeFileName = String(dcWithItems.dc_number || 'dc')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        sakthiDoc.save(`${safeFileName}.pdf`);
+        setShowPrintMenu(false);
+        return;
+      }
+
       if (template.template_code === 'DC_GRID_PRO') {
         const { generateProGridDeliveryChallanPdf } = await import('../pdf/proGridDeliveryChallanPdf');
         const gridDoc = generateProGridDeliveryChallanPdf({

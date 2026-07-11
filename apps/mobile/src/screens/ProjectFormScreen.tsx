@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, Save, Trash2, Building2, DollarSign, Calendar, FileText, Info } from 'lucide-react';
-import { AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Save, Trash2, Building2, IndianRupee, Calendar, FileText, Activity, AlertTriangle } from 'lucide-react';
+import { BottomSheetPicker } from '../components/BottomSheetPicker';
 
 interface ProjectFormScreenProps {
   onBack: () => void;
@@ -12,16 +12,6 @@ interface ProjectFormScreenProps {
 }
 
 type Tab = 'identity' | 'commercial' | 'timeline' | 'scope' | 'status';
-
-const indianStates = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
-];
 
 const inputCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 transition-colors';
 const selectCn = 'w-full h-11 px-3 rounded-xl border border-border bg-background text-base text-foreground outline-none focus:border-primary/50 transition-colors appearance-none';
@@ -222,10 +212,13 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
         <div className="space-y-3">
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Client *</label>
-            <select value={form.client_id} onChange={set('client_id')} className={selectCn}>
-              <option value="">Select Client</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-            </select>
+            <BottomSheetPicker
+              label="Select Client"
+              options={clients.map(c => ({ id: c.id, name: c.client_name }))}
+              value={form.client_id}
+              onChange={(id) => setForm({ ...form, client_id: id })}
+              placeholder="Choose a client"
+            />
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Project Name *</label>
@@ -259,7 +252,7 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
     <div className="space-y-4">
       <div className="glass-card rounded-2xl p-5 border border-border/50 space-y-4">
         <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
-          <DollarSign className="h-4 w-4" />
+          <IndianRupee className="h-4 w-4" />
           Commercial Details
         </div>
         <div className="space-y-3">
@@ -427,12 +420,12 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
         </div>
       </motion.header>
 
-      <div className="flex px-4 pt-3 pb-0 bg-card border-b border-border overflow-x-auto">
+      <div className="flex px-4 pt-3 pb-0 bg-card border-b border-border gap-1.5 overflow-x-auto">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 whitespace-nowrap py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            className={`px-2.5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer shrink-0 ${
               tab === key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
             }`}
           >

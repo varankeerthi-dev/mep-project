@@ -37,10 +37,12 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
 
   const addClientMutation = useMutation({
     mutationFn: async (newClient: any) => {
+      const { client_type, phone, ...rest } = newClient;
       const { data, error } = await supabase
         .from('clients')
         .insert([{
-          ...newClient,
+          ...rest,
+          contact: phone,
           client_id: `CL-${Date.now()}`,
           created_at: new Date().toISOString()
         }])

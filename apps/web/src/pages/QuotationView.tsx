@@ -13,6 +13,7 @@ import { generateQuotationPdf } from '../pdf/enterpriseQuotationPdf';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
+import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { generateGridMinimalQuotationPdfBlobWithTerms } from '../pdf/grid-minimal/quotation-with-terms';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -1194,6 +1195,19 @@ export default function QuotationView() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         const blob = enterpriseDoc.output('blob');
+        if (action === 'blob') return blob;
+        handleOutput(blob);
+        return;
+      }
+
+      // Special handling for Sakthi Template
+      if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'QTN_SAKTHI') {
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
+        const sakthiDoc = await generateSakthiPdf(quotationWithTerms, organisation, 'Quotation', template);
+        const blob = sakthiDoc.output('blob');
         if (action === 'blob') return blob;
         handleOutput(blob);
         return;

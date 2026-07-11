@@ -61,7 +61,37 @@ export interface PurchaseBillData {
   net_amount: number;
 }
 
-export const generatePOPDF = (data: PurchaseOrderData): Blob => generateProGridPurchaseOrderPdf(data);
+import { generateSakthiPdf } from '../../../pdf/sakthiTemplatePdf';
+import { supabase } from '../../../supabase';
+
+export const generatePOPDF = async (data: PurchaseOrderData): Promise<Blob> => {
+  let defaultTemplate = null;
+  try {
+    const { data: tpl } = await supabase
+      .from('document_templates')
+      .select('*')
+      .eq('document_type', 'Quotation')
+      .eq('is_default', true)
+      .maybeSingle();
+    defaultTemplate = tpl;
+  } catch (e) {
+    console.warn('Failed to load default template for PO:', e);
+  }
+
+  if (defaultTemplate?.column_settings?.print?.style === 'sakthi') {
+    const org = {
+      name: data.company_name,
+      address: data.company_address,
+      gstin: data.company_gstin,
+      phone: data.company_phone,
+      logo_url: data.company_logo
+    };
+    const doc = await generateSakthiPdf(data, org, 'Purchase Order', defaultTemplate);
+    return doc.output('blob');
+  }
+
+  return generateProGridPurchaseOrderPdf(data);
+};
 
 export const generateBillPDF = (data: PurchaseBillData): Blob => {
   const doc = new jsPDF('p', 'mm', 'a4');

@@ -8,6 +8,7 @@ import { CN_TYPE_LABELS } from '../../credit-notes/schemas';
 import type { CreditNote } from '../../credit-notes/types';
 import { useAuth } from '../../App';
 import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
+import { generateSakthiPdf } from '../../pdf/sakthiTemplatePdf';
 import { supabase } from '../../supabase';
 import VerticalTemplate from '../../templates/VerticalTemplate';
 import { createRoot } from 'react-dom/client';
@@ -112,6 +113,12 @@ export function CreditNoteViewPage() {
       const template = await getSelectedTemplate();
       if (template?.column_settings?.print?.style === 'vertical') {
         await renderVerticalCNPreview(selectedCN, template);
+      } else if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'CN_SAKTHI') {
+        const pdfData = buildPdfData(selectedCN);
+        const pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Credit Note', template);
+        const blob = pdfDoc.output('blob');
+        const url = URL.createObjectURL(blob);
+        setPreviewPdfUrl(url);
       } else {
         const pdfData = buildPdfData(selectedCN);
         const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
@@ -122,25 +129,42 @@ export function CreditNoteViewPage() {
     } finally {
       setPreviewLoading(false);
     }
-  }, [selectedCN, buildPdfData, getSelectedTemplate]);
+  }, [selectedCN, buildPdfData, getSelectedTemplate, organisation]);
 
   const handleDownload = useCallback(async () => {
     if (!selectedCN) return;
     const template = await getSelectedTemplate();
     if (template?.column_settings?.print?.style === 'vertical') {
       await downloadVerticalCNPdf(selectedCN, template);
+    } else if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'CN_SAKTHI') {
+      const pdfData = buildPdfData(selectedCN);
+      const pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Credit Note', template);
+      pdfDoc.save(`${selectedCN.cn_number}.pdf`);
     } else {
       const pdfData = buildPdfData(selectedCN);
       const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
       pdfDoc.save(`${selectedCN.cn_number}.pdf`);
     }
-  }, [selectedCN, buildPdfData, getSelectedTemplate]);
+  }, [selectedCN, buildPdfData, getSelectedTemplate, organisation]);
 
   const handlePrint = useCallback(async () => {
     if (!selectedCN) return;
     const template = await getSelectedTemplate();
     if (template?.column_settings?.print?.style === 'vertical') {
       const blob = await downloadVerticalCNBlob(selectedCN, template);
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try { iframe.contentWindow?.print(); } catch { window.print(); }
+        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
+      };
+    } else if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'CN_SAKTHI') {
+      const pdfData = buildPdfData(selectedCN);
+      const pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Credit Note', template);
+      const blob = pdfDoc.output('blob');
       const url = URL.createObjectURL(blob);
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
@@ -164,7 +188,7 @@ export function CreditNoteViewPage() {
         setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
       };
     }
-  }, [selectedCN, buildPdfData, getSelectedTemplate]);
+  }, [selectedCN, buildPdfData, getSelectedTemplate, organisation]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedCN) return;

@@ -46,6 +46,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   'site-visit': 'site_visits',
   'site-report': 'site_reports',
   'client-communication': 'site_reports',
+  'manager-alerts': 'site_reports',
   subcontractor: 'subcontractors',
   leads: 'leads',
   quotation: 'quotations',
@@ -80,6 +81,7 @@ const menuData: MenuSection[] = [
       { id: 'todo', label: 'To do', path: '/todo' },
       { id: 'follow-up', label: 'Follow-up', path: '/follow-up' },
       { id: 'client-communication', label: 'Communication log', path: '/client-communication' },
+      { id: 'manager-alerts', label: 'Manager alerts', path: '/manager-alerts' },
       { id: 'client-lookup', label: 'Quick Lookup', path: '/client-lookup' }
     ]
   },
@@ -301,6 +303,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   tools: 'WrenchIcon',
   'site-report': 'ClipboardDocumentCheckIcon',
   'client-communication': 'ChatBubbleLeftRightIcon',
+  'manager-alerts': 'BellIcon',
   'client-lookup': 'PhoneIcon',
   subcontractor: 'UserGroupIcon',
   'client-requests': 'InboxIcon',

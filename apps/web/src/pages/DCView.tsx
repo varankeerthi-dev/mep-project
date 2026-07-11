@@ -21,6 +21,7 @@ import {
 import { generateClassicDeliveryChallanTemplate } from './ClassicDeliveryChallanTemplate';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
+import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -155,6 +156,12 @@ export default function DCView() {
 
   const generatePDFBlob = async (targetTemplate: any): Promise<Blob> => {
     if (!dc) throw new Error('No DC data loaded');
+
+    // Sakthi PDF Template
+    if (targetTemplate?.column_settings?.print?.style === 'sakthi' || targetTemplate?.template_code === 'DC_SAKTHI') {
+      const sakthiDoc = await generateSakthiPdf(dc, organisation, 'Delivery Challan', targetTemplate);
+      return sakthiDoc.output('blob');
+    }
 
     // 1. Classic PDF Template
     if (targetTemplate.template_code === 'DC_CLASSIC') {

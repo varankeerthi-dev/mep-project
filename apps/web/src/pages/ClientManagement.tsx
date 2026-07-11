@@ -802,12 +802,13 @@ const indianStates = [
       if (!sessionValid) {
         throw new Error('Session expired. Please refresh the page and sign in again.');
       }
+      const { client_type, country, ...insertData } = formData;
 
       if (editMode && clientData?.id) {
         const { error } = await withTimeout(
           supabase
             .from('clients')
-            .update({ ...formData, updated_at: new Date().toISOString() })
+            .update({ ...insertData, updated_at: new Date().toISOString() })
             .eq('id', clientData.id)
             .eq('organisation_id', orgId),
           30000,
@@ -818,7 +819,7 @@ const indianStates = [
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
         const { error } = await withTimeout(
           supabase.from('clients').insert({ 
-            ...formData, 
+            ...insertData, 
             client_id: clientId, 
             organisation_id: orgId 
           }),

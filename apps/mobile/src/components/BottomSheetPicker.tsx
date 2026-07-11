@@ -79,6 +79,7 @@ export const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
               onClick={handleClose}
               className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]"
             />
@@ -88,7 +89,7 @@ export const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 26, stiffness: 260 }}
+              transition={{ type: 'tween', ease: 'easeOut', duration: 0.18 }}
               drag="y"
               dragDirectionLock
               dragConstraints={{ top: 0, bottom: 0 }}

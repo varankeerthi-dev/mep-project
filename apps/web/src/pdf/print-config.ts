@@ -1,4 +1,4 @@
-export type PrintStyle = 'default' | 'grid_minimal' | 'pro_grid' | 'saas' | 'vertical';
+export type PrintStyle = 'default' | 'grid_minimal' | 'pro_grid' | 'saas' | 'vertical' | 'sakthi';
 
 export type GridMinimalColumns = {
   sno: boolean;

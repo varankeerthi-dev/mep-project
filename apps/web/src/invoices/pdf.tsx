@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
 import { getPrintConfig } from '../pdf/print-config';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
+import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import {
   getInvoiceById,
   loadInvoiceSource,
@@ -288,6 +289,16 @@ async function renderInvoicePdfBlob(
   
   if (printStyle === 'vertical') {
     return await renderVerticalInvoicePdf(data, orgId, templateConfig);
+  }
+  
+  if (printStyle === 'sakthi') {
+    const sakthiDoc = await generateSakthiPdf(data.invoice, data.company, 'Invoice', templateConfig);
+    const blob = sakthiDoc.output('blob');
+    return {
+      blob,
+      data,
+      fileName: getDownloadFilename(data.invoice, options.fileName),
+    };
   }
   
   const blob = await pdf(resolveInvoicePdfElement(data, templateConfig)).toBlob();

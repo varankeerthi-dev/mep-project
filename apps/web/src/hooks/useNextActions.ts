@@ -124,7 +124,7 @@ export function useNextActions() {
         .from('site_reports')
         .select('*, projects(project_name)')
         .eq('organisation_id', orgId)
-        .eq('status', 'submitted');
+        .neq('pm_status', 'Draft');
 
       if (!isPowerUser) {
         reportsQuery = reportsQuery.eq('created_by', userEmail);
@@ -136,13 +136,13 @@ export function useNextActions() {
           const ackList: string[] = r.next_action_acknowledged_by || [];
           if (ackList.includes(userEmail)) return;
 
-          if (r.next_plan) {
+          if (r.work_plan_next_day) {
             const dateVal = r.report_date || '';
             const isOverdue = dateVal ? dateVal < todayStr : false;
             items.push({
               id: `report-${r.id}`,
               source: 'report',
-              title: r.next_plan,
+              title: r.work_plan_next_day,
               contextInfo: `Project: ${r.projects?.project_name || 'N/A'}`,
               authorName: r.created_by || 'Unknown',
               date: dateVal,
@@ -346,15 +346,29 @@ export function useNextActions() {
 
     try {
       // Fetch recently resolved or noted communications
-      let commQuery = supabase
-        .from('client_communication')
-        .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
-        .eq('organisation_id', orgId)
-        .or(`is_resolved.eq.true,next_action_acknowledged_by.cs.{"${userEmail}"}`)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      const [q1, q2] = await Promise.all([
+        supabase
+          .from('client_communication')
+          .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
+          .eq('organisation_id', orgId)
+          .eq('is_resolved', true)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('client_communication')
+          .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
+          .eq('organisation_id', orgId)
+          .contains('next_action_acknowledged_by', [userEmail])
+          .order('created_at', { ascending: false })
+          .limit(20)
+      ]);
 
-      const { data: comms } = await commQuery;
+      const commsMap = new Map<string, any>();
+      if (q1.data) q1.data.forEach(item => commsMap.set(item.id, item));
+      if (q2.data) q2.data.forEach(item => commsMap.set(item.id, item));
+      const comms = Array.from(commsMap.values())
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(0, 20);
       if (comms) {
         comms.forEach(c => {
           const actionTitle = c.next_action || c.subject || c.call_brief || '';
@@ -379,15 +393,29 @@ export function useNextActions() {
 
     try {
       // Fetch recently noted site visits
-      let visitsQuery = supabase
-        .from('site_visits')
-        .select('*, clients(client_name), projects(project_name)')
-        .eq('organisation_id', orgId)
-        .or(`status.eq.completed,status.eq.cancelled,next_action_acknowledged_by.cs.{"${userEmail}"}`)
-        .order('visit_date', { ascending: false })
-        .limit(10);
+      const [v1, v2] = await Promise.all([
+        supabase
+          .from('site_visits')
+          .select('*, clients(client_name), projects(project_name)')
+          .eq('organisation_id', orgId)
+          .in('status', ['completed', 'cancelled'])
+          .order('visit_date', { ascending: false })
+          .limit(10),
+        supabase
+          .from('site_visits')
+          .select('*, clients(client_name), projects(project_name)')
+          .eq('organisation_id', orgId)
+          .contains('next_action_acknowledged_by', [userEmail])
+          .order('visit_date', { ascending: false })
+          .limit(10)
+      ]);
 
-      const { data: visits } = await visitsQuery;
+      const visitsMap = new Map<string, any>();
+      if (v1.data) v1.data.forEach(item => visitsMap.set(item.id, item));
+      if (v2.data) v2.data.forEach(item => visitsMap.set(item.id, item));
+      const visits = Array.from(visitsMap.values())
+        .sort((a, b) => new Date(b.visit_date || 0).getTime() - new Date(a.visit_date || 0).getTime())
+        .slice(0, 10);
       if (visits) {
         visits.forEach(v => {
           items.push({

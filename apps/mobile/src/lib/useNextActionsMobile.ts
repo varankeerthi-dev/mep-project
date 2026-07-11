@@ -10,6 +10,7 @@ export interface NextActionItem {
   date: string;
   isOverdue: boolean;
   creatorText?: string;
+  createdAt?: string;
   rawItem: any;
 }
 
@@ -95,7 +96,7 @@ export function useNextActionsMobile(isDemo = false) {
           .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name)')
           .eq('organisation_id', orgId)
           .eq('is_resolved', false)
-          .in('status', ['Open', 'In Progress', 'open', 'in_progress']);
+          .in('status', ['Open', 'In Progress', 'open', 'in_progress', 'Awaiting Decision', 'awaiting_decision']);
 
         if (!isPowerUser) {
           commQuery = commQuery.or(`assigned_to.eq.${userId},call_entered_by.eq.${userId}`);
@@ -131,6 +132,7 @@ export function useNextActionsMobile(isDemo = false) {
               date: dateVal,
               isOverdue: dateVal ? dateVal < todayStr : false,
               creatorText: creatorTextText,
+              createdAt: c.created_at,
               rawItem: c
             });
           });
@@ -168,6 +170,7 @@ export function useNextActionsMobile(isDemo = false) {
                 authorName: v.visited_by || v.engineer || 'Unknown',
                 date: dateVal,
                 isOverdue: dateVal ? dateVal < todayStr : false,
+                createdAt: v.created_at,
                 rawItem: v
               });
             }
@@ -183,7 +186,7 @@ export function useNextActionsMobile(isDemo = false) {
           .from('site_reports')
           .select('*, projects(project_name)')
           .eq('organisation_id', orgId)
-          .eq('status', 'submitted');
+          .neq('pm_status', 'Draft');
 
         if (!isPowerUser) {
           reportsQuery = reportsQuery.eq('created_by', userEmail);
@@ -195,16 +198,17 @@ export function useNextActionsMobile(isDemo = false) {
             const ackList: string[] = r.next_action_acknowledged_by || [];
             if (ackList.includes(userEmail)) return;
 
-            if (r.next_plan) {
+            if (r.work_plan_next_day) {
               const dateVal = r.report_date || '';
               items.push({
                 id: `report-${r.id}`,
                 source: 'report',
-                title: r.next_plan,
+                title: r.work_plan_next_day,
                 contextInfo: `Project: ${r.projects?.project_name || 'N/A'}`,
                 authorName: r.created_by || 'Unknown',
                 date: dateVal,
                 isOverdue: dateVal ? dateVal < todayStr : false,
+                createdAt: r.created_at,
                 rawItem: r
               });
             }
@@ -239,6 +243,7 @@ export function useNextActionsMobile(isDemo = false) {
               authorName: i.reported_by_name || 'System',
               date: dateVal,
               isOverdue: dateVal ? dateVal < todayStr : false,
+              createdAt: i.created_at,
               rawItem: i
             });
           });
@@ -273,6 +278,7 @@ export function useNextActionsMobile(isDemo = false) {
                 authorName: l.owner_name || 'System',
                 date: dateVal,
                 isOverdue: dateVal ? dateVal < todayStr : false,
+                createdAt: l.created_at,
                 rawItem: l
               });
             }
@@ -280,11 +286,11 @@ export function useNextActionsMobile(isDemo = false) {
         }
       } catch (e) {}
 
-      // Sort items chronologically
+      // Sort items by creation date descending (newest first)
       const sortedActive = items.sort((a, b) => {
-        if (a.isOverdue && !b.isOverdue) return -1;
-        if (!a.isOverdue && b.isOverdue) return 1;
-        return a.date.localeCompare(b.date);
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
       });
       setNextActions(sortedActive);
 
@@ -294,15 +300,29 @@ export function useNextActionsMobile(isDemo = false) {
       const historyItems: NextActionItem[] = [];
 
       try {
-        let historyQuery = supabase
-          .from('client_communication')
-          .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
-          .eq('organisation_id', orgId)
-          .or(`is_resolved.eq.true,next_action_acknowledged_by.cs.{"${userEmail}"}`)
-          .order('created_at', { ascending: false })
-          .limit(15);
+        const [q1, q2] = await Promise.all([
+          supabase
+            .from('client_communication')
+            .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
+            .eq('organisation_id', orgId)
+            .eq('is_resolved', true)
+            .order('created_at', { ascending: false })
+            .limit(15),
+          supabase
+            .from('client_communication')
+            .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
+            .eq('organisation_id', orgId)
+            .contains('next_action_acknowledged_by', [userEmail])
+            .order('created_at', { ascending: false })
+            .limit(15)
+        ]);
 
-        const { data: commsHist } = await historyQuery;
+        const commsHistMap = new Map<string, any>();
+        if (q1.data) q1.data.forEach(item => commsHistMap.set(item.id, item));
+        if (q2.data) q2.data.forEach(item => commsHistMap.set(item.id, item));
+        const commsHist = Array.from(commsHistMap.values())
+          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          .slice(0, 15);
         if (commsHist) {
           commsHist.forEach(c => {
             const actionTitle = c.next_action || c.subject || c.call_brief || '';
@@ -327,6 +347,7 @@ export function useNextActionsMobile(isDemo = false) {
               date: c.follow_up_date || '',
               isOverdue: false,
               creatorText: creatorTextText,
+              createdAt: c.created_at,
               rawItem: c
             });
           });
@@ -334,15 +355,29 @@ export function useNextActionsMobile(isDemo = false) {
       } catch (e) {}
 
       try {
-        let visitsHistQuery = supabase
-          .from('site_visits')
-          .select('*, clients(client_name), projects(project_name)')
-          .eq('organisation_id', orgId)
-          .or(`status.eq.completed,status.eq.cancelled,next_action_acknowledged_by.cs.{"${userEmail}"}`)
-          .order('visit_date', { ascending: false })
-          .limit(8);
+        const [v1, v2] = await Promise.all([
+          supabase
+            .from('site_visits')
+            .select('*, clients(client_name), projects(project_name)')
+            .eq('organisation_id', orgId)
+            .in('status', ['completed', 'cancelled'])
+            .order('visit_date', { ascending: false })
+            .limit(8),
+          supabase
+            .from('site_visits')
+            .select('*, clients(client_name), projects(project_name)')
+            .eq('organisation_id', orgId)
+            .contains('next_action_acknowledged_by', [userEmail])
+            .order('visit_date', { ascending: false })
+            .limit(8)
+        ]);
 
-        const { data: visitsHist } = await visitsHistQuery;
+        const visitsHistMap = new Map<string, any>();
+        if (v1.data) v1.data.forEach(item => visitsHistMap.set(item.id, item));
+        if (v2.data) v2.data.forEach(item => visitsHistMap.set(item.id, item));
+        const visitsHist = Array.from(visitsHistMap.values())
+          .sort((a, b) => new Date(b.visit_date || 0).getTime() - new Date(a.visit_date || 0).getTime())
+          .slice(0, 8);
         if (visitsHist) {
           visitsHist.forEach(v => {
             historyItems.push({
@@ -353,13 +388,20 @@ export function useNextActionsMobile(isDemo = false) {
               authorName: v.visited_by || 'Unknown',
               date: v.visit_date || '',
               isOverdue: false,
+              createdAt: v.created_at,
               rawItem: v
             });
           });
         }
       } catch (e) {}
 
-      setHistory(historyItems);
+      // Sort history items by creation date descending (newest first)
+      const sortedHistory = historyItems.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      setHistory(sortedHistory);
 
     } catch (e) {
       console.error('Error fetching mobile next actions data:', e);
@@ -487,7 +529,7 @@ export function useNextActionsMobile(isDemo = false) {
       // 1. Resolve Communication Log
       const { error } = await supabase
         .from('client_communication')
-        .update({ is_resolved: true })
+        .update({ is_resolved: true, status: 'Closed' })
         .eq('id', realId);
 
       if (error) throw error;

@@ -25,6 +25,7 @@ interface CommItem {
   created_at: string;
   call_entered_by: string;
   call_received_by: string;
+  assigned_to?: string | null;
   client_id?: string | null;
   vendor_id?: string | null;
   subcontractor_id?: string | null;
@@ -53,11 +54,35 @@ const TOPICS = [
   { value: 'quotation', label: 'Quotation' },
   { value: 'project', label: 'Project' },
   { value: 'issue', label: 'Issue/Complaint' },
+  { value: 'operational_feedback', label: 'Operational Feedback' },
   { value: 'site_visit', label: 'Site Visit' },
   { value: 'approval', label: 'Approval' },
   { value: 'payment', label: 'Payment' },
   { value: 'general', label: 'General Inquiry' },
   { value: 'other', label: 'Other' },
+];
+
+const PRIORITY_PICKER_OPTIONS = [
+  { id: 'low', name: 'Low' },
+  { id: 'normal', name: 'Normal' },
+  { id: 'high', name: 'High' },
+  { id: 'urgent', name: 'Urgent' },
+];
+
+const STATUS_PICKER_OPTIONS = [
+  { id: 'open', name: 'Open' },
+  { id: 'in_progress', name: 'In Progress' },
+  { id: 'awaiting_decision', name: 'Awaiting Decision' },
+  { id: 'resolved', name: 'Resolved' },
+  { id: 'closed', name: 'Closed' },
+];
+
+const PARTY_TYPES = [
+  { id: '', name: 'All Party Types' },
+  { id: 'client', name: 'Client' },
+  { id: 'vendor', name: 'Vendor' },
+  { id: 'lead', name: 'Lead' },
+  { id: 'subcontractor', name: 'Subcontractor' },
 ];
 
 export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo = false }) => {
@@ -85,6 +110,9 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
   const [userProfilesMap, setUserProfilesMap] = useState<Record<string, string>>({});
 
   // Form State
+  const [usersList, setUsersList] = useState<{ id: string; name: string }[]>([]);
+  const [formReceivedBy, setFormReceivedBy] = useState('');
+  const [formAssignedTo, setFormAssignedTo] = useState('');
   const [editingCommId, setEditingCommId] = useState<string | null>(null);
   const [formPartyType, setFormPartyType] = useState('client');
   const [formPartyId, setFormPartyId] = useState('');
@@ -215,6 +243,9 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       setLeads(demoLeads);
       setComms(demoComms);
       setUserProfilesMap({ 'demo-user-id': 'Demo User' });
+      setUsersList([{ id: 'demo-user-id', name: 'Demo User' }]);
+      setFormReceivedBy('demo-user-id');
+      setFormAssignedTo('demo-user-id');
       setLoading(false);
     } else {
       initSessionAndFetch();
@@ -258,15 +289,20 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       ]);
 
       const profileMap: Record<string, string> = {};
+      const uList: { id: string; name: string }[] = [];
       if (profilesRes.data) {
         profilesRes.data.forEach((p: any) => {
           const uId = p.user_id || p.id;
           if (uId) {
             profileMap[uId] = p.full_name || 'System User';
+            uList.push({ id: uId, name: p.full_name || 'System User' });
           }
         });
       }
       setUserProfilesMap(profileMap);
+      setUsersList(uList.sort((a, b) => a.name.localeCompare(b.name)));
+      setFormReceivedBy(user.id);
+      setFormAssignedTo(user.id);
 
       setClients(clientsRes.data?.map(c => ({ id: c.id, name: c.client_name })) || []);
       setVendors(vendorsRes.data?.map(v => ({ id: v.id, name: v.company_name })) || []);
@@ -323,13 +359,14 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       next_action: formNextAction,
       follow_up_date: formFollowUp || null,
       priority: formPriority,
-      status: formStatus === 'open' ? 'Open' : formStatus === 'in_progress' ? 'In Progress' : formStatus === 'resolved' ? 'Resolved' : 'Closed',
+      status: formStatus === 'open' ? 'Open' : formStatus === 'in_progress' ? 'In Progress' : formStatus === 'awaiting_decision' ? 'Awaiting Decision' : formStatus === 'resolved' ? 'Resolved' : 'Closed',
+      is_resolved: formStatus === 'resolved' || formStatus === 'closed',
       client_id: formPartyType === 'client' ? formPartyId : null,
       vendor_id: formPartyType === 'vendor' ? formPartyId : null,
       subcontractor_id: formPartyType === 'subcontractor' ? formPartyId : null,
       lead_id: formPartyType === 'lead' ? formPartyId : null,
-      assigned_to: userId,
-      call_received_by: userId,
+      assigned_to: formAssignedTo || null,
+      call_received_by: formReceivedBy || null,
       call_entered_by: userId,
     };
 
@@ -445,7 +482,7 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
         .insert([{
           client_name: newClientName,
           contact_person: newContactPerson,
-          phone: newPhone,
+          contact: newPhone,
           email: newEmail,
           city: newCity,
           organisation_id: orgId,
@@ -746,6 +783,8 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
     setFormFollowUp('');
     setFormPriority('normal');
     setFormStatus('open');
+    setFormReceivedBy(userId || '');
+    setFormAssignedTo(userId || '');
     setEditingCommId(null);
   };
 
@@ -764,9 +803,12 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
     setFormStatus(
       (item.status || '').toLowerCase() === 'open' ? 'open' :
       (item.status || '').toLowerCase() === 'in_progress' ? 'in_progress' :
+      (item.status || '').toLowerCase() === 'awaiting decision' || (item.status || '').toLowerCase() === 'awaiting_decision' ? 'awaiting_decision' :
       (item.status || '').toLowerCase() === 'resolved' ? 'resolved' :
       (item.status || '').toLowerCase() === 'closed' ? 'closed' : 'open'
     );
+    setFormReceivedBy(item.call_received_by || '');
+    setFormAssignedTo(item.assigned_to || '');
     setSelectedComm(null);
     setActiveView('create');
   };
@@ -958,19 +1000,22 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                         </div>
                         <div>
                           <div className="flex items-baseline gap-2">
-                            <h4 className="text-xs font-bold text-foreground truncate max-w-[150px]">
+                            <h4 className="text-sm font-bold text-foreground truncate max-w-[160px]">
                               {getPartyDisplayName(item)}
                             </h4>
-                            <span className="text-[9px] font-medium text-muted-foreground shrink-0">
+                            <span className="text-[11px] font-medium text-muted-foreground shrink-0">
                               {formatDate(item.created_at, true)}
                             </span>
                           </div>
-                          <p className="text-[9px] font-semibold uppercase text-muted-foreground/70">
-                            {item.party_type} • {item.call_regarding} • Entered by: {userProfilesMap[item.call_entered_by] || 'System'} • Received by: {userProfilesMap[item.call_received_by] || 'System'}
+                          <p className="text-[10px] font-medium text-red-500 mt-0.5">
+                            Entered by: {userProfilesMap[item.call_entered_by] || 'System'} • Received by: {userProfilesMap[item.call_received_by] || 'System'}
+                          </p>
+                          <p className="text-[10px] font-semibold uppercase text-muted-foreground/70 mt-0.5">
+                            {item.party_type} • {item.call_regarding}
                           </p>
                         </div>
                       </div>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                         item.priority === 'urgent' ? 'bg-red-500/10 text-red-500' :
                         item.priority === 'high' ? 'bg-orange-500/10 text-orange-500' :
                         item.priority === 'normal' ? 'bg-blue-500/10 text-blue-500' :
@@ -980,13 +1025,19 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                       </span>
                     </div>
 
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-foreground truncate">{item.subject}</p>
-                      <p className="text-[10px] text-muted-foreground/90 line-clamp-2 leading-relaxed">{item.call_brief}</p>
+                    <div className="space-y-1.5">
+                      <div>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">About:</span>
+                        <span className="text-sm font-semibold text-foreground">{item.subject}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">Additional Notes:</span>
+                        <span className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">{item.call_brief}</span>
+                      </div>
                     </div>
 
                     {item.follow_up_date && (
-                      <div className="flex justify-between items-center pt-2 border-t border-border/20 text-[9px] text-muted-foreground font-semibold">
+                      <div className="flex justify-between items-center pt-2 border-t border-border/20 text-[10px] text-muted-foreground font-semibold">
                         <div className="flex items-center gap-1 bg-amber-500/5 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/10">
                           <Calendar className="h-3 w-3" />
                           <span>Follow up: {formatDate(item.follow_up_date, true)}</span>
@@ -1050,7 +1101,7 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
 
             {/* Subject */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Subject / Topic Summary</label>
+              <label className="text-xs font-semibold text-muted-foreground">About</label>
               <input
                 type="text"
                 value={formSubject}
@@ -1065,24 +1116,24 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Comm. Category</label>
-                <select
+                <BottomSheetPicker
+                  label="Select Category"
+                  options={CATEGORIES.map(c => ({ id: c.value, name: c.label }))}
                   value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                  onChange={(val) => setFormCategory(val)}
+                  placeholder="Select Category"
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Regarding Topic</label>
-                <select
+                <BottomSheetPicker
+                  label="Select Regarding Topic"
+                  options={TOPICS.map(t => ({ id: t.value, name: t.label }))}
                   value={formRegarding}
-                  onChange={(e) => setFormRegarding(e.target.value)}
-                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {TOPICS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                  onChange={(val) => setFormRegarding(val)}
+                  placeholder="Select Topic"
+                />
               </div>
             </div>
 
@@ -1090,36 +1141,55 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Priority</label>
-                <select
+                <BottomSheetPicker
+                  label="Select Priority"
+                  options={PRIORITY_PICKER_OPTIONS}
                   value={formPriority}
-                  onChange={(e) => setFormPriority(e.target.value)}
-                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none"
-                >
-                  <option value="low">Low</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
+                  onChange={(val) => setFormPriority(val)}
+                  placeholder="Select Priority"
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Status</label>
-                <select
+                <BottomSheetPicker
+                  label="Select Status"
+                  options={STATUS_PICKER_OPTIONS}
                   value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value)}
-                  className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs focus:outline-none"
-                >
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
+                  onChange={(val) => setFormStatus(val)}
+                  placeholder="Select Status"
+                />
+              </div>
+            </div>
+
+            {/* Received By & Assigned To */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Received By</label>
+                <BottomSheetPicker
+                  label="Select Received By"
+                  options={usersList}
+                  value={formReceivedBy}
+                  onChange={(val) => setFormReceivedBy(val)}
+                  placeholder="Select User"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Assigned To</label>
+                <BottomSheetPicker
+                  label="Select Assigned To"
+                  options={usersList}
+                  value={formAssignedTo}
+                  onChange={(val) => setFormAssignedTo(val)}
+                  placeholder="Select User"
+                />
               </div>
             </div>
 
             {/* Brief Summary */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Brief Summary (Notes)</label>
+              <label className="text-xs font-semibold text-muted-foreground">Additional Notes</label>
               <textarea
                 value={formBrief}
                 onChange={(e) => setFormBrief(e.target.value)}
@@ -1174,8 +1244,8 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                   {getCategoryIcon(selectedComm.call_category)}
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-foreground">{getPartyDisplayName(selectedComm)}</h3>
-                  <p className="text-[9px] font-semibold uppercase text-muted-foreground/75">{selectedComm.party_type} • {selectedComm.call_regarding}</p>
+                  <h3 className="text-sm font-bold text-foreground">{getPartyDisplayName(selectedComm)}</h3>
+                  <p className="text-[10px] font-semibold uppercase text-muted-foreground/75">{selectedComm.party_type} • {selectedComm.call_regarding}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -1197,51 +1267,57 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
 
             <div className="space-y-3 pt-2">
               <div className="space-y-1">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Subject</span>
-                <p className="text-xs font-bold text-foreground leading-relaxed">{selectedComm.subject}</p>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">About</span>
+                <p className="text-sm font-bold text-foreground leading-relaxed">{selectedComm.subject}</p>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Discussion Notes</span>
-                <div className="p-3 rounded-lg bg-muted/40 border border-border/20 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Discussion Notes</span>
+                <div className="p-3 rounded-lg bg-muted/40 border border-border/20 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
                   {selectedComm.call_brief}
                 </div>
               </div>
 
               {selectedComm.next_action && (
                 <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Next Action / Next plan</span>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Next Action / Next plan</span>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                     <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                     <span>{selectedComm.next_action}</span>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border/30 text-[10px]">
+              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border/30 text-xs">
                 <div>
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Priority</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Priority</span>
                   <p className="font-semibold capitalize text-foreground">{selectedComm.priority}</p>
                 </div>
                 <div>
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Status</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Status</span>
                   <p className="font-semibold capitalize text-foreground">{selectedComm.status}</p>
                 </div>
                 <div>
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Entered By</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Entered By</span>
                   <p className="font-semibold text-foreground">{userProfilesMap[selectedComm.call_entered_by] || 'System'}</p>
                 </div>
                 <div>
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Received By</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Received By</span>
                   <p className="font-semibold text-foreground">{userProfilesMap[selectedComm.call_received_by] || 'System'}</p>
                 </div>
+                {selectedComm.assigned_to && (
+                  <div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Assigned To</span>
+                    <p className="font-semibold text-foreground">{userProfilesMap[selectedComm.assigned_to] || 'System'}</p>
+                  </div>
+                )}
                 <div>
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Date Logged</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Date Logged</span>
                   <p className="font-semibold text-foreground">{formatDateTime(selectedComm.created_at)}</p>
                 </div>
                 {selectedComm.follow_up_date && (
                   <div>
-                    <span className="text-[8px] font-bold text-muted-foreground uppercase text-amber-600">Follow-Up Date</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase text-amber-600">Follow-Up Date</span>
                     <p className="font-semibold text-amber-600">{formatDate(selectedComm.follow_up_date, true)}</p>
                   </div>
                 )}
@@ -1263,17 +1339,13 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
                 <label className="font-semibold text-muted-foreground">Party Type</label>
-                <select
+                <BottomSheetPicker
+                  label="Select Party Type"
+                  options={PARTY_TYPES}
                   value={filterPartyType}
-                  onChange={(e) => { setFilterPartyType(e.target.value); setFilterPartyId(''); }}
-                  className="w-full px-2 h-8 rounded-lg border border-input bg-card text-xs focus:outline-none"
-                >
-                  <option value="">All Party Types</option>
-                  <option value="client">Client</option>
-                  <option value="vendor">Vendor</option>
-                  <option value="lead">Lead</option>
-                  <option value="subcontractor">Subcontractor</option>
-                </select>
+                  onChange={(val) => { setFilterPartyType(val); setFilterPartyId(''); }}
+                  placeholder="All Party Types"
+                />
               </div>
 
               {filterPartyType && (
@@ -1282,29 +1354,25 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
                     <Search className="h-3.5 w-3.5 text-primary" />
                     <span>Search {filterPartyType}</span>
                   </label>
-                  <select
+                  <BottomSheetPicker
+                    label={`Select ${filterPartyType.charAt(0).toUpperCase() + filterPartyType.slice(1)}`}
+                    options={[{ id: '', name: `All ${filterPartyType}s` }, ...getFilterPartyOptions()]}
                     value={filterPartyId}
-                    onChange={(e) => setFilterPartyId(e.target.value)}
-                    className="w-full px-2 h-8 rounded-lg border border-input bg-card text-xs focus:outline-none"
-                  >
-                    <option value="">All {filterPartyType}s</option>
-                    {getFilterPartyOptions().map((opt) => (
-                      <option key={opt.id} value={opt.id}>{opt.name}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFilterPartyId(val)}
+                    placeholder={`All ${filterPartyType}s`}
+                  />
                 </div>
               )}
 
               <div className="space-y-1">
                 <label className="font-semibold text-muted-foreground">Category</label>
-                <select
+                <BottomSheetPicker
+                  label="Select Category"
+                  options={[{ id: '', name: 'All Categories' }, ...CATEGORIES.map(c => ({ id: c.value, name: c.label }))]}
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full px-2 h-8 rounded-lg border border-input bg-card text-xs focus:outline-none"
-                >
-                  <option value="">All Categories</option>
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                  onChange={(val) => setFilterCategory(val)}
+                  placeholder="All Categories"
+                />
               </div>
             </div>
 

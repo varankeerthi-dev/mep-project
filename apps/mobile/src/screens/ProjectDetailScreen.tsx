@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Building2, DollarSign, FileText, Calendar, ShieldCheck, ClipboardList, TrendingUp, Activity, Edit, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { ChevronLeft, Building2, IndianRupee, FileText, Calendar, ShieldCheck, ClipboardList, TrendingUp, Activity, Edit, ChevronRight, ClipboardCheck } from 'lucide-react';
 
 interface ProjectDetailScreenProps {
   project: any;
@@ -9,14 +9,6 @@ interface ProjectDetailScreenProps {
 }
 
 type Tab = 'summary' | 'scope' | 'transactions' | 'related';
-
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  Draft: { label: 'Draft', bg: 'bg-slate-100', text: 'text-slate-600' },
-  Active: { label: 'Active', bg: 'bg-green-50', text: 'text-green-600' },
-  'Execution Completed': { label: 'Execution Completed', bg: 'bg-amber-50', text: 'text-amber-600' },
-  'Financially Closed': { label: 'Financially Closed', bg: 'bg-indigo-50', text: 'text-indigo-600' },
-  Closed: { label: 'Closed', bg: 'bg-slate-100', text: 'text-slate-600' },
-};
 
 const FieldRow: React.FC<{ label: string; value?: string | number | null; accent?: string }> = ({ label, value, accent }) => (
   <div className="flex justify-between items-start gap-2">
@@ -47,20 +39,19 @@ const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.
 const TABS: { key: Tab; label: string; Icon: any }[] = [
   { key: 'summary', label: 'Summary', Icon: TrendingUp },
   { key: 'scope', label: 'Scope', Icon: FileText },
-  { key: 'transactions', label: 'Transactions', Icon: DollarSign },
+  { key: 'transactions', label: 'Transactions', Icon: IndianRupee },
   { key: 'related', label: 'Related', Icon: ClipboardList },
 ];
 
 export const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({ project, onBack, onEdit }: ProjectDetailScreenProps) => {
   const [tab, setTab] = useState<Tab>('summary');
-  const status = STATUS_CONFIG[project.status] || STATUS_CONFIG['Draft'];
   const p = project;
 
   const renderSummary = () => (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Est. Value', value: p.project_estimated_value ? '₹' + Number(p.project_estimated_value).toLocaleString('en-IN') : '—', icon: <DollarSign className="h-4 w-4" />, color: 'text-primary' },
+          { label: 'Est. Value', value: p.project_estimated_value ? '₹' + Number(p.project_estimated_value).toLocaleString('en-IN') : '—', icon: <IndianRupee className="h-4 w-4" />, color: 'text-primary' },
           { label: 'Completion', value: p.completion_percentage != null ? `${p.completion_percentage}%` : '—', icon: <TrendingUp className="h-4 w-4" />, color: 'text-green-600' },
           { label: 'Type', value: p.project_type || '—', icon: <Building2 className="h-4 w-4" />, color: 'text-blue-600' },
         ].map(stat => (
@@ -72,7 +63,7 @@ export const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({ projec
         ))}
       </div>
 
-      <Section title="Commercial Info" icon={<DollarSign className="h-4 w-4" />} accent="text-primary">
+      <Section title="Commercial Info" icon={<IndianRupee className="h-4 w-4" />} accent="text-primary">
         <FieldRow label="Est. Value" value={p.project_estimated_value ? '₹' + Number(p.project_estimated_value).toLocaleString('en-IN') : '—'} />
         <FieldRow label="PO Required" value={p.po_required ? 'Yes' : 'No'} />
         {p.po_required && (
@@ -124,7 +115,7 @@ export const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({ projec
     if (isTransactions) {
       return (
         <div className="space-y-3">
-          <Section title="Purchase Orders" icon={<DollarSign className="h-4 w-4" />} accent="text-primary">
+          <Section title="Purchase Orders" icon={<IndianRupee className="h-4 w-4" />} accent="text-primary">
             <p className="text-xs text-muted-foreground text-center py-4">Coming soon — PO list & utilization tracking</p>
           </Section>
           <Section title="Invoices" icon={<FileText className="h-4 w-4" />} accent="text-blue-600">

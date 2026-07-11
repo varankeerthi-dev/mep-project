@@ -1205,6 +1205,32 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       amount: parseFloat(item.amount) || 0,
     }));
 
+    // Fetch default template
+    let defaultTemplate = null;
+    try {
+      const { data } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Delivery Challan')
+        .eq('is_default', true)
+        .maybeSingle();
+      defaultTemplate = data;
+    } catch (e) {
+      console.warn('Error fetching default template:', e);
+    }
+
+    if (defaultTemplate?.column_settings?.print?.style === 'sakthi') {
+      const { generateSakthiPdf } = await import('../pdf/sakthiTemplatePdf');
+      const sakthiDoc = await generateSakthiPdf(
+        { ...challan, items: dcItems || [] },
+        organisation || {},
+        'Delivery Challan',
+        defaultTemplate
+      );
+      sakthiDoc.save(`${dc.dc_number}.pdf`);
+      return;
+    }
+
     const doc = generateProGridDeliveryChallanPdf({
       challan,
       dcWithItems: { items: dcItems || [] },

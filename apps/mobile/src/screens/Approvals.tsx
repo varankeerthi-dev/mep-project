@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ApprovalItem {
@@ -14,6 +14,7 @@ interface ApprovalItem {
   requester_name?: string;
   project_name?: string;
   created_at: string;
+  reference_id?: string;
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -41,6 +42,34 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null);
+  const [viewingUrl, setViewingUrl] = useState<string | null>(null);
+
+  const getWebAppUrl = () => {
+    if (import.meta.env.VITE_WEB_APP_URL) {
+      return import.meta.env.VITE_WEB_APP_URL;
+    }
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5173';
+    }
+    return 'https://mep.app';
+  };
+
+  const handleViewQuotation = async (referenceId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Session expired. Please log in again.');
+        return;
+      }
+      const accessToken = encodeURIComponent(session.access_token);
+      const refreshToken = encodeURIComponent(session.refresh_token);
+      const webUrl = `${getWebAppUrl()}/quotation/view?id=${referenceId}&embed=true&access_token=${accessToken}&refresh_token=${refreshToken}`;
+      setViewingUrl(webUrl);
+    } catch (err) {
+      console.error('Error opening quotation:', err);
+      alert('Failed to load quotation');
+    }
+  };
 
   // Mock database state for Demo Mode
   const [demoApprovals, setDemoApprovals] = useState<ApprovalItem[]>([
@@ -367,10 +396,19 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-1.5">
                       <p className="text-base font-extrabold text-foreground font-currency tabular-nums">
                         {formatAmount(item.amount)}
                       </p>
+                      {item.approval_type === 'QUOTATION' && item.reference_id && (
+                        <button
+                          onClick={() => handleViewQuotation(item.reference_id!)}
+                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400 font-semibold text-[10px] flex items-center gap-1 active:scale-[0.98] transition-all cursor-pointer border-none"
+                        >
+                          <Eye className="h-3 w-3" />
+                          View Quote
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -421,6 +459,36 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
           </div>
         )}
       </main>
+
+      {/* Quotation PDF Preview Modal */}
+      {viewingUrl && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-background">
+          {/* Header */}
+          <header className="px-4 pt-10 pb-4 border-b border-border bg-card flex justify-between items-center shadow-sm">
+            <div>
+              <h2 className="text-base font-bold text-foreground">Quotation Preview</h2>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase">
+                Rendered with chosen web template
+              </p>
+            </div>
+            <button
+              onClick={() => setViewingUrl(null)}
+              className="px-3.5 py-1.5 rounded-xl border border-border text-xs font-semibold bg-secondary text-foreground active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1"
+            >
+              Close
+            </button>
+          </header>
+          {/* Content */}
+          <div className="flex-1 bg-zinc-900 relative">
+            <iframe 
+              src={viewingUrl} 
+              className="w-full h-full border-none" 
+              title="Quotation PDF View"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

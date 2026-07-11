@@ -176,10 +176,12 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
       const orgId = memberData?.organisation_id;
       if (!orgId) throw new Error('No organisation');
 
+      const { client_type, ...insertData } = form;
+
       if (editMode) {
         const { error } = await supabase
           .from('clients')
-          .update({ ...form, updated_at: new Date().toISOString() })
+          .update({ ...insertData, updated_at: new Date().toISOString() })
           .eq('id', clientData.id)
           .eq('organisation_id', orgId);
         if (error) throw error;
@@ -187,7 +189,7 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
         const { error } = await supabase
           .from('clients')
-          .insert({ ...form, client_id: clientId, organisation_id: orgId });
+          .insert({ ...insertData, client_id: clientId, organisation_id: orgId });
         if (error) throw error;
       }
       setSaveMsg(editMode ? 'Client updated!' : 'Client created!');

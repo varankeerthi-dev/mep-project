@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { Login } from './screens/Login';
 import { Dashboard } from './screens/Dashboard';
@@ -51,33 +51,32 @@ function App() {
     return () => subscription.unsubscribe();
   }, [isDemo]);
 
-  const handleBack = () => {
-    if (formDirty) {
-      setShowDirtyDialog(true);
-      return false;
-    }
-    if (activeModule !== 'none') {
-      setActiveModule('none');
-      return true;
-    }
-    if (currentScreen !== 'dashboard') {
-      setCurrentScreen('dashboard');
-      return true;
-    }
-    setShowExitDialog(true);
-    return true;
-  };
+  const backStateRef = useRef({ formDirty, activeModule, currentScreen });
+  backStateRef.current = { formDirty, activeModule, currentScreen };
 
   useEffect(() => {
     window.history.pushState(null, '', window.location.href);
     const onPopState = () => {
-      if (handleBack()) {
-        window.history.pushState(null, '', window.location.href);
+      const s = backStateRef.current;
+      if (s.formDirty) {
+        setShowDirtyDialog(true);
+        return;
       }
+      if (s.activeModule !== 'none') {
+        setActiveModule('none');
+        window.history.pushState(null, '', window.location.href);
+        return;
+      }
+      if (s.currentScreen !== 'dashboard') {
+        setCurrentScreen('dashboard');
+        window.history.pushState(null, '', window.location.href);
+        return;
+      }
+      setShowExitDialog(true);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [currentScreen, activeModule, formDirty]);
+  }, []);
 
   const confirmDiscard = () => {
     setFormDirty(false);
@@ -177,7 +176,7 @@ function App() {
               }`}
             >
               <Icon className="h-5 w-5 mb-0.5" />
-              <span className="text-[9px] font-medium">{label}</span>
+              <span className="text-[11px] font-semibold">{label}</span>
               {currentScreen === key && (
                 <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-primary rounded-full" />
               )}

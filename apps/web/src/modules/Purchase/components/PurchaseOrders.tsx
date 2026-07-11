@@ -830,7 +830,7 @@ export const PurchaseOrders: React.FC = () => {
         .eq('id', po.id)
         .single();
       if (fullPO) {
-        const blob = generatePOPDF(fullPO as any);
+        const blob = await generatePOPDF(fullPO as any);
         openPDFPreview(blob);
       }
     } catch (e) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Loader2, Folder, ArrowRight, ClipboardList, LogOut,
-  Check, CheckCircle2, Bell, ChevronDown, ChevronUp, Phone
+  Check, CheckCircle2, Bell, ChevronDown, ChevronUp, Phone, Clock
 } from 'lucide-react';
 import { useNextActionsMobile } from '../lib/useNextActionsMobile';
 
@@ -38,8 +38,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [clientCount, setClientCount] = useState(0);
-  const [purchaseCount, setPurchaseCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const [nextActionsFilter, setNextActionsFilter] = useState<'all' | 'overdue' | 'communication' | 'visit' | 'issue' | 'lead' | 'history'>('all');
@@ -68,8 +66,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
     setOrgName('Demo Corp');
     setPendingApprovalsCount(3);
     setProjectsCount(2);
-    setClientCount(5);
-    setPurchaseCount(4);
     setProjects([
       { id: 'demo-p1', project_name: 'Metro Line Expansion', name: 'Metro Line Expansion', project_code: 'MLE-04', status: 'active' },
       { id: 'demo-p2', project_name: 'Commercial Complex B', name: 'Commercial Complex B', project_code: 'CCB-12', status: 'active' }
@@ -111,7 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
       setOrgName((memberData.organisation as any)?.name || 'My Organization');
 
       // 3. Fetch counts and projects in parallel
-      const [approvalsRes, projectsRes, clientsRes, purchaseRes] = await Promise.all([
+      const [approvalsRes, projectsRes] = await Promise.all([
         supabase
           .from('approvals')
           .select('id', { count: 'exact', head: true })
@@ -122,14 +118,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
           .select('id, project_name, name, project_code, status')
           .eq('organisation_id', userOrgId)
           .order('project_name'),
-        supabase
-          .from('clients')
-          .select('id', { count: 'exact', head: true })
-          .eq('organisation_id', userOrgId),
-        supabase
-          .from('purchase_orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('organisation_id', userOrgId)
       ]);
 
       if (approvalsRes.error) throw approvalsRes.error;
@@ -138,8 +126,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
       setPendingApprovalsCount(approvalsRes.count || 0);
       setProjectsCount(projectsRes.data?.length || 0);
       setProjects(projectsRes.data || []);
-      setClientCount(clientsRes.count || 0);
-      setPurchaseCount(purchaseRes.count || 0);
       refetchNextActions();
 
     } catch (err: any) {
@@ -359,10 +345,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
                       >
                         <div className="flex flex-col gap-1.5">
                           {/* Badge Row */}
-                          <div>
+                          <div className="flex flex-wrap gap-1.5">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold tracking-wide uppercase border border-current/15 ${config.text} ${config.bg}`}>
                               {displayCategory}
                             </span>
+                            {raw?.status && (raw.status.toLowerCase() === 'awaiting decision' || raw.status.toLowerCase() === 'awaiting_decision') && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <Clock className="h-3 w-3" /> Awaiting Decision
+                              </span>
+                            )}
                           </div>
 
                           {/* Next Action Title */}
@@ -503,41 +494,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
           </div>
         </div>
 
-        {/* Modules Section */}
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-foreground">Modules</h2>
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => onOpenModule('client')}
-              className="glass-card rounded-2xl p-4 flex flex-col items-center gap-2 text-center border border-border/50 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                <Phone className="h-5 w-5" />
-              </div>
-              <p className="text-sm font-semibold text-foreground">Client</p>
-              <span className="text-xs font-bold text-muted-foreground tabular-nums">{clientCount} total</span>
-            </button>
-            <button
-              onClick={() => onOpenModule('project')}
-              className="glass-card rounded-2xl p-4 flex flex-col items-center gap-2 text-center border border-border/50 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <Folder className="h-5 w-5" />
-              </div>
-              <p className="text-sm font-semibold text-foreground">Project</p>
-              <span className="text-xs font-bold text-muted-foreground tabular-nums">{projectsCount} total</span>
-            </button>
-            <button
-              onClick={() => onOpenModule('purchase')}
-              className="glass-card rounded-2xl p-4 flex flex-col items-center gap-2 text-center border border-border/50 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-              <p className="text-sm font-semibold text-foreground">Purchase</p>
-              <span className="text-xs font-bold text-muted-foreground tabular-nums">{purchaseCount} total</span>
-            </button>
-          </div>
+        {/* Module Shortcuts */}
+        <div className="flex items-center justify-around py-4">
+          <button onClick={() => onOpenModule('client')} className="flex flex-col items-center gap-1.5 active:scale-90 transition-transform cursor-pointer">
+            <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+              <Phone className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-semibold text-foreground">Client</span>
+          </button>
+          <button onClick={() => onOpenModule('project')} className="flex flex-col items-center gap-1.5 active:scale-90 transition-transform cursor-pointer">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <Folder className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-semibold text-foreground">Project</span>
+          </button>
+          <button onClick={() => onOpenModule('purchase')} className="flex flex-col items-center gap-1.5 active:scale-90 transition-transform cursor-pointer">
+            <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-semibold text-foreground">Purchase</span>
+          </button>
         </div>
       </main>
     </div>

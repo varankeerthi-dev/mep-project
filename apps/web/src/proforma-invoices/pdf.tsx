@@ -6,6 +6,7 @@ import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
 import { getProformaById, type ProformaWithRelations } from './api';
 import { ProformaPdfDocument } from './pdf-document';
 import { generateProGridProformaPdf } from '../pdf/proGridProformaPdf';
+import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import type {
@@ -126,6 +127,12 @@ export async function generateProformaPdf(
   // Use Vertical Template if selected
   if (template?.column_settings?.print?.style === 'vertical') {
     return await generateVerticalProformaPdf(resolvedProforma, template, company, isReviewCopy, showWatermark);
+  }
+
+  // Use Sakthi Template if selected
+  if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'PI_SAKTHI') {
+    const doc = await generateSakthiPdf(resolvedProforma, company, 'Proforma Invoice', template);
+    return doc.output('blob') as Blob;
   }
 
   // Default to React-PDF document
