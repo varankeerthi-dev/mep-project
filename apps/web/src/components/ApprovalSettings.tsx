@@ -20,7 +20,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'WORK_ORDER' | 'PURCHASE_ORDER' | 'SALES_ORDER' | 'JOB_CARD';
+type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'WORK_ORDER' | 'PURCHASE_ORDER' | 'SALES_ORDER' | 'JOB_CARD' | 'SITE_EXPENSE_REQUEST' | 'SITE_EXPENSE_POST_PURCHASE';
 
 type WorkflowLevel = {
   id: string;
@@ -68,6 +68,14 @@ const MODULE_META: Record<ModuleKey, { label: string; description: string }> = {
   JOB_CARD: {
     label: 'Manufacturing Job Cards',
     description: 'Production job cards requiring raw material issuance approval',
+  },
+  SITE_EXPENSE_REQUEST: {
+    label: 'Site Expense Requests',
+    description: 'Pre-approval for planned site expenses (crane, labour, consumables)',
+  },
+  SITE_EXPENSE_POST_PURCHASE: {
+    label: 'Site Expense (Post-Purchase)',
+    description: 'Post-purchase approval for out-of-pocket site spending',
   },
 };
 
@@ -233,6 +241,8 @@ export const ApprovalSettings: React.FC = () => {
     PURCHASE_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     SALES_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     JOB_CARD: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    SITE_EXPENSE_REQUEST: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+    SITE_EXPENSE_POST_PURCHASE: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
   }));
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
@@ -282,6 +292,8 @@ export const ApprovalSettings: React.FC = () => {
       PURCHASE_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
       SALES_ORDER: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
       JOB_CARD: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      SITE_EXPENSE_REQUEST: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
+      SITE_EXPENSE_POST_PURCHASE: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     };
 
     // 1. Initialize enabled state from approval_settings
@@ -498,7 +510,7 @@ export const ApprovalSettings: React.FC = () => {
         .from('approval_workflows')
         .delete()
         .eq('organisation_id', orgId)
-        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION', 'WORK_ORDER', 'PURCHASE_ORDER', 'SALES_ORDER', 'JOB_CARD']);
+        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION', 'WORK_ORDER', 'PURCHASE_ORDER', 'SALES_ORDER', 'JOB_CARD', 'SITE_EXPENSE_REQUEST', 'SITE_EXPENSE_POST_PURCHASE']);
 
       if (error) throw error;
 

@@ -1158,6 +1158,18 @@ export default function DCList() {
                                 <SwapHorizIcon className="w-3.5 h-3.5" />
                                 Convert to Proforma
                               </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  navigate(`/invoices/create?convertFrom=dc-to-invoice&sourceId=${dc.id}`);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                <SwapHorizIcon className="w-3.5 h-3.5" />
+                                Convert to Invoice
+                              </button>
 
                               <div className="my-1 border-t border-zinc-100" />
 
@@ -1297,6 +1309,24 @@ export default function DCList() {
                 <div className="text-center">
                   <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">Convert to Proforma</p>
                   <p className="text-xs font-bold text-zinc-500 mt-1">Generate proforma invoice from this DC</p>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (!convertDC) return;
+                  navigate(`/invoices/create?convertFrom=dc-to-invoice&sourceId=${convertDC.id}`);
+                  setShowConvertModal(false);
+                  setConvertDC(null);
+                }}
+                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-zinc-100 hover:border-amber-600 hover:bg-amber-50/50 transition-all rounded-[24px]"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-zinc-900 uppercase text-xs tracking-widest">Convert to Invoice</p>
+                  <p className="text-xs font-bold text-zinc-500 mt-1">Generate invoice from this DC</p>
                 </div>
               </button>
             </div>

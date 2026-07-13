@@ -1718,14 +1718,17 @@ body {
   text-align: right;
 }
 
-.grid-table th.col-hsn {
-  width: 70px;
+.grid-table th.col-hsn,
+.grid-table td.col-hsn {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
 }
 
 .grid-table th.col-disc-cat,
 .grid-table .col-disc-cat {
-  width: 100px;
-  min-width: 80px;
+  width: 72px;
+  min-width: 60px;
 }
 
 .grid-table th.col-make {

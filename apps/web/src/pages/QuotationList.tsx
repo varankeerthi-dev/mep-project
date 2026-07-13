@@ -34,6 +34,9 @@ import {
   X as XIcon,
   MessageSquare,
   Loader2,
+  Share2,
+  Edit,
+  XCircle,
 } from 'lucide-react';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
@@ -103,6 +106,14 @@ export default function QuotationList() {
   const columnCustomizerRef = useRef<HTMLDivElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // PDF Preview modal state
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
+  const [previewQuotationNo, setPreviewQuotationNo] = useState('');
+  const [previewQuotationId, setPreviewQuotationId] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === paginationData.currentItems.length) {
@@ -345,6 +356,24 @@ export default function QuotationList() {
     } else {
       alert('Error generating PDF');
     }
+  };
+
+  const previewQuotationPdf = async (quotationId: string, quotationNo: string) => {
+    setPreviewLoading(true);
+    setPreviewLoadingId(quotationId);
+    setPreviewQuotationNo(quotationNo);
+    setPreviewQuotationId(quotationId);
+    const pdfBytes = await generateSinglePdfUint8Array(quotationId);
+    if (pdfBytes) {
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfPreviewUrl(url);
+      setShowPdfPreviewModal(true);
+    } else {
+      alert('Error generating PDF preview');
+    }
+    setPreviewLoading(false);
+    setPreviewLoadingId(null);
   };
 
   const quotationsQuery = useQuery({
@@ -906,6 +935,35 @@ export default function QuotationList() {
                         return null;
                       })}
 
+                      <td className="px-0 py-[26px] align-middle border-t border-zinc-200/70">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!previewLoading) previewQuotationPdf(q.id, q.quotation_no);
+                          }}
+                          style={{
+                            padding: '14px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#9ca3af',
+                            borderRadius: '0',
+                            cursor: previewLoadingId === q.id ? 'wait' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => { if (previewLoadingId !== q.id) e.currentTarget.style.color = '#185FA5'; }}
+                          onMouseLeave={e => { if (previewLoadingId !== q.id) e.currentTarget.style.color = '#9ca3af'; }}
+                        >
+                          {previewLoadingId === q.id ? (
+                            <Loader2 className="w-[18px] h-[18px] animate-spin" />
+                          ) : (
+                            <EyeIcon className="w-[18px] h-[18px]" />
+                          )}
+                        </button>
+                      </td>
+
                       <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
                         <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                           <button
@@ -1285,6 +1343,105 @@ export default function QuotationList() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {showPdfPreviewModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-[210mm] h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Toolbar */}
+            <div className="flex items-center px-4 py-2 bg-zinc-100 border-b border-zinc-200 select-none shrink-0 justify-between" style={{ gap: '4px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: '#6b7280' }}>{previewQuotationNo || 'Quotation'}</span>
+              <div className="flex items-center" style={{ gap: '6px' }}>
+                <button
+                  onClick={() => { setShowPdfPreviewModal(false); navigate(`/quotation/edit?id=${previewQuotationId}`); }}
+                  style={{
+                    padding: '7px 16px',
+                    background: 'transparent',
+                    border: '1px solid #185FA5',
+                    color: '#185FA5',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f0f5ff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Edit className="w-[14px] h-[14px]" /> Edit
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!pdfPreviewUrl) return;
+                    try {
+                      if (navigator.share) {
+                        const response = await fetch(pdfPreviewUrl);
+                        const blob = await response.blob();
+                        const file = new File([blob], `${previewQuotationNo || 'quotation'}.pdf`, { type: 'application/pdf' });
+                        await navigator.share({ files: [file], title: previewQuotationNo || 'Quotation' });
+                      } else {
+                        await navigator.clipboard.writeText(window.location.href);
+                      }
+                    } catch (e) {
+                      if (e.name !== 'AbortError') {
+                        try { await navigator.clipboard.writeText(window.location.href); } catch {}
+                      }
+                    }
+                  }}
+                  style={{
+                    padding: '7px 16px',
+                    background: 'transparent',
+                    border: '1px solid #d1d5db',
+                    color: '#374151',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Share2 className="w-[14px] h-[14px]" /> Share
+                </button>
+                <button
+                  onClick={() => { setShowPdfPreviewModal(false); if (pdfPreviewUrl) { URL.revokeObjectURL(pdfPreviewUrl); setPdfPreviewUrl(null); } }}
+                  style={{
+                    padding: '6px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#9ca3af',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#e5e7eb'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <XCircle className="w-[18px] h-[18px]" />
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Viewer */}
+            <div className="flex-1 bg-zinc-900 min-h-0">
+              {pdfPreviewUrl ? (
+                <iframe src={pdfPreviewUrl} className="w-full h-full" style={{ border: 'none' }} title="PDF Preview" />
+              ) : (
+                <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-zinc-400" /></div>
+              )}
             </div>
           </div>
         </div>

@@ -102,6 +102,7 @@ const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
 const ProcurementDetail = lazyAny(() => import('./pages/ProcurementDetail'));
 const HandoverList = lazyAny(() => import('./pages/HandoverList'));
 const ProjectOverview = lazyAny(() => import('./pages/ProjectOverview'));
+const SiteExpenses = lazyAny(() => import('./pages/SiteExpenses').then(m => ({ default: m.SiteExpenses })));
 const Projects = lazyAny(() => import('./pages/Projects'));
 const DayBook = lazyAny(() => import('./pages/accounting/DayBook'));
 const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts'));
@@ -358,6 +359,7 @@ export default function App() {
       case '/meetings/create': return <CreateMeeting />;
       case '/meetings/edit': return <CreateMeeting />;
       case '/site-visits': return <SiteVisits />;
+      case '/site-expenses': return <SiteExpenses />;
       case '/site-reports': return <SiteReport />;
       case '/handover': return <HandoverList />;
       case '/projects-overview': return <ProjectOverview />;
@@ -782,11 +784,12 @@ export default function App() {
     const isAuthRoute = path === '/login' || path === '/signup' || path === '/callback';
 
     if (isAuthRoute) {
+      const resolvedAuthView = path === '/callback' ? 'callback' : authView;
       return (
         <Suspense fallback={<div>Loading auth...</div>}>
-          {authView === 'login' ? (
+          {resolvedAuthView === 'login' ? (
             <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />
-          ) : authView === 'signup' ? (
+          ) : resolvedAuthView === 'signup' ? (
             <Signup onSignup={() => setAuthView('login')} onSwitch={() => setAuthView('login')} />
           ) : (
             <AuthCallback />

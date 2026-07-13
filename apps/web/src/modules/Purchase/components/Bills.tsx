@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
@@ -44,7 +45,8 @@ import {
 } from "../../../components/ui/table";
 
 import { useAuth } from '../../../contexts/AuthContext';
-import { usePurchaseBills, useVendors, useCreatePurchaseBill } from '../hooks/usePurchaseQueries';
+import { usePurchaseBills, useVendors, useCreatePurchaseBill, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
+import { fetchSourceDocument, transformSourceToTarget, getSourceStatusAfterConversion } from '../../../conversions/api';
 import { generateBillPDF, openPDFPreview } from '../utils/pdfGenerator';
 
 const GST_RATES = [0, 5, 12, 18, 28];
@@ -72,8 +74,12 @@ interface BillItem {
 
 export const Bills: React.FC = () => {
   const { organisation } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isConversionLoading, setIsConversionLoading] = useState(false);
+  const [conversionPoId, setConversionPoId] = useState<string | null>(null);
+  const conversionProcessedRef = useRef(false);
   const [vendorId, setVendorId] = useState('');
   const [billNumber, setBillNumber] = useState('');
   const [vendorInvoiceNo, setVendorInvoiceNo] = useState('');
@@ -96,6 +102,64 @@ export const Bills: React.FC = () => {
   const { data: bills = [], isLoading } = usePurchaseBills(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
   const createBill = useCreatePurchaseBill();
+  const updatePOStatus = useUpdatePOStatus();
+
+  // Handle conversion from Purchase Order
+  useEffect(() => {
+    const convertFromPoId = searchParams.get('convertFromPoId');
+    if (!convertFromPoId || !organisation?.id || conversionProcessedRef.current) return;
+
+    const loadConversion = async () => {
+      setIsConversionLoading(true);
+      try {
+        const sourceData = await fetchSourceDocument('purchase-po-to-bill', convertFromPoId, organisation.id);
+        const result = transformSourceToTarget('purchase-po-to-bill', sourceData);
+        const data = result.data as any;
+
+        // Pre-fill the bill form
+        setVendorId(data.vendor_id || '');
+        setConversionPoId(data.po_id || convertFromPoId);
+        setCurrency(data.currency || 'INR');
+        setExchangeRate(data.exchange_rate || 1);
+        
+        // Map PO items to bill items
+        if (data.items && data.items.length > 0) {
+          const billItems = data.items.map((item: any, idx: number) => ({
+            sr: idx + 1,
+            item_name: item.item_name || '',
+            batch_no: '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'Nos',
+            rate: item.rate || 0,
+            discount_amount: item.discount_amount || 0,
+            taxable_value: item.taxable_value || 0,
+            cgst_percent: item.cgst_percent || 0,
+            cgst_amount: item.cgst_amount || 0,
+            sgst_percent: item.sgst_percent || 0,
+            sgst_amount: item.sgst_amount || 0,
+            igst_percent: item.igst_percent || 0,
+            igst_amount: item.igst_amount || 0,
+            total_amount: item.total_amount || 0,
+          }));
+          setItems(billItems);
+          calculateTotals(billItems);
+        }
+
+        // Open the dialog
+        conversionProcessedRef.current = true;
+        setOpenDialog(true);
+        
+        // Clear URL param
+        setSearchParams(prev => { prev.delete('convertFromPoId'); return prev; }, { replace: true });
+      } catch (err) {
+        console.error('Failed to load PO conversion:', err);
+      } finally {
+        setIsConversionLoading(false);
+      }
+    };
+
+    loadConversion();
+  }, [searchParams, organisation?.id]);
 
   const handleAdd = () => {
     setOpenDialog(true);
@@ -172,6 +236,20 @@ export const Bills: React.FC = () => {
       payment_status: 'Unpaid',
     };
     await createBill.mutateAsync({ billData, items });
+
+    // Update source PO status if this bill was created from a PO conversion
+    if (conversionPoId) {
+      try {
+        await updatePOStatus.mutateAsync({
+          poId: conversionPoId,
+          status: getSourceStatusAfterConversion('purchase-po-to-bill'),
+          updates: {},
+        });
+      } catch (err) {
+        console.error('Failed to update PO status after billing:', err);
+      }
+    }
+
     setOpenDialog(false);
   };
 
@@ -313,7 +391,13 @@ export const Bills: React.FC = () => {
         />
       </div>
 
-      <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
+      <Dialog open={openDialog} onOpenChange={(open) => {
+        if (!open) {
+          setOpenDialog(false);
+          setConversionPoId(null);
+          conversionProcessedRef.current = false;
+        }
+      }}>
         <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle className="text-xl font-bold">Enter Purchase Bill</DialogTitle>

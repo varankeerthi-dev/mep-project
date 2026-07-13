@@ -345,6 +345,9 @@ export class ApprovalWorkflowEngine {
         case 'job_cards':
           tableName = 'job_cards';
           break;
+        case 'expense_entries':
+          tableName = 'expense_entries';
+          break;
         default:
           console.log('Unknown reference type:', approval.reference_type);
           return;
@@ -498,9 +501,24 @@ export class ApprovalWorkflowEngine {
         case 'SITE_REPORT_REQUEST':
           await this.triggerSiteReportWorkflows(approval);
           break;
+
+        case 'SITE_EXPENSE_REQUEST':
+        case 'SITE_EXPENSE_POST_PURCHASE':
+          await this.triggerSiteExpenseWorkflows(approval);
+          break;
       }
     } catch (error) {
       console.error('Error triggering post-approval workflows:', error);
+    }
+  }
+
+  private static async triggerSiteExpenseWorkflows(approval: Approval): Promise<void> {
+    try {
+      if (approval.status === 'APPROVED') {
+        console.log('Site expense approved:', approval.id);
+      }
+    } catch (error) {
+      console.error('Error triggering site expense workflows:', error);
     }
   }
 

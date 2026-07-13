@@ -13,6 +13,9 @@ import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
 import { updateIntentOnDCCreated } from '../material-intents/api';
+import { useConvertDocument, getSourceTableName } from '../conversions/hooks';
+import type { ConversionType } from '../conversions/types';
+import { getSourceStatusAfterConversion } from '../conversions/api';
 import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { SearchableItemSelect } from '../components/SearchableItemSelect';
@@ -156,10 +159,12 @@ function CustomDatePicker({ value, onChange, placeholder = 'Select date', inputS
 }
 
 export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps) {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const intentId = searchParams.get('intent_id');
+  const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
+  const sourceId = searchParams.get('sourceId');
   const [loading, setLoading] = useState(false);
   // Use shared hooks - NO local state needed
   const clientsQuery = useClients();
@@ -257,6 +262,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     },
     enabled: !!organisation?.id,
   });
+
+  const isConverting = Boolean(convertFrom && sourceId && !isEditing && !intentId);
+
+  const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
   const stock = dcInitQuery.data?.stock || [];
   const pricing = dcInitQuery.data?.pricing || {};
@@ -415,6 +424,77 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       loadIntentData(intentId);
     }
   }, [editDC, intentId, organisation?.id]);
+
+  // Load conversion data from source document (e.g. Quotation to DC)
+  useEffect(() => {
+    if (!isConverting || !conversionQuery.data) return;
+
+    const convertedData = conversionQuery.data.data as any;
+
+    // Resolve client_name from client_id using the loaded clients list
+    const clientObj = clients.find(c => c.id === convertedData.client_id);
+    const clientName = clientObj?.client_name || '';
+
+    const shipToName = clientObj?.client_name || '';
+    const shipToAddr1 = clientObj?.address1 || '';
+    const shipToAddr2 = clientObj?.address2 || '';
+    const shipToCity = clientObj?.city || '';
+    const shipToState = clientObj?.state || '';
+    const shipToGstin = clientObj?.gstin || '';
+    const shipToContact = clientObj?.contact || '';
+
+    setFormData(prev => ({
+      ...prev,
+      client_name: clientName || convertedData.client_name || '',
+      project_id: convertedData.project_id || '',
+      po_no: convertedData.po_number || '',
+      remarks: convertedData.remarks || '',
+      ship_to_name: shipToName,
+      ship_to_address_line1: shipToAddr1,
+      ship_to_address_line2: shipToAddr2,
+      ship_to_city: shipToCity,
+      ship_to_state: shipToState || convertedData.ship_to_state || '',
+      ship_to_gstin: shipToGstin,
+      ship_to_contact: shipToContact,
+    }));
+
+    // Pre-fill items from conversion
+    if (convertedData.items && convertedData.items.length > 0) {
+      const newItems = convertedData.items.map((item: any, index: number) => ({
+        id: index + 1,
+        material_id: item.material_id || '',
+        variant_id: '',
+        make: '',
+        warehouse_id: formData.warehouse_id || '',
+        material_name: item.material_name || '',
+        unit: 'Nos',
+        quantity: String(item.quantity || 0),
+        rate: String(item.rate || 0),
+        amount: item.amount || 0,
+        uses_variant: false,
+        available_qty: 0,
+        valid: true,
+        is_service: false,
+      }));
+      setItems(newItems);
+    }
+
+    // Load shipping addresses for this client
+    if (convertedData.client_id) {
+      loadShippingAddresses(convertedData.client_id);
+    }
+  }, [isConverting, conversionQuery.data, clients]);
+
+  // Track conversion source for status update on save
+  const conversionRef = useRef<{ type: string; sourceId: string } | null>(null);
+  useEffect(() => {
+    if (isConverting && conversionQuery.data) {
+      conversionRef.current = {
+        type: conversionQuery.data.conversionType,
+        sourceId: sourceId!,
+      };
+    }
+  }, [isConverting, conversionQuery.data]);
 
   // Auto-switch rate source when project or client is cleared
   useEffect(() => {
@@ -1028,6 +1108,21 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         } catch (error) {
           console.error('Error updating intent status:', error);
           // Don't fail the DC creation if intent update fails
+        }
+      }
+
+      // Update source document status if this was a conversion
+      if (conversionRef.current && !isEditing) {
+        const { type, sourceId: convSourceId } = conversionRef.current;
+        try {
+          const tableName = getSourceTableName(type as ConversionType);
+          const status = getSourceStatusAfterConversion(type as ConversionType);
+          await supabase
+            .from(tableName)
+            .update({ status, conversion_status: 'converted' })
+            .eq('id', convSourceId);
+        } catch (error) {
+          console.error('Error updating conversion source status:', error);
         }
       }
       

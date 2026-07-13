@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { ArrowLeft, Save, FileDown, Loader2, ChevronDown, ChevronRight, Warehouse } from 'lucide-react';
@@ -6,6 +6,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
 import { useCreditNote, useCreateCreditNote, useUpdateCreditNote, useNextCNNumber } from '../../credit-notes/hooks';
+import { useConvertDocument } from '../../conversions/hooks';
+import { getSourceStatusAfterConversion, getSourceTableName } from '../../conversions/api';
+import type { ConversionType } from '../../conversions/types';
 import { CNItemsEditor } from '../../credit-notes/components/CreditNoteItemsEditor';
 import { CNStatusBadge } from '../../credit-notes/components/StatusBadge';
 import { formatCurrency, formatDate } from '../../credit-notes/ui-utils';
@@ -142,28 +145,41 @@ export function CreditNoteEditorPage() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const fromInvoiceId = searchParams.get('from_invoice');
+  const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
+  const sourceId = searchParams.get('sourceId');
   const isEditing = !!editId;
-  const isConversion = !!fromInvoiceId && !isEditing;
+  
+  // Support both legacy (from_invoice) and unified (convertFrom/sourceId) URL patterns
+  const resolvedInvoiceId = fromInvoiceId || (convertFrom === 'invoice-to-creditnote' ? sourceId : null);
+  const isConversion = (!!resolvedInvoiceId && !isEditing);
+  
+  // Conversion status tracking ref
+  const conversionRef = useRef<{ type: string; sourceId: string } | null>(null);
+  const isUnifiedConversion = convertFrom === 'invoice-to-creditnote' && !!sourceId;
 
   const { data: existingCN, isLoading: loadingCN } = useCreditNote(editId ?? undefined);
   const { data: nextCNNumber } = useNextCNNumber();
   const createCN = useCreateCreditNote();
   const updateCN = useUpdateCreditNote();
 
+  // Unified conversion hook for invoice-to-creditnote
+  // Always calls the hook (React rules), but query only executes when convertFrom is set
+  const conversionQuery = useConvertDocument('invoice-to-creditnote', sourceId || '');
+
   const sourceInvoiceQuery = useQuery({
-    queryKey: ['source-invoice', fromInvoiceId],
+    queryKey: ['source-invoice', resolvedInvoiceId],
     queryFn: async () => {
-      if (!fromInvoiceId || !organisation?.id) return null;
+      if (!resolvedInvoiceId || !organisation?.id) return null;
       const { data, error } = await supabase
         .from('invoices')
         .select('*, client:clients(id, client_name, name, state, gstin), items:invoice_items(*)')
-        .eq('id', fromInvoiceId)
+        .eq('id', resolvedInvoiceId)
         .eq('organisation_id', organisation.id)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!fromInvoiceId && !!organisation?.id,
+    enabled: !!resolvedInvoiceId && !!organisation?.id,
   });
 
   const [rateAlerts, setRateAlerts] = useState<Array<{ description: string; invoiceRate: number; currentRate: number; diff: number }>>([]);
@@ -412,6 +428,26 @@ export function CreditNoteEditorPage() {
     });
   }, [existingCN, isEditing, reset]);
 
+  // Track conversion source for status update on save (unified conversion)
+  useEffect(() => {
+    if (isUnifiedConversion && conversionQuery.data) {
+      conversionRef.current = {
+        type: 'invoice-to-creditnote',
+        sourceId: sourceId!,
+      };
+    }
+  }, [isUnifiedConversion, conversionQuery.data, sourceId]);
+
+  // Track conversion source for legacy from_invoice pattern
+  useEffect(() => {
+    if (fromInvoiceId && !isUnifiedConversion && sourceInvoiceQuery.data) {
+      conversionRef.current = {
+        type: 'invoice-to-creditnote',
+        sourceId: fromInvoiceId,
+      };
+    }
+  }, [fromInvoiceId, isUnifiedConversion, sourceInvoiceQuery.data]);
+
   useEffect(() => {
     if (!isConversion || !sourceInvoiceQuery.data) return;
 
@@ -578,6 +614,21 @@ export function CreditNoteEditorPage() {
         savedCN = await updateCN.mutateAsync({ id: editId, ...payload, organisation_id: organisation.id });
       } else {
         savedCN = await createCN.mutateAsync({ ...payload, organisation_id: organisation.id });
+      }
+
+      // Update source document conversion status if this is a conversion
+      if (conversionRef.current && status === 'Approved') {
+        try {
+          const sourceStatus = getSourceStatusAfterConversion(conversionRef.current.type as ConversionType);
+          const tableName = getSourceTableName(conversionRef.current.type as ConversionType);
+          await supabase
+            .from(tableName)
+            .update({ conversion_status: sourceStatus })
+            .eq('id', conversionRef.current.sourceId)
+            .eq('organisation_id', organisation.id);
+        } catch (statusErr) {
+          console.error('Failed to update source document conversion status:', statusErr);
+        }
       }
 
       if (status === 'Approved') {

@@ -25,6 +25,7 @@ import {
   type ProjectInvoice,
 } from '../hooks/useProjectTransactions';
 import { useAuth } from '../App';
+import { SiteExpenses } from './SiteExpenses';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -983,6 +984,7 @@ export default function ProjectList() {
       { id: 'transactions', label: 'Transactions' },
       { id: 'tasks', label: 'Tasks' },
       { id: 'expenses', label: 'Expenses' },
+      { id: 'site-expenses', label: 'Site Expenses' },
       { id: 'subcontractors', label: 'Subcontractor W/O' },
       { id: 'equipment', label: 'Equipment & Warranty' },
       { id: 'snags', label: 'Snags / Defects' },
@@ -1846,6 +1848,13 @@ export default function ProjectList() {
                 </table>
               )}
             </div>
+          )}
+
+          {activeTab === 'site-expenses' && (
+            <SiteExpenses
+              projectId={selectedProject.id}
+              clientId={selectedProject.client_id}
+            />
           )}
 
           {activeTab === 'tasks' && (

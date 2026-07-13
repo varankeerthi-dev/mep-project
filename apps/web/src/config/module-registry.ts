@@ -216,6 +216,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     category: 'core',
     route: '/todo',
   },
+  {
+    id: 'site_expenses',
+    label: 'Site Expenses',
+    description: 'Site-level expense tracking for consumables, crane, labour, and sudden purchases.',
+    icon: 'Receipt',
+    category: 'projects',
+    route: '/site-expenses',
+  },
 ];
 
 export const MODULE_CATEGORIES: Record<string, { label: string; color: string }> = {

@@ -120,7 +120,39 @@ const InventoryReports = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {reportTypes.map((report) => {
           const Icon = report.icon;
-          return (
+  const handleGenerateReport = async (reportType: string) => {
+    if (!organisation?.id) return;
+
+    setSelectedReport(reportType);
+
+    try {
+      const inventoryData = await getInventoryReports(organisation.id, {});
+      const stats = await getInventorySummaryStats(organisation.id, {});
+
+      setReportData({ summary: stats, data: inventoryData });
+
+      const report: GeneratedReport = {
+        id: 'inv-' + Date.now(),
+        template_id: 'inventory-reports',
+        report_name: `${reportType.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} Report`,
+        report_type: 'inventory',
+        parameters: {},
+        data: { summary: stats, data: inventoryData },
+        status: 'completed',
+        generated_by: 'user-id',
+        organisation_id: organisation.id,
+        generated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      setGeneratedReport(report);
+    } catch (err) {
+      console.error('Failed to generate inventory report:', err);
+    }
+  };
+
+  return (
             <div
               key={report.id}
               className="bg-white rounded-none border border-[rgba(226,232,240,0.5)] hover:border-[rgba(226,232,240,0.8)] hover:shadow-lg transition-all cursor-pointer"

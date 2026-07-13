@@ -3814,14 +3814,14 @@ className="text-center cell-static col-shrink row-drag-handle"
                       >
                         {itemCountBefore + 1}
                       </td>
-                      {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
-                        <td className="col-shrink">
+                        {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
+                        <td className="col-hsn">
                           <input
                             type="text"
                             className="cell-input text-center"
                             value={item.hsn_code || item.material?.hsn_code || ''}
                             readOnly
-                            style={{ background: '#f8fafc' }}
+                            style={{ background: '#f8fafc', padding: '0 2px', fontSize: '11px' }}
                           />
                         </td>
                       )}
@@ -4024,11 +4024,8 @@ className="text-center cell-static col-shrink row-drag-handle"
                                 className="cell-input text-right"
                                 value={qtyDrafts[item.id] ?? String(item.qty ?? '')}
                                 onChange={(e) => setQtyDrafts(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                onFocus={() => setActiveStockPopoverId(item.id)}
-                                onClick={() => setActiveStockPopoverId(item.id)}
                                 onBlur={() => {
                                   commitQtyInput(item.id);
-                                  window.setTimeout(() => setActiveStockPopoverId(current => current === item.id ? null : current), 120);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') e.currentTarget.blur();

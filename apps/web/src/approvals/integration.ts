@@ -657,6 +657,96 @@ export class ApprovalIntegration {
     }
   }
 
+  static async createSiteExpenseRequestApproval(
+    expenseId: string,
+    requesterName: string,
+    category: string,
+    totalAmount: number,
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+  ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const check = await this.checkApprovalNeeded('SITE_EXPENSE_REQUEST', totalAmount);
+      if (!check.needed) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'SITE_EXPENSE_REQUEST',
+        reference_id: expenseId,
+        reference_type: 'expense_entries',
+        title: `Site Expense Request - ${requesterName}`,
+        description: `Expense request for ${category}: ₹${totalAmount.toLocaleString()} by ${requesterName}`,
+        amount: totalAmount,
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('expense_entries')
+          .update({
+            status: 'PENDING_APPROVAL',
+            approval_id: response.data.id
+          })
+          .eq('id', expenseId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create approval request' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  static async createSiteExpensePostPurchaseApproval(
+    expenseId: string,
+    requesterName: string,
+    category: string,
+    totalAmount: number,
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+  ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const check = await this.checkApprovalNeeded('SITE_EXPENSE_POST_PURCHASE', totalAmount);
+      if (!check.needed) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'SITE_EXPENSE_POST_PURCHASE',
+        reference_id: expenseId,
+        reference_type: 'expense_entries',
+        title: `Site Expense Post-Purchase - ${requesterName}`,
+        description: `Post-purchase reimbursement for ${category}: ₹${totalAmount.toLocaleString()} paid by ${requesterName}`,
+        amount: totalAmount,
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('expense_entries')
+          .update({
+            status: 'PENDING_APPROVAL',
+            approval_id: response.data.id
+          })
+          .eq('id', expenseId);
+
+        return { success: true, approvalId: response.data.id };
+      }
+
+      return { success: false, error: response.error?.message || 'Failed to create approval request' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
   static async createAdvanceExpenseApproval(
     expenseId: string,
     employeeName: string,
@@ -877,6 +967,13 @@ export class ApprovalIntegration {
             await this.triggerPostApprovalActions('MATERIAL_DISPATCH', approval.reference_id);
           }
           break;
+
+        case 'expense_entries':
+          await supabase.from('expense_entries').update({
+            status: status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+            updated_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          break;
       }
     } catch (error) {
       console.error('Error handling approval completion:', error);
@@ -999,6 +1096,14 @@ export class ApprovalIntegration {
 
         case 'SITE_REPORT_REQUEST':
           console.log('Site report approved:', documentId);
+          break;
+
+        case 'SITE_EXPENSE_REQUEST':
+          console.log('Site expense request approved:', documentId);
+          break;
+
+        case 'SITE_EXPENSE_POST_PURCHASE':
+          console.log('Site expense post-purchase approved:', documentId);
           break;
       }
     } catch (error) {

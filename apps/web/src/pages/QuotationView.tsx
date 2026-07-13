@@ -22,7 +22,7 @@ import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw } from 'lucide-react';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw, Share2 } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
@@ -75,6 +75,10 @@ export default function QuotationView() {
   const [previewHTML, setPreviewHTML] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState(null);
+
+  // PDF Preview modal state
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
   
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId, organisation?.id],
@@ -334,7 +338,7 @@ export default function QuotationView() {
     } else if (type === 'invoice') {
       navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${quotationId}`);
     } else if (type === 'delivery-challan') {
-      alert('Delivery Challan conversion not implemented yet.');
+      navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${quotationId}`);
     } else if (type === 'sales-order') {
       alert('Sales Order conversion not implemented yet.');
     }
@@ -530,10 +534,10 @@ export default function QuotationView() {
         return;
       }
 
-      if (action === 'preview') {
+      if (action === 'preview-html') {
         previewQuotation(template);
-      } else if (action === 'preview-tab') {
-        await downloadPDF(template, 'preview-tab');
+      } else if (action === 'preview') {
+        await downloadPDF(template, 'preview');
       } else if (action === 'download') {
         await downloadPDF(template, 'download');
       } else if (action === 'email') {
@@ -835,8 +839,9 @@ export default function QuotationView() {
 
       const handleOutput = (blob) => {
         const url = URL.createObjectURL(blob);
-        if (action === 'preview-tab') {
-          window.open(url, '_blank');
+        if (action === 'preview') {
+          setPdfPreviewUrl(url);
+          setShowPdfPreviewModal(true);
         } else if (action === 'print') {
           const printWindow = window.open(url, '_blank');
           if (printWindow) {
@@ -1814,12 +1819,12 @@ export default function QuotationView() {
                   {printMenuView === 'main' ? (
                     <>
                       <button 
-                        onClick={() => handlePrintAction('preview-tab')}
+                        onClick={() => handlePrintAction('preview')}
                         className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                         style={{ padding: '12px' }}
                       >
                         <Eye className="w-4 h-4 text-sky-500" />
-                        Preview in New Tab
+                        Preview
                       </button>
                       <button 
                         onClick={() => handlePrintAction('download')}
@@ -2365,6 +2370,105 @@ export default function QuotationView() {
                 style={{ width: '210mm', minHeight: '297mm' }}
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHTML) }}
               />
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* PDF Preview Modal */}
+    {showPdfPreviewModal && (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg w-full max-w-[210mm] h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+          {/* Toolbar */}
+          <div className="flex items-center px-4 py-2 bg-zinc-100 border-b border-zinc-200 select-none shrink-0 justify-between" style={{ gap: '4px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, color: '#6b7280' }}>{quotation?.quotation_no || 'Quotation'}</span>
+            <div className="flex items-center" style={{ gap: '6px' }}>
+                <button
+                  onClick={() => { setShowPdfPreviewModal(false); navigate(`/quotation/edit?id=${quotationId}`); }}
+                  style={{
+                    padding: '7px 16px',
+                    background: 'transparent',
+                    border: '1px solid #185FA5',
+                    color: '#185FA5',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f0f5ff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Edit className="w-[14px] h-[14px]" /> Edit
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!pdfPreviewUrl) return;
+                    try {
+                      if (navigator.share) {
+                        const response = await fetch(pdfPreviewUrl);
+                        const blob = await response.blob();
+                        const file = new File([blob], `${quotation?.quotation_no || 'quotation'}.pdf`, { type: 'application/pdf' });
+                        await navigator.share({ files: [file], title: quotation?.quotation_no || 'Quotation' });
+                      } else {
+                        await navigator.clipboard.writeText(window.location.href);
+                      }
+                    } catch (e) {
+                      if (e.name !== 'AbortError') {
+                        try { await navigator.clipboard.writeText(window.location.href); } catch {}
+                      }
+                    }
+                  }}
+                  style={{
+                    padding: '7px 16px',
+                    background: 'transparent',
+                    border: '1px solid #d1d5db',
+                    color: '#374151',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                <Share2 className="w-[14px] h-[14px]" /> Share
+              </button>
+              <button
+                onClick={() => { setShowPdfPreviewModal(false); if (pdfPreviewUrl) { URL.revokeObjectURL(pdfPreviewUrl); setPdfPreviewUrl(null); } }}
+                style={{
+                  padding: '6px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#9ca3af',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#e5e7eb'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <XCircle className="w-[18px] h-[18px]" />
+              </button>
+            </div>
+          </div>
+
+          {/* PDF Viewer */}
+          <div className="flex-1 bg-zinc-900 min-h-0">
+            {pdfPreviewUrl ? (
+              <iframe src={pdfPreviewUrl} className="w-full h-full" style={{ border: 'none' }} title="PDF Preview" />
+            ) : (
+              <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-zinc-400" /></div>
             )}
           </div>
         </div>

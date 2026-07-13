@@ -80,6 +80,8 @@ const TYPE_LABEL: Record<string, string> = {
   SITE_VISIT: 'Site Visit',
   EXPENSE_CLAIM: 'Expense Claim',
   SITE_REPORT_REQUEST: 'Site Report',
+  SITE_EXPENSE_REQUEST: 'Site Expense Request',
+  SITE_EXPENSE_POST_PURCHASE: 'Site Expense (Post-Purchase)',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -95,6 +97,8 @@ const TYPE_COLORS: Record<string, string> = {
   SITE_VISIT: 'bg-lime-50 text-lime-700 border-lime-200',
   EXPENSE_CLAIM: 'bg-orange-50 text-orange-700 border-orange-200',
   SITE_REPORT_REQUEST: 'bg-sky-50 text-sky-700 border-sky-200',
+  SITE_EXPENSE_REQUEST: 'bg-orange-50 text-orange-700 border-orange-200',
+  SITE_EXPENSE_POST_PURCHASE: 'bg-red-50 text-red-700 border-red-200',
 };
 
 const EMPTY_STATES = {

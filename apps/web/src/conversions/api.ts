@@ -5,6 +5,9 @@ import {
   type QuotationSourceData,
   type DCSourceData,
   type ProformaSourceData,
+  type InvoiceSourceData,
+  type POSourceData,
+  type PurchaseOrderSourceData,
   type ConvertedInvoiceData,
   type ConvertedProformaData,
   type ConvertedQuotationData,
@@ -23,7 +26,7 @@ export async function fetchSourceDocument(
   type: ConversionType,
   sourceId: string,
   organisationId: string
-): Promise<QuotationSourceData | DCSourceData | ProformaSourceData> {
+): Promise<QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData> {
   if (type === 'quotation-to-proforma' || type === 'quotation-to-invoice' || type === 'quotation-to-dc') {
     const { data, error } = await supabase
       .from('quotation_header')
@@ -117,7 +120,7 @@ export async function fetchSourceDocument(
     };
   }
 
-  if (type === 'dc-to-quotation' || type === 'dc-to-proforma') {
+  if (type === 'dc-to-quotation' || type === 'dc-to-proforma' || type === 'dc-to-invoice') {
     const { data, error } = await supabase
       .from('delivery_challans')
       .select(`
@@ -160,6 +163,215 @@ export async function fetchSourceDocument(
         quantity: Number(item.quantity),
         rate: Number(item.rate),
         amount: Number(item.amount),
+      })),
+    };
+  }
+
+  if (type === 'invoice-to-creditnote' || type === 'invoice-to-challan') {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(id, client_name, name, state, gstin),
+        items:invoice_items(
+          id,
+          description,
+          hsn_code,
+          qty,
+          rate,
+          amount,
+          tax_percent,
+          discount_percent,
+          cgst_percent,
+          sgst_percent,
+          igst_percent,
+          cgst_amount,
+          sgst_amount,
+          igst_amount,
+          meta_json
+        )
+      `)
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Invoice not found');
+
+    return {
+      id: data.id,
+      invoice_no: data.invoice_no || data.invoice_number || '',
+      client_id: data.client_id,
+      client_name: data.client?.client_name || data.client?.name || null,
+      client_state: data.client?.state || null,
+      company_state: data.company_state || null,
+      gstin: data.client?.gstin || null,
+      billing_address: data.billing_address || null,
+      subtotal: Number(data.subtotal || 0),
+      cgst: Number(data.cgst || 0),
+      sgst: Number(data.sgst || 0),
+      igst: Number(data.igst || 0),
+      total: Number(data.total || 0),
+      po_number: data.po_number || null,
+      po_date: data.po_date || null,
+      remarks: data.remarks || null,
+      items: (data.items || []).map((item: any) => ({
+        id: item.id,
+        description: item.description || item.item?.display_name || item.item?.name || '',
+        hsn_code: item.hsn_code || item.item?.hsn_code || null,
+        qty: Number(item.qty || item.quantity || 0),
+        rate: Number(item.rate || 0),
+        amount: Number(item.amount || item.line_total || 0),
+        tax_percent: Number(item.tax_percent || 0),
+        discount_percent: item.discount_percent != null ? Number(item.discount_percent) : null,
+        cgst_percent: item.cgst_percent != null ? Number(item.cgst_percent) : null,
+        sgst_percent: item.sgst_percent != null ? Number(item.sgst_percent) : null,
+        igst_percent: item.igst_percent != null ? Number(item.igst_percent) : null,
+        cgst_amount: item.cgst_amount != null ? Number(item.cgst_amount) : null,
+        sgst_amount: item.sgst_amount != null ? Number(item.sgst_amount) : null,
+        igst_amount: item.igst_amount != null ? Number(item.igst_amount) : null,
+        meta_json: item.meta_json || null,
+      })),
+    };
+  }
+
+  if (type === 'client-po-to-invoice') {
+    const { data: header, error: headerError } = await supabase
+      .from('client_purchase_orders')
+      .select(`
+        id,
+        po_number,
+        client_id,
+        po_date,
+        po_total_value,
+        remarks,
+        client:clients(state)
+      `)
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
+      .single();
+
+    if (headerError) throw headerError;
+    if (!header) throw new Error('Client PO not found');
+
+    const { data: items, error: itemsError } = await supabase
+      .from('po_line_items')
+      .select(`
+        id,
+        description,
+        hsn_sac_code,
+        quantity,
+        rate,
+        amount,
+        gst_percentage,
+        unit,
+        item_code
+      `)
+      .eq('po_id', sourceId)
+      .order('line_order', { ascending: true });
+
+    if (itemsError) throw itemsError;
+
+    return {
+      id: header.id,
+      po_number: header.po_number,
+      client_id: header.client_id,
+      po_date: header.po_date,
+      po_total_value: Number(header.po_total_value || 0),
+      remarks: header.remarks,
+      client_state: header.client?.state || null,
+      items: (items || []).map((item: any) => ({
+        id: item.id,
+        description: item.description,
+        hsn_sac_code: item.hsn_sac_code || null,
+        quantity: Number(item.quantity || 0),
+        rate: Number(item.rate || 0),
+        amount: Number(item.amount || 0),
+        gst_percentage: Number(item.gst_percentage || 18),
+        unit: item.unit || null,
+        item_code: item.item_code || null,
+      })),
+    };
+  }
+
+  if (type === 'purchase-po-to-bill') {
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .select(`
+        id,
+        po_number,
+        vendor_id,
+        po_date,
+        currency,
+        exchange_rate,
+        subtotal,
+        discount_amount,
+        taxable_amount,
+        cgst_amount,
+        sgst_amount,
+        igst_amount,
+        total_amount,
+        vendor:purchase_vendors(company_name),
+        items:purchase_order_items(
+          id,
+          item_name,
+          description,
+          hsn_code,
+          quantity,
+          unit,
+          rate,
+          discount_percent,
+          discount_amount,
+          taxable_value,
+          cgst_percent,
+          cgst_amount,
+          sgst_percent,
+          sgst_amount,
+          igst_percent,
+          igst_amount,
+          total_amount
+        )
+      `)
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Purchase Order not found');
+
+    return {
+      id: data.id,
+      po_number: data.po_number,
+      vendor_id: data.vendor_id,
+      po_date: data.po_date,
+      currency: data.currency || 'INR',
+      exchange_rate: data.exchange_rate || 1,
+      subtotal: Number(data.subtotal || 0),
+      discount_amount: Number(data.discount_amount || 0),
+      taxable_amount: Number(data.taxable_amount || 0),
+      cgst_amount: Number(data.cgst_amount || 0),
+      sgst_amount: Number(data.sgst_amount || 0),
+      igst_amount: Number(data.igst_amount || 0),
+      total_amount: Number(data.total_amount || 0),
+      vendor: data.vendor,
+      items: (data.items || []).map((item: any) => ({
+        id: item.id,
+        item_name: item.item_name,
+        description: item.description || null,
+        hsn_code: item.hsn_code || null,
+        quantity: Number(item.quantity || 0),
+        unit: item.unit || 'Nos',
+        rate: Number(item.rate || 0),
+        discount_percent: Number(item.discount_percent || 0),
+        discount_amount: Number(item.discount_amount || 0),
+        taxable_value: Number(item.taxable_value || 0),
+        cgst_percent: Number(item.cgst_percent || 0),
+        cgst_amount: Number(item.cgst_amount || 0),
+        sgst_percent: Number(item.sgst_percent || 0),
+        sgst_amount: Number(item.sgst_amount || 0),
+        igst_percent: Number(item.igst_percent || 0),
+        igst_amount: Number(item.igst_amount || 0),
+        total_amount: Number(item.total_amount || 0),
       })),
     };
   }
@@ -302,18 +514,25 @@ export function transformQuotationToProforma(
 export function transformQuotationToInvoice(
   source: QuotationSourceData
 ): ConversionResult {
-  const items: ConvertedInvoiceItem[] = source.items.map((item) => ({
-    description: item.description,
-    hsn_code: item.hsn_code,
-    qty: item.qty,
-    rate: item.rate,
-    amount: item.line_total,
-    tax_percent: item.tax_percent,
-    meta_json: {
-      source_item_id: item.id,
-      item_id: item.item_id,
-    },
-  }));
+  const items: ConvertedInvoiceItem[] = source.items.map((item) => {
+    // Use effective rate after discounts
+    const effectiveRate = item.final_rate_snapshot || item.rate || 0;
+    // Amount should be taxable value (qty × effective rate), NOT line_total (which includes tax)
+    const taxableAmount = item.qty * effectiveRate;
+    
+    return {
+      description: item.description,
+      hsn_code: item.hsn_code,
+      qty: item.qty,
+      rate: effectiveRate,
+      amount: taxableAmount,
+      tax_percent: item.tax_percent,
+      meta_json: {
+        source_item_id: item.id,
+        item_id: item.item_id,
+      },
+    };
+  });
 
   const data: ConvertedInvoiceData = {
     client_id: source.client_id,
@@ -343,16 +562,24 @@ export function transformQuotationToInvoice(
 export function transformQuotationToDC(
   source: QuotationSourceData
 ): ConversionResult {
-  const items: ConvertedDCItem[] = source.items.map((item) => ({
-    material_id: item.item_id,
-    material_name: item.description,
-    quantity: item.qty,
-    rate: item.rate,
-    amount: item.line_total,
-  }));
+  const items: ConvertedDCItem[] = source.items.map((item) => {
+    // Use effective rate after discounts, not the original pre-discount rate
+    const effectiveRate = item.final_rate_snapshot || item.rate || 0;
+    // Use the line_total (which includes discount) or calculate fresh
+    const lineTotal = item.line_total || (item.qty * effectiveRate);
+    
+    return {
+      material_id: item.item_id,
+      material_name: item.description,
+      quantity: item.qty,
+      rate: effectiveRate,
+      amount: lineTotal,
+    };
+  });
 
   const data: ConvertedDCData = {
     client_id: source.client_id,
+    client_name: null, // Resolved in CreateDC from clients list
     project_id: source.project_id,
     dc_number: null, // Will be auto-generated
     dc_date: new Date().toISOString().split('T')[0],
@@ -369,6 +596,45 @@ export function transformQuotationToDC(
     sourceNumber: source.quotation_no,
     conversionType: 'quotation-to-dc',
     targetDocumentType: 'dc',
+  };
+}
+
+// Transform DC to Invoice
+export function transformDCToInvoice(source: DCSourceData): ConversionResult {
+  const items: ConvertedInvoiceItem[] = source.items.map((item) => ({
+    description: item.material_name,
+    hsn_code: null,
+    qty: item.quantity,
+    rate: item.rate,
+    amount: item.amount,
+    tax_percent: 18,
+    meta_json: {
+      material_id: item.material_id,
+      source_item_id: item.id,
+    },
+  }));
+
+  const data: ConvertedInvoiceData = {
+    client_id: source.client_id || '', // Resolved in hook from client_name
+    source_type: 'challan',
+    source_id: source.id,
+    template_type: 'standard',
+    mode: 'itemized',
+    invoice_no: null, // Will be auto-generated
+    invoice_date: new Date().toISOString().split('T')[0],
+    po_number: source.po_no,
+    po_date: null,
+    company_state: null, // Will be fetched from organisation
+    client_state: source.ship_to_state,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Delivery Challan',
+    sourceNumber: source.dc_number,
+    conversionType: 'dc-to-invoice',
+    targetDocumentType: 'invoice',
   };
 }
 
@@ -484,10 +750,175 @@ export function transformProformaToInvoice(
   };
 }
 
+// Transform Invoice to Credit Note
+export function transformInvoiceToCreditNote(
+  source: InvoiceSourceData
+): ConversionResult {
+  const data = {
+    client_id: source.client_id,
+    invoice_id: source.id,
+    invoice_no: source.invoice_no,
+    client_name: source.client_name,
+    client_state: source.client_state,
+    company_state: source.company_state,
+    gstin: source.gstin,
+    billing_address: source.billing_address,
+    subtotal: source.subtotal,
+    cgst: source.cgst,
+    sgst: source.sgst,
+    igst: source.igst,
+    total: source.total,
+    po_number: source.po_number,
+    po_date: source.po_date,
+    remarks: source.remarks,
+    items: source.items,
+  };
+
+  return {
+    data,
+    sourceType: 'Invoice',
+    sourceNumber: source.invoice_no,
+    conversionType: 'invoice-to-creditnote',
+    targetDocumentType: 'creditnote',
+  };
+}
+
+// Transform Invoice to Delivery Challan
+export function transformInvoiceToChallan(
+  source: InvoiceSourceData
+): ConversionResult {
+  const items: ConvertedDCItem[] = source.items.map((item) => ({
+    material_id: null,
+    material_name: item.description,
+    quantity: item.qty,
+    rate: item.rate,
+    amount: item.amount,
+  }));
+
+  const data: ConvertedDCData = {
+    client_id: source.client_id,
+    client_name: source.client_name,
+    project_id: null, // Invoices don't carry project_id
+    dc_number: null, // Will be auto-generated
+    dc_date: new Date().toISOString().split('T')[0],
+    ship_to_address: source.billing_address,
+    ship_to_state: source.client_state,
+    po_number: source.po_number,
+    remarks: source.remarks,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Invoice',
+    sourceNumber: source.invoice_no,
+    conversionType: 'invoice-to-challan',
+    targetDocumentType: 'dc',
+  };
+}
+
+// Main transform function that routes to specific transformer
+// Transform Client PO to Invoice
+export function transformClientPOToInvoice(
+  source: POSourceData
+): ConversionResult {
+  const items: ConvertedInvoiceItem[] = source.items.map((item) => ({
+    description: item.description,
+    hsn_code: item.hsn_sac_code,
+    qty: item.quantity,
+    rate: item.rate,
+    amount: item.amount,
+    tax_percent: item.gst_percentage,
+    meta_json: {
+      tax_percent: item.gst_percentage,
+      uom: item.unit || 'Nos',
+      item_code: item.item_code,
+      material_id: null,
+      base_rate: item.rate,
+      po_line_item_id: item.id,
+    },
+  }));
+
+  const data: ConvertedInvoiceData = {
+    client_id: source.client_id,
+    source_type: 'po',
+    source_id: source.id,
+    template_type: 'standard',
+    mode: 'itemized',
+    invoice_no: null, // Will be auto-generated
+    invoice_date: new Date().toISOString().split('T')[0],
+    po_number: source.po_number,
+    po_date: source.po_date,
+    company_state: null, // Will be fetched from organisation
+    client_state: source.client_state,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Client PO',
+    sourceNumber: source.po_number,
+    conversionType: 'client-po-to-invoice',
+    targetDocumentType: 'invoice',
+  };
+}
+
+// Transform Purchase Order to Bill
+export function transformPurchasePOToBill(
+  source: PurchaseOrderSourceData
+): ConversionResult {
+  const items = source.items.map((item) => ({
+    item_name: item.item_name,
+    description: item.description,
+    hsn_code: item.hsn_code,
+    quantity: item.quantity,
+    unit: item.unit,
+    rate: item.rate,
+    discount_percent: item.discount_percent,
+    discount_amount: item.discount_amount,
+    taxable_value: item.taxable_value,
+    cgst_percent: item.cgst_percent,
+    cgst_amount: item.cgst_amount,
+    sgst_percent: item.sgst_percent,
+    sgst_amount: item.sgst_amount,
+    igst_percent: item.igst_percent,
+    igst_amount: item.igst_amount,
+    total_amount: item.total_amount,
+  }));
+
+  const data = {
+    source_type: 'purchase-po-to-bill',
+    source_id: source.id,
+    vendor_id: source.vendor_id,
+    po_id: source.id,
+    po_number: source.po_number,
+    bill_date: new Date().toISOString().split('T')[0],
+    currency: source.currency,
+    exchange_rate: source.exchange_rate,
+    subtotal: source.subtotal,
+    discount_amount: source.discount_amount,
+    taxable_amount: source.taxable_amount,
+    cgst_amount: source.cgst_amount,
+    sgst_amount: source.sgst_amount,
+    igst_amount: source.igst_amount,
+    total_amount: source.total_amount,
+    vendor_name: source.vendor?.company_name || null,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Purchase Order',
+    sourceNumber: source.po_number,
+    conversionType: 'purchase-po-to-bill',
+    targetDocumentType: 'bill', // Custom type for purchase bills
+  };
+}
+
 // Main transform function that routes to specific transformer
 export function transformSourceToTarget(
   type: ConversionType,
-  sourceData: QuotationSourceData | DCSourceData | ProformaSourceData
+  sourceData: QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData
 ): ConversionResult {
   switch (type) {
     case 'quotation-to-proforma':
@@ -502,6 +933,16 @@ export function transformSourceToTarget(
       return transformDCToProforma(sourceData as DCSourceData);
     case 'proforma-to-invoice':
       return transformProformaToInvoice(sourceData as ProformaSourceData);
+    case 'invoice-to-creditnote':
+      return transformInvoiceToCreditNote(sourceData as InvoiceSourceData);
+    case 'invoice-to-challan':
+      return transformInvoiceToChallan(sourceData as InvoiceSourceData);
+    case 'client-po-to-invoice':
+      return transformClientPOToInvoice(sourceData as POSourceData);
+    case 'dc-to-invoice':
+      return transformDCToInvoice(sourceData as DCSourceData);
+    case 'purchase-po-to-bill':
+      return transformPurchasePOToBill(sourceData as PurchaseOrderSourceData);
     default:
       throw new Error(`Unknown conversion type: ${type}`);
   }
@@ -537,6 +978,11 @@ export function getSourceStatusAfterConversion(conversionType: ConversionType): 
     'dc-to-proforma': 'Converted to Proforma',
     'proforma-to-invoice': 'Converted to Invoice',
     'multi-dc-to-quotation': 'Converted to Quotation',
+    'invoice-to-creditnote': 'Converted to Credit Note',
+    'invoice-to-challan': 'Converted to Delivery',
+    'client-po-to-invoice': 'Converted to Invoice',
+    'dc-to-invoice': 'Converted to Invoice',
+    'purchase-po-to-bill': 'Billed',
   };
 
   return statusMap[conversionType];
@@ -547,6 +993,10 @@ export function getSourceTableName(conversionType: ConversionType): string {
   if (conversionType.startsWith('quotation-')) return 'quotation_header';
   if (conversionType.startsWith('dc-')) return 'delivery_challans';
   if (conversionType === 'proforma-to-invoice') return 'proforma_invoices';
+  if (conversionType === 'invoice-to-creditnote') return 'invoices';
+  if (conversionType === 'invoice-to-challan') return 'invoices';
+  if (conversionType === 'client-po-to-invoice') return 'client_purchase_orders';
+  if (conversionType === 'purchase-po-to-bill') return 'purchase_orders';
   throw new Error(`Unknown conversion type: ${conversionType}`);
 }
 

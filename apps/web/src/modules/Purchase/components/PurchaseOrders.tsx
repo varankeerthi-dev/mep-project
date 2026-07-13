@@ -28,7 +28,8 @@ import {
   Phone,
   Mail as MailIcon,
   Clock,
-  User
+  User,
+  Receipt
 } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -2071,6 +2072,16 @@ export const PurchaseOrders: React.FC = () => {
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Delete PO
                           </button>
+                          <div className="my-1 border-t border-zinc-100" />
+                          <button
+                            onClick={() => { setActionMenuPO(null); navigate("/purchase/bills?convertFromPoId=" + po.id); }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700"
+                            style={{ padding: '6px' }}
+                          >
+                            <Receipt className="w-3.5 h-3.5" /> Convert to Bill
+                          </button>
+                          <div className="my-1 border-t border-zinc-100" />
+
                         </div>
                       )}
                     </div>

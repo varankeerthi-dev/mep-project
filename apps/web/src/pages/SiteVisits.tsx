@@ -629,6 +629,12 @@ export function SiteVisits() {
   }, [visitToView?.id]);
 
   const handleCheckIn = async (visit: any) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (visit.visit_date > today) {
+      toast.error(`Cannot check in before the visit date. This visit is scheduled for ${visit.visit_date}.`);
+      return;
+    }
+
     const timeNow = new Date().toISOString();
     
     const saveCheckIn = async (lat: number | null, lng: number | null, status: string) => {
@@ -672,6 +678,11 @@ export function SiteVisits() {
 
   const handleCheckOut = async (visit: any) => {
     const timeNow = new Date().toISOString();
+    const today = new Date().toISOString().split('T')[0];
+    const checkOutNote = visit.visit_date < today
+      ? `Late check-out: actual visit ended on ${visit.visit_date}, recorded at ${timeNow}`
+      : null;
+
     const canvas = canvasRef.current;
     const signatureDataUrl = canvas ? canvas.toDataURL('image/png') : null;
 
@@ -687,7 +698,8 @@ export function SiteVisits() {
             signed_off_designation: checkoutData.signed_off_designation,
             signature_image_url: signatureDataUrl,
             signed_off_at: timeNow,
-            status: 'completed'
+            status: 'completed',
+            check_out_note: checkOutNote,
           })
           .eq('id', visit.id);
 
@@ -753,7 +765,8 @@ export function SiteVisits() {
           signed_off_designation: checkoutData.signed_off_designation,
           signature_image_url: signatureDataUrl,
           signed_off_at: timeNow,
-          status: 'completed'
+          status: 'completed',
+          check_out_note: checkOutNote,
         };
         setVisitToView(updatedVisit);
         setIsCheckoutModalOpen(false);

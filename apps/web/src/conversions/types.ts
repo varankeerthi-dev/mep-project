@@ -6,6 +6,11 @@ export const conversionTypes = [
   'dc-to-proforma',
   'proforma-to-invoice',
   'multi-dc-to-quotation',
+  'invoice-to-creditnote',
+  'invoice-to-challan',
+  'client-po-to-invoice',
+  'dc-to-invoice',
+  'purchase-po-to-bill',
 ] as const;
 
 export type ConversionType = (typeof conversionTypes)[number];
@@ -133,7 +138,106 @@ export interface ProformaItemData {
   meta_json: Record<string, unknown> | null;
 }
 
-export type SourceDocumentData = QuotationSourceData | DCSourceData | ProformaSourceData;
+export interface InvoiceSourceData {
+  id: string;
+  invoice_no: string;
+  client_id: string;
+  client_name: string | null;
+  client_state: string | null;
+  company_state: string | null;
+  gstin: string | null;
+  billing_address: string | null;
+  subtotal: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+  po_number: string | null;
+  po_date: string | null;
+  remarks: string | null;
+  items: InvoiceItemData[];
+}
+
+export interface InvoiceItemData {
+  id: string;
+  description: string;
+  hsn_code: string | null;
+  qty: number;
+  rate: number;
+  amount: number;
+  tax_percent: number;
+  discount_percent: number | null;
+  cgst_percent: number | null;
+  sgst_percent: number | null;
+  igst_percent: number | null;
+  cgst_amount: number | null;
+  sgst_amount: number | null;
+  igst_amount: number | null;
+  meta_json: Record<string, unknown> | null;
+}
+
+export interface POSourceData {
+  id: string;
+  po_number: string;
+  client_id: string;
+  po_date: string;
+  po_total_value: number;
+  remarks: string | null;
+  client_state: string | null;
+  items: POItemData[];
+}
+
+export interface POItemData {
+  id: string;
+  description: string;
+  hsn_sac_code: string | null;
+  quantity: number;
+  rate: number;
+  amount: number;
+  gst_percentage: number;
+  unit: string | null;
+  item_code: string | null;
+}
+
+export interface PurchaseOrderSourceData {
+  id: string;
+  po_number: string;
+  vendor_id: string;
+  po_date: string;
+  currency: string;
+  exchange_rate: number;
+  subtotal: number;
+  discount_amount: number;
+  taxable_amount: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_amount: number;
+  vendor: { company_name: string } | null;
+  items: PurchaseOrderItemData[];
+}
+
+export interface PurchaseOrderItemData {
+  id: string;
+  item_name: string;
+  description: string | null;
+  hsn_code: string | null;
+  quantity: number;
+  unit: string;
+  rate: number;
+  discount_percent: number;
+  discount_amount: number;
+  taxable_value: number;
+  cgst_percent: number;
+  cgst_amount: number;
+  sgst_percent: number;
+  sgst_amount: number;
+  igst_percent: number;
+  igst_amount: number;
+  total_amount: number;
+}
+
+export type SourceDocumentData = QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData;
 
 export interface ConvertedInvoiceData {
   client_id: string;
@@ -224,6 +328,7 @@ export interface ConvertedQuotationItem {
 
 export interface ConvertedDCData {
   client_id: string;
+  client_name: string | null;
   project_id: string | null;
   dc_number: string | null;
   dc_date: string;
@@ -242,12 +347,12 @@ export interface ConvertedDCItem {
   amount: number;
 }
 
-export type ConvertedData = ConvertedInvoiceData | ConvertedProformaData | ConvertedQuotationData | ConvertedDCData;
+export type ConvertedData = ConvertedInvoiceData | ConvertedProformaData | ConvertedQuotationData | ConvertedDCData | Record<string, unknown>;
 
 export interface ConversionResult {
   data: ConvertedData;
   sourceType: string;
   sourceNumber: string;
   conversionType: ConversionType;
-  targetDocumentType: 'invoice' | 'proforma' | 'quotation' | 'dc';
+  targetDocumentType: 'invoice' | 'proforma' | 'quotation' | 'dc' | 'creditnote' | 'bill';
 }

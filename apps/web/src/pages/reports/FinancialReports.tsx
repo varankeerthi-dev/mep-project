@@ -32,6 +32,7 @@ const FinancialReports = () => {
   const [financialData, setFinancialData] = useState<any[]>([]);
   const [summaryStats, setSummaryStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
+  const [filters, setFilters] = useState<any>({});
 
   // Fetch organization data
   useEffect(() => {
@@ -209,7 +210,84 @@ const FinancialReports = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {reportTypes.map((report) => {
           const Icon = report.icon;
-          return (
+  const renderFinancialSummary = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-pulse flex items-center space-x-2">
+            <div className="w-2 h-2 bg-emerald-600 rounded-full"></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-white rounded-xl border border-red-200 shadow-sm p-6">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+              <CurrencyDollarIcon className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-600">Error Loading Data</h3>
+              <p className="text-zinc-600 mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white rounded-xl border border-zinc-200 shadow-sm">
+        <div className="p-6 border-b border-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Financial Summary</h3>
+          <p className="text-sm text-zinc-600 mt-1">Budget vs actual costs across projects</p>
+        </div>
+        {financialData.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-zinc-500">No financial data available</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-zinc-50 border-b border-zinc-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Project</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Budget</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actual</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Variance</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Variance %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+                {financialData.map((row: any, idx: number) => {
+                  const variance = (row.budget_amount || 0) - (row.actual_cost || 0);
+                  const variancePct = row.budget_amount ? ((variance / row.budget_amount) * 100) : 0;
+                  return (
+                    <tr key={idx} className="hover:bg-zinc-50">
+                      <td className="px-6 py-4 text-sm font-medium text-zinc-900">{row.project_name || '—'}</td>
+                      <td className="px-6 py-4 text-sm text-right text-zinc-700">₹{(row.budget_amount || 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-right text-zinc-700">₹{(row.actual_cost || 0).toLocaleString()}</td>
+                      <td className={`px-6 py-4 text-sm text-right font-medium ${variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₹{variance.toLocaleString()}
+                      </td>
+                      <td className={`px-6 py-4 text-sm text-right font-medium ${variancePct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {variancePct.toFixed(2)}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
             <div
               key={report.id}
               className="bg-white rounded-xl border border-zinc-200 hover:border-zinc-300 hover:shadow-lg transition-all cursor-pointer h-12 border-radial-none"

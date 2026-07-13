@@ -10,13 +10,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
+    "strict": false,
+    "types": ["*"],
     "paths": {
-      "@/*": ["src/*"],
-      "sonner": ["src/sonner.ts"]
+      "@/*": ["./src/*"],
+      "sonner": ["./src/sonner.ts"]
     },
-        "allowJs": true,
+    "allowJs": true,
     "checkJs": false
   },
   "include": ["src"]

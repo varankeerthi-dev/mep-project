@@ -215,8 +215,7 @@ export default function InvoiceView() {
 
   const handleConvert = (targetType: string) => {
     if (!selectedInvoice?.id) return;
-    setShowConvertMenu(false);
-    navigate(`/invoices/create?from=${selectedInvoice.id}`);
+    setShowConvertMenu(false);                      navigate(`/invoices/create?from=${selectedInvoice.id}`);
   };
 
   const closePreview = () => {
@@ -456,12 +455,21 @@ export default function InvoiceView() {
                       <div className="my-1 border-t border-zinc-100" />
                       <button
                         onClick={() => {
-                          window.location.href = `/credit-notes/create?from_invoice=${selectedInvoice.id}`;
+                          navigate(`/credit-notes/create?convertFrom=invoice-to-creditnote&sourceId=${selectedInvoice.id}`);
                           setShowConvertMenu(false);
                         }}
                         className="block w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
                       >
                         Convert to Credit Note
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigate(`/dc/create?convertFrom=invoice-to-challan&sourceId=${selectedInvoice.id}`);
+                          setShowConvertMenu(false);
+                        }}
+                        className="block w-full text-left px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50"
+                      >
+                        Convert to Delivery Challan
                       </button>
                     </div>
                   )}

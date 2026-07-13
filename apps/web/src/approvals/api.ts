@@ -576,6 +576,12 @@ export class ApprovalAPI {
             ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
           }).eq('id', approval.reference_id);
           break;
+        case 'expense_entries':
+          await supabase.from('expense_entries').update({
+            status: 'APPROVED',
+            updated_at: new Date().toISOString(),
+          }).eq('id', approval.reference_id);
+          break;
       }
     } catch (error) {
       console.error('Error triggering post-approval actions:', error);
@@ -728,6 +734,7 @@ const REFERENCE_DENORM_MAP: Record<
   quotations:             { table: 'quotation_header',       select: 'client_id, client:clients(client_name), project_id, project:projects(name), quotation_no', numberField: 'quotation_no' },
   material_dispatches:    { table: 'material_dispatches',    select: 'project_id, project:projects(name), dispatch_number', numberField: 'dispatch_number' },
   advances_expenses:      { table: 'advances_expenses',      select: 'employee_id, employee_name, project_id, project:projects(name), category_name, amount, narration', numberField: null },
+  expense_entries:        { table: 'expense_entries',        select: 'project_id, project:projects(name), description, amount', numberField: null },
 };
 
 export class ApprovalExtensions {

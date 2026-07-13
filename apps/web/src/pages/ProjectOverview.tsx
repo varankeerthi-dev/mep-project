@@ -671,6 +671,7 @@ export default function ProjectOverview() {
         {/* Projects grid */}
         <motion.section variants={item}>
           <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+<div style={{ height: '12px' }} />
             <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
               <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1c1917' }}>
                 <UserGroupIcon className="w-4 h-4" style={{ color: '#0d7c6b' }} />

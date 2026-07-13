@@ -12,6 +12,7 @@ import {
   transformMultiDC_GroupedByDC,
   transformMultiDC_OneRowPerDC,
 } from './api';
+import type { InvoiceSourceData, POSourceData, PurchaseOrderSourceData } from './types';
 import type { ConversionType, ConversionResult, MultiDCQuotationMode } from './types';
 
 export function useConvertDocument(type: ConversionType, sourceId: string) {
@@ -27,7 +28,7 @@ export function useConvertDocument(type: ConversionType, sourceId: string) {
       const sourceData = await fetchSourceDocument(type, sourceId, organisation.id);
 
       // For DC conversions, we need to resolve client_id from client_name
-      if (type === 'dc-to-quotation' || type === 'dc-to-proforma') {
+      if (type === 'dc-to-quotation' || type === 'dc-to-proforma' || type === 'dc-to-invoice') {
         const dcData = sourceData as any;
         if (dcData.client_name && !dcData.client_id) {
           const clientId = await resolveClientIdFromName(dcData.client_name, organisation.id);

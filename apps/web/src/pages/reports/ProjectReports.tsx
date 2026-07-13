@@ -157,7 +157,64 @@ const ProjectReports = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {reportTypes.map((report) => {
           const Icon = report.icon;
-          return (
+  const renderProjectSummary = () => {
+    if (loading) {
+      return (
+        <div className="col-span-4 flex items-center justify-center h-64">
+          <div className="animate-pulse flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="col-span-4 bg-white rounded-xl border border-red-200 shadow-sm p-6">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+              <CubeIcon className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-600">Error Loading Data</h3>
+              <p className="text-zinc-600 mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!summaryStats) return null;
+
+    const cards = [
+      { label: 'Total Projects', value: summaryStats.totalProjects || 0 },
+      { label: 'Active Projects', value: summaryStats.activeProjects || 0 },
+      { label: 'Completed Projects', value: summaryStats.completedProjects || 0 },
+      { label: 'On Schedule', value: summaryStats.onScheduleProjects || 0 },
+    ];
+
+    return (
+      <>
+        {cards.map((card) => (
+          <div key={card.label} className="bg-white p-6 rounded-xl border border-zinc-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-zinc-600">{card.label}</p>
+                <p className="text-2xl font-bold text-zinc-900 mt-1">{card.value}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <CubeIcon className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  };
+
+  return (
             <div
               key={report.id}
               className="bg-white rounded-xl border border-zinc-200 hover:border-zinc-300 hover:shadow-lg transition-all cursor-pointer"
