@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap');
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -3208,31 +3209,27 @@ body {
 
 .sidebar-flyout {
   width: 200px;
-  background: var(--color-bg-primary);
-  border-right: 0.5px solid var(--color-border);
+  background: #ffffff !important;
+  border: 0.5px solid var(--color-border);
+  border-radius: 8px;
   padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   overflow-y: auto;
   position: fixed;
-  top: 0;
-  left: 232px;
-  bottom: 0;
-  transition: left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  left: 240px;
+  max-height: 70vh;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
   z-index: 900;
 }
 
-.sidebar.collapsed ~ .sidebar-flyout {
-  left: 72px;
+.dark .sidebar-flyout {
+  background: #18181b !important;
 }
 
-@media (max-width: 768px) {
-  .sidebar.mobile-open ~ .sidebar-flyout {
-    left: 260px;
-    top: 60px;
-    height: calc(100vh - 60px);
-  }
+.sidebar.collapsed ~ .sidebar-flyout {
+  left: 80px;
 }
 
 .sidebar-flyout-title {
@@ -3348,3 +3345,36 @@ td:hover .inline-description-cell-container:not(.has-description):not(.is-editin
   }
 }
 
+/* ==========================================
+   OPERATIONS MODULE DASHBOARD
+   ========================================== */
+.operations-theme {
+  --bg: #F2F4F6;
+  --surface: #FFFFFF;
+  --surface-alt: #EAEEF1;
+  --ink: #121A23;
+  --ink-soft: #5B6B78;
+  --ink-faint: #8B99A5;
+  --border: #DEE4E8;
+  --brand: #0E7C6B;
+  --brand-dark: #0A5D50;
+  --brand-soft: #E1F1EE;
+  --alert: #C1442D;
+  --alert-soft: #FBE8E4;
+  --warn: #B9791A;
+  --warn-soft: #FAEFDC;
+  --info: #2F6FED;
+  --info-soft: #E7EFFE;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(18,26,35,0.04), 0 1px 8px rgba(18,26,35,0.03);
+}
+
+@keyframes operations-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes operations-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}

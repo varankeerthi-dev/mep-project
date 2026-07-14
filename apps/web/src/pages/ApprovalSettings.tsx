@@ -196,7 +196,7 @@ const ApprovalSettings: React.FC = () => {
       <div className="bg-white border border-zinc-200 rounded-none py-5">
         <div className="px-6">
           <h1 className="text-2xl font-semibold text-zinc-900">Approval Settings</h1>
-          <p className="text-zinc-600 mt-2">Manage approvers and configure approval workflows</p>
+          
         </div>
       </div>
 

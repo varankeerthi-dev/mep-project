@@ -12,11 +12,15 @@ import { PermissionGuard } from './rbac';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
+import ProjectTasks from './pages/ProjectTasks'
+import EmployeeTab from './pages/hr/EmployeeTab'
+import AttendancePlanning from './pages/hr/AttendancePlanning'
+import AttendanceEntry from './pages/hr/AttendanceEntry'
 import { Toaster } from './lib/logger';
 import ToolsManagement from './pages/ToolsManagement';
-import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
+import { AuthContext, useAuth, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
 
-export { useAuth } from './contexts/AuthContext';
+export { useAuth };
 export type { AuthContextValue, Organisation, OrganisationMember };
 
 const DynamicAgentation = lazy(() => {
@@ -109,6 +113,7 @@ const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts
 
 // Lazy load internally moved pages
 const Dashboard = lazyAny(() => import('./pages/Dashboard'));
+const Operations = lazyAny(() => import('./pages/operations/Operations'));
 const DailyUpdates = lazyAny(() => import('./pages/DailyUpdates'));
 const TodoList = lazyAny(() => import('./pages/TodoList'));
 const RemindMe = lazyAny(() => import('./pages/RemindMe'));
@@ -343,6 +348,8 @@ export default function App() {
         return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
       case '/dashboard': 
         return <Dashboard onNavigate={navigate} />;
+      case '/operations':
+        return <Operations />;
       case '/projects': return <Projects />;
       case '/tools': return <ToolsManagement />;
       case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
@@ -491,6 +498,9 @@ export default function App() {
       case '/finance/payments': return <PaymentsHub />;
       case '/accounting/day-book': return <DayBook />;
       case '/accounting/chart-of-accounts': return <ChartOfAccounts />;
+      case '/hr/employees': return <EmployeeTab />;
+      case '/hr/planning': return <AttendancePlanning />;
+      case '/hr/entry': return <AttendanceEntry />;
       default:
         if (pathKey.startsWith('/issue/')) {
           // Match /issue/<id> but not /issue/new
@@ -613,46 +623,18 @@ export default function App() {
   };
 
   const initAuth = async (): Promise<(() => void) | undefined> => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('access_token');
-      const refresh = params.get('refresh_token');
-      if (token && refresh) {
-        console.log('🔑 Authenticating via URL session tokens...');
-        await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: refresh
-        });
-        
-        // Remove token params from URL to prevent showing/sharing
-        params.delete('access_token');
-        params.delete('refresh_token');
-        const newSearch = params.toString();
-        const newPath = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
-        window.history.replaceState(null, '', newPath);
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        setUser(session.user);
-
-        const { data: orgs } = await getUserOrganisations(session.user.id);
-        setOrganisations(orgs || []);
-
-        if (orgs && orgs.length > 0) {
-          setOrganisation(orgs[0].organisation as Organisation);
-        }
-      }
-    } catch (error) {
-      console.error('Auth init error:', error);
-    }
-
-    setLoading(false);
+    let resolveInitialSession: (user: User | null) => void;
+    const initialSession = new Promise<User | null>((resolve) => {
+      resolveInitialSession = resolve;
+    });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'INITIAL_SESSION') {
+          resolveInitialSession(session?.user ?? null);
+        }
+
+        if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
           setUser(session.user);
         }
 
@@ -660,14 +642,43 @@ export default function App() {
           setUser(null);
           setOrganisation(null);
           setOrganisations([]);
+          // Clean up old legacy tokens if they exist
+          localStorage.removeItem('mep-auth-token-fallback');
+          localStorage.removeItem('mep-auth-token');
         }
       }
     );
 
-    return () => {
-      listener?.subscription?.unsubscribe();
-    };
+    const subscription = listener?.subscription;
+    const listenerCleanup = () => subscription?.unsubscribe();
+
+    // Supabase native getSession() automatically reads from localStorage,
+    // handles PKCE URL parameters, and parses hash tokens.
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    let resolvedUser: User | null = session?.user || null;
+
+    try {
+      if (resolvedUser) {
+        setUser(resolvedUser);
+
+        const { data: orgs } = await getUserOrganisations(resolvedUser.id);
+        setOrganisations(orgs || []);
+
+        if (orgs && orgs.length > 0) {
+          setOrganisation(orgs[0].organisation as Organisation);
+        }
+      }
+    } catch (err) {
+      console.error('Auth init error:', err);
+    }
+
+    setLoading(false);
+
+    return listenerCleanup;
   };
+
+  const initCompleteRef = useRef(false);
 
   useEffect(() => {
     let unsubscribeAuth: (() => void) | undefined;
@@ -675,16 +686,21 @@ export default function App() {
     const init = async () => {
       unsubscribeAuth = await initAuth();
       await checkDatabase();
+      initCompleteRef.current = true;
+      await recoverAfterResume();
     };
 
     init();
 
     // Recover app state on tab return/focus.
     const recoverAfterResume = async () => {
+      if (!initCompleteRef.current) {
+        console.log('⏳ Skipping session check — initAuth not yet complete');
+        return;
+      }
       const sessionValid = await refreshSessionIfNeeded({ strict: false, timeoutMs: 7000 });
       if (!sessionValid) {
-        console.warn('Session expired, logging out...');
-        handleLogout();
+        console.warn('No valid session on tab return — skipping stale query refresh');
         return;
       }
 

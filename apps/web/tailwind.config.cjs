@@ -16,7 +16,10 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        inter: ['Inter', 'system-ui', 'sans-serif']
+        inter: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['"Space Grotesk"', 'sans-serif'],
+      sans: ['"IBM Plex Sans"', 'sans-serif'],
+      mono: ['"IBM Plex Mono"', 'monospace'],
       },
       borderRadius: {
         lg: "var(--radius)",

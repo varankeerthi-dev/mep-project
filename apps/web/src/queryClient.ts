@@ -51,6 +51,7 @@ export async function ensureValidSession(options: SessionCheckOptions = {}): Pro
       );
 
       if (!currentSession) {
+        console.warn('⚠️ ensureValidSession: no current session found');
         return false;
       }
 

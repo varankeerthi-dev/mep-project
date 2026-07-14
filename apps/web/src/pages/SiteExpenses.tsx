@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import { Plus, X, Filter, ChevronDown, Pencil, ArrowLeftCircle, Upload } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Plus, Filter, Pencil, ArrowLeftCircle, Upload } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useExpenseEntries, useCreateExpenseEntry, useUpdateExpenseEntry } from '@/hooks/useExpenseEntries';
 import { ConsumableCatalogSelect } from '@/components/reusable/ConsumableCatalogSelect';
@@ -10,6 +10,71 @@ import { ApprovalIntegration } from '@/approvals/integration';
 import { supabase } from '@/lib/supabase';
 import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_CONFIG } from '@/types/expense';
 import type { ExpenseEntry, ExpenseEntryType, ExpenseCategory, ExpenseItemType, ExpensePaymentMethod, ExpenseEntryInsert } from '@/types/expense';
+
+// ─── Design Tokens (DESIGN.md) ──────────────────────────────────────────────
+const styles = {
+  // Card body
+  cardBody: { padding: '24px' },
+
+  // Form field row pattern
+  headerFieldStyle: { display: 'flex', alignItems: 'center', gap: '8px' },
+  labelColStyle: { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151' },
+  fieldColStyle: { flex: 1 },
+  sectionHeaderStyle: {
+    fontWeight: 600, fontSize: '11px', color: '#6b7280',
+    textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '2px'
+  },
+  inputStyle: { padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' as const },
+
+  // Section container
+  sectionContainer: { background: '#f8f9fa', padding: '24px', borderRadius: '6px' },
+  sectionGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' },
+  sectionColumn: { display: 'flex', flexDirection: 'column' as const, gap: '10px' },
+
+  // Buttons (DESIGN.md tokens)
+  primaryBtn: {
+    padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5',
+    color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px'
+  },
+  primaryBtnHover: { background: '#0C447C', borderColor: '#0C447C' } as React.CSSProperties,
+  secondaryBtn: {
+    padding: '6px 12px', background: 'white', border: '1px solid #d1d5db',
+    color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px'
+  },
+  secondaryBtnHover: { background: '#f9fafb', borderColor: '#9ca3af' } as React.CSSProperties,
+  destructiveBtn: {
+    padding: '6px 12px', background: 'white', border: '1px solid #fca5a5',
+    color: '#dc2626', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+    cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '4px'
+  },
+  disabledBtn: { opacity: 0.6, cursor: 'not-allowed' },
+
+  // Searchable dropdown
+  dropdownContainer: { position: 'relative' as const },
+  dropdownPanel: {
+    position: 'absolute' as const, top: '100%', left: 0, right: 0,
+    zIndex: 50, background: 'white', border: '1px solid #d1d5db',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' as const
+  },
+  dropdownItem: {
+    padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6'
+  },
+  dropdownEmpty: {
+    padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' as const
+  },
+};
+
+// Status badge colors (inline, not Tailwind)
+const STATUS_BG: Record<string, string> = {
+  DRAFT: '#f4f4f5', PENDING_APPROVAL: '#fef3c7', APPROVED: '#d1fae5',
+  VERIFIED: '#dbeafe', PAID: '#d1fae5', REJECTED: '#fee2e2', CANCELLED: '#f4f4f5',
+};
+const STATUS_FG: Record<string, string> = {
+  DRAFT: '#52525b', PENDING_APPROVAL: '#b45309', APPROVED: '#047857',
+  VERIFIED: '#1d4ed8', PAID: '#047857', REJECTED: '#dc2626', CANCELLED: '#71717a',
+};
 
 type SiteExpensesProps = {
   projectId?: string;
@@ -55,24 +120,47 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
   }, [updateEntry]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e4e4e7', padding: '16px 24px' }}>
         <div>
-          <h1 className="text-lg font-semibold text-zinc-900">Site Expenses</h1>
-          <p className="text-sm text-zinc-500">Track consumables, crane, labour, and site-level purchases</p>
+          <h1 style={{ fontSize: '18px', fontWeight: 600, color: '#18181b', margin: 0 }}>Site Expenses</h1>
+          <p style={{ fontSize: '13px', color: '#71717a', margin: '2px 0 0' }}>Track consumables, crane, labour, and site-level purchases</p>
         </div>
         <button
           type="button"
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          style={{
+            ...styles.primaryBtn,
+            ...(showForm ? styles.secondaryBtn : {}),
+          }}
+          onMouseEnter={(e) => {
+            if (!showForm) {
+              e.currentTarget.style.background = String(styles.primaryBtnHover.background);
+              e.currentTarget.style.borderColor = String(styles.primaryBtnHover.borderColor);
+            } else {
+              e.currentTarget.style.background = String(styles.secondaryBtnHover.background);
+              e.currentTarget.style.borderColor = String(styles.secondaryBtnHover.borderColor);
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!showForm) {
+              e.currentTarget.style.background = String(styles.primaryBtn.background);
+              e.currentTarget.style.borderColor = String(styles.primaryBtn.borderColor);
+            } else {
+              e.currentTarget.style.background = String(styles.secondaryBtn.background);
+              e.currentTarget.style.borderColor = String(styles.secondaryBtn.borderColor);
+            }
+          }}
         >
-          <Plus className="h-4 w-4" />
+          <Plus style={{ width: 16, height: 16 }} />
           {showForm ? 'Close' : 'New Entry'}
         </button>
       </div>
 
+      {/* Form (Document Section Pattern) */}
       {showForm && (
-        <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-4">
+        <div style={{ ...styles.cardBody, borderBottom: '1px solid #e4e4e7', background: '#fafafa' }}>
           <ExpenseEntryForm
             organisationId={orgId}
             userId={user?.id}
@@ -85,12 +173,13 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-2">
-        <Filter className="h-4 w-4 text-zinc-400" />
+      {/* Filters */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #f4f4f5', padding: '8px 24px' }}>
+        <Filter style={{ width: 16, height: 16, color: '#a1a1aa' }} />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs"
+          style={{ ...styles.inputStyle, width: 'auto', borderRadius: '6px', border: '1px solid #d1d5db' }}
         >
           <option value="">All statuses</option>
           {Object.entries(EXPENSE_STATUS_CONFIG).map(([key, cfg]) => (
@@ -100,7 +189,7 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs"
+          style={{ ...styles.inputStyle, width: 'auto', borderRadius: '6px', border: '1px solid #d1d5db' }}
         >
           <option value="">All categories</option>
           {Object.entries(EXPENSE_CATEGORY_LABELS).map(([key, label]) => (
@@ -109,98 +198,106 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
         </select>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      {/* Table */}
+      <div style={{ flex: 1, overflow: 'auto' }}>
         {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-sm text-zinc-400">Loading...</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0', fontSize: '13px', color: '#a1a1aa' }}>Loading...</div>
         ) : !filtered?.length ? (
-          <div className="flex flex-col items-center justify-center py-20 text-sm text-zinc-400">
-            <div className="mb-2 text-3xl">📋</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', fontSize: '13px', color: '#a1a1aa' }}>
+            <div style={{ marginBottom: 8, fontSize: 32 }}>📋</div>
             <p>No site expenses yet</p>
             <button
               type="button"
               onClick={() => setShowForm(true)}
-              className="mt-2 text-sm font-medium text-zinc-900 underline underline-offset-2"
+              style={{ marginTop: 8, fontSize: '13px', fontWeight: 500, color: '#18181b', textDecoration: 'underline', textUnderlineOffset: '2px', background: 'none', border: 'none', cursor: 'pointer' }}
             >
               Create the first entry
             </button>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-xs font-medium text-zinc-500">
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Category</th>
-                <th className="px-6 py-3">Description</th>
-                <th className="px-6 py-3">Amount</th>
-                <th className="px-6 py-3">Required By</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Approval</th>
-                <th className="px-6 py-3">Vendor</th>
-                {!projectId && <th className="px-6 py-3">Project</th>}
-                <th className="px-6 py-3">Actions</th>
+              <tr style={{ borderBottom: '1px solid #f4f4f5', textAlign: 'left', fontSize: '11px', fontWeight: 500, color: '#71717a' }}>
+                <th style={{ padding: '12px 24px' }}>Date</th>
+                <th style={{ padding: '12px 24px' }}>Category</th>
+                <th style={{ padding: '12px 24px' }}>Description</th>
+                <th style={{ padding: '12px 24px' }}>Amount</th>
+                <th style={{ padding: '12px 24px' }}>Required By</th>
+                <th style={{ padding: '12px 24px' }}>Status</th>
+                <th style={{ padding: '12px 24px' }}>Approval</th>
+                <th style={{ padding: '12px 24px' }}>Vendor</th>
+                {!projectId && <th style={{ padding: '12px 24px' }}>Project</th>}
+                <th style={{ padding: '12px 24px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((entry) => (
-                <tr key={entry.id} className="border-b border-zinc-50 hover:bg-zinc-50">
-                  <td className="px-6 py-3 text-zinc-600">
+                <tr key={entry.id} style={{ borderBottom: '1px solid #f4f4f5' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#fafafa'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                >
+                  <td style={{ padding: '12px 24px', color: '#52525b' }}>
                     {new Date(entry.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-3">
-                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                  <td style={{ padding: '12px 24px' }}>
+                    <span style={{ background: '#f4f4f5', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, color: '#52525b' }}>
                       {EXPENSE_CATEGORY_LABELS[entry.expense_category] || entry.expense_category}
                     </span>
                   </td>
-                  <td className="max-w-xs truncate px-6 py-3 text-zinc-900">
+                  <td style={{ padding: '12px 24px', color: '#18181b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {entry.description || '-'}
                   </td>
-                  <td className="px-6 py-3 font-medium text-zinc-900">
+                  <td style={{ padding: '12px 24px', fontWeight: 500, color: '#18181b' }}>
                     ₹{Number(entry.amount).toLocaleString()}
                   </td>
-                  <td className="px-6 py-3 text-zinc-600">
+                  <td style={{ padding: '12px 24px', color: '#52525b' }}>
                     {entry.required_date ? new Date(entry.required_date).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-medium ${EXPENSE_STATUS_CONFIG[entry.status]?.color || 'bg-zinc-100 text-zinc-600'}`}>
+                  <td style={{ padding: '12px 24px' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500,
+                      background: STATUS_BG[entry.status] || '#f4f4f5',
+                      color: STATUS_FG[entry.status] || '#52525b'
+                    }}>
                       {EXPENSE_STATUS_CONFIG[entry.status]?.label || entry.status}
                     </span>
                   </td>
-                  <td className="px-6 py-3">
+                  <td style={{ padding: '12px 24px' }}>
                     {entry.approval_id ? (
                       <a
                         href={`/approvals?approvalId=${entry.approval_id}`}
-                        className="text-blue-600 underline underline-offset-2 hover:text-blue-800"
+                        style={{ color: '#185FA5', textDecoration: 'underline', textUnderlineOffset: '2px', fontSize: '12px' }}
                       >
                         Approval →
                       </a>
                     ) : (
-                      <span className="text-zinc-400">-</span>
+                      <span style={{ color: '#a1a1aa' }}>-</span>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-zinc-600">{entry.vendor_name || '-'}</td>
+                  <td style={{ padding: '12px 24px', color: '#52525b' }}>{entry.vendor_name || '-'}</td>
                   {!projectId && (
-                    <td className="px-6 py-3 text-zinc-600">
+                    <td style={{ padding: '12px 24px', color: '#52525b' }}>
                       {entry.project?.project_name || '-'}
                     </td>
                   )}
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-2">
+                  <td style={{ padding: '12px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button
                         type="button"
                         onClick={() => handleEdit(entry)}
-                        className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                        style={{ ...styles.secondaryBtn, padding: '4px 8px' }}
                         title="Edit"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil style={{ width: 14, height: 14 }} />
                       </button>
                       {entry.status === 'DRAFT' && (
                         <button
                           type="button"
                           onClick={() => handleWithdraw(entry.id)}
-                          className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-500"
+                          style={{ ...styles.destructiveBtn, padding: '4px 8px' }}
                           title="Withdraw"
                         >
-                          <ArrowLeftCircle className="h-3.5 w-3.5" />
+                          <ArrowLeftCircle style={{ width: 14, height: 14 }} />
                         </button>
                       )}
                     </div>
@@ -215,6 +312,65 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
   );
 }
 
+// ─── Searchable Dropdown Component ───────────────────────────────────────────
+type SearchableDropdownProps = {
+  items: { id: string; name: string }[];
+  value: string;
+  onChange: (item: { id: string; name: string } | null) => void;
+  placeholder?: string;
+};
+
+function SearchableDropdown({ items, value, onChange, placeholder = 'Search...' }: SearchableDropdownProps) {
+  const [searchText, setSearchText] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedItem = items.find(i => i.id === value);
+  const filteredItems = items.filter(i => !searchText || i.name.toLowerCase().includes(searchText.toLowerCase()));
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="dropdown-container" style={styles.dropdownContainer}>
+      <input
+        value={isDropdownOpen ? searchText : (selectedItem?.name || '')}
+        onChange={e => { setSearchText(e.target.value); setIsDropdownOpen(true); }}
+        onFocus={() => setIsDropdownOpen(true)}
+        placeholder={placeholder}
+        style={styles.inputStyle}
+      />
+      {isDropdownOpen && (
+        <div style={styles.dropdownPanel}>
+          {filteredItems.length === 0 ? (
+            <div style={styles.dropdownEmpty}>No items found</div>
+          ) : (
+            filteredItems.map(item => (
+              <div
+                key={item.id}
+                style={styles.dropdownItem}
+                onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                onClick={() => { onChange(item); setSearchText(''); setIsDropdownOpen(false); }}
+              >
+                {item.name}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Expense Entry Form (Document Section Pattern) ──────────────────────────
 type ExpenseEntryFormProps = {
   organisationId?: string;
   userId?: string;
@@ -224,6 +380,13 @@ type ExpenseEntryFormProps = {
   onSuccess: () => void;
   onCancel: () => void;
 };
+
+const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+  <div style={{ ...styles.headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+    <span style={styles.labelColStyle}>{label}</span>
+    <div style={styles.fieldColStyle}>{field}</div>
+  </div>
+);
 
 function ExpenseEntryForm({
   organisationId,
@@ -365,214 +528,232 @@ function ExpenseEntryForm({
   const showProjectSelect = !prefilledProjectId;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        {showClientSelect && (
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600">Client</label>
-            <select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-            >
-              <option value="">Select client...</option>
-              {filteredClients?.map((c) => (
-                <option key={c.id} value={c.id}>{c.client_name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        {showProjectSelect && (
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600">Project</label>
-            <select
-              value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-            >
-              <option value="">Select project...</option>
-              {filteredProjects?.map((p) => (
-                <option key={p.id} value={p.id}>{p.project_name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Entry Type</label>
-          <select
-            value={entryType}
-            onChange={(e) => setEntryType(e.target.value as ExpenseEntryType)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          >
-            <option value="SITE_EXPENSE_REQUEST">Request (pre-approval)</option>
-            <option value="SITE_EXPENSE_POST_PURCHASE">Post-Purchase (already paid)</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Expense Category</label>
-          <select
-            value={expenseCategory}
-            onChange={(e) => setExpenseCategory(e.target.value as ExpenseCategory)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          >
-            {Object.entries(EXPENSE_CATEGORY_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
+    <form onSubmit={handleSubmit} style={{ padding: '0' }}>
+      <div style={styles.sectionContainer}>
+        <div style={styles.sectionGrid}>
+          {/* Column 1 — Basic Info */}
+          <div style={styles.sectionColumn}>
+            <div style={styles.sectionHeaderStyle}>Basic Information</div>
+            {showProjectSelect && renderHeaderField('Project:', (
+              <SearchableDropdown
+                items={(filteredProjects || []).map(p => ({ id: p.id, name: p.project_name }))}
+                value={selectedProjectId}
+                onChange={(item) => setSelectedProjectId(item?.id || '')}
+                placeholder="Search project..."
+              />
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Item Type</label>
-          <select
-            value={itemType}
-            onChange={(e) => setItemType(e.target.value as ExpenseItemType)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          >
-            <option value="consumable">Consumable</option>
-            <option value="material">Material (inventory)</option>
-            <option value="billable">Billable (service/other)</option>
-          </select>
-        </div>
-      </div>
-
-      {itemType === 'consumable' && (
-        <ConsumableCatalogSelect
-          value={consumableId}
-          onChange={(item) => setConsumableId(item?.id || null)}
-        />
-      )}
-
-      {itemType === 'material' && (
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Material</label>
-          <select
-            value={materialId}
-            onChange={(e) => setMaterialId(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          >
-            <option value="">Select material...</option>
-            {materials?.map((m) => (
-              <option key={m.id} value={m.id}>{m.name} {m.unit ? `(${m.unit})` : ''}</option>
+            {showClientSelect && renderHeaderField('Client:', (
+              <SearchableDropdown
+                items={(filteredClients || []).map(c => ({ id: c.id, name: c.client_name }))}
+                value={selectedClientId}
+                onChange={(item) => setSelectedClientId(item?.id || '')}
+                placeholder="Search client..."
+              />
             ))}
-          </select>
-        </div>
-      )}
+            {renderHeaderField('Entry Type:', (
+              <select
+                value={entryType}
+                onChange={(e) => setEntryType(e.target.value as ExpenseEntryType)}
+                style={styles.inputStyle}
+              >
+                <option value="SITE_EXPENSE_REQUEST">Request (pre-approval)</option>
+                <option value="SITE_EXPENSE_POST_PURCHASE">Post-Purchase (already paid)</option>
+              </select>
+            ), true)}
+          </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Description</label>
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g. Screws for panel installation, crane for transformer lifting..."
-          className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-        />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Amount (₹)</label>
-          <input
-            type="number"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Required Date</label>
-          <input
-            type="date"
-            value={requiredDate}
-            onChange={(e) => setRequiredDate(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Payment Method</label>
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as ExpensePaymentMethod)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          >
-            <option value="engineer_paid_own">Engineer paid (own pocket)</option>
-            <option value="company_cash_to_engineer">Company gave cash to engineer</option>
-            <option value="company_direct">Company paid directly</option>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-600">Payment Proof (bill photo, UPI screenshot)</label>
-        <div className="flex items-center gap-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.pdf"
-            onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-          >
-            <Upload className="h-4 w-4" />
-            {paymentProofFile ? paymentProofFile.name : 'Upload file'}
-          </button>
-          {paymentProofFile && (
-            <button
-              type="button"
-              onClick={() => { setPaymentProofFile(null); setPaymentProofUrl(null); }}
-              className="text-xs text-red-500 hover:text-red-700"
-            >
-              Remove
-            </button>
-          )}
-          {uploadingProof && <span className="text-xs text-zinc-400">Uploading...</span>}
+          {/* Column 2 — Category & Item */}
+          <div style={styles.sectionColumn}>
+            <div style={styles.sectionHeaderStyle}>Category & Item</div>
+            {renderHeaderField('Category:', (
+              <SearchableDropdown
+                items={Object.entries(EXPENSE_CATEGORY_LABELS).map(([key, label]) => ({ id: key, name: label }))}
+                value={expenseCategory}
+                onChange={(item) => setExpenseCategory(item?.id as ExpenseCategory || 'consumable')}
+                placeholder="Search category..."
+              />
+            ))}
+            {renderHeaderField('Item Type:', (
+              <select
+                value={itemType}
+                onChange={(e) => setItemType(e.target.value as ExpenseItemType)}
+                style={styles.inputStyle}
+              >
+                <option value="consumable">Consumable</option>
+                <option value="material">Material (inventory)</option>
+                <option value="billable">Billable (service/other)</option>
+              </select>
+            ))}
+            {itemType === 'consumable' && renderHeaderField('Consumable:', (
+              <ConsumableCatalogSelect
+                value={consumableId}
+                onChange={(item) => setConsumableId(item?.id || null)}
+              />
+            ))}
+            {itemType === 'material' && renderHeaderField('Material:', (
+              <SearchableDropdown
+                items={(materials || []).map(m => ({ id: m.id, name: `${m.name}${m.unit ? ` (${m.unit})` : ''}` }))}
+                value={materialId}
+                onChange={(item) => setMaterialId(item?.id || '')}
+                placeholder="Search material..."
+              />
+            ), true)}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Vendor Name</label>
-          <input
-            type="text"
-            value={vendorName}
-            onChange={(e) => setVendorName(e.target.value)}
-            placeholder="Local store, crane operator..."
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-600">Vendor GST (optional)</label>
-          <input
-            type="text"
-            value={vendorGst}
-            onChange={(e) => setVendorGst(e.target.value)}
-            placeholder="GSTIN"
-            className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
-          />
+      {/* Second Section — Amount & Payment */}
+      <div style={{ ...styles.sectionContainer, marginTop: '12px' }}>
+        <div style={styles.sectionGrid}>
+          {/* Column 1 — Amount */}
+          <div style={styles.sectionColumn}>
+            <div style={styles.sectionHeaderStyle}>Amount & Schedule</div>
+            {renderHeaderField('Amount (₹):', (
+              <input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                style={styles.inputStyle}
+                required
+              />
+            ))}
+            {renderHeaderField('Required Date:', (
+              <input
+                type="date"
+                value={requiredDate}
+                onChange={(e) => setRequiredDate(e.target.value)}
+                style={styles.inputStyle}
+              />
+            ), true)}
+          </div>
+
+          {/* Column 2 — Payment */}
+          <div style={styles.sectionColumn}>
+            <div style={styles.sectionHeaderStyle}>Payment Details</div>
+            {renderHeaderField('Payment:', (
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as ExpensePaymentMethod)}
+                style={styles.inputStyle}
+              >
+                <option value="engineer_paid_own">Engineer paid (own pocket)</option>
+                <option value="company_cash_to_engineer">Company gave cash to engineer</option>
+                <option value="company_direct">Company paid directly</option>
+              </select>
+            ), true)}
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-2">
+      {/* Third Section — Description, Vendor, Proof */}
+      <div style={{ ...styles.sectionContainer, marginTop: '12px' }}>
+        <div style={styles.sectionGrid}>
+          {/* Column 1 — Description & Vendor */}
+          <div style={styles.sectionColumn}>
+            <div style={styles.sectionHeaderStyle}>Description & Vendor</div>
+            {renderHeaderField('Description:', (
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Screws for panel installation..."
+                style={styles.inputStyle}
+              />
+            ))}
+            {renderHeaderField('Vendor:', (
+              <input
+                type="text"
+                value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)}
+                placeholder="Local store, crane operator..."
+                style={styles.inputStyle}
+              />
+            ))}
+            {renderHeaderField('GST:', (
+              <input
+                type="text"
+                value={vendorGst}
+                onChange={(e) => setVendorGst(e.target.value)}
+                placeholder="GSTIN (optional)"
+                style={styles.inputStyle}
+              />
+            ), true)}
+          </div>
+
+          {/* Column 2 — Payment Proof */}
+          <div style={styles.sectionColumn}>
+            <div style={styles.sectionHeaderStyle}>Payment Proof</div>
+            {renderHeaderField('Proof:', (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={styles.secondaryBtn}
+                >
+                  <Upload style={{ width: 14, height: 14 }} />
+                  {paymentProofFile ? paymentProofFile.name : 'Upload file'}
+                </button>
+                {paymentProofFile && (
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentProofFile(null); setPaymentProofUrl(null); }}
+                    style={{ ...styles.destructiveBtn, padding: '4px 8px', fontSize: '11px' }}
+                  >
+                    Remove
+                  </button>
+                )}
+                {uploadingProof && <span style={{ fontSize: '11px', color: '#a1a1aa' }}>Uploading...</span>}
+              </div>
+            ), true)}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px' }}>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+          style={styles.secondaryBtn}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = String(styles.secondaryBtnHover.background);
+            e.currentTarget.style.borderColor = String(styles.secondaryBtnHover.borderColor);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = String(styles.secondaryBtn.background);
+            e.currentTarget.style.borderColor = String(styles.secondaryBtn.borderColor);
+          }}
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={submitting || !amount || (!selectedProjectId && !prefilledProjectId)}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+          style={{
+            ...styles.primaryBtn,
+            ...(submitting || !amount || (!selectedProjectId && !prefilledProjectId) ? styles.disabledBtn : {})
+          }}
+          onMouseEnter={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.background = String(styles.primaryBtnHover.background);
+              e.currentTarget.style.borderColor = String(styles.primaryBtnHover.borderColor);
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.background = String(styles.primaryBtn.background);
+              e.currentTarget.style.borderColor = String(styles.primaryBtn.borderColor);
+            }
+          }}
         >
           {submitting ? 'Saving...' : editEntry ? 'Update Entry' : entryType === 'SITE_EXPENSE_REQUEST' ? 'Submit for Approval' : 'Submit Entry'}
         </button>

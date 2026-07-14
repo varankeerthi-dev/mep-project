@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import * as HeroIcons from '@heroicons/react/24/outline';
 import { useOrgModules } from '../hooks/useOrgModules';
 import { useHasPermission } from '../rbac';
@@ -34,6 +34,7 @@ type SidebarProps = {
 // Maps sidebar menu IDs to module-registry IDs
 const SIDEBAR_MODULE_MAP: Record<string, string> = {
   dashboard: 'dashboard',
+  operations: 'dashboard',
   'projects-overview': 'projects',
   projects: 'projects',
   tools: 'tools_management',
@@ -71,6 +72,7 @@ const menuData: MenuSection[] = [
     section: '',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' },
+      { id: 'operations', label: 'Operations', path: '/operations' },
       { id: 'projects-overview', label: 'CEO Dashboard', path: '/projects-overview' }
     ]
   },
@@ -267,6 +269,20 @@ const menuData: MenuSection[] = [
     ]
   },
   {
+    section: 'Human Resources',
+    items: [
+      {
+        id: 'hr',
+        label: 'HR & Attendance',
+        submenu: [
+          { id: 'hr-employees', label: 'Employees', path: '/hr/employees' },
+          { id: 'hr-planning', label: 'Attendance Planning', path: '/hr/planning' },
+          { id: 'hr-entry', label: 'Attendance Entry', path: '/hr/entry' }
+        ]
+      }
+    ]
+  },
+  {
     section: 'Settings',
     items: [
       {
@@ -295,6 +311,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   dashboard: 'HomeIcon',
   'projects-overview': 'SignalIcon',
   projects: 'FolderIcon',
+  hr: 'UsersIcon',
   todo: 'ClipboardDocumentCheckIcon',
   tasks: 'ListBulletIcon',
   approvals: 'CheckCircleIcon',
@@ -414,6 +431,8 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   const [expandedMenus, setExpandedMenus] = useState<string[]>(initialExpandedMenus);
   const [collapsedSections, setCollapsedSections] = useState<string[]>([]);
   const [flyoutMenu, setFlyoutMenu] = useState<string | null>(null);
+  const [flyoutPos, setFlyoutPos] = useState<{ top?: number, bottom?: number }>({ top: 0 });
+  const flyoutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleMenu = useCallback((menuId: string) => {
     setExpandedMenus(prev => 
@@ -445,6 +464,37 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     setFlyoutMenu(null);
     onNavigate(pathKey);
   }, [onNavigate, pathKey]);
+
+  const handleFlyoutEnter = useCallback((itemId: string, e: React.MouseEvent) => {
+    if (flyoutTimeoutRef.current) {
+      clearTimeout(flyoutTimeoutRef.current);
+      flyoutTimeoutRef.current = null;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    if (rect.top > window.innerHeight / 2) {
+      setFlyoutPos({ bottom: window.innerHeight - rect.bottom });
+    } else {
+      setFlyoutPos({ top: rect.top });
+    }
+    setFlyoutMenu(itemId);
+  }, []);
+
+  const handleFlyoutLeave = useCallback(() => {
+    flyoutTimeoutRef.current = setTimeout(() => {
+      setFlyoutMenu(null);
+    }, 150);
+  }, []);
+
+  const handleFlyoutPanelEnter = useCallback(() => {
+    if (flyoutTimeoutRef.current) {
+      clearTimeout(flyoutTimeoutRef.current);
+      flyoutTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleFlyoutPanelLeave = useCallback(() => {
+    setFlyoutMenu(null);
+  }, []);
 
   const isParentActive = useCallback((item: MenuItem) => {
     if (item.submenu) {
@@ -517,6 +567,8 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                             isExpanded && 'expanded'
                           )}
                           onClick={handleClick(item)}
+                          onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
+                          onMouseLeave={item.flyout ? handleFlyoutLeave : undefined}
                           type="button"
                         >
                           <span className="sidebar-item-icon">
@@ -602,6 +654,8 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                       isExpanded && 'expanded'
                     )}
                     onClick={handleClick(item)}
+                    onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
+                    onMouseLeave={item.flyout ? handleFlyoutLeave : undefined}
                     type="button"
                   >
                     <span className="sidebar-item-icon">
@@ -626,7 +680,12 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
           </div>
         </aside>
         {flyoutMenu && activeFlyoutItem && (
-          <div className="sidebar-flyout">
+          <div
+            className="sidebar-flyout"
+            style={{ ...flyoutPos, background: '#ffffff' }}
+            onMouseEnter={handleFlyoutPanelEnter}
+            onMouseLeave={handleFlyoutPanelLeave}
+          >
             <div className="sidebar-flyout-title">{activeFlyoutItem.label}</div>
             {activeFlyoutItem.submenu?.map(sub => (
               <button

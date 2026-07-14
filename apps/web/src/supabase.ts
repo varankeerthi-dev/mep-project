@@ -14,8 +14,6 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
-    storageKey: 'mep-auth-token', // Explicit storage key to avoid collisions
-    storage: localStorage,
   }
 })
 
@@ -61,7 +59,7 @@ export interface Site {
   updated_at?: string
 }
 
-export interface Attendance {
+export interface SiteCheckIn {
   id: string
   employee_id: string
   check_in_time?: string | null
@@ -115,11 +113,15 @@ export const signInWithGoogle = async (): Promise<OAuthResponse> => {
       redirectTo: `${window.location.origin}/callback`
     }
   })
+
   return { data, error }
 }
 
 export const signOut = async (): Promise<{ error: Error | null }> => {
   const { error } = await supabase.auth.signOut()
+  if (!error) {
+    localStorage.removeItem('mep-auth-token-fallback')
+  }
   return { error }
 }
 
@@ -507,9 +509,9 @@ export const checkIn = async (
   latitude: number,
   longitude: number,
   remarks?: string
-): Promise<{ data: Attendance | null; error: Error | null }> => {
+): Promise<{ data: SiteCheckIn | null; error: Error | null }> => {
   const { data, error } = await supabase
-    .from('attendance')
+    .from('site_checkins')
     .insert({
       employee_id: employeeId,
       site_id: siteId,
@@ -522,7 +524,7 @@ export const checkIn = async (
     })
     .select()
     .single()
-  return { data: data as Attendance | null, error }
+  return { data: data as SiteCheckIn | null, error }
 }
 
 export const checkOut = async (
@@ -530,9 +532,9 @@ export const checkOut = async (
   latitude: number,
   longitude: number,
   remarks?: string
-): Promise<{ data: Attendance | null; error: Error | null }> => {
+): Promise<{ data: SiteCheckIn | null; error: Error | null }> => {
   const { data, error } = await supabase
-    .from('attendance')
+    .from('site_checkins')
     .update({
       status: 'checked_out',
       check_out_time: new Date().toISOString(),
@@ -543,24 +545,24 @@ export const checkOut = async (
     .eq('id', attendanceId)
     .select()
     .single()
-  return { data: data as Attendance | null, error }
+  return { data: data as SiteCheckIn | null, error }
 }
 
-export const getTodayAttendance = async (
+export const getTodaySiteCheckIn = async (
   employeeId: string,
   date?: string
-): Promise<{ data: Attendance | null; error: Error | null }> => {
+): Promise<{ data: SiteCheckIn | null; error: Error | null }> => {
   const recordDate = date || new Date().toISOString().split('T')[0]
   const { data, error } = await supabase
-    .from('attendance')
+    .from('site_checkins')
     .select('*, site:sites(*)')
     .eq('employee_id', employeeId)
     .eq('recorded_at', recordDate)
     .maybeSingle()
-  return { data: data as Attendance | null, error }
+  return { data: data as SiteCheckIn | null, error }
 }
 
-export const getAttendanceLogs = async (
+export const getSiteCheckInLogs = async (
   organizationId: string,
   options?: {
     startDate?: string
@@ -568,9 +570,9 @@ export const getAttendanceLogs = async (
     employeeId?: string
     siteId?: string
   }
-): Promise<{ data: Attendance[] | null; error: Error | null }> => {
+): Promise<{ data: SiteCheckIn[] | null; error: Error | null }> => {
   let query = supabase
-    .from('attendance')
+    .from('site_checkins')
     .select(`
       *,
       site:sites(*),
@@ -592,18 +594,18 @@ export const getAttendanceLogs = async (
   }
 
   const { data, error } = await query
-  return { data: data as Attendance[] | null, error }
+  return { data: data as SiteCheckIn[] | null, error }
 }
 
-export const updateAttendanceRemarks = async (
+export const updateSiteCheckInRemarks = async (
   attendanceId: string,
   remarks: string
-): Promise<{ data: Attendance | null; error: Error | null }> => {
+): Promise<{ data: SiteCheckIn | null; error: Error | null }> => {
   const { data, error } = await supabase
-    .from('attendance')
+    .from('site_checkins')
     .update({ remarks })
     .eq('id', attendanceId)
     .select()
     .single()
-  return { data: data as Attendance | null, error }
+  return { data: data as SiteCheckIn | null, error }
 }

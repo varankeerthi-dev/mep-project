@@ -1,0 +1,58 @@
+/* operations-theme.css
+   Import once — e.g. at the top of Operations.tsx: import './operations-theme.css';
+   Fixes: missing design tokens, missing fonts, missing pulse keyframe, missing thin-scrollbar.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+.operations-theme {
+  --bg: #F2F4F6;
+  --surface: #FFFFFF;
+  --surface-alt: #EAEEF1;
+  --ink: #121A23;
+  --ink-soft: #5B6B78;
+  --ink-faint: #8B99A5;
+  --border: #DEE4E8;
+
+  --brand: #0E7C6B;
+  --brand-dark: #0A5D50;
+  --brand-soft: #E1F1EE;
+
+  --alert: #C1442D;
+  --alert-soft: #FBE8E4;
+
+  --warn: #B9791A;
+  --warn-soft: #FAEFDC;
+
+  --info: #2F6FED;
+  --info-soft: #E7EFFE;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(18,26,35,0.04), 0 1px 8px rgba(18,26,35,0.03);
+}
+
+/* font-display isn't a default Tailwind utility — this makes the class you're
+   already using in the components actually work, without touching tailwind.config */
+.operations-theme .font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+.operations-theme.font-sans,
+.operations-theme .font-sans {
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.operations-theme .font-mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* pulse keyframe used by LiveNowZone's animate-[operations-pulse_...] arbitrary class */
+@keyframes operations-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* thin scrollbar for the Needs Attention horizontal scroller */
+.operations-theme .scrollbar-thin::-webkit-scrollbar { height: 6px; }
+.operations-theme .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #C7D0D7;
+  border-radius: 4px;
+}

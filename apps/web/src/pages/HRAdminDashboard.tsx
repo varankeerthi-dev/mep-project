@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../App'
 import {
-  getAttendanceLogs,
+  getSiteCheckInLogs,
   getSites,
   createSite,
   updateSite,
-  type Attendance,
+  type SiteCheckIn,
   type Site
 } from '../supabase'
 import {
@@ -66,7 +66,7 @@ export default function HRAdminDashboard() {
   
   const [activeTab, setActiveTab] = useState('attendance')
   
-  const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([])
+  const [siteCheckInLogs, setSiteCheckInLogs] = useState<SiteCheckIn[]>([])
   const [sites, setSites] = useState<Site[]>([])
   
   const [loading, setLoading] = useState(false)
@@ -85,16 +85,16 @@ export default function HRAdminDashboard() {
   
   const reportRef = useRef<HTMLDivElement>(null)
 
-  const fetchAttendanceLogs = useCallback(async () => {
+  const fetchSiteCheckInLogs = useCallback(async () => {
     if (!organisation?.id) return
     setLoading(true)
     try {
-      const { data, error } = await getAttendanceLogs(organisation.id, {
+      const { data, error } = await getSiteCheckInLogs(organisation.id, {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       })
       if (error) throw error
-      setAttendanceLogs(data || [])
+      setSiteCheckInLogs(data || [])
     } catch (err) {
       console.error('Error fetching attendance:', err)
     } finally {
@@ -114,9 +114,9 @@ export default function HRAdminDashboard() {
   }, [organisation?.id])
 
   useEffect(() => {
-    fetchAttendanceLogs()
+    fetchSiteCheckInLogs()
     fetchSites()
-  }, [fetchAttendanceLogs, fetchSites])
+  }, [fetchSiteCheckInLogs, fetchSites])
 
   const exportToPDF = async () => {
     setExporting(true)
@@ -126,7 +126,7 @@ export default function HRAdminDashboard() {
       const doc = new jsPDF()
       
       doc.setFontSize(18)
-      doc.text('Attendance Report', 14, 20)
+      doc.text('SiteCheckIn Report', 14, 20)
       
       doc.setFontSize(10)
       doc.text(`Organization: ${organisation?.name || 'N/A'}`, 14, 30)
@@ -146,7 +146,7 @@ export default function HRAdminDashboard() {
       doc.setFont('helvetica', 'normal')
       yPos += 8
       
-      for (const log of attendanceLogs) {
+      for (const log of siteCheckInLogs) {
         if (yPos > 270) {
           doc.addPage()
           yPos = 20
@@ -320,7 +320,7 @@ export default function HRAdminDashboard() {
         <TabsList>
           <TabsTrigger value="attendance" className="gap-2">
             <FileText className="w-4 h-4" />
-            Attendance
+            SiteCheckIn
           </TabsTrigger>
           <TabsTrigger value="sites" className="gap-2">
             <MapPin className="w-4 h-4" />
@@ -384,7 +384,7 @@ export default function HRAdminDashboard() {
                     onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                   />
                 </div>
-                <Button onClick={fetchAttendanceLogs} disabled={loading}>
+                <Button onClick={fetchSiteCheckInLogs} disabled={loading}>
                   {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Apply Filter
                 </Button>
@@ -396,14 +396,14 @@ export default function HRAdminDashboard() {
             <div className="p-4 border-b">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold">Attendance Report</h2>
+                  <h2 className="text-lg font-semibold">SiteCheckIn Report</h2>
                   <p className="text-sm text-zinc-500">
                     {organisation?.name} | {dateRange.startDate} to {dateRange.endDate}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Users className="w-4 h-4" />
-                  <span>{attendanceLogs.length} records</span>
+                  <span>{siteCheckInLogs.length} records</span>
                 </div>
               </div>
             </div>
@@ -428,14 +428,14 @@ export default function HRAdminDashboard() {
                         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
-                  ) : attendanceLogs.length === 0 ? (
+                  ) : siteCheckInLogs.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-zinc-500">
                         No attendance records found for this period
                       </TableCell>
                     </TableRow>
                   ) : (
-                    attendanceLogs.map(log => (
+                    siteCheckInLogs.map(log => (
                       <TableRow key={log.id}>
                         <TableCell className="whitespace-nowrap">
                           {log.recorded_at 

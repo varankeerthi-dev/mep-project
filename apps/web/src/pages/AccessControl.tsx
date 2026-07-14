@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Check, Loader2, Plus, Shield, UserPlus, Users, Mail, Phone, Clock, Sparkles, Crown, Globe } from 'lucide-react';
 import { useApproveAccessRequest, useEmployees, useOrgAccessRequests, useRoles, useUpsertEmployee } from '@/rbac';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/App';
 import { supabase } from '@/lib/supabase';
 
 const tabButton = (active: boolean) =>

@@ -565,15 +565,15 @@ export async function fetchFollowUpProcurement(
   organisationId: string
 ): Promise<ProcurementFollowUp[]> {
   const { data, error } = await supabase
-    .from('purchase_order_headers')
+    .from('purchase_orders')
     .select(`
       id,
-      po_no,
-      vendor:vendors(id, name, contact),
+      po_no:po_number,
+      vendor:purchase_vendors(id, name:company_name, contact:phone),
       project:projects(id, project_name),
-      grand_total,
+      grand_total:total_amount,
       status,
-      date,
+      date:po_date,
       delivery_date,
       tracking:follow_up_procurement_tracking(
         last_reminder_at,
@@ -582,7 +582,7 @@ export async function fetchFollowUpProcurement(
       )
     `)
     .eq('organisation_id', organisationId)
-    .order('date', { ascending: false })
+    .order('po_date', { ascending: false })
     .limit(500);
 
   if (error) throw error;

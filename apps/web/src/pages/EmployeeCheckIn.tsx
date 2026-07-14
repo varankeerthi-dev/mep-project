@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../App'
 import {
   getSites,
-  getTodayAttendance,
+  getTodaySiteCheckIn,
   checkIn as apiCheckIn,
   checkOut as apiCheckOut,
-  updateAttendanceRemarks,
+  updateSiteCheckInRemarks,
   type Site,
-  type Attendance
+  type SiteCheckIn
 } from '../supabase'
 import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Badge } from '@/components/ui'
 import { MapPin, Mic, MicOff, LogIn, LogOut, Clock, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
@@ -95,7 +95,7 @@ export default function EmployeeCheckIn() {
   const [distance, setDistance] = useState<number | null>(null)
   const [isWithinRange, setIsWithinRange] = useState(false)
   
-  const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null)
+  const [todaySiteCheckIn, setTodaySiteCheckIn] = useState<SiteCheckIn | null>(null)
   const [isCheckedIn, setIsCheckedIn] = useState(false)
   
   const [remarks, setRemarks] = useState('')
@@ -145,13 +145,13 @@ export default function EmployeeCheckIn() {
     }
   }, [organisation?.id])
 
-  const fetchTodayAttendance = useCallback(async () => {
+  const fetchTodaySiteCheckIn = useCallback(async () => {
     if (!user?.id) return
     try {
-      const { data, error } = await getTodayAttendance(user.id)
+      const { data, error } = await getTodaySiteCheckIn(user.id)
       if (error) throw error
       if (data) {
-        setTodayAttendance(data)
+        setTodaySiteCheckIn(data)
         setIsCheckedIn(data.status === 'checked_in')
         if (data.remarks) {
           setRemarks(data.remarks)
@@ -164,8 +164,8 @@ export default function EmployeeCheckIn() {
 
   useEffect(() => {
     fetchSites()
-    fetchTodayAttendance()
-  }, [fetchSites, fetchTodayAttendance])
+    fetchTodaySiteCheckIn()
+  }, [fetchSites, fetchTodaySiteCheckIn])
 
   useEffect(() => {
     if (!selectedSite || !geolocation.latitude || !geolocation.longitude) {
@@ -328,7 +328,7 @@ export default function EmployeeCheckIn() {
       
       if (error) throw error
       
-      setTodayAttendance(data)
+      setTodaySiteCheckIn(data)
       setIsCheckedIn(true)
     } catch (err) {
       console.error('Check-in error:', err)
@@ -339,12 +339,12 @@ export default function EmployeeCheckIn() {
   }
 
   const handleCheckOut = async () => {
-    if (!todayAttendance?.id || !geolocation.latitude || !geolocation.longitude) return
+    if (!todaySiteCheckIn?.id || !geolocation.latitude || !geolocation.longitude) return
     
     setActionLoading(true)
     try {
       const { data, error } = await apiCheckOut(
-        todayAttendance.id,
+        todaySiteCheckIn.id,
         geolocation.latitude,
         geolocation.longitude,
         remarks || undefined
@@ -352,7 +352,7 @@ export default function EmployeeCheckIn() {
       
       if (error) throw error
       
-      setTodayAttendance(data)
+      setTodaySiteCheckIn(data)
       setIsCheckedIn(false)
     } catch (err) {
       console.error('Check-out error:', err)
@@ -365,9 +365,9 @@ export default function EmployeeCheckIn() {
   const handleRemarksChange = async (value: string) => {
     setRemarks(value)
     
-    if (todayAttendance?.id && value !== todayAttendance.remarks) {
+    if (todaySiteCheckIn?.id && value !== todaySiteCheckIn.remarks) {
       try {
-        await updateAttendanceRemarks(todayAttendance.id, value)
+        await updateSiteCheckInRemarks(todaySiteCheckIn.id, value)
       } catch (err) {
         console.error('Failed to update remarks:', err)
       }
@@ -571,29 +571,29 @@ export default function EmployeeCheckIn() {
         </CardContent>
       </Card>
 
-      {todayAttendance && (
+      {todaySiteCheckIn && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Today's Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              {todayAttendance.check_in_time && (
+              {todaySiteCheckIn.check_in_time && (
                 <div>
                   <span className="text-zinc-500">Checked In:</span>
                   <p className="font-medium">
-                    {new Date(todayAttendance.check_in_time).toLocaleTimeString('en-IN', {
+                    {new Date(todaySiteCheckIn.check_in_time).toLocaleTimeString('en-IN', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
                   </p>
                 </div>
               )}
-              {todayAttendance.check_out_time && (
+              {todaySiteCheckIn.check_out_time && (
                 <div>
                   <span className="text-zinc-500">Checked Out:</span>
                   <p className="font-medium">
-                    {new Date(todayAttendance.check_out_time).toLocaleTimeString('en-IN', {
+                    {new Date(todaySiteCheckIn.check_out_time).toLocaleTimeString('en-IN', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
@@ -603,16 +603,16 @@ export default function EmployeeCheckIn() {
               <div>
                 <span className="text-zinc-500">Status:</span>
                 <Badge
-                  variant={todayAttendance.status === 'checked_out' ? 'default' : 'secondary'}
+                  variant={todaySiteCheckIn.status === 'checked_out' ? 'default' : 'secondary'}
                   className="ml-2"
                 >
-                  {todayAttendance.status.replace('_', ' ')}
+                  {todaySiteCheckIn.status.replace('_', ' ')}
                 </Badge>
               </div>
-              {todayAttendance.site && (
+              {todaySiteCheckIn.site && (
                 <div>
                   <span className="text-zinc-500">Site:</span>
-                  <p className="font-medium">{todayAttendance.site.site_name}</p>
+                  <p className="font-medium">{todaySiteCheckIn.site.site_name}</p>
                 </div>
               )}
             </div>

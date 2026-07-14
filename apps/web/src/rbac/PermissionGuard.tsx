@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useMyPermissions } from './hooks';
 import type { PermissionKey } from './schemas';
 

@@ -117,17 +117,15 @@ type EmployeeSelectProps = {
 
 const EmployeeSelect = ({ members, value, search, onSearchChange, onChange }: EmployeeSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.dropdown-container')) {
         setIsOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const activeSearch = (search || '').trim().toLowerCase();
@@ -153,7 +151,7 @@ const EmployeeSelect = ({ members, value, search, onSearchChange, onChange }: Em
   const filteredMembers = members.filter(matchesSearch);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div className="dropdown-container relative">
       <div
         className="relative cursor-text"
         onClick={() => setIsOpen(true)}
@@ -173,7 +171,12 @@ const EmployeeSelect = ({ members, value, search, onSearchChange, onChange }: Em
       </div>
 
       {isOpen && filteredMembers.length > 0 && (
-        <div className="absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm">
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0,
+          zIndex: 50, background: 'white', border: '1px solid #d1d5db',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+          maxHeight: '200px', overflowY: 'auto'
+        }}>
           {filteredMembers.map((member) => {
             const isSelected = value === member.user_id;
             return (
@@ -646,9 +649,6 @@ export const ApprovalSettings: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Approval Settings</h2>
-          <p className="text-sm text-zinc-500">
-            Configure approval workflows for different modules.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -656,13 +656,24 @@ export const ApprovalSettings: React.FC = () => {
             onClick={handleBackfillMetadata}
             disabled={backfillingMeta}
             title="Populate requester, project and reference number for existing approval rows"
+            style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: 'white', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
             {backfillingMeta ? 'Backfilling metadata…' : 'Backfill approval metadata'}
           </Button>
-          <Button variant="secondary" onClick={handleBackfillApprovals} disabled={backfilling}>
+          <Button 
+            variant="secondary" 
+            onClick={handleBackfillApprovals} 
+            disabled={backfilling}
+            style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: 'white', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
             {backfilling ? 'Backfilling…' : 'Backfill missing approvals'}
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button 
+            onClick={handleSave} 
+            disabled={saving}
+            className="hover:bg-[#0C447C] transition-all"
+            style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', borderRadius: '6px', fontSize: '12px', fontWeight: 500, color: '#fff', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
             {saving ? 'Saving…' : 'Save settings'}
           </Button>
         </div>
@@ -684,7 +695,7 @@ export const ApprovalSettings: React.FC = () => {
               key={module}
               className="border border-zinc-200 rounded-lg bg-white divide-y divide-zinc-100"
             >
-              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div style={{ padding: '24px' }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="text-base font-semibold text-zinc-900">
                     {meta.label}
@@ -693,23 +704,38 @@ export const ApprovalSettings: React.FC = () => {
                     {meta.description}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Label className="text-xs text-zinc-600">Enable approval</Label>
-                  <Switch
-                    checked={config.enabled}
-                    onCheckedChange={(checked) =>
-                      setModules((prev) => ({
-                        ...prev,
-                        [module]: { ...prev[module], enabled: !!checked },
-                      }))
+                <div
+                  className="arc-toggle-oval"
+                  onClick={() => setModules((prev) => ({ ...prev, [module]: { ...prev[module], enabled: !config.enabled } }))}
+                  role="switch"
+                  aria-checked={config.enabled}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setModules((prev) => ({ ...prev, [module]: { ...prev[module], enabled: !config.enabled } }));
                     }
-                    className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-zinc-200 rounded-full"
-                  />
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '9999px', border: '1px solid',
+                    borderColor: config.enabled ? '#86efac' : '#e4e4e7',
+                    backgroundColor: config.enabled ? '#f0fdf4' : '#fafafa',
+                    color: config.enabled ? '#166534' : '#52525b',
+                    cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none'
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>Enable approval</span>
+                  <div style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '9999px', backgroundColor: config.enabled ? '#16a34a' : '#d4d4d8', transition: 'background-color 0.2s' }}>
+                    <span style={{ position: 'absolute', top: '2px', left: '2px', width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '9999px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transform: config.enabled ? 'translateX(16px)' : 'translateX(0)', transition: 'transform 0.2s' }} />
+                  </div>
+                  {config.enabled && (
+                    <span style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#16a34a', color: 'white', borderRadius: '9999px', fontWeight: 'bold', lineHeight: 1 }}>ON</span>
+                  )}
                 </div>
               </div>
 
               {config.enabled && (
-                <div className="p-6 space-y-6 bg-zinc-50/50">
+                <div style={{ padding: '24px' }} className="space-y-6 bg-zinc-50/50">
                   
                   {/* Review Configuration */}
                   {['QUOTATION', 'WORK_ORDER', 'INVOICE', 'SALES_ORDER', 'JOB_CARD'].includes(module) && (
@@ -719,16 +745,34 @@ export const ApprovalSettings: React.FC = () => {
                           <h4 className="text-sm font-medium text-zinc-900">Require Review Step</h4>
                           <p className="text-xs text-zinc-500 mt-0.5">Require a designated person to review before it goes to the approvers.</p>
                         </div>
-                        <Switch
-                          checked={config.requiresReview || false}
-                          onCheckedChange={(checked) =>
-                            setModules((prev) => ({
-                              ...prev,
-                              [module]: { ...prev[module], requiresReview: !!checked },
-                            }))
-                          }
-                          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-zinc-300 rounded-full"
-                        />
+                        <div
+                          className="arc-toggle-oval"
+                          onClick={() => setModules((prev) => ({ ...prev, [module]: { ...prev[module], requiresReview: !config.requiresReview } }))}
+                          role="switch"
+                          aria-checked={config.requiresReview || false}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setModules((prev) => ({ ...prev, [module]: { ...prev[module], requiresReview: !config.requiresReview } }));
+                            }
+                          }}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '9999px', border: '1px solid',
+                            borderColor: config.requiresReview ? '#86efac' : '#e4e4e7',
+                            backgroundColor: config.requiresReview ? '#f0fdf4' : '#fafafa',
+                            color: config.requiresReview ? '#166534' : '#52525b',
+                            cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none'
+                          }}
+                        >
+                          <span style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>Require Review</span>
+                          <div style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '9999px', backgroundColor: config.requiresReview ? '#16a34a' : '#d4d4d8', transition: 'background-color 0.2s' }}>
+                            <span style={{ position: 'absolute', top: '2px', left: '2px', width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '9999px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', transform: config.requiresReview ? 'translateX(16px)' : 'translateX(0)', transition: 'transform 0.2s' }} />
+                          </div>
+                          {config.requiresReview && (
+                            <span style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#16a34a', color: 'white', borderRadius: '9999px', fontWeight: 'bold', lineHeight: 1 }}>ON</span>
+                          )}
+                        </div>
                       </div>
                       
                       {config.requiresReview && (
@@ -842,12 +886,12 @@ export const ApprovalSettings: React.FC = () => {
                   ))}
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
-                        className="mt-2"
+                        style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', fontWeight: 500, background: 'white', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px' }}
                         onClick={() => addLevel(module)}
                       >
-                        <Plus className="h-4 w-4 mr-1.5" />
+                        <Plus className="h-4 w-4" />
                         Add Approval Level
                       </Button>
                     </div>
