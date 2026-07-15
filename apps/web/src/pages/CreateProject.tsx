@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../App';
+import { PermissionGuard } from '../rbac';
 import { ChevronLeft, Plus, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Modal } from '../components/ui/Modal';
@@ -1082,10 +1083,11 @@ export default function CreateProject() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div style={sectionHeaderStyle}>Status</div>
                       {renderHeaderField('Status', <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {['Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'].map(status => {
+                        {['Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed', 'Archived'].map(status => {
                           const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
                           const isActive = formData.status === status;
-                          return (
+                          const isCloseStatus = ['Execution Completed', 'Financially Closed', 'Closed'].includes(status);
+                          const chip = (
                             <button key={status} type="button"
                               onClick={() => handleStatusChange(status)}
                               style={{
@@ -1097,6 +1099,10 @@ export default function CreateProject() {
                               }}
                             >{status}</button>
                           );
+                          if (isCloseStatus) {
+                            return <PermissionGuard key={status} permission="projects.close" fallback={null}>{chip}</PermissionGuard>;
+                          }
+                          return chip;
                         })}
                       </div>)}
                     </div>

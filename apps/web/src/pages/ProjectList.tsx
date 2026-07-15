@@ -1035,7 +1035,24 @@ export default function ProjectList() {
                 Edit
               </button>
             </PermissionGuard>
-            {selectedProject.status !== 'Archived' && selectedProject.status !== 'Closed' && (
+            {selectedProject.status === 'Archived' ? (
+              <PermissionGuard permission="projects.archive">
+                <button
+                  className="pl-btn"
+                  style={{ border: '1px solid #d4d4d8', color: '#6366f1' }}
+                  onClick={async () => {
+                    if (!confirm('Unarchive this project? It will reappear in active views.')) return;
+                    const { error } = await supabase.from('projects').update({ status: 'Active' }).eq('id', selectedProject.id);
+                    if (error) { alert('Error unarchiving: ' + error.message); return; }
+                    queryClient.invalidateQueries({ queryKey: ['projects'] });
+                    setSelectedProject(null);
+                    setViewMode('list');
+                  }}
+                >
+                  Unarchive
+                </button>
+              </PermissionGuard>
+            ) : selectedProject.status !== 'Closed' ? (
               <PermissionGuard permission="projects.archive">
                 <button
                   className="pl-btn"
@@ -1052,7 +1069,7 @@ export default function ProjectList() {
                   Archive
                 </button>
               </PermissionGuard>
-            )}
+            ) : null}
           </div>
 
           <TabErrorBoundary tabName="Project Details">

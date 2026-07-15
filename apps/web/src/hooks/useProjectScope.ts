@@ -52,11 +52,33 @@ export function useUpsertScopeItem() {
       scope_type: ScopeItem['scope_type'];
       description: string;
       item_id?: string;
+      user_id?: string;
     }) => {
       if (input.item_id) {
+        const { data: existing } = await supabase
+          .from('project_scope_items')
+          .select('*')
+          .eq('id', input.item_id)
+          .single();
+
+        if (!existing) throw new Error('Scope item not found');
+
+        const newVersion = (existing.version ?? 0) + 1;
+
+        const { error: vErr } = await supabase.from('project_scope_item_versions').insert({
+          scope_item_id: input.item_id,
+          project_id: input.project_id,
+          scope_type: input.scope_type,
+          description: existing.description,
+          version: existing.version,
+          change_summary: `Updated to v${newVersion}`,
+          changed_by: input.user_id ?? null,
+        });
+        if (vErr) throw vErr;
+
         const { error } = await supabase
           .from('project_scope_items')
-          .update({ description: input.description })
+          .update({ description: input.description, version: newVersion })
           .eq('id', input.item_id);
         if (error) throw error;
       } else {
@@ -73,6 +95,7 @@ export function useUpsertScopeItem() {
           scope_type: input.scope_type,
           description: input.description,
           sort_order: nextOrder,
+          version: 1,
         });
         if (error) throw error;
       }
@@ -86,7 +109,26 @@ export function useUpsertScopeItem() {
 export function useDeleteScopeItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; project_id: string }) => {
+    mutationFn: async (input: { id: string; project_id: string; user_id?: string }) => {
+      const { data: existing } = await supabase
+        .from('project_scope_items')
+        .select('*')
+        .eq('id', input.id)
+        .single();
+
+      if (!existing) throw new Error('Scope item not found');
+
+      const { error: vErr } = await supabase.from('project_scope_item_versions').insert({
+        scope_item_id: input.id,
+        project_id: input.project_id,
+        scope_type: existing.scope_type,
+        description: existing.description,
+        version: existing.version,
+        change_summary: 'Deleted',
+        changed_by: input.user_id ?? null,
+      });
+      if (vErr) throw vErr;
+
       const { error } = await supabase
         .from('project_scope_items')
         .update({ superseded_at: new Date().toISOString() })
