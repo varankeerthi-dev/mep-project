@@ -8,7 +8,7 @@ import {
   Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder,
   TrendingUp, Clock, DollarSign, MoreHorizontal, X,
   ChevronDown, ChevronUp, Link2, AlertTriangle, FilePlus2, FileText,
-  Download, Calendar
+  Download, Calendar, Archive
 } from 'lucide-react';
 import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
 import CreateProjectInvoiceModal from '../components/CreateProjectInvoiceModal';
@@ -25,7 +25,10 @@ import {
   type ProjectInvoice,
 } from '../hooks/useProjectTransactions';
 import { useAuth } from '../App';
+import { PermissionGuard, useHasPermission } from '../rbac';
 import { SiteExpenses } from './SiteExpenses';
+import { ScopeEditor } from '../components/projects/ScopeEditor';
+import { ClosureChecklistPanel } from '../components/projects/ClosureChecklistPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +76,7 @@ const STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
   'Execution Completed':{ dot: '#f59e0b', label: 'Execution' },
   'Financially Closed': { dot: '#6366f1', label: 'Financially Closed' },
   Closed:               { dot: '#64748b', label: 'Closed' },
+  Archived:             { dot: '#a1a1aa', label: 'Archived' },
 };
 
 const PO_STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
@@ -81,7 +85,7 @@ const PO_STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
   Received:       { dot: '#3b82f6', label: 'Received' },
 };
 
-const STATUS_FILTER_OPTIONS = ['All', 'Active', 'Execution Completed', 'Financially Closed', 'Closed', 'Draft'];
+const STATUS_FILTER_OPTIONS = ['All', 'Active', 'Execution Completed', 'Financially Closed', 'Closed', 'Draft', 'Archived'];
 const PROJECT_STATUS_STATS = ['Active', 'Draft', 'Closed'];
 
 const MANDATORY_COLUMNS = ['project', 'actions'];
@@ -1025,10 +1029,30 @@ export default function ProjectList() {
                 </button>
               ))}
             </div>
-            <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/projects/edit?id=${selectedProject.id}`)}>
-              <Edit size={14} />
-              Edit
-            </button>
+            <PermissionGuard permission="projects.update">
+              <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/projects/${selectedProject.id}/edit`)}>
+                <Edit size={14} />
+                Edit
+              </button>
+            </PermissionGuard>
+            {selectedProject.status !== 'Archived' && selectedProject.status !== 'Closed' && (
+              <PermissionGuard permission="projects.archive">
+                <button
+                  className="pl-btn"
+                  style={{ border: '1px solid #d4d4d8', color: '#a1a1aa' }}
+                  onClick={async () => {
+                    if (!confirm('Archive this project? It will be hidden from active views.')) return;
+                    const { error } = await supabase.from('projects').update({ status: 'Archived' }).eq('id', selectedProject.id);
+                    if (error) { alert('Error archiving: ' + error.message); return; }
+                    queryClient.invalidateQueries({ queryKey: ['projects'] });
+                    setSelectedProject(null);
+                    setViewMode('list');
+                  }}
+                >
+                  Archive
+                </button>
+              </PermissionGuard>
+            )}
           </div>
 
           <TabErrorBoundary tabName="Project Details">
@@ -1200,6 +1224,29 @@ export default function ProjectList() {
                   <span>Last updated by: <strong>{selectedProject.updated_by_user.full_name}</strong></span>
                 )}
               </div>
+
+              {/* Structured Scope Editor */}
+              {selectedProject && selectedProject.status !== 'Archived' && (
+                <PermissionGuard permission="projects.manage_scope">
+                  <div className="pl-card" style={{ padding: '1.25rem 1.5rem' }}>
+                    <h3 className="pl-summary-title" style={{ marginBottom: '1rem' }}>Scope Manager</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                      <ScopeEditor projectId={selectedProject.id} scopeType="contractor_scope" />
+                      <ScopeEditor projectId={selectedProject.id} scopeType="client_scope" />
+                      <ScopeEditor projectId={selectedProject.id} scopeType="excluded_scope" />
+                      <ScopeEditor projectId={selectedProject.id} scopeType="pending_approval" />
+                      <ScopeEditor projectId={selectedProject.id} scopeType="site_instructions" />
+                    </div>
+                  </div>
+                </PermissionGuard>
+              )}
+
+              {/* Closure Checklist */}
+              {selectedProject && ['Execution Completed', 'Financially Closed', 'Closed'].includes(selectedProject.status || '') && (
+                <div className="pl-card" style={{ padding: '1.25rem 1.5rem' }}>
+                  <ClosureChecklistPanel projectId={selectedProject.id} />
+                </div>
+              )}
             </>
           )}
 
@@ -4414,13 +4461,15 @@ export default function ProjectList() {
           ))}
         </div>
         <div className="flex items-center gap-[10px]">
-          <button
-            onClick={() => navigate('/projects/new')}
-            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
-            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-          >
-            New Project
-          </button>
+          <PermissionGuard permission="projects.create">
+            <button
+              onClick={() => navigate('/projects/new')}
+              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+            >
+              New Project
+            </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -4597,33 +4646,59 @@ export default function ProjectList() {
                                 <Folder className="w-3.5 h-3.5" />
                                 View Details
                               </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  navigate(`/projects/edit?id=${p.id}`);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
+                              <PermissionGuard permission="projects.update">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(null);
+                                    navigate(`/projects/${p.id}/edit`);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                  style={{ padding: '6px' }}
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                  Edit
+                                </button>
+                              </PermissionGuard>
 
                               <div className="my-1 border-t border-zinc-100" />
 
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  deleteProject(p.id);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
+                              {p.status !== 'Archived' && p.status !== 'Closed' && (
+                                <PermissionGuard permission="projects.archive">
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(null);
+                                      if (!confirm('Archive this project?')) return;
+                                      const { error } = await supabase.from('projects').update({ status: 'Archived' }).eq('id', p.id);
+                                      if (error) { alert('Error: ' + error.message); return; }
+                                      queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-zinc-50 hover:text-zinc-700 active:scale-[0.98]"
+                                    style={{ padding: '6px' }}
+                                  >
+                                    <Archive className="w-3.5 h-3.5" />
+                                    Archive
+                                  </button>
+                                </PermissionGuard>
+                              )}
+
+                              <div className="my-1 border-t border-zinc-100" />
+
+                              <PermissionGuard permission="projects.delete">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(null);
+                                    deleteProject(p.id);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
+                                  style={{ padding: '6px' }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
+                                </button>
+                              </PermissionGuard>
                             </div>
                           )}
                           </div>

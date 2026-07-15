@@ -114,6 +114,19 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'projects',
+    label: 'Projects',
+    actions: [
+      { key: make('projects', 'read'), label: 'View' },
+      { key: make('projects', 'create'), label: 'Create' },
+      { key: make('projects', 'update'), label: 'Edit' },
+      { key: make('projects', 'delete'), label: 'Delete' },
+      { key: make('projects', 'close'), label: 'Close Project' },
+      { key: make('projects', 'archive'), label: 'Archive' },
+      { key: make('projects', 'manage_scope'), label: 'Manage Scope' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [

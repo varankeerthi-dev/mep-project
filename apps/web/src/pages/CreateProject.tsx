@@ -60,6 +60,7 @@ const STATUS_CONFIG = {
   'Execution Completed': { bg: '#fef3c7', color: '#d97706' },
   'Financially Closed': { bg: '#e0e7ff', color: '#4f46e5' },
   'Closed': { bg: '#f1f5f9', color: '#475569' },
+  'Archived': { bg: '#f4f4f5', color: '#a1a1aa' },
 };
 
 const BRAND_BLUE = '#185FA5';
@@ -370,7 +371,9 @@ export default function CreateProject() {
   const navigate = useNavigate();
   const auditLog = useAuditLog(organisation?.id, user?.id);
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('id');
+  const locationPath = window.location.pathname;
+  const pathMatch = locationPath.match(/^\/projects\/([^/]+)\/edit$/);
+  const editId = searchParams.get('id') ?? (pathMatch ? pathMatch[1] : null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

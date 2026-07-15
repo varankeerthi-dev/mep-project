@@ -351,10 +351,10 @@ export default function App() {
         return <Dashboard onNavigate={navigate} />;
       case '/operations':
         return <Operations />;
-      case '/projects': return <Projects />;
+      case '/projects': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><Projects /></PermissionGuard>;
       case '/tools': return <ToolsManagement />;
-      case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
-      case '/projects/edit': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
+      case '/projects/new': return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
+      case '/projects/edit': return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
       case '/projects/daily-updates': return <Projects />;
       case '/projects/site-materials': return <Projects />;
       case '/todo': return <TodoList />;
@@ -549,6 +549,9 @@ export default function App() {
         if (pathKey.startsWith('/meetings/edit/')) {
           const meetingId = pathKey.split('/meetings/edit/')[1];
           return <CreateMeeting meetingId={meetingId} />;
+        }
+        if (pathKey.startsWith('/projects/') && pathKey.endsWith('/edit')) {
+          return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
         }
         return <Dashboard onNavigate={navigate} />;
     }
