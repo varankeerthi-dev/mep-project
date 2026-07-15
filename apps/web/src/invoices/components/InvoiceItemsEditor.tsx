@@ -1306,21 +1306,61 @@ export function InvoiceItemsEditor({
                     />
                   </td>
                   <td style={{ padding: '4px' }}>
-                    <input
-                      {...register(`items.${index}.meta_json.uom` as const)}
-                      placeholder="Nos"
-                      style={{
-                        width: '100%',
-                        padding: '4px 6px',
-                        border: '1px solid transparent',
-                        borderRadius: '2px',
-                        fontSize: '11px',
-                        background: 'transparent',
-                        textAlign: 'center'
-                      }}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                    />
+                    {(() => {
+                      const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                      const mat = materialId ? productOptions?.find(p => p.id === materialId) : null;
+                      const altUnits = mat?.material_units || [];
+                      
+                      if (altUnits.length > 0) {
+                        const allUnits = [mat?.unit || 'Nos', ...altUnits.map((u: any) => u.unit_name)].filter(Boolean);
+                        const currentUom = items[index]?.meta_json?.uom || mat?.unit || 'Nos';
+                        
+                        return (
+                          <div
+                            className="cell-input text-center flex items-center justify-center cursor-pointer hover:bg-zinc-100 transition-colors"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              minHeight: '26px',
+                              userSelect: 'none',
+                              color: '#4f46e5',
+                              fontWeight: 500,
+                              fontSize: '11px',
+                              borderRadius: '2px',
+                            }}
+                            onClick={() => {
+                              const currentIndex = allUnits.indexOf(currentUom);
+                              const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % allUnits.length;
+                              // React Hook Form requires using setValue, wait, let's use setValue from props if we can.
+                              // Actually `setValue` is available in `InvoiceItemsEditor` props: `setValue?: UseFormSetValue<InvoiceEditorFormValues>;`
+                              if (setValue) {
+                                setValue(`items.${index}.meta_json.uom`, allUnits[nextIndex], { shouldDirty: true });
+                              }
+                            }}
+                            title="Click to change unit"
+                          >
+                            {currentUom}
+                          </div>
+                        );
+                      }
+                      return (
+                        <input
+                          {...register(`items.${index}.meta_json.uom` as const)}
+                          placeholder="Nos"
+                          style={{
+                            width: '100%',
+                            padding: '4px 6px',
+                            border: '1px solid transparent',
+                            borderRadius: '2px',
+                            fontSize: '11px',
+                            background: 'transparent',
+                            textAlign: 'center'
+                          }}
+                          onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                          onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                        />
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input

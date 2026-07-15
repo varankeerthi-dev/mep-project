@@ -202,9 +202,9 @@ export class ApprovalAPI {
 
       const userIds = [...new Set(validApprovals.map((a: any) => a.requested_by).filter(Boolean))];
       const { data: profiles } = userIds.length > 0
-        ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', userIds)
+        ? await supabase.from('employees').select('id, name').in('id', userIds)
         : { data: [] };
-      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name]));
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.name]));
 
       const enriched = validApprovals.map((a: any) => ({
         ...a,
@@ -377,12 +377,12 @@ export class ApprovalAPI {
       // Log to follow_up_activity_log
       try {
         const { data: userProfile } = await supabase
-          .from('users')
-          .select('emp_name')
+          .from('employees')
+          .select('name')
           .eq('id', user.id)
           .maybeSingle();
 
-        const actorName = userProfile?.emp_name || 'System';
+        const actorName = userProfile?.name || 'System';
 
         await supabase.from('follow_up_activity_log').insert({
           organisation_id: approval.organisation_id,
@@ -430,17 +430,17 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'DB_ERROR', message: error.message } };
       }
 
-      // Fetch approver names from user_profiles
+      // Fetch approver names from employees
       const approverIds = [...new Set((actions || []).map(a => a.approver_id).filter(Boolean))];
       const { data: profiles } = approverIds.length > 0
-        ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', approverIds)
+        ? await supabase.from('employees').select('id, name').in('id', approverIds)
         : { data: [] };
 
       const actionsWithApprovers = (actions || []).map(action => {
-        const profile = profiles?.find(p => p.user_id === action.approver_id);
+        const profile = profiles?.find(p => p.id === action.approver_id);
         return {
           ...action,
-          approver: profile ? { name: profile.full_name } : undefined
+          approver: profile ? { name: profile.name } : undefined
         };
       });
 
@@ -611,10 +611,10 @@ export class ApprovalAPI {
         const userIds = workflows.map((w: any) => w.approver_id).filter(Boolean);
         if (userIds.length > 0) {
           const { data: userRows } = await supabase
-            .from('users')
-            .select('id, emp_name')
+            .from('employees')
+            .select('id, name')
             .in('id', userIds);
-          const nameMap = Object.fromEntries((userRows ?? []).map((u: any) => [u.id, u.emp_name]));
+          const nameMap = Object.fromEntries((userRows ?? []).map((u: any) => [u.id, u.name]));
           for (const w of workflows) {
             (w as any).approver_name = nameMap[w.approver_id] ?? null;
           }
@@ -659,9 +659,9 @@ export class ApprovalAPI {
     try {
       const [profileRes, memberRes] = await Promise.all([
         supabase
-          .from('user_profiles')
-          .select('full_name, role')
-          .eq('user_id', userId)
+          .from('employees')
+          .select('name, role')
+          .eq('id', userId)
           .maybeSingle(),
         supabase
           .from('org_members')
@@ -671,7 +671,7 @@ export class ApprovalAPI {
           .maybeSingle(),
       ]);
 
-      const requesterName = profileRes.data?.full_name ?? null;
+      const requesterName = profileRes.data?.name ?? null;
       const requesterRole = memberRes.data?.role ?? profileRes.data?.role ?? null;
 
       const refSpec = REFERENCE_DENORM_MAP[referenceType];

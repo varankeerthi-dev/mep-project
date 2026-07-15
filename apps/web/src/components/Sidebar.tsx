@@ -277,7 +277,8 @@ const menuData: MenuSection[] = [
         submenu: [
           { id: 'hr-employees', label: 'Employees', path: '/hr/employees' },
           { id: 'hr-planning', label: 'Attendance Planning', path: '/hr/planning' },
-          { id: 'hr-entry', label: 'Attendance Entry', path: '/hr/entry' }
+          { id: 'hr-entry', label: 'Attendance Entry', path: '/hr/entry' },
+          { id: 'hr-salary-slip', label: 'Salary Slip', path: '/hr/salary-slip' }
         ]
       }
     ]

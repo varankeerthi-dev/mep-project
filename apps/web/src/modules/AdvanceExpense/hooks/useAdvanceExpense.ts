@@ -48,10 +48,14 @@ export function useOrgEmployees(orgId?: string) {
       if (!members?.length) return [];
       const ids = members.map((m: any) => m.user_id);
       const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', ids);
-      return profiles || [];
+        .from('employees')
+        .select('id, name, work_email')
+        .in('id', ids);
+      return (profiles || []).map((p: any) => ({
+        user_id: p.id,
+        full_name: p.name,
+        email: p.work_email
+      }));
     },
     enabled: !!orgId,
   });
@@ -212,13 +216,13 @@ export function useSubmitForApproval() {
 
       const { data: record } = await supabase
         .from('advances_expenses')
-        .select('*, user_profiles!employee_id(full_name)')
+        .select('*, employees!employee_id(name)')
         .eq('id', id)
         .single();
 
       if (!record) throw new Error('Record not found');
 
-      const employeeName = record.employee_name || record.user_profiles?.full_name || 'Employee';
+      const employeeName = record.employee_name || record.employees?.name || 'Employee';
       const categoryName = record.category_name || 'Expense';
 
       await supabase
@@ -341,15 +345,15 @@ export function useCreatePettyCashFloat() {
       if (!orgId || !userId) throw new Error('Not authenticated');
 
       const { data: member } = await supabase
-        .from('user_profiles')
-        .select('full_name')
-        .eq('user_id', data.holder_id)
+        .from('employees')
+        .select('name')
+        .eq('id', data.holder_id)
         .single();
 
       const { error } = await supabase.from('petty_cash_floats').insert({
         organisation_id: orgId,
         holder_id: data.holder_id,
-        holder_name: data.holder_name || member?.full_name || 'Unknown',
+        holder_name: data.holder_name || member?.name || 'Unknown',
         project_id: data.project_id || null,
         float_amount: data.float_amount,
         current_balance: data.float_amount,

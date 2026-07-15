@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { EmployeeDirectory } from './EmployeeDirectory'
 import { EmployeeDetails } from './EmployeeDetails'
 import { EmployeeBirthday } from './EmployeeBirthday'
+import { SalarySlipDashboard } from './salary-slip/SalarySlipDashboard'
 import type { Employee } from '../../hooks/useEmployees'
 
 export default function EmployeeTab() {
@@ -26,6 +27,7 @@ export default function EmployeeTab() {
             Details
           </TabsTrigger>
           <TabsTrigger value="birthday">Birthdays</TabsTrigger>
+          <TabsTrigger value="salary">Salary Slip</TabsTrigger>
         </TabsList>
 
         <TabsContent value="directory" className="space-y-4">
@@ -50,6 +52,10 @@ export default function EmployeeTab() {
 
         <TabsContent value="birthday" className="space-y-4">
           <EmployeeBirthday />
+        </TabsContent>
+
+        <TabsContent value="salary" className="space-y-4">
+          <SalarySlipDashboard />
         </TabsContent>
       </Tabs>
     </div>

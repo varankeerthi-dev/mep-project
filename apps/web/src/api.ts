@@ -12,12 +12,21 @@ export interface Project {
   [key: string]: unknown
 }
 
+export interface MaterialUnit {
+  id?: string
+  material_id?: string
+  unit_name?: string
+  conversion_factor?: number
+  created_at?: string
+}
+
 export interface Material {
   id?: string
   name?: string
   unit?: string
   default_rate?: number
   created_at?: string
+  material_units?: MaterialUnit[]
   [key: string]: unknown
 }
 

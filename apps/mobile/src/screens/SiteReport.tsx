@@ -455,9 +455,9 @@ export const SiteReport: React.FC<SiteReportProps> = ({ isDemo = false, onFormDi
 
     const { data: { user } } = await supabase.auth.getUser();
     const { data: profileA } = await supabase
-      .from('user_profiles')
-      .select('organisation_id, organization_id')
-      .eq('user_id', user!.id)
+      .from('employees')
+      .select('organisation_id')
+      .eq('id', user!.id)
       .maybeSingle();
     const orgId = profileA
       ? ((profileA as any).organisation_id || (profileA as any).organization_id)

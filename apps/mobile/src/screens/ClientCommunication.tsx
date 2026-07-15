@@ -280,22 +280,22 @@ export const ClientCommunication: React.FC<ClientCommunicationProps> = ({ isDemo
       setOrgId(userOrgId);
 
       // Load form selector data & user profiles
-      const [clientsRes, vendorsRes, subRes, leadsRes, profilesRes] = await Promise.all([
+      const [clientsRes, vendorsRes, subRes, leadsRes, employeesRes] = await Promise.all([
         supabase.from('clients').select('id, client_name').eq('organisation_id', userOrgId).order('client_name'),
         supabase.from('purchase_vendors').select('id, company_name').eq('organisation_id', userOrgId).order('company_name'),
         supabase.from('subcontractors').select('id, company_name').eq('organisation_id', userOrgId).order('company_name'),
         supabase.from('leads').select('id, company_name, contact_name').eq('organisation_id', userOrgId).order('company_name'),
-        supabase.from('user_profiles').select('id, user_id, full_name')
+        supabase.from('employees').select('id, name').eq('organisation_id', userOrgId)
       ]);
 
       const profileMap: Record<string, string> = {};
       const uList: { id: string; name: string }[] = [];
-      if (profilesRes.data) {
-        profilesRes.data.forEach((p: any) => {
-          const uId = p.user_id || p.id;
+      if (employeesRes.data) {
+        employeesRes.data.forEach((p: any) => {
+          const uId = p.id;
           if (uId) {
-            profileMap[uId] = p.full_name || 'System User';
-            uList.push({ id: uId, name: p.full_name || 'System User' });
+            profileMap[uId] = p.name || 'System User';
+            uList.push({ id: uId, name: p.name || 'System User' });
           }
         });
       }

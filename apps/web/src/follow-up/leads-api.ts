@@ -187,7 +187,6 @@ export async function fetchLeads(organisationId: string): Promise<Lead[]> {
       `
       *,
       client:clients(id, client_name),
-      owner:user_profiles!leads_owner_user_id_fkey(id, full_name),
       lead_status:lead_statuses(id, name, color, sort_order, is_default, category),
       industry:lead_industries(id, name)
     `
@@ -198,15 +197,22 @@ export async function fetchLeads(organisationId: string): Promise<Lead[]> {
 
   if (error) throw error;
 
-  return (data || []).map((row: Record<string, unknown>) => {
+  const leads = data || [];
+  const userIds = [...new Set(leads.map((l: any) => l.owner_user_id).filter(Boolean))];
+  let profileMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase.from('employees').select('id, name').in('id', userIds);
+    profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.name]));
+  }
+
+  return leads.map((row: Record<string, unknown>) => {
     const client = row.client as Record<string, unknown> | null;
-    const owner = row.owner as Record<string, unknown> | null;
     const leadStatus = row.lead_status as Record<string, unknown> | null;
     const industry = row.industry as Record<string, unknown> | null;
     const merged: Lead = {
       ...(row as unknown as Lead),
       client_name: (client?.client_name as string | undefined) ?? null,
-      owner_name: (owner?.full_name as string | undefined) ?? null,
+      owner_name: profileMap[row.owner_user_id as string] ?? null,
       lead_status: leadStatus ? (leadStatus as unknown as unknown as LeadStatus) : null,
       industry: industry ? (industry as unknown as unknown as LeadIndustry) : null,
     };
@@ -221,7 +227,6 @@ export async function fetchLeadById(leadId: string): Promise<Lead | null> {
       `
       *,
       client:clients(id, client_name),
-      owner:user_profiles!leads_owner_user_id_fkey(id, full_name),
       lead_status:lead_statuses(id, name, color, sort_order, is_default, category),
       industry:lead_industries(id, name)
     `
@@ -232,14 +237,19 @@ export async function fetchLeadById(leadId: string): Promise<Lead | null> {
   if (error) throw error;
   if (!data) return null;
 
+  let ownerName = null;
+  if (data.owner_user_id) {
+    const { data: empData } = await supabase.from('employees').select('name').eq('id', data.owner_user_id).single();
+    if (empData) ownerName = empData.name;
+  }
+
   const client = data.client as Record<string, unknown> | null;
-  const owner = data.owner as Record<string, unknown> | null;
   const leadStatus = data.lead_status as Record<string, unknown> | null;
   const industry = data.industry as Record<string, unknown> | null;
   return {
     ...(data as unknown as Lead),
     client_name: (client?.client_name as string | undefined) ?? null,
-    owner_name: (owner?.full_name as string | undefined) ?? null,
+    owner_name: ownerName,
     lead_status: leadStatus ? (leadStatus as unknown as LeadStatus) : null,
     industry: industry ? (industry as unknown as LeadIndustry) : null,
   };
@@ -495,27 +505,18 @@ export async function fetchClientNextActionsBulk(
 // ---------------------------------------------------------------------------
 
 export async function fetchOrgUsers(organisationId: string): Promise<Array<{ id: string; full_name: string }>> {
-  const { data, error } = await supabase
-    .rpc('get_org_users', { p_org_id: organisationId });
+  const { data: employees, error } = await supabase
+    .from('employees')
+    .select('id, name')
+    .eq('organisation_id', organisationId);
 
   if (error) {
-    console.warn('get_org_users RPC failed, trying direct query:', error);
-    const { data: members, error: mError } = await supabase
-      .from('org_members')
-      .select('user_id')
-      .eq('organisation_id', organisationId)
-      .eq('status', 'active');
-    if (mError) throw mError;
-    const userIds = (members || []).map(r => (r as any).user_id).filter(Boolean) as string[];
-    if (userIds.length === 0) return [];
-
-    const { data: profiles, error: pError } = await supabase
-      .from('user_profiles')
-      .select('id, full_name')
-      .in('user_id', userIds);
-    if (pError) throw pError;
-    return (profiles || []) as Array<{ id: string; full_name: string }>;
+    console.error('Failed to fetch org users:', error);
+    return [];
   }
 
-  return (data || []) as Array<{ id: string; full_name: string }>;
+  return (employees || []).map((emp: any) => ({
+    id: emp.id,
+    full_name: emp.name
+  }));
 }

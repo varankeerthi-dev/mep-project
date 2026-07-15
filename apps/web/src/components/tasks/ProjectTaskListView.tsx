@@ -699,12 +699,12 @@ export default function ProjectTaskListView({
       let profileMap: Record<string, { full_name: string; email?: string }> = {};
       if (uniqueIds.length > 0) {
         const { data: profiles } = await supabase
-          .from('user_profiles')
-          .select('user_id, full_name, email')
-          .in('user_id', uniqueIds);
+          .from('employees')
+          .select('id, name, work_email')
+          .in('id', uniqueIds);
         if (profiles) {
           (profiles as any[]).forEach((p: any) => {
-            profileMap[p.user_id] = { full_name: p.full_name || '', email: p.email || '' };
+            profileMap[p.id] = { full_name: p.name || '', email: p.work_email || '' };
           });
         }
       }

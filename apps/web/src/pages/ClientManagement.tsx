@@ -42,7 +42,7 @@ type ClientDiscountPortfolioProps = {
 }
 
 type CreateClientProps = {
-  onSuccess: () => void
+  onSuccess: (clientId?: string) => void
   onCancel: () => void
   editMode?: boolean
   clientData?: any
@@ -803,7 +803,7 @@ const indianStates = [
         throw new Error('Session expired. Please refresh the page and sign in again.');
       }
       const { client_type, country, ...insertData } = formData;
-
+      let newId;
       if (editMode && clientData?.id) {
         const { error } = await withTimeout(
           supabase
@@ -815,24 +815,26 @@ const indianStates = [
           'Client update'
         );
         if (error) throw error;
+        newId = clientData.id;
       } else {
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
-        const { error } = await withTimeout(
+        const { data, error } = await withTimeout(
           supabase.from('clients').insert({ 
             ...insertData, 
             client_id: clientId, 
             organisation_id: orgId 
-          }),
+          }).select('id').single(),
           30000,
           'Client create'
         );
         if (error) throw error;
+        newId = data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['clients', orgId] });
       queryClient.invalidateQueries({ queryKey: ['invoice-ui', 'clients', orgId] });
       setIsDirty(false);
-      onSuccess();
+      onSuccess(newId);
     } catch (error: any) {
       console.error('Save Exception:', error);
       alert('Transaction Error: ' + (error?.message || error));

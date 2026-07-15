@@ -236,6 +236,7 @@ export async function upsertEmployee(input: EmployeeInput): Promise<EmployeeRow>
     id: parsed.id,
     organisation_id: parsed.organisation_id,
     full_name: parsed.full_name,
+    name: parsed.full_name, // Sync the name column for HR module
     email: parsed.email,
     phone: parsed.phone ?? null,
     status: parsed.status,

@@ -158,6 +158,7 @@ export type InvoiceMaterialOption = {
   item_type: string;
   item_classification?: string;
   variants: MaterialVariant[];
+  material_units?: { unit_name: string; conversion_factor: number }[];
 };
 
 export type InvoiceSourceOption = {

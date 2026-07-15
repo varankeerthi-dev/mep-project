@@ -76,14 +76,14 @@ export function useNextActionsMobile(isDemo = false) {
       // ═══════════════════════════════════════════════════════════════════════
       // 2. Fetch Active Actions
       // ═══════════════════════════════════════════════════════════════════════
-      // Fetch all user profiles for name mapping
+      // Fetch all employees for name mapping
       const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('user_id, full_name');
+        .from('employees')
+        .select('id, name');
       const localUserMap = new Map<string, string>();
       if (profiles) {
         profiles.forEach(p => {
-          localUserMap.set(p.user_id, p.full_name || 'System');
+          localUserMap.set(p.id, p.name || 'System');
         });
       }
 

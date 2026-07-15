@@ -16,6 +16,7 @@ import ProjectTasks from './pages/ProjectTasks'
 import EmployeeTab from './pages/hr/EmployeeTab'
 import AttendancePlanning from './pages/hr/AttendancePlanning'
 import AttendanceEntry from './pages/hr/AttendanceEntry'
+import { SalarySlipDashboard } from './pages/hr/salary-slip/SalarySlipDashboard'
 import { Toaster } from './lib/logger';
 import ToolsManagement from './pages/ToolsManagement';
 import { AuthContext, useAuth, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
@@ -501,6 +502,7 @@ export default function App() {
       case '/hr/employees': return <EmployeeTab />;
       case '/hr/planning': return <AttendancePlanning />;
       case '/hr/entry': return <AttendanceEntry />;
+      case '/hr/salary-slip': return <SalarySlipDashboard />;
       default:
         if (pathKey.startsWith('/issue/')) {
           // Match /issue/<id> but not /issue/new

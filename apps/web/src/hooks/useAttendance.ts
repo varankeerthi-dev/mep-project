@@ -87,6 +87,39 @@ export function useMutateAttendancePlan() {
   })
 }
 
+export function useBulkMutateAttendancePlan() {
+  const queryClient = useQueryClient()
+  const { organisation, user } = useAuth()
+
+  return useMutation({
+    mutationFn: async (plans: Partial<AttendancePlan>[]) => {
+      if (!organisation?.id) throw new Error('No organisation selected')
+      
+      const payload = plans.map(plan => ({
+        ...plan,
+        organisation_id: organisation.id,
+        updated_by: user?.id
+      }))
+      
+      // Upsert handles both insert and update based on primary key or unique constraints
+      const { data, error } = await supabase.from('attendance').upsert(payload, {
+        onConflict: 'employee_id, plan_date'
+      }).select()
+      
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-plan'] })
+      queryClient.invalidateQueries({ queryKey: ['employee-attendance-summary'] })
+      toast.success('Attendance records submitted successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to submit attendance: ' + error.message)
+    }
+  })
+}
+
 export function useSites() {
   const { organisation } = useAuth()
 

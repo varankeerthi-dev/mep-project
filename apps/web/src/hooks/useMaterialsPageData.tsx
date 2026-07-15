@@ -37,7 +37,7 @@ export function useMaterialsPageData(orgId?: string | null) {
       ] = await Promise.all([
         timedSupabaseQuery(
           (() => {
-            let query = supabase.from('materials').select('*, mappings:material_client_mappings(*)').order('name');
+            let query = supabase.from('materials').select('*, mappings:material_client_mappings(*), material_units(*)').order('name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }

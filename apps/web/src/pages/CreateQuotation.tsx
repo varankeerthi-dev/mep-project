@@ -4099,7 +4099,28 @@ className="text-center cell-static col-shrink row-drag-handle"
                         })()}
                       </td>
                       <td className="col-shrink">
-                        <input type="text" className="cell-input text-center" value={item.uom} readOnly style={{ background: '#f8fafc', cursor: 'default' }} />
+                        {(() => {
+                          const mat = item.material || materials.find(m => m.id === item.item_id);
+                          const altUnits = mat?.material_units || [];
+                          if (altUnits.length > 0) {
+                            const allUnits = [mat.unit, ...altUnits.map((u: any) => u.unit_name)].filter(Boolean);
+                            return (
+                              <div 
+                                className="cell-input text-center flex items-center justify-center cursor-pointer hover:bg-zinc-100 transition-colors"
+                                style={{ width: '100%', height: '100%', minHeight: '32px', userSelect: 'none', color: '#4f46e5', fontWeight: 500 }}
+                                onClick={() => {
+                                  const currentIndex = allUnits.indexOf(item.uom);
+                                  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % allUnits.length;
+                                  updateItem(item.id, 'uom', allUnits[nextIndex]);
+                                }}
+                                title="Click to change unit"
+                              >
+                                {item.uom || mat.unit}
+                              </div>
+                            );
+                          }
+                          return <input type="text" className="cell-input text-center" value={item.uom} readOnly style={{ background: '#f8fafc', cursor: 'default' }} />;
+                        })()}
                       </td>
                       <td className="col-shrink" style={{ position: 'relative' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingRight: '4px' }}>

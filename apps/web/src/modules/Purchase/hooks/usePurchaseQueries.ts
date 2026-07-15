@@ -757,8 +757,8 @@ export const usePaymentRequests = (organisationId: string | undefined) => {
       
       let profileMap: Record<string, string> = {};
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('user_profiles').select('user_id, full_name').in('user_id', userIds);
-        profileMap = Object.fromEntries((profiles || []).map(p => [p.user_id, p.full_name]));
+        const { data: profiles } = await supabase.from('employees').select('id, name').in('id', userIds);
+        profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.name]));
       }
 
       let approvalsMap: Record<string, any> = {};
@@ -1259,9 +1259,9 @@ export const usePaymentsForApproval = (organisationId: string | undefined) => {
 
       const userIds = [...new Set((data || []).map((p: any) => p.created_by).filter(Boolean))];
       const { data: profiles } = userIds.length > 0
-        ? await supabase.from('user_profiles').select('user_id, full_name').in('user_id', userIds)
+        ? await supabase.from('employees').select('id, name').in('id', userIds)
         : { data: [] };
-      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name]));
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.name]));
 
       return (data || []).map((p: any) => ({
         ...p,

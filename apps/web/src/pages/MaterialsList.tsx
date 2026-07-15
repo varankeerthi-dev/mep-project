@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
 import { AppTable } from '../components/ui/AppTable';
+import { Modal } from '../components/ui/Modal';
 import { cn } from '../lib/utils';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -277,7 +278,8 @@ function ItemsTab() {
   const [formData, setFormData] = useState({
     item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
-    unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
+    unit: 'nos', has_alternative_unit: false, alternative_units: [] as { unit_name: string; conversion_factor: string }[],
+    sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
     uses_variant: false, track_inventory: false, discount_category_id: null,
     dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
     item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false
@@ -1138,6 +1140,21 @@ function ItemsTab() {
         createdMaterial = data;
       }
 
+      if (formData.has_alternative_unit && formData.alternative_units.length > 0) {
+        await supabase.from('material_units').delete().eq('material_id', itemId);
+        const unitsToInsert = formData.alternative_units.map(u => ({
+          material_id: itemId,
+          unit_name: u.unit_name,
+          conversion_factor: parseFloat(u.conversion_factor)
+        })).filter(u => u.unit_name && !isNaN(u.conversion_factor));
+        if (unitsToInsert.length > 0) {
+          const { error: unitsError } = await supabase.from('material_units').insert(unitsToInsert);
+          if (unitsError) throw unitsError;
+        }
+      } else {
+        await supabase.from('material_units').delete().eq('material_id', itemId);
+      }
+
       if (formData.uses_variant && variantPricing.length > 0) {
         // Delete old pricing first to avoid duplicates if make changed
         await supabase.from('item_variant_pricing').delete().eq('item_id', itemId);
@@ -1365,6 +1382,8 @@ function ItemsTab() {
       material: material.material || '',
       end_connection: material.end_connection || '',
       unit: material.unit || 'nos',
+      has_alternative_unit: material.material_units && material.material_units.length > 0,
+      alternative_units: material.material_units ? material.material_units.map((u: any) => ({ unit_name: u.unit_name, conversion_factor: u.conversion_factor.toString() })) : [],
       sale_price: material.sale_price || '',
       purchase_price: material.purchase_price || '',
       hsn_code: material.hsn_code || '',
@@ -2961,6 +2980,86 @@ function ItemsTab() {
                     <select className="form-select" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})}>
                       {units.length > 0 ? units.map(u => (<option key={u.unit_code} value={u.unit_code}>{u.unit_name} ({u.unit_code})</option>)) : <option value="nos">Nos</option>}
                     </select>
+                    
+                    <div className="mt-4 p-4 border border-zinc-200 rounded-lg bg-zinc-50/50">
+                      <label className="flex items-center space-x-2 text-sm font-medium text-zinc-900 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                          checked={formData.has_alternative_unit}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setFormData({
+                              ...formData,
+                              has_alternative_unit: checked,
+                              alternative_units: checked && formData.alternative_units.length === 0 
+                                ? [{ unit_name: '', conversion_factor: '' }] 
+                                : formData.alternative_units
+                            });
+                          }}
+                        />
+                        <span>Add alternative units</span>
+                      </label>
+                      
+                      {formData.has_alternative_unit && (
+                        <div className="mt-3 space-y-3">
+                          {formData.alternative_units.map((altUnit, idx) => (
+                            <div key={idx} className="flex items-center space-x-2">
+                              <span className="text-sm text-zinc-500 whitespace-nowrap">1 {formData.unit} =</span>
+                              <input
+                                type="number"
+                                step="0.0001"
+                                placeholder="Qty"
+                                className="form-input w-24 text-sm"
+                                value={altUnit.conversion_factor}
+                                onChange={(e) => {
+                                  const newUnits = [...formData.alternative_units];
+                                  newUnits[idx].conversion_factor = e.target.value;
+                                  setFormData({ ...formData, alternative_units: newUnits });
+                                }}
+                              />
+                              <select
+                                className="form-select w-32 text-sm"
+                                value={altUnit.unit_name}
+                                onChange={(e) => {
+                                  const newUnits = [...formData.alternative_units];
+                                  newUnits[idx].unit_name = e.target.value;
+                                  setFormData({ ...formData, alternative_units: newUnits });
+                                }}
+                              >
+                                <option value="">Select Unit</option>
+                                {units.map(u => (
+                                  <option key={u.unit_code} value={u.unit_code}>{u.unit_name} ({u.unit_code})</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newUnits = formData.alternative_units.filter((_, i) => i !== idx);
+                                  setFormData({ ...formData, alternative_units: newUnits });
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                alternative_units: [...formData.alternative_units, { unit_name: '', conversion_factor: '' }]
+                              });
+                            }}
+                            className="text-xs text-indigo-600 font-medium hover:text-indigo-700 flex items-center"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add another unit
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">HSN/SAC Code</label>
@@ -5027,16 +5126,15 @@ function CategoryTab() {
 function UnitTab() {
   const { data: units = [], isLoading: loading } = useUnits();
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [editingUnit, setEditingUnit] = useState(null);
+  const [editingUnit, setEditingUnit] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({ unit_name: '', unit_code: '', description: '', is_active: true });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const dataToSave = { ...formData, organisation_id: organisation?.id };
+  const saveMutation = useMutation({
+    mutationFn: async (dataToSave: any) => {
       if (editingUnit) {
         const { error } = await supabase.from('item_units').update(dataToSave).eq('id', editingUnit.id);
         if (error) throw error;
@@ -5044,37 +5142,72 @@ function UnitTab() {
         const { error } = await supabase.from('item_units').insert(dataToSave);
         if (error) throw error;
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['units', organisation?.id] });
       resetForm();
-    } catch (err) {
+    },
+    onError: (err: any) => {
       alert('Error saving unit: ' + err.message);
     }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('item_units').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['units', organisation?.id] });
+    },
+    onError: (err: any) => {
+      alert('Error deleting unit: ' + err.message);
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dataToSave = { ...formData, organisation_id: organisation?.id };
+    saveMutation.mutate(dataToSave);
   };
 
   const resetForm = () => { setShowForm(false); setEditingUnit(null); setFormData({ unit_name: '', unit_code: '', description: '', is_active: true }); };
 
-  const editUnit = (unit) => { setEditingUnit(unit); setFormData({ unit_name: unit.unit_name, unit_code: unit.unit_code, description: unit.description || '', is_active: unit.is_active !== false }); setShowForm(true); };
-  const deleteUnit = async (id) => { if (confirm('Delete this unit?')) { await supabase.from('item_units').delete().eq('id', id); }};
+  const editUnit = (unit: any) => { setEditingUnit(unit); setFormData({ unit_name: unit.unit_name, unit_code: unit.unit_code, description: unit.description || '', is_active: unit.is_active !== false }); setShowForm(true); };
+  const deleteUnit = (id: string) => { if (confirm('Delete this unit?')) { deleteMutation.mutate(id); }};
 
-  const filteredUnits = units.filter(u => u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredUnits = units.filter((u: any) => u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Render helpers for DESIGN.md Pattern
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle = { minWidth: '80px', maxWidth: '80px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const fieldColStyle = { flex: 1 };
+  
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
 
   return (
     <div>
-      <div className="page-header"><h1 className="page-title">Units</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
+      <div className="page-header"><h1 className="page-title">Units</h1><Button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</Button></div>
+      <div className="card" style={{ marginBottom: '16px' }}><Input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
                 <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit Name</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit Code</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Description</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
                 <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
-              {filteredUnits.map(u => (
+              {filteredUnits.map((u: any) => (
                 <tr key={u.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
                   <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{u.unit_name}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{u.unit_code}</td>
@@ -5096,22 +5229,27 @@ function UnitTab() {
           </table>
         </div>
       </div>
-      {showForm && (
-        <div className="modal-overlay open" onClick={resetForm}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingUnit ? 'Edit Unit' : 'Add Unit'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Unit Name *</label><input type="text" className="form-input" value={formData.unit_name} onChange={e => setFormData({...formData, unit_name: e.target.value})} required /></div>
-                <div className="form-group"><label className="form-label">Unit Code *</label><input type="text" className="form-input" value={formData.unit_code} onChange={e => setFormData({...formData, unit_code: e.target.value})} required /></div>
-              </div>
-              <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
-              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
-              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingUnit ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
-            </form>
+      <Modal 
+        isOpen={showForm} 
+        onClose={resetForm} 
+        title={editingUnit ? 'Edit Unit' : 'Add Unit'} 
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={resetForm} style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 500 }}>Cancel</Button>
+            <Button variant="primary" onClick={handleSubmit} disabled={saveMutation.isPending} style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, background: '#185FA5', border: '1px solid #185FA5', color: '#fff' }}>{editingUnit ? 'Update' : 'Save'}</Button>
+          </>
+        }
+      >
+        <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {renderHeaderField('Unit Name *', <Input value={formData.unit_name} onChange={e => setFormData({...formData, unit_name: e.target.value})} required style={{ padding: '4px 8px', fontSize: '12px' }} />)}
+            {renderHeaderField('Unit *', <Input value={formData.unit_code} onChange={e => setFormData({...formData, unit_code: e.target.value})} required style={{ padding: '4px 8px', fontSize: '12px' }} />)}
+            {renderHeaderField('Description', <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '4px 8px', fontSize: '12px' }} />)}
+            {renderHeaderField('Status', <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}><Checkbox checked={formData.is_active} onCheckedChange={(checked: boolean) => setFormData({...formData, is_active: checked})} /> Active</label>, true)}
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

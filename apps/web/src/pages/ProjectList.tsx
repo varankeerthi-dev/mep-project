@@ -325,7 +325,7 @@ export default function ProjectList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(id, client_name), pos:client_purchase_orders(po_total_value), created_by_user:user_profiles!created_by(full_name), updated_by_user:user_profiles!updated_by(full_name)')
+        .select('*, client:clients(id, client_name), pos:client_purchase_orders!client_purchase_orders_project_id_fkey(po_total_value), created_by_user:user_profiles!created_by(full_name), updated_by_user:user_profiles!updated_by(full_name)')
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -460,11 +460,14 @@ export default function ProjectList() {
     queryFn: async () => {
       if (!organisation?.id) return [];
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('user_id, full_name')
+        .from('employees')
+        .select('id, name')
         .eq('organisation_id', organisation.id);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((emp: any) => ({
+        user_id: emp.id,
+        full_name: emp.name
+      }));
     },
     enabled: !!organisation?.id && viewMode === 'detail',
   });

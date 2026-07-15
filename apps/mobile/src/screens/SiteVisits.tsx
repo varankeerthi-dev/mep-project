@@ -443,9 +443,9 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
           .eq('organisation_id', orgId)
           .order('client_name'),
         supabase
-          .from('user_profiles')
-          .select('id, full_name, email')
-          .order('full_name'),
+          .from('employees')
+          .select('id, name, work_email')
+          .order('name'),
       ]);
 
       // Normalize visits — resolve client name and project name client-side (safe from FK relation limits)
@@ -462,7 +462,11 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
       setVisits(normalizedVisits);
       setProjects(projectsRes.data || []);
       setClients(clientsRes.data || []);
-      setEngineers(usersRes.data || []);
+      setEngineers((usersRes.data || []).map((e: any) => ({
+        id: e.id,
+        full_name: e.name,
+        email: e.work_email
+      })));
     } catch (e) {
       console.error('fetchData error:', e);
     } finally {

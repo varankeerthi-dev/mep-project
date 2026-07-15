@@ -70,7 +70,15 @@ type POLineItem = {
   custom2?: string
 }
 
-export default function CreatePO() {
+export default function CreatePO({ 
+  onSuccess, 
+  onCancel,
+  isModal = false 
+}: { 
+  onSuccess?: (poId: string, data: any) => void;
+  onCancel?: () => void;
+  isModal?: boolean;
+}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
@@ -107,9 +115,22 @@ export default function CreatePO() {
     status: 'Open',
   });
 
-  
+  const [clientSearchText, setClientSearchText] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const [projectSearchText, setProjectSearchText] = useState('');
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
 
-  
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.dropdown-container')) {
+        setIsClientDropdownOpen(false);
+        setIsProjectDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState('');
   
@@ -888,8 +909,12 @@ export default function CreatePO() {
         console.log('No line items to save');
       }
 
-      alert(editId ? 'PO updated successfully!' : 'PO created successfully!');
-      navigate('/client-po');
+      toast.success(editId ? 'PO updated successfully!' : 'PO created successfully!');
+      if (onSuccess) {
+        onSuccess(poId, formData);
+      } else {
+        navigate('/client-po');
+      }
     } catch (err: any) {
       console.error('Error saving PO:', err);
       alert('Error: ' + err.message);
@@ -991,6 +1016,22 @@ export default function CreatePO() {
 
   const availableValue = (lineItems.length > 0 ? calculateGrandTotal() : (formData.po_total_value ? parseFloat(formData.po_total_value) : 0)) - (formData.po_utilized_value || 0);
 
+  const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle: React.CSSProperties = { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' };
+  const fieldColStyle: React.CSSProperties = { flex: 1 };
+  const sectionHeaderStyle: React.CSSProperties = {
+    fontWeight: 600, fontSize: '11px', color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px'
+  };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '4px 8px', fontSize: '12px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff' };
+
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: '#737373' }}>
@@ -1003,10 +1044,10 @@ export default function CreatePO() {
     <div style={{ 
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       width: '100%',
-      maxWidth: '1400px',
+      maxWidth: '100%',
       margin: '0 auto',
-      minHeight: '100vh',
-      padding: '24px',
+      minHeight: isModal ? 'auto' : '100vh',
+      padding: isModal ? '0' : '24px',
       boxSizing: 'border-box'
     }}>
       {/* Header */}
@@ -1051,7 +1092,7 @@ export default function CreatePO() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/client-po')}
+            onClick={() => onCancel ? onCancel() : navigate('/client-po')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -1153,311 +1194,103 @@ export default function CreatePO() {
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#737373' }}>Status</span>
           {getStatusBadge(formData.status || 'Open')}
         </div>
-
         {/* Fields Grid - Responsive 4 Columns */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '16px',
-          marginBottom: '20px'
-        }}>
-          {/* Client */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Client *
-            </label>
-            <select
-              name="client_id"
-              value={formData.client_id}
-              onChange={handleInputChange}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">Select client</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.client_name}</option>
+        <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e5e5e5' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+            {/* Column 1: Core Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Core Details</div>
+              {renderHeaderField('Client', (
+                <div className="dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={isClientDropdownOpen ? clientSearchText : (clients.find(c => c.id === formData.client_id)?.client_name || '')}
+                    onChange={e => { setClientSearchText(e.target.value); setIsClientDropdownOpen(true); }}
+                    onFocus={() => setIsClientDropdownOpen(true)}
+                    placeholder="Search client..."
+                  />
+                  {isClientDropdownOpen && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {clients.filter(c => !clientSearchText || c.client_name.toLowerCase().includes(clientSearchText.toLowerCase())).map(c => (
+                        <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                          onClick={() => { setFormData(prev => ({ ...prev, client_id: c.id })); setClientSearchText(''); setIsClientDropdownOpen(false); }}
+                        >{c.client_name}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
-            </select>
-          </div>
-
-          {/* Project */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Project
-            </label>
-            <select
-              name="project_id"
-              value={formData.project_id}
-              onChange={handleInputChange}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">Select project</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
+              {renderHeaderField('Project', (
+                <div className="dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={isProjectDropdownOpen ? projectSearchText : (projects.find(p => p.id === formData.project_id)?.project_name || '')}
+                    onChange={e => { setProjectSearchText(e.target.value); setIsProjectDropdownOpen(true); }}
+                    onFocus={() => setIsProjectDropdownOpen(true)}
+                    placeholder="Search project..."
+                  />
+                  {isProjectDropdownOpen && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'white', border: '1px solid #d1d5db', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {projects.filter(p => !projectSearchText || (p.project_name || '').toLowerCase().includes(projectSearchText.toLowerCase()) || (p.project_code || '').toLowerCase().includes(projectSearchText.toLowerCase())).map(p => (
+                        <div key={p.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                          onClick={() => { setFormData(prev => ({ ...prev, project_id: p.id })); setProjectSearchText(''); setIsProjectDropdownOpen(false); }}
+                        >{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
-            </select>
-          </div>
+              {renderHeaderField('Remarks', (
+                <textarea name="remarks" value={formData.remarks || ''} onChange={handleInputChange} style={{ ...inputStyle, minHeight: '60px' }} placeholder="Any remarks" />
+              ), true)}
+            </div>
 
-          {/* PO Number */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              PO Number *
-            </label>
-            <input
-              type="text"
-              name="po_number"
-              value={formData.po_number}
-              onChange={handleInputChange}
-              placeholder="e.g., PO/2025/001"
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          {/* PO Date */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              PO Date *
-            </label>
-            <input
-              type="date"
-              name="po_date"
-              value={formData.po_date}
-              onChange={handleInputChange}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          {/* Expiry Date */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Expiry Date
-            </label>
-            <input
-              type="date"
-              name="po_expiry_date"
-              value={formData.po_expiry_date}
-              onChange={handleInputChange}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '14px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          {/* Total Value */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Total Value {lineItems.length > 0 ? '(Auto-calculated from line items)' : '*'}
-            </label>
-            {lineItems.length > 0 ? (
-              <div style={{
-                padding: '8px 12px',
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: '#166534'
-              }}>
-                ₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </div>
-            ) : (
-              <input
-                type="number"
-                name="po_total_value"
-                value={formData.po_total_value}
-                onChange={handleInputChange}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            )}
-          </div>
-
-          {/* Available Value */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Available Value
-            </label>
-            <div style={{
-              padding: '8px 12px',
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#166534'
-            }}>
-              ₹{availableValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            {/* Column 2: Purchase Order */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Purchase Order</div>
+              {renderHeaderField('PO Number', (
+                <input type="text" name="po_number" value={formData.po_number} onChange={handleInputChange} placeholder="e.g., PO/2025/001" style={inputStyle} />
+              ))}
+              {renderHeaderField('PO Date', (
+                <input type="date" name="po_date" value={formData.po_date} onChange={handleInputChange} style={inputStyle} />
+              ))}
+              {renderHeaderField('Expiry Date', (
+                <input type="date" name="po_expiry_date" value={formData.po_expiry_date || ''} onChange={handleInputChange} style={inputStyle} />
+              ))}
+              {renderHeaderField('PO Value', (
+                lineItems.length > 0 ? (
+                  <div style={{ padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: '#166534' }}>
+                    ₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Auto-calc)
+                  </div>
+                ) : (
+                  <input type="number" name="po_total_value" value={formData.po_total_value} onChange={handleInputChange} placeholder="0.00" style={inputStyle} />
+                )
+              ))}
+              {renderHeaderField('Available', (
+                <div style={{ padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: '#166534' }}>
+                  ₹{availableValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
+              ))}
+              {renderHeaderField('Attachment', (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff', fontSize: '12px', color: '#525252', cursor: 'pointer' }}>
+                    <Upload size={12} />
+                    {attachment ? attachment.name : 'Choose file'}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} style={{ display: 'none' }} />
+                  </label>
+                  {attachmentUrl && !attachment && (
+                    <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#1d4ed8' }}>View</a>
+                  )}
+                </div>
+              ), true)}
             </div>
           </div>
-
-          {/* Attachment */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Attachment
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '6px',
-                background: '#fff',
-                fontSize: '13px',
-                color: '#525252',
-                cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}>
-                <Upload size={14} />
-                {attachment ? attachment.name : 'Choose file'}
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
-              </label>
-              {attachmentUrl && !attachment && (
-                <a 
-                  href={attachmentUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ fontSize: '12px', color: '#1d4ed8' }}
-                >
-                  View current
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Remarks */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            color: '#737373'
-          }}>
-            Remarks
-          </label>
-          <textarea
-            name="remarks"
-            value={formData.remarks}
-            onChange={handleInputChange}
-            rows={3}
-            placeholder="Add any additional notes..."
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '6px',
-              fontSize: '14px',
-              color: '#171717',
-              background: '#fff',
-              resize: 'vertical',
-              minHeight: '80px'
-            }}
-          />
         </div>
 
                 {/* Line Items Section */}
@@ -1586,7 +1419,7 @@ export default function CreatePO() {
                               updated[index].description = e.target.value;
                               setLineItems(updated);
                             }}
-                            style={{ width: '100%', background: 'transparent', border: 'none', fontWeight: 'bold', fontSize: '14px', outline: 'none' }}
+                            style={{ width: '100%', background: 'transparent', border: 'none', fontWeight: 'bold', fontSize: '12px', outline: 'none' }}
                           />
                         </td>
                         <td style={{ padding: '12px 8px', textAlign: 'center' }}>
@@ -1850,7 +1683,6 @@ export default function CreatePO() {
           )}
         </div>
         {/* Payment Terms Section */}
-\n        {/* Payment Terms Section */}
         <div style={{
           marginTop: '32px',
           padding: '24px',

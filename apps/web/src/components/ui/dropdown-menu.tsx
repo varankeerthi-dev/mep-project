@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { HTMLAttributes, ReactElement } from 'react'
+import { useRef, useEffect } from 'react'
 import { cn } from '../../lib/utils'
 
 type DropdownContextValue = {
   open: boolean
   setOpen: (open: boolean) => void
+  triggerRef: React.RefObject<HTMLElement | null>
 }
 
 const DropdownContext = createContext<DropdownContextValue | null>(null)
@@ -15,7 +18,8 @@ type DropdownMenuProps = {
 
 export function DropdownMenu({ children }: DropdownMenuProps) {
   const [open, setOpen] = useState(false)
-  const value = useMemo(() => ({ open, setOpen }), [open])
+  const triggerRef = useRef<HTMLElement | null>(null)
+  const value = useMemo(() => ({ open, setOpen, triggerRef }), [open])
   return <DropdownContext.Provider value={value}>{children}</DropdownContext.Provider>
 }
 
@@ -26,6 +30,14 @@ type TriggerProps = {
 
 export function DropdownMenuTrigger({ asChild, children }: TriggerProps) {
   const ctx = useContext(DropdownContext)
+  const ref = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (ctx && ref.current) {
+      ctx.triggerRef.current = ref.current
+    }
+  })
+
   if (!ctx) return children
 
   const onClick = (event: React.MouseEvent) => {
@@ -33,7 +45,18 @@ export function DropdownMenuTrigger({ asChild, children }: TriggerProps) {
     ctx.setOpen(!ctx.open)
   }
 
-  return asChild ? React.cloneElement(children, { onClick }) : <button onClick={onClick}>{children}</button>
+  if (asChild) {
+    return React.cloneElement(children, {
+      onClick,
+      ref,
+    } as any)
+  }
+
+  return (
+    <button ref={ref as React.RefObject<HTMLButtonElement>} onClick={onClick}>
+      {children}
+    </button>
+  )
 }
 
 type DropdownMenuContentProps = HTMLAttributes<HTMLDivElement> & {
@@ -47,28 +70,61 @@ export function DropdownMenuContent({
   ...props
 }: DropdownMenuContentProps) {
   const ctx = useContext(DropdownContext)
-  if (!ctx?.open) return null
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
-  const alignment =
-    align === 'end'
-      ? 'right-0'
-      : align === 'center'
-        ? 'left-1/2 -translate-x-1/2'
-        : 'left-0'
+  useEffect(() => {
+    if (!ctx?.open) return
 
-  return (
-    <div className="relative">
-      <div
-        className={cn(
-          'absolute z-50 mt-2 min-w-[160px] rounded-md border border-zinc-200 bg-white p-1 shadow-lg',
-          alignment,
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </div>
-    </div>
+    // Calculate position from trigger
+    const trigger = ctx.triggerRef.current
+    if (trigger) {
+      const rect = trigger.getBoundingClientRect()
+      setPos({
+        top: rect.bottom + window.scrollY + 4,
+        left: align === 'end'
+          ? rect.right + window.scrollX
+          : rect.left + window.scrollX,
+      })
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (
+        ref.current && !ref.current.contains(target) &&
+        ctx.triggerRef.current && !ctx.triggerRef.current.contains(target)
+      ) {
+        ctx.setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [ctx, align])
+
+  if (!ctx?.open || !pos) return null
+
+  const translateX = align === 'end' ? '-100%' : '0'
+
+  return createPortal(
+    <div
+      ref={ref}
+      style={{
+        position: 'fixed',
+        top: pos.top - window.scrollY,
+        left: pos.left,
+        transform: `translateX(${translateX})`,
+        zIndex: 9999,
+      }}
+      className={cn(
+        'min-w-[160px] rounded-md border border-zinc-200 bg-white p-1 shadow-lg',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>,
+    document.body
   )
 }
 

@@ -121,14 +121,14 @@ export const ClientLookup: React.FC<ClientLookupProps> = ({ onBack, isDemo = fal
 
       // 4. Fetch members
       const { data: memberList } = await supabase
-        .from('org_members')
-        .select('user_id, roles(name), user_profiles(full_name)')
+        .from('employees')
+        .select('id, name, role')
         .eq('organisation_id', orgId);
 
       setOrgMembers((memberList || []).map((m: any) => ({
-        user_id: m.user_id,
-        full_name: m.user_profiles?.full_name || 'Unnamed',
-        role_name: m.roles?.name || 'Member'
+        user_id: m.id,
+        full_name: m.name || 'Unnamed',
+        role_name: m.role || 'Member'
       })));
 
     } catch (err) {
