@@ -30,9 +30,9 @@ export async function autoCreateOrUpdateErection(materialItem: QuotationItemExte
   }
 
   // Get the material name for lookup
-  const itemName = materialItem.description || materialItem.item_id || '';
+  const itemName = materialItem.description || '';
   if (!itemName) {
-    console.log('Skipping - no material name');
+    console.log('Skipping - no material description');
     return;
   }
 
