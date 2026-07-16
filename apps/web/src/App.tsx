@@ -90,7 +90,7 @@ const RequestAccessPage = lazyAny(() => import('./pages/RequestAccess'));
 const AccessControlPage = lazyAny(() => import('./pages/AccessControl'));
 const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })));
 const QuotationList = lazyAny(() => import('./pages/QuotationList'));
-const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation'));
+const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation/index'));
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const SalesOrderList = lazyAny(() => import('./pages/sales/SalesOrderList'));
 const SalesOrderCreate = lazyAny(() => import('./pages/sales/SalesOrderCreate'));
