@@ -8,9 +8,10 @@ interface CustomDatePickerProps {
   onChange: (val: string) => void;
   placeholder?: string;
   inputStyle?: React.CSSProperties;
+  minDate?: string;
 }
 
-function CustomDatePicker({ value, onChange, placeholder = "Select date", inputStyle }: CustomDatePickerProps) {
+function CustomDatePicker({ value, onChange, placeholder = "Select date", inputStyle, minDate }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(() => {
     return value ? new Date(value) : new Date();
@@ -111,19 +112,22 @@ function CustomDatePicker({ value, onChange, placeholder = "Select date", inputS
             {daysInMonth.map((day) => {
               const isSelected = value && isSameDay(day, new Date(value));
               const isToday = isSameDay(day, new Date());
+              const dayStr = format(day, 'yyyy-MM-dd');
+              const isDisabled = minDate ? (dayStr <= minDate) : false;
               return (
                 <button
                   key={day.toString()}
                   type="button"
-                  onClick={(e) => handleSelectDay(day, e)}
+                  onClick={(e) => !isDisabled && handleSelectDay(day, e)}
+                  disabled={isDisabled}
                   style={{
                     background: isSelected ? '#2563eb' : 'transparent',
                     border: 'none',
                     borderRadius: '4px',
                     fontSize: '11px',
                     fontWeight: isSelected || isToday ? 'bold' : 'normal',
-                    color: isSelected ? 'white' : isToday ? '#2563eb' : '#374151',
-                    cursor: 'pointer',
+                    color: isDisabled ? '#cbd5e1' : isSelected ? 'white' : isToday ? '#2563eb' : '#374151',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                     height: '24px',
                     width: '24px',
                     display: 'flex',
@@ -132,10 +136,10 @@ function CustomDatePicker({ value, onChange, placeholder = "Select date", inputS
                     transition: 'all 0.1s'
                   }}
                   onMouseEnter={e => {
-                    if (!isSelected) e.currentTarget.style.background = '#f3f4f6';
+                    if (!isSelected && !isDisabled) e.currentTarget.style.background = '#f3f4f6';
                   }}
                   onMouseLeave={e => {
-                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    if (!isSelected && !isDisabled) e.currentTarget.style.background = 'transparent';
                   }}
                 >
                   {format(day, 'd')}
@@ -153,8 +157,8 @@ interface QuotationHeaderFormProps {
   formData: any;
   setFormData: (val: any) => void;
   clients: any[];
-  clientSearch: string;
-  setClientSearch: (val: string) => void;
+  clientSearch: string | null;
+  setClientSearch: (val: string | null) => void;
   isClientDropdownOpen: boolean;
   setIsClientDropdownOpen: (open: boolean) => void;
   handleClientChange: (clientId: string) => void;
@@ -248,12 +252,15 @@ export function QuotationHeaderForm({
               className="form-input"
               style={{ ...inputStyle, borderColor: isClientError ? '#ef4444' : undefined, backgroundColor: isClientError ? '#fef2f2' : undefined }}
               placeholder="Search or select client..."
-              value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
+              value={clientSearch !== null ? clientSearch : (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name || '' : '')}
               onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
               onClick={() => setIsClientDropdownOpen(true)}
               onFocus={() => setIsClientDropdownOpen(true)}
               onBlur={() => {
-                setTimeout(() => setClientTouched(true), 200);
+                setTimeout(() => {
+                  setClientSearch(null);
+                  setClientTouched(true);
+                }, 200);
               }}
             />
             {isClientError && (
@@ -269,7 +276,7 @@ export function QuotationHeaderForm({
                     <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
                       onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                      onClick={() => { handleClientChange(c.id); setClientSearch(c.client_name); setIsClientDropdownOpen(false); setClientSearch(''); setClientTouched(false); }}
+                      onClick={() => { handleClientChange(c.id); setIsClientDropdownOpen(false); setClientSearch(null); setClientTouched(false); }}
                     >{c.client_name}</div>
                   ))}
                 {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
@@ -358,9 +365,26 @@ export function QuotationHeaderForm({
           <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'nowrap', minWidth: '0px' }}>
             <CustomDatePicker value={formData.date} onChange={(val) => setFormData({ ...formData, date: val })} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
             <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151', paddingLeft: '2px', whiteSpace: 'nowrap' }}>Valid Till:</span>
-            <CustomDatePicker value={formData.valid_till} onChange={(val) => setFormData({ ...formData, valid_till: val })} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
+            <CustomDatePicker 
+              value={formData.valid_till} 
+              onChange={(val) => setFormData({ ...formData, valid_till: val })} 
+              minDate={formData.date}
+              inputStyle={{ 
+                flex: '1 1 0%', 
+                minWidth: '0px',
+                borderColor: (formData.date && formData.valid_till && new Date(formData.valid_till) <= new Date(formData.date)) ? '#ef4444' : undefined,
+                backgroundColor: (formData.date && formData.valid_till && new Date(formData.valid_till) <= new Date(formData.date)) ? '#fef2f2' : undefined
+              }} 
+            />
           </div>
         </div>
+        {formData.date && formData.valid_till && new Date(formData.valid_till) <= new Date(formData.date) && (
+          <div style={{ paddingLeft: '95px', marginTop: '-6px', marginBottom: '6px' }}>
+            <span style={{ color: '#ef4444', fontSize: '10px', fontWeight: 600 }}>
+              Valid Till date must be after Quote date
+            </span>
+          </div>
+        )}
         {renderHeaderField('Prepared By:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent' }}>{formData.prepared_by || 'Set on creation'}</div>)}
         {renderHeaderField('Reference:', <input type="text" className="form-input" style={inputStyle} value={formData.reference || ''} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Client RFQ No..." />)}
         {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={formData.payment_terms || ''} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} placeholder="Net 30 Days" />, true)}

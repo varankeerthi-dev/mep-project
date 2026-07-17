@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/lib/logger';
 import { supabase } from '../../../supabase';
 import { withSessionCheck } from '../../../queryClient';
 import { createPurchaseRequisition, deletePurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, updatePurchaseRequisition, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
@@ -24,6 +25,8 @@ export const usePurchaseRequisitions = (organisationId: string | undefined, proj
       return listPurchaseRequisitions(organisationId, projectId || null);
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -94,6 +97,8 @@ export const usePurchaseAuditLogs = (organisationId: string | undefined, entityI
       return listPurchaseAuditLogs(organisationId, entityId);
     }),
     enabled: !!organisationId && !!entityId,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -106,6 +111,8 @@ export const useProcureRequisitionLines = (organisationId: string | undefined) =
       return listProcureRequisitionLines(organisationId);
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -117,6 +124,8 @@ export const useAvailabilityInquiries = (organisationId: string | undefined) => 
       return listAvailabilityInquiries(organisationId);
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -172,6 +181,8 @@ export const useRequisitionLinesForSourcing = (organisationId: string | undefine
       return listRequisitionLinesForSourcing(organisationId);
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -214,6 +225,8 @@ export const usePurchaseInvoiceVerifications = (organisationId: string | undefin
       return listPurchaseInvoiceVerifications(organisationId);
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -225,6 +238,8 @@ export const usePurchaseIVSettings = (organisationId: string | undefined) => {
       return listPurchaseIVSettings(organisationId);
     }),
     enabled: !!organisationId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 
@@ -251,6 +266,8 @@ export const useVendorHolds = (organisationId: string | undefined, vendorId: str
       return ApprovalAPI.getVendorHolds(organisationId, vendorId);
     }),
     enabled: !!organisationId && !!vendorId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -270,6 +287,8 @@ export const useVendors = (organisationId: string | undefined) => {
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 
@@ -316,15 +335,18 @@ export const useUpdateVendor = () => {
 
 // ============== PURCHASE ORDER QUERIES ==============
 
-export const usePurchaseOrders = (organisationId: string | undefined, filters?: any) => {
+export const usePurchaseOrders = (organisationId: string | undefined, filters?: { status?: string; vendor_id?: string; page?: number; pageSize?: number; search?: string }) => {
+  const page = filters?.page ?? 0;
+  const pageSize = filters?.pageSize ?? 50;
+
   return useQuery({
     queryKey: ['purchase-orders', organisationId, filters],
     queryFn: withSessionCheck(async () => {
-      if (!organisationId) return [];
+      if (!organisationId) return { data: [], count: 0 };
       
       let query = supabase
         .from('purchase_orders')
-        .select('*, vendor:purchase_vendors(company_name)')
+        .select('*, vendor:purchase_vendors(company_name)', { count: 'exact' })
         .eq('organisation_id', organisationId)
         .order('po_date', { ascending: false });
       
@@ -334,12 +356,32 @@ export const usePurchaseOrders = (organisationId: string | undefined, filters?: 
       if (filters?.vendor_id) {
         query = query.eq('vendor_id', filters.vendor_id);
       }
+      if (filters?.search) {
+        const { data: matchingVendors } = await supabase
+          .from('purchase_vendors')
+          .select('id')
+          .ilike('company_name', `%${filters.search}%`);
+
+        const vendorIds = matchingVendors?.map(v => v.id) || [];
+
+        if (vendorIds.length > 0) {
+          query = query.or(`po_number.ilike.%${filters.search}%,vendor_id.in.(${vendorIds.join(',')})`);
+        } else {
+          query = query.ilike('po_number', `%${filters.search}%`);
+        }
+      }
       
-      const { data, error } = await query;
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+      
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data || [];
+      return { data: data || [], count: count ?? 0 };
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -348,279 +390,19 @@ export const usePurchaseOrder = (poId: string | null) => {
     queryKey: ['purchase-order', poId],
     queryFn: withSessionCheck(async () => {
       if (!poId) return null;
-      
+
       const { data, error } = await supabase
         .from('purchase_orders')
         .select('*, items:purchase_order_items(*), vendor:purchase_vendors(*)')
         .eq('id', poId)
         .single();
-      
+
       if (error) throw error;
       return data;
     }),
     enabled: !!poId,
-  });
-};
-
-export const useCreatePurchaseOrder = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: withSessionCheck(async ({ poData, items }: any) => {
-      // Start transaction
-      const { data: po, error: poError } = await supabase
-        .from('purchase_orders')
-        .insert(poData)
-        .select()
-        .single();
-      
-      if (poError) throw poError;
-      
-      // Insert items with PO ID
-      const itemsWithPO = items.map((item: any) => ({
-        ...item,
-        po_id: po.id,
-        organisation_id: po.organisation_id,
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('purchase_order_items')
-        .insert(itemsWithPO);
-      
-      if (itemsError) throw itemsError;
-      
-      return po;
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
-    },
-  });
-};
-
-export const useUpdatePurchaseOrder = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async ({ id, poData, items }: any) => {
-      const { data: po, error: poError } = await supabase
-        .from('purchase_orders')
-        .update(poData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (poError) throw poError;
-
-      const { error: deleteItemsError } = await supabase
-        .from('purchase_order_items')
-        .delete()
-        .eq('po_id', id);
-
-      if (deleteItemsError) throw deleteItemsError;
-
-      const itemsWithPO = items.map((item: any) => ({
-        ...item,
-        po_id: id,
-        organisation_id: po.organisation_id,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('purchase_order_items')
-        .insert(itemsWithPO);
-
-      if (itemsError) throw itemsError;
-
-      return po;
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', data.id] });
-    },
-  });
-};
-
-export const useDeletePO = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async ({ id, organisationId }: { id: string; organisationId: string }) => {
-      await supabase.from('approvals').delete().eq('reference_id', id);
-      const { error } = await supabase.from('purchase_orders').delete().eq('id', id);
-      if (error) throw error;
-      return { id, organisationId };
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisationId] });
-    },
-  });
-};
-
-export const useUpdatePOStatus = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: withSessionCheck(async ({ poId, status, updates }: any) => {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .update({ status, ...updates })
-        .eq('id', poId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', data.id] });
-    },
-  });
-};
-
-// ============== BILL QUERIES ==============
-
-export const usePurchaseBills = (organisationId: string | undefined, filters?: any) => {
-  return useQuery({
-    queryKey: ['purchase-bills', organisationId, filters],
-    queryFn: withSessionCheck(async () => {
-      if (!organisationId) return [];
-      
-      let query = supabase
-        .from('purchase_bills')
-        .select('*, vendor:purchase_vendors(company_name)')
-        .eq('organisation_id', organisationId)
-        .order('bill_date', { ascending: false });
-      
-      if (filters?.status) {
-        query = query.eq('payment_status', filters.status);
-      }
-      if (filters?.vendor_id) {
-        query = query.eq('vendor_id', filters.vendor_id);
-      }
-      if (filters?.overdue) {
-        query = query.lt('due_date', new Date().toISOString().split('T')[0])
-          .in('payment_status', ['Unpaid', 'Partially Paid']);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    }),
-    enabled: !!organisationId,
-  });
-};
-
-export const useVendorOpenBills = (
-  organisationId: string | undefined,
-  vendorId: string | undefined,
-  enabled = true
-) => {
-  return useQuery({
-    queryKey: ['purchase-bills', 'open', organisationId, vendorId],
-    queryFn: withSessionCheck(async () => {
-      if (!organisationId || !vendorId) return [];
-
-      const { data, error } = await supabase
-        .from('purchase_bills')
-        .select('*')
-        .eq('organisation_id', organisationId)
-        .eq('vendor_id', vendorId)
-        .in('payment_status', ['Unpaid', 'Partially Paid'])
-        .order('bill_date', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    }),
-    enabled: enabled && !!organisationId && !!vendorId,
-  });
-};
-
-export const useCreatePurchaseBill = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: withSessionCheck(async ({ billData, items }: any) => {
-      // Insert bill
-      const { data: bill, error: billError } = await supabase
-        .from('purchase_bills')
-        .insert(billData)
-        .select()
-        .single();
-      
-      if (billError) throw billError;
-      
-      // Insert items
-      const itemsWithBill = items.map((item: any) => ({
-        ...item,
-        bill_id: bill.id,
-        organisation_id: bill.organisation_id,
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('purchase_bill_items')
-        .insert(itemsWithBill);
-      
-      if (itemsError) throw itemsError;
-      
-      // Update vendor balance
-      await updateVendorBalance(bill.vendor_id, bill.organisation_id);
-      
-      return bill;
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
-    },
-  });
-};
-
-export const usePostBillToInventory = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: withSessionCheck(async ({ billId, organisationId }: any) => {
-      const { data, error } = await supabase
-        .from('purchase_bills')
-        .update({
-          posted_to_inventory: true,
-          posted_at: new Date().toISOString(),
-        })
-        .eq('id', billId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Here you would also trigger stock updates
-      // This depends on your inventory module integration
-      
-      return data;
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-    },
-  });
-};
-
-// ============== PAYMENT QUERIES ==============
-
-export const usePayments = (organisationId: string | undefined) => {
-  return useQuery({
-    queryKey: ['purchase-payments', organisationId],
-    queryFn: withSessionCheck(async () => {
-      if (!organisationId) return [];
-      
-      const { data, error } = await supabase
-        .from('purchase_payments')
-        .select('*, vendor:purchase_vendors(company_name), bills:purchase_payment_bills(bill:purchase_bills(bill_number, total_amount))')
-        .eq('organisation_id', organisationId)
-        .order('payment_date', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    }),
-    enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -673,6 +455,131 @@ export const useVendorLedger = (
       };
     }),
     enabled: enabled && !!organisationId && !!vendorId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
+// ============== BILL QUERIES ==============
+
+export const usePurchaseBills = (organisationId: string | undefined, filters?: { status?: string; vendor_id?: string; page?: number; pageSize?: number; search?: string; overdue?: boolean }) => {
+  const page = filters?.page ?? 0;
+  const pageSize = filters?.pageSize ?? 25;
+
+  return useQuery({
+    queryKey: ['purchase-bills', organisationId, filters],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return { data: [], count: 0 };
+
+      let query = supabase
+        .from('purchase_bills')
+        .select('*, vendor:purchase_vendors(company_name)', { count: 'exact' })
+        .eq('organisation_id', organisationId)
+        .order('bill_date', { ascending: false });
+
+      if (filters?.status) {
+        query = query.eq('payment_status', filters.status);
+      }
+      if (filters?.vendor_id) {
+        query = query.eq('vendor_id', filters.vendor_id);
+      }
+      if (filters?.overdue) {
+        query = query.lt('due_date', new Date().toISOString().split('T')[0])
+          .in('payment_status', ['Unpaid', 'Partially Paid']);
+      }
+      if (filters?.search) {
+        const { data: matchingVendors } = await supabase
+          .from('purchase_vendors')
+          .select('id')
+          .ilike('company_name', `%${filters.search}%`);
+
+        const vendorIds = matchingVendors?.map(v => v.id) || [];
+
+        if (vendorIds.length > 0) {
+          query = query.or(`bill_number.ilike.%${filters.search}%,vendor_id.in.(${vendorIds.join(',')})`);
+        } else {
+          query = query.ilike('bill_number', `%${filters.search}%`);
+        }
+      }
+
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      return { data: data || [], count: count ?? 0 };
+    }),
+    enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
+export const useCreatePurchaseBill = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ billData, items }: { billData: any; items: any[] }) => {
+      const { data: bill, error: billError } = await supabase
+        .from('purchase_bills')
+        .insert(billData)
+        .select()
+        .single();
+
+      if (billError) throw billError;
+
+      if (items && items.length > 0) {
+        const billItems = items.map((item: any) => ({
+          bill_id: bill.id,
+          organisation_id: bill.organisation_id,
+          item_name: item.item_name,
+          batch_no: item.batch_no || null,
+          quantity: item.quantity,
+          unit: item.unit || 'Nos',
+          rate: item.rate,
+          discount_amount: item.discount_amount || 0,
+          taxable_value: item.taxable_value,
+          cgst_percent: item.cgst_percent || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_percent: item.sgst_percent || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_percent: item.igst_percent || 0,
+          igst_amount: item.igst_amount || 0,
+          total_amount: item.total_amount,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_bill_items')
+          .insert(billItems);
+
+        if (itemsError) throw itemsError;
+      }
+
+      return bill;
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
+    },
+  });
+};
+
+export const useUpdatePOStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ poId, status, updates }: { poId: string; status: string; updates: any }) => {
+      const { error } = await supabase
+        .from('purchase_orders')
+        .update({ ...updates, status })
+        .eq('id', poId);
+
+      if (error) throw error;
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+    },
   });
 };
 
@@ -717,7 +624,11 @@ export const useCreatePayment = () => {
       void Promise.allSettled([
         ...(billAllocations || []).map((alloc: any) => updateBillPaymentStatus(alloc.bill_id)),
         updateVendorBalance(payment.vendor_id, payment.organisation_id),
-      ]).then(() => {
+      ]).then((results) => {
+        const balanceResult = results[results.length - 1];
+        if (balanceResult.status === 'rejected') {
+          toast.warning('Payment saved, but vendor balance may be out of date — refresh to retry');
+        }
         void queryClient.invalidateQueries({ queryKey: ['purchase-payments', payment.organisation_id] });
         void queryClient.invalidateQueries({ queryKey: ['purchase-bills', payment.organisation_id] });
         void queryClient.invalidateQueries({ queryKey: ['purchase-vendors', payment.organisation_id] });
@@ -779,6 +690,8 @@ export const usePaymentRequests = (organisationId: string | undefined) => {
       }));
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1000,22 +913,47 @@ export const useResendPaymentRequest = () => {
 
 // ============== DEBIT NOTE QUERIES ==============
 
-export const useDebitNotes = (organisationId: string | undefined) => {
+export const useDebitNotes = (organisationId: string | undefined, filters?: { page?: number; pageSize?: number; search?: string }) => {
+  const page = filters?.page ?? 0;
+  const pageSize = filters?.pageSize ?? 25;
+
   return useQuery({
-    queryKey: ['debit-notes', organisationId],
+    queryKey: ['debit-notes', organisationId, filters],
     queryFn: withSessionCheck(async () => {
-      if (!organisationId) return [];
+      if (!organisationId) return { data: [], count: 0 };
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('debit_notes')
-        .select('*, vendor:purchase_vendors(company_name), bill:purchase_bills(bill_number)')
+        .select('*, vendor:purchase_vendors(company_name), bill:purchase_bills(bill_number)', { count: 'exact' })
         .eq('organisation_id', organisationId)
         .order('dn_date', { ascending: false });
-      
+
+      if (filters?.search) {
+        const { data: matchingVendors } = await supabase
+          .from('purchase_vendors')
+          .select('id')
+          .ilike('company_name', `%${filters.search}%`);
+
+        const vendorIds = matchingVendors?.map(v => v.id) || [];
+
+        if (vendorIds.length > 0) {
+          query = query.or(`dn_number.ilike.%${filters.search}%,vendor_id.in.(${vendorIds.join(',')})`);
+        } else {
+          query = query.ilike('dn_number', `%${filters.search}%`);
+        }
+      }
+
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data || [];
+      return { data: data || [], count: count ?? 0 };
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1075,51 +1013,13 @@ export const useDeleteDebitNote = () => {
 // ============== HELPER FUNCTIONS ==============
 
 const updateVendorBalance = async (vendorId: string, organisationId: string) => {
-  // Calculate total purchases, payments, and debit notes
-  // This is a simplified version - in production, use a database function
-  try {
-    const { data: vendor } = await supabase
-      .from('purchase_vendors')
-      .select('opening_balance')
-      .eq('id', vendorId)
-      .single();
-    
-    // Get total bills
-    const { data: bills } = await supabase
-      .from('purchase_bills')
-      .select('total_amount')
-      .eq('vendor_id', vendorId)
-      .eq('organisation_id', organisationId);
-    
-    // Get total payments
-    const { data: payments } = await supabase
-      .from('purchase_payments')
-      .select('amount')
-      .eq('vendor_id', vendorId)
-      .eq('organisation_id', organisationId);
-    
-    // Get total debit notes
-    const { data: debitNotes } = await supabase
-      .from('debit_notes')
-      .select('total_amount')
-      .eq('vendor_id', vendorId)
-      .eq('organisation_id', organisationId)
-      .eq('approval_status', 'Approved');
-    
-    const totalBills = bills?.reduce((sum: number, b: any) => sum + (b.total_amount || 0), 0) || 0;
-    const totalPayments = payments?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0;
-    const totalDN = debitNotes?.reduce((sum: number, d: any) => sum + (d.total_amount || 0), 0) || 0;
-    
-    const currentBalance = (vendor?.opening_balance || 0) + totalBills - totalPayments - totalDN;
-    
-    // Update vendor with calculated balance
-    await supabase
-      .from('purchase_vendors')
-      .update({ current_balance: currentBalance })
-      .eq('id', vendorId);
-    
-  } catch (error) {
+  const { error } = await supabase.rpc('recalc_vendor_balance', {
+    p_vendor_id: vendorId,
+    p_organisation_id: organisationId,
+  });
+  if (error) {
     console.error('Error updating vendor balance:', error);
+    throw error;
   }
 };
 
@@ -1269,6 +1169,8 @@ export const usePaymentsForApproval = (organisationId: string | undefined) => {
       }));
     }),
     enabled: !!organisationId,
+    staleTime: 15 * 1000,
+    gcTime: 3 * 60 * 1000,
   });
 };
 
@@ -1288,6 +1190,8 @@ export const useApprovedPaymentRequests = (organisationId: string | undefined) =
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1308,6 +1212,8 @@ export const useApprovedPaymentsForAccountant = (organisationId: string | undefi
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1329,6 +1235,8 @@ export const useReleasedPayments = (organisationId: string | undefined) => {
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1348,6 +1256,8 @@ export const useReleasedSubcontractorPayments = (organisationId: string | undefi
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1472,10 +1382,17 @@ export const useReleasePayment = () => {
         });
       }
 
-      await Promise.allSettled([
+      const balancePromise = payment?.vendor_id && payment?.organisation_id ? updateVendorBalance(payment.vendor_id, payment.organisation_id) : null;
+      const results = await Promise.allSettled([
         ...billIds.map((billId) => updateBillPaymentStatus(billId)),
-        ...(payment?.vendor_id && payment?.organisation_id ? [updateVendorBalance(payment.vendor_id, payment.organisation_id)] : []),
+        ...(balancePromise ? [balancePromise] : []),
       ]);
+      if (balancePromise) {
+        const balanceResult = results[results.length - 1];
+        if (balanceResult.status === 'rejected') {
+          toast.warning('Payment saved, but vendor balance may be out of date — refresh to retry');
+        }
+      }
 
       return payment;
     }),
@@ -1533,6 +1450,8 @@ export const useSubcontractorPaymentsForAccountant = (organisationId: string | u
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -1610,7 +1529,7 @@ export const useRecordPaymentForRequest = () => {
           .update({ status: 'Paid' })
           .eq('id', requestId);
 
-        void updateVendorBalance(request.vendor_id, request.organisation_id);
+        await updateVendorBalance(request.vendor_id, request.organisation_id);
 
         return payment;
       } else {
@@ -1707,5 +1626,46 @@ export const useReleaseSubcontractorPayment = () => {
       queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
+  });
+};
+
+// ============== MATERIALS & VARIANTS (for DebitNotes) ==============
+
+export const useMaterialOptions = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['material-options', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+
+      const [materialsRes, pricingRes, variantsRes] = await Promise.all([
+        supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make').eq('organisation_id', organisationId).order('name'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
+        supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisationId).eq('is_active', true),
+      ]);
+
+      if (!materialsRes.data) return [];
+
+      const variantNames = new Map<string, string>();
+      variantsRes.data?.forEach(v => variantNames.set(String(v.id), String(v.variant_name)));
+
+      const pricingByMaterial = new Map<string, Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>>();
+      pricingRes.data?.forEach(p => {
+        const matId = String(p.item_id);
+        const vid = String(p.company_variant_id);
+        const vname = variantNames.get(vid) ?? vid;
+        const list = pricingByMaterial.get(matId) ?? [];
+        list.push({ variant_id: vid, variant_name: vname, make: p.make ?? null, sale_price: p.sale_price ?? null });
+        pricingByMaterial.set(matId, list);
+      });
+
+      return materialsRes.data.map(m => ({
+        id: String(m.id), name: String(m.name ?? ''), display_name: String(m.display_name ?? m.name ?? ''),
+        hsn_code: m.hsn_code ?? null, unit: m.unit ?? null, sale_price: m.sale_price ?? null, make: m.make ?? null,
+        variants: pricingByMaterial.get(String(m.id)) ?? [],
+      }));
+    }),
+    enabled: !!organisationId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };

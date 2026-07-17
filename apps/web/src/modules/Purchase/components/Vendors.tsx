@@ -405,7 +405,7 @@ export const Vendors: React.FC = () => {
       header: 'Credit Limit',
       cell: ({ getValue }: any) => (
         <span className="text-sm font-semibold text-zinc-700">
-          ¥{Number(getValue() || 0).toLocaleString('en-IN')}
+          ₹{Number(getValue() || 0).toLocaleString('en-IN')}
         </span>
       ),
     },

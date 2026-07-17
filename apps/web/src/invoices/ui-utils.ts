@@ -17,8 +17,8 @@ export const InvoiceEditorItemSchema = z.object({
   meta_json: z.object({
     tax_percent: z.number().optional().default(18),
     uom: z.string().optional().default('Nos'),
-    make: z.string().optional(),
-    variant: z.string().optional(),
+    make: z.string().nullish(),
+    variant: z.string().nullish(),
     base_rate: z.number().optional(),
     rate_after_discount: z.number().optional(),
     client_custom_label: z.string().optional(),

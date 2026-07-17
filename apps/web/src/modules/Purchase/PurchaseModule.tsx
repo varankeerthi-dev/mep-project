@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { TabErrorBoundary } from '../../components/projects/TabErrorBoundary';
 import { Vendors } from './components/Vendors';
 import { Requisitions } from './components/Requisitions';
 import AvailabilityInquiry from './components/AvailabilityInquiry';
@@ -55,7 +56,9 @@ export const PurchaseModule: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       <div className="w-full max-w-[1200px] mx-auto">
-        <ActiveComponent />
+        <TabErrorBoundary tabName={tabInfo?.label || 'Section'}>
+          <ActiveComponent />
+        </TabErrorBoundary>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
@@ -11,7 +11,9 @@ import {
   Warehouse, 
   Truck,
   PlusCircle,
-  X
+  X,
+  Loader2,
+  Printer
 } from 'lucide-react';
 import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
@@ -44,6 +46,8 @@ import {
   TableRow 
 } from "../../../components/ui/table";
 
+import { toast } from '@/lib/logger';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseBills, useVendors, useCreatePurchaseBill, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
 import { fetchSourceDocument, transformSourceToTarget, getSourceStatusAfterConversion } from '../../../conversions/api';
@@ -53,6 +57,7 @@ const GST_RATES = [0, 5, 12, 18, 28];
 
 interface BillItem {
   id?: string;
+  _key: string;
   sr: number;
   item_name: string;
   batch_no: string;
@@ -76,10 +81,101 @@ export const Bills: React.FC = () => {
   const { organisation } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
+  const debouncedSearch = useDebounce(searchTerm);
   const [isConversionLoading, setIsConversionLoading] = useState(false);
   const [conversionPoId, setConversionPoId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const conversionProcessedRef = useRef(false);
+
+  const markDirty = () => setIsDirty(true);
+
+  const closeDialog = () => {
+    setOpenDialog(false);
+    setConversionPoId(null);
+    setIsDirty(false);
+    conversionProcessedRef.current = false;
+  };
+
+  const handleCancel = () => {
+    if (isDirty) {
+      setDiscardConfirmOpen(true);
+    } else {
+      closeDialog();
+    }
+  };
+  const [pageIndex, setPageIndex] = useState(() => {
+    const p = parseInt(searchParams.get('page') || '0', 10);
+    return isNaN(p) ? 0 : p;
+  });
+  const [pageSize, setPageSize] = useState(25);
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [vendorFilter, setVendorFilter] = useState(searchParams.get('vendor') || '');
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+
+  const prevSearch = useRef(debouncedSearch);
+  useEffect(() => {
+    if (debouncedSearch !== prevSearch.current) {
+      prevSearch.current = debouncedSearch;
+      setPageIndex(0);
+      setSearchParams(prev => {
+        if (debouncedSearch) prev.set('search', debouncedSearch);
+        else prev.delete('search');
+        prev.set('page', '0');
+        return prev;
+      }, { replace: true });
+    }
+  }, [debouncedSearch, setSearchParams]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setPageIndex(page);
+    setSearchParams(prev => {
+      prev.set('page', String(page));
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handlePageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setPageIndex(0);
+    setSearchParams(prev => {
+      prev.set('page', '0');
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleStatusFilter = useCallback((status: string) => {
+    setStatusFilter(status);
+    setPageIndex(0);
+    setSearchParams(prev => {
+      if (status) prev.set('status', status);
+      else prev.delete('status');
+      prev.set('page', '0');
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleVendorFilter = useCallback((vendorId: string) => {
+    setVendorFilter(vendorId);
+    setPageIndex(0);
+    setSearchParams(prev => {
+      if (vendorId) prev.set('vendor', vendorId);
+      else prev.delete('vendor');
+      prev.set('page', '0');
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleBulkPrint = useCallback(() => {
+    toast.info(`Print ${selectedRows.length} bill(s) - coming soon`);
+  }, [selectedRows]);
+
+  const handleBulkDelete = useCallback(async () => {
+    toast.info(`Delete ${selectedRows.length} bill(s) - coming soon`);
+  }, [selectedRows]);
+
   const [vendorId, setVendorId] = useState('');
   const [billNumber, setBillNumber] = useState('');
   const [vendorInvoiceNo, setVendorInvoiceNo] = useState('');
@@ -99,10 +195,19 @@ export const Bills: React.FC = () => {
     freight: 0, total: 0, totalInr: 0,
   });
 
-  const { data: bills = [], isLoading } = usePurchaseBills(organisation?.id);
+  const { data: billsRes = { data: [], count: 0 }, isLoading } = usePurchaseBills(organisation?.id, {
+    page: pageIndex,
+    pageSize,
+    search: debouncedSearch || undefined,
+    status: statusFilter || undefined,
+    vendor_id: vendorFilter || undefined,
+  });
   const { data: vendors = [] } = useVendors(organisation?.id);
   const createBill = useCreatePurchaseBill();
   const updatePOStatus = useUpdatePOStatus();
+
+  const bills = billsRes.data ?? [];
+  const totalCount = billsRes.count ?? 0;
 
   // Handle conversion from Purchase Order
   useEffect(() => {
@@ -125,6 +230,7 @@ export const Bills: React.FC = () => {
         // Map PO items to bill items
         if (data.items && data.items.length > 0) {
           const billItems = data.items.map((item: any, idx: number) => ({
+            _key: crypto.randomUUID(),
             sr: idx + 1,
             item_name: item.item_name || '',
             batch_no: '',
@@ -169,14 +275,16 @@ export const Bills: React.FC = () => {
   };
 
   const addItem = () => {
+    markDirty();
     setItems([...items, {
-      sr: items.length + 1, item_name: '', batch_no: '', quantity: 1, unit: 'Nos',
+      _key: crypto.randomUUID(), sr: items.length + 1, item_name: '', batch_no: '', quantity: 1, unit: 'Nos',
       rate: 0, discount_amount: 0, taxable_value: 0, cgst_percent: 9, cgst_amount: 0,
       sgst_percent: 9, sgst_amount: 0, igst_percent: 18, igst_amount: 0, total_amount: 0,
     }]);
   };
 
   const updateItem = (index: number, field: keyof BillItem, value: any) => {
+    markDirty();
     const updated = [...items];
     (updated[index] as any)[field] = value;
     const line = updated[index].quantity * updated[index].rate;
@@ -210,47 +318,56 @@ export const Bills: React.FC = () => {
   };
 
   const handleSave = async () => {
-    const billData = {
-      organisation_id: organisation?.id,
-      bill_number: billNumber,
-      vendor_invoice_no: vendorInvoiceNo,
-      vendor_id: vendorId,
-      bill_date: billDate,
-      due_date: dueDate,
-      currency,
-      exchange_rate: exchangeRate,
-      warehouse_id: directSupply ? null : warehouseId,
-      direct_supply_to_site: directSupply,
-      site_address: directSupply ? siteAddress : null,
-      eway_bill_no: ewayBillNo,
-      vehicle_no: vehicleNo,
-      freight_amount: freightAmount,
-      subtotal: totals.subtotal,
-      taxable_amount: totals.taxable,
-      cgst_amount: totals.cgst,
-      sgst_amount: totals.sgst,
-      igst_amount: totals.igst,
-      total_amount: totals.total,
-      total_amount_inr: totals.totalInr,
-      net_amount: totals.total,
-      payment_status: 'Unpaid',
-    };
-    await createBill.mutateAsync({ billData, items });
+    if (!organisation?.id) return;
+    setSaving(true);
+    try {
+      const billData = {
+        organisation_id: organisation.id,
+        bill_number: billNumber,
+        vendor_invoice_no: vendorInvoiceNo,
+        vendor_id: vendorId,
+        bill_date: billDate,
+        due_date: dueDate,
+        currency,
+        exchange_rate: exchangeRate,
+        warehouse_id: directSupply ? null : warehouseId,
+        direct_supply_to_site: directSupply,
+        site_address: directSupply ? siteAddress : null,
+        eway_bill_no: ewayBillNo,
+        vehicle_no: vehicleNo,
+        freight_amount: freightAmount,
+        subtotal: totals.subtotal,
+        taxable_amount: totals.taxable,
+        cgst_amount: totals.cgst,
+        sgst_amount: totals.sgst,
+        igst_amount: totals.igst,
+        total_amount: totals.total,
+        total_amount_inr: totals.totalInr,
+        net_amount: totals.total,
+        payment_status: 'Unpaid',
+      };
+      await createBill.mutateAsync({ billData, items });
 
-    // Update source PO status if this bill was created from a PO conversion
-    if (conversionPoId) {
-      try {
-        await updatePOStatus.mutateAsync({
-          poId: conversionPoId,
-          status: getSourceStatusAfterConversion('purchase-po-to-bill'),
-          updates: {},
-        });
-      } catch (err) {
-        console.error('Failed to update PO status after billing:', err);
+      // Update source PO status if this bill was created from a PO conversion
+      if (conversionPoId) {
+        try {
+          await updatePOStatus.mutateAsync({
+            poId: conversionPoId,
+            status: getSourceStatusAfterConversion('purchase-po-to-bill'),
+            updates: {},
+          });
+        } catch (err) {
+          console.error('Failed to update PO status after billing:', err);
+        }
       }
-    }
 
-    setOpenDialog(false);
+      toast.success('Bill created successfully');
+      closeDialog();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create bill');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const columns = [
@@ -283,7 +400,7 @@ export const Bills: React.FC = () => {
       header: 'Amount',
       cell: ({ getValue }: any) => (
         <div className="font-medium text-right">
-          ¥{Number(getValue()).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          ₹{Number(getValue()).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
     },
@@ -326,6 +443,7 @@ export const Bills: React.FC = () => {
             variant="ghost"
             size="sm"
             className="h-8 w-8 text-rose-600 hover:bg-rose-50"
+            aria-label="View bill"
           >
             <FileText className="h-4 w-4" />
           </ShadcnButton>
@@ -333,6 +451,7 @@ export const Bills: React.FC = () => {
             variant="ghost"
             size="sm"
             className="h-8 w-8 text-zinc-600 hover:bg-zinc-100"
+            aria-label="Edit bill"
           >
             <Edit className="h-4 w-4" />
           </ShadcnButton>
@@ -341,6 +460,7 @@ export const Bills: React.FC = () => {
             size="sm"
             className="h-8 w-8 text-amber-600 hover:bg-amber-50"
             title="Convert to Debit Note"
+            aria-label="Convert to Debit Note"
             onClick={() => {
               window.dispatchEvent(new CustomEvent('convert-to-dn', { detail: { billId: row.original.id, billNumber: row.original.bill_number, vendorId: row.original.vendor_id } }));
             }}
@@ -359,19 +479,29 @@ export const Bills: React.FC = () => {
         <div className="flex items-center gap-3">
           <h1 className="text-base font-medium text-zinc-900">Purchase Bills</h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {bills.length}
+            {totalCount}
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
             <input
               placeholder="Search bills..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 pl-8 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="px-4 pl-8 h-[30px] w-56 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => handleStatusFilter(e.target.value)}
+            className="h-[30px] px-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-zinc-600"
+          >
+            <option value="">All Status</option>
+            <option value="Unpaid">Unpaid</option>
+            <option value="Partially Paid">Partially Paid</option>
+            <option value="Paid">Paid</option>
+          </select>
           <button
             onClick={handleAdd}
             className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98]"
@@ -388,14 +518,28 @@ export const Bills: React.FC = () => {
           data={bills}
           columns={columns}
           loading={isLoading}
+          enableRowSelection={true}
+          onRowSelectionChange={setSelectedRows}
+          manualPagination={true}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          bulkActions={selectedRows.length > 0 ? {
+            selectedCount: selectedRows.length,
+            onPrint: handleBulkPrint,
+            onDelete: handleBulkDelete,
+          } : undefined}
         />
       </div>
 
       <Dialog open={openDialog} onOpenChange={(open) => {
         if (!open) {
-          setOpenDialog(false);
-          setConversionPoId(null);
-          conversionProcessedRef.current = false;
+          if (isDirty) {
+            setDiscardConfirmOpen(true);
+          } else {
+            closeDialog();
+          }
         }
       }}>
         <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
@@ -407,7 +551,7 @@ export const Bills: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Vendor *</Label>
-                <Select value={vendorId} onValueChange={setVendorId}>
+                <Select value={vendorId} onValueChange={(v) => { setVendorId(v); markDirty(); }}>
                   <SelectTrigger className="border-zinc-200">
                     <SelectValue placeholder="Select Vendor" />
                   </SelectTrigger>
@@ -420,23 +564,23 @@ export const Bills: React.FC = () => {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Bill Number *</Label>
-                <Input value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="border-zinc-200" />
+                <Input value={billNumber} onChange={(e) => { setBillNumber(e.target.value); markDirty(); }} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Vendor Inv#</Label>
-                <Input value={vendorInvoiceNo} onChange={(e) => setVendorInvoiceNo(e.target.value)} className="border-zinc-200" />
+                <Input value={vendorInvoiceNo} onChange={(e) => { setVendorInvoiceNo(e.target.value); markDirty(); }} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Bill Date</Label>
-                <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className="border-zinc-200" />
+                <Input type="date" value={billDate} onChange={(e) => { setBillDate(e.target.value); markDirty(); }} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="border-zinc-200" />
+                <Input type="date" value={dueDate} onChange={(e) => { setDueDate(e.target.value); markDirty(); }} className="border-zinc-200" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Currency</Label>
-                <Select value={currency} onValueChange={setCurrency}>
+                <Select value={currency} onValueChange={(v) => { setCurrency(v); markDirty(); }}>
                   <SelectTrigger className="border-zinc-200">
                     <SelectValue />
                   </SelectTrigger>
@@ -450,7 +594,7 @@ export const Bills: React.FC = () => {
                 <Input 
                   type="number" 
                   value={exchangeRate} 
-                  onChange={(e) => setExchangeRate(Number(e.target.value))} 
+                  onChange={(e) => { setExchangeRate(Number(e.target.value)); markDirty(); }} 
                   disabled={currency === 'INR'} 
                   className="border-zinc-200"
                 />
@@ -467,14 +611,14 @@ export const Bills: React.FC = () => {
                   <Label className="text-xs font-bold uppercase text-zinc-500">Warehouse</Label>
                   <Input 
                     value={warehouseId} 
-                    onChange={(e) => setWarehouseId(e.target.value)} 
+                    onChange={(e) => { setWarehouseId(e.target.value); markDirty(); }} 
                     disabled={directSupply} 
                     placeholder="Storage location..."
                     className="border-zinc-200"
                   />
                 </div>
                 <div className="flex items-center space-x-2 bg-primary/5 p-4 rounded-lg border border-primary/10">
-                  <Checkbox id="direct" checked={directSupply} onCheckedChange={(val) => setDirectSupply(!!val)} />
+                  <Checkbox id="direct" checked={directSupply} onCheckedChange={(val) => { setDirectSupply(!!val); markDirty(); }} />
                   <Label htmlFor="direct" className="text-sm font-semibold text-primary cursor-pointer">
                     Direct Supply to Site (Skip warehouse stock)
                   </Label>
@@ -485,7 +629,7 @@ export const Bills: React.FC = () => {
                   <Label className="text-xs font-bold uppercase text-zinc-500">Site Address</Label>
                   <Input 
                     value={siteAddress} 
-                    onChange={(e) => setSiteAddress(e.target.value)} 
+                    onChange={(e) => { setSiteAddress(e.target.value); markDirty(); }} 
                     placeholder="Project site address where materials are delivered..."
                     className="border-zinc-200"
                   />
@@ -516,7 +660,7 @@ export const Bills: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {items.map((item, idx) => (
-                      <TableRow key={idx} className="group">
+                      <TableRow key={item._key} className="group">
                         <TableCell className="text-[10px] text-zinc-400 font-medium">{item.sr}</TableCell>
                         <TableCell>
                           <Input className="h-8 text-xs border-transparent group-hover:border-zinc-200 bg-transparent shadow-none" value={item.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} placeholder="Item name" />
@@ -561,7 +705,7 @@ export const Bills: React.FC = () => {
                           <ShadcnButton 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => { const updated = items.filter((_, i) => i !== idx); setItems(updated); calculateTotals(updated); }}
+                            onClick={() => { markDirty(); const updated = items.filter((_, i) => i !== idx); setItems(updated); calculateTotals(updated); }}
                             className="h-7 w-7 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-full"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -607,20 +751,49 @@ export const Bills: React.FC = () => {
           </div>
 
           <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50 flex flex-row items-center justify-between">
-            <ShadcnButton variant="outline" onClick={() => setOpenDialog(false)} className="px-8 border-zinc-200 font-semibold">
+            <ShadcnButton variant="secondary" onClick={handleCancel} className="px-8 font-semibold">
               Cancel
             </ShadcnButton>
             <ShadcnButton 
               onClick={handleSave} 
-              disabled={items.length === 0 || !vendorId || !billNumber}
+              disabled={items.length === 0 || !vendorId || !billNumber || saving}
               className="px-10 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-100"
             >
-              <Receipt className="h-4 w-4 mr-2" />
-              Complete Billing
+              {saving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              ) : (
+                <><Receipt className="h-4 w-4 mr-2" /> Complete Billing</>
+              )}
             </ShadcnButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Discard Confirmation */}
+      {discardConfirmOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%' }}>
+            <h3 className="text-base font-bold text-zinc-900 mb-2">Discard changes?</h3>
+            <p className="text-sm text-zinc-500 mb-5">You have unsaved changes. Are you sure you want to discard them?</p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDiscardConfirmOpen(false)}
+                className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                Keep Editing
+              </button>
+              <button
+                onClick={() => { setDiscardConfirmOpen(false); closeDialog(); }}
+                className="inline-flex items-center justify-center text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

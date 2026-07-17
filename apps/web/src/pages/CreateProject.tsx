@@ -66,6 +66,8 @@ const STATUS_CONFIG = {
 
 const BRAND_BLUE = '#185FA5';
 
+
+
 const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
 const labelColStyle: React.CSSProperties = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
 const fieldColStyle: React.CSSProperties = { flex: 1 };

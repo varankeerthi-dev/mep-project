@@ -1,12 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Search,
   FileEdit,
-  FileText,
   X,
-  Trash2,
-  Pencil,
   Eye,
   Loader2,
   Warehouse,
@@ -33,16 +31,19 @@ import {
   SelectValue,
 } from '../../../components/ui/select';
 import { Label } from '../../../components/ui/label';
+import { toast } from '@/lib/logger';
 import { cn } from '../../../lib/utils';
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell';
-import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote } from '../hooks/usePurchaseQueries';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote, useDeleteDebitNote, useMaterialOptions } from '../hooks/usePurchaseQueries';
 import { adjustCNStock } from '../../../credit-notes/stock-adjustment';
 
 const DN_TYPES = ['Purchase Return', 'Rate Difference', 'Discount', 'Rejection', 'Other'];
 
 interface DNItem {
+  _key: string;
   description: string;
   hsn_code: string;
   quantity: number;
@@ -60,6 +61,7 @@ interface DNItem {
 
 function createEmptyItem(): DNItem {
   return {
+    _key: crypto.randomUUID(),
     description: '',
     hsn_code: '',
     quantity: 1,
@@ -86,8 +88,10 @@ function calcItemTotals(item: DNItem): DNItem {
 
 export const DebitNotes: React.FC = () => {
   const { organisation } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
+  const debouncedSearch = useDebounce(searchTerm);
   const [billId, setBillId] = useState('');
   const [dnType, setDnType] = useState('Purchase Return');
   const [dnDate, setDnDate] = useState(new Date().toISOString().split('T')[0]);
@@ -95,15 +99,105 @@ export const DebitNotes: React.FC = () => {
   const [items, setItems] = useState<DNItem[]>([createEmptyItem()]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [dnNumber, setDnNumber] = useState('');
+
+  const markDirty = () => setIsDirty(true);
+
+  const closeDialog = () => {
+    setOpenDialog(false);
+    setIsDirty(false);
+    setSaveError(null);
+  };
+
+  const handleCancel = () => {
+    if (isDirty) {
+      setDiscardConfirmOpen(true);
+    } else {
+      closeDialog();
+    }
+  };
   const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
   const [defaultWarehouseId, setDefaultWarehouseId] = useState('');
   const [rateAlerts, setRateAlerts] = useState<Array<{ description: string; billRate: number; currentRate: number; diff: number }>>([]);
 
-  const { data: dns = [], isLoading, refetch } = useDebitNotes(organisation?.id);
-  const { data: bills = [] } = usePurchaseBills(organisation?.id);
+  const [pageIndex, setPageIndex] = useState(() => {
+    const p = parseInt(searchParams.get('page') || '0', 10);
+    return isNaN(p) ? 0 : p;
+  });
+  const [pageSize, setPageSize] = useState(25);
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+
+  const prevSearch = useRef(debouncedSearch);
+  useEffect(() => {
+    if (debouncedSearch !== prevSearch.current) {
+      prevSearch.current = debouncedSearch;
+      setPageIndex(0);
+      setSearchParams(prev => {
+        if (debouncedSearch) prev.set('search', debouncedSearch);
+        else prev.delete('search');
+        prev.set('page', '0');
+        return prev;
+      }, { replace: true });
+    }
+  }, [debouncedSearch, setSearchParams]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setPageIndex(page);
+    setSearchParams(prev => {
+      prev.set('page', String(page));
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handlePageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setPageIndex(0);
+    setSearchParams(prev => {
+      prev.set('page', '0');
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const { data: dnsRes = { data: [], count: 0 }, isLoading, refetch } = useDebitNotes(organisation?.id, {
+    page: pageIndex,
+    pageSize,
+    search: debouncedSearch || undefined,
+  });
+  const { data: billsRes = { data: [], count: 0 } } = usePurchaseBills(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
   const createDN = useCreateDebitNote();
+  const deleteDN = useDeleteDebitNote();
+
+  const dns = dnsRes.data ?? [];
+
+  const handleBulkDelete = useCallback(async () => {
+    const pendingDNs = selectedRows.filter((r: any) => r.approval_status === 'Pending');
+    if (pendingDNs.length === 0) {
+      toast.info('Only Pending debit notes can be bulk-deleted. None of the selected rows are Pending.');
+      return;
+    }
+    if (pendingDNs.length < selectedRows.length) {
+      toast.warning(`${selectedRows.length - pendingDNs.length} non-Pending DN(s) skipped — only Pending notes can be deleted.`);
+    }
+    for (const dn of pendingDNs) {
+      await deleteDN.mutateAsync(dn.id);
+    }
+    toast.success(`${pendingDNs.length} debit note(s) deleted`);
+    setSelectedRows([]);
+    refetch();
+  }, [selectedRows, deleteDN, refetch]);
+
+  const handleBulkPrint = useCallback(() => {
+    toast.info(`Print ${selectedRows.length} debit note(s) — coming soon`);
+  }, [selectedRows]);
+  const totalCount = dnsRes.count ?? 0;
+  const bills = billsRes.data ?? [];
+
+  const { data: materialOptions = [] } = useMaterialOptions(organisation?.id);
+  const materialOptionsRef = useRef(materialOptions);
+  materialOptionsRef.current = materialOptions;
 
   useEffect(() => {
     const handleConvert = (e: Event) => {
@@ -125,6 +219,7 @@ export const DebitNotes: React.FC = () => {
             .then(({ data }) => {
               if (data && data.length > 0) {
                 const dnItems: DNItem[] = data.map((bi: any) => ({
+                  _key: crypto.randomUUID(),
                   description: bi.item_name || bi.description || '',
                   hsn_code: bi.hsn_code || '',
                   quantity: Number(bi.quantity || 0),
@@ -166,7 +261,7 @@ export const DebitNotes: React.FC = () => {
     };
     window.addEventListener('convert-to-dn', handleConvert);
     return () => window.removeEventListener('convert-to-dn', handleConvert);
-  }, []);
+  }, [materialOptionsRef]);
 
   const warehousesQuery = useQuery({
     queryKey: ['warehouses', organisation?.id],
@@ -199,42 +294,9 @@ export const DebitNotes: React.FC = () => {
     staleTime: 2 * 60 * 1000,
   });
 
-  const [materialOptions, setMaterialOptions] = useState<Array<{
-    id: string; name: string; display_name: string; hsn_code: string | null;
-    unit: string | null; sale_price: number | null; make: string | null;
-    variants: Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>;
-  }>>([]);
-
   const [variantDropdowns, setVariantDropdowns] = useState<Record<number, boolean>>({});
   const variantInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const variantDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
-
-  useEffect(() => {
-    if (!organisation?.id) return;
-    Promise.all([
-      supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make').eq('organisation_id', organisation.id).order('name'),
-      supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
-      supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisation.id).eq('is_active', true),
-    ]).then(([materialsRes, pricingRes, variantsRes]) => {
-      if (!materialsRes.data) return;
-      const variantNames = new Map<string, string>();
-      variantsRes.data?.forEach(v => variantNames.set(String(v.id), String(v.variant_name)));
-      const pricingByMaterial = new Map<string, Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>>();
-      pricingRes.data?.forEach(p => {
-        const matId = String(p.item_id);
-        const vid = String(p.company_variant_id);
-        const vname = variantNames.get(vid) ?? vid;
-        const list = pricingByMaterial.get(matId) ?? [];
-        list.push({ variant_id: vid, variant_name: vname, make: p.make ?? null, sale_price: p.sale_price ?? null });
-        pricingByMaterial.set(matId, list);
-      });
-      setMaterialOptions(materialsRes.data.map(m => ({
-        id: String(m.id), name: String(m.name ?? ''), display_name: String(m.display_name ?? m.name ?? ''),
-        hsn_code: m.hsn_code ?? null, unit: m.unit ?? null, sale_price: m.sale_price ?? null, make: m.make ?? null,
-        variants: pricingByMaterial.get(String(m.id)) ?? [],
-      })));
-    });
-  }, [organisation?.id]);
 
   const selectedBill = useMemo(() => {
     return bills.find((b: any) => b.id === billId) ?? null;
@@ -295,6 +357,7 @@ export const DebitNotes: React.FC = () => {
   };
 
   const updateItem = (index: number, field: keyof DNItem, value: string | number) => {
+    markDirty();
     setItems(prev => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -302,8 +365,8 @@ export const DebitNotes: React.FC = () => {
     });
   };
 
-  const addItem = () => setItems(prev => [...prev, createEmptyItem()]);
-  const removeItem = (index: number) => {
+  const addItem = () => { markDirty(); setItems(prev => [...prev, createEmptyItem()]); };
+  const removeItem = (index: number) => { markDirty();
     if (items.length > 1) {
       setItems(prev => prev.filter((_, i) => i !== index));
     }
@@ -372,29 +435,22 @@ export const DebitNotes: React.FC = () => {
         try {
           await adjustCNStock('', organisation.id, stockItems, 'deduct');
         } catch (stockErr) {
+          toast.warning('Debit note saved but stock deduction failed. Please adjust stock manually.');
           console.error('DN stock deduction failed:', stockErr);
         }
       }
 
-      setOpenDialog(false);
+      toast.success('Debit note created successfully');
+      closeDialog();
       refetch();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to create debit note');
+      const msg = err instanceof Error ? err.message : 'Failed to create debit note';
+      toast.error(msg);
+      setSaveError(msg);
     } finally {
       setSaving(false);
     }
   };
-
-  const filteredDNs = useMemo(() => {
-    if (!searchTerm) return dns;
-    const q = searchTerm.toLowerCase();
-    return (dns as any[]).filter(
-      (dn: any) =>
-        dn.dn_number?.toLowerCase().includes(q) ||
-        dn.vendor?.company_name?.toLowerCase().includes(q) ||
-        dn.bill?.bill_number?.toLowerCase().includes(q)
-    );
-  }, [dns, searchTerm]);
 
   const columns = [
     {
@@ -473,7 +529,7 @@ export const DebitNotes: React.FC = () => {
         <div className="flex items-center gap-3">
           <h1 className="text-base font-medium text-zinc-900">Debit Notes</h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {dns.length}
+            {totalCount}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -498,10 +554,34 @@ export const DebitNotes: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <AppTable data={filteredDNs} columns={columns} loading={isLoading} />
+        <AppTable
+          data={dns}
+          columns={columns}
+          loading={isLoading}
+          enableRowSelection={true}
+          onRowSelectionChange={setSelectedRows}
+          manualPagination={true}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          bulkActions={selectedRows.length > 0 ? {
+            selectedCount: selectedRows.length,
+            onPrint: handleBulkPrint,
+            onDelete: handleBulkDelete,
+          } : undefined}
+        />
       </div>
 
-      <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
+      <Dialog open={openDialog} onOpenChange={(open) => {
+        if (!open) {
+          if (isDirty) {
+            setDiscardConfirmOpen(true);
+          } else {
+            closeDialog();
+          }
+        }
+      }}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden">
           <DialogHeader className="px-6 py-4 border-b bg-rose-50/30">
             <DialogTitle className="text-xl font-bold text-rose-900">Create Debit Note</DialogTitle>
@@ -530,12 +610,12 @@ export const DebitNotes: React.FC = () => {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">DN Date</Label>
-                <Input type="date" value={dnDate} onChange={(e) => setDnDate(e.target.value)} className="border-zinc-200 h-10" />
+                <Input type="date" value={dnDate} onChange={(e) => { setDnDate(e.target.value); markDirty(); }} className="border-zinc-200 h-10" />
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">DN Type</Label>
-                <Select value={dnType} onValueChange={setDnType}>
+                <Select value={dnType} onValueChange={(v) => { setDnType(v); markDirty(); }}>
                   <SelectTrigger className="border-zinc-200 h-10">
                     <SelectValue />
                   </SelectTrigger>
@@ -549,7 +629,7 @@ export const DebitNotes: React.FC = () => {
 
               <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Original Bill *</Label>
-                <Select value={billId} onValueChange={setBillId}>
+                <Select value={billId} onValueChange={(v) => { setBillId(v); markDirty(); }}>
                   <SelectTrigger className="border-zinc-200 h-10">
                     <SelectValue placeholder="Select Original Bill" />
                   </SelectTrigger>
@@ -571,7 +651,7 @@ export const DebitNotes: React.FC = () => {
                 <textarea
                   className="flex min-h-[60px] w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20"
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={(e) => { setReason(e.target.value); markDirty(); }}
                   placeholder="Explain the reason for this debit note..."
                 />
               </div>
@@ -637,7 +717,7 @@ export const DebitNotes: React.FC = () => {
                   </thead>
                   <tbody>
                     {items.map((item, index) => (
-                      <tr key={index} className="border-b last:border-b-0">
+                      <tr key={item._key} className="border-b last:border-b-0">
                         <td className="px-3 py-1.5 text-center text-zinc-400">{index + 1}</td>
                         <td className="px-3 py-1.5">
                           <select
@@ -697,14 +777,14 @@ export const DebitNotes: React.FC = () => {
                             value={item.variant || ''}
                             readOnly={!item.material_id}
                             onClick={() => {
-                              const mat = materialOptions.find(m => m.id === item.material_id);
+                    const mat = materialOptionsRef.current.find(m => m.id === item.material_id);
                               if (mat && mat.variants.length > 0) setVariantDropdowns(prev => ({ ...prev, [index]: true }));
                             }}
                             placeholder="-"
                             style={{ width: '100%', padding: '3px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '10px', background: 'transparent', cursor: item.material_id ? 'pointer' : 'default', opacity: item.material_id ? 1 : 0.5 }}
                           />
                           {variantDropdowns[index] && item.material_id && (() => {
-                            const mat = materialOptions.find(m => m.id === item.material_id);
+                    const mat = materialOptionsRef.current.find(m => m.id === item.material_id);
                             if (!mat || mat.variants.length === 0) return null;
                             return (
                               <div ref={(el) => { variantDropdownRefs.current[index] = el; }} style={{ position: 'fixed', background: 'white', border: '1px solid #e2e8f0', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '120px' }}>
@@ -814,7 +894,7 @@ export const DebitNotes: React.FC = () => {
           </div>
 
           <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50 flex flex-row items-center justify-between">
-            <ShadcnButton variant="secondary" onClick={() => setOpenDialog(false)} className="px-8 border-zinc-200 font-semibold">
+            <ShadcnButton variant="secondary" onClick={handleCancel} className="px-8 border-zinc-200 font-semibold">
               Cancel
             </ShadcnButton>
             <ShadcnButton
@@ -837,6 +917,33 @@ export const DebitNotes: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Discard Confirmation */}
+      {discardConfirmOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%' }}>
+            <h3 className="text-base font-bold text-zinc-900 mb-2">Discard changes?</h3>
+            <p className="text-sm text-zinc-500 mb-5">You have unsaved changes. Are you sure you want to discard them?</p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDiscardConfirmOpen(false)}
+                className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                Keep Editing
+              </button>
+              <button
+                onClick={() => { setDiscardConfirmOpen(false); closeDialog(); }}
+                className="inline-flex items-center justify-center text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

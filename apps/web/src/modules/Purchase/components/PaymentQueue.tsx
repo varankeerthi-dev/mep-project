@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
@@ -24,14 +25,33 @@ import { usePurchaseBills, usePaymentRequests } from '../hooks/usePurchaseQuerie
 
 export const PaymentQueue: React.FC = () => {
   const { organisation } = useAuth();
-  const [activeTab, setActiveTab] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = parseInt(searchParams.get('tab') || '0', 10);
+    return (t >= 0 && t <= 3) ? t : 0;
+  });
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
 
-  const { data: bills = [] } = usePurchaseBills(organisation?.id, { overdue: activeTab === 0 });
+  const handleTabChange = useCallback((value: string) => {
+    const tabMap: Record<string, number> = { 'all': 0, 'overdue': 1, '7days': 2, '30days': 3 };
+    const newTab = tabMap[value] ?? 0;
+    setActiveTab(newTab);
+    setSearchParams(prev => {
+      prev.set('tab', String(newTab));
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const { data: billsRes = { data: [], count: 0 } } = usePurchaseBills(organisation?.id, {
+    overdue: activeTab === 1,
+  });
   const { data: requests = [] } = usePaymentRequests(organisation?.id);
 
-  // Filter bills based on tab
-  const filteredBills = bills.filter((bill: any) => {
+  const bills = billsRes.data ?? [];
+
+  // Filter bills based on tab and search
+  const filteredBills = useMemo(() => {
+    let tabFiltered = bills.filter((bill: any) => {
     if (activeTab === 0) return true; // All
     if (activeTab === 1) { // Overdue
       const dueDate = new Date(bill.due_date);
@@ -49,8 +69,15 @@ export const PaymentQueue: React.FC = () => {
       thirtyDays.setDate(thirtyDays.getDate() + 30);
       return dueDate <= thirtyDays && dueDate >= new Date() && bill.payment_status !== 'Paid';
     }
-    return true;
-  });
+      return true;
+    });
+    if (!searchTerm) return tabFiltered;
+    const q = searchTerm.toLowerCase();
+    return tabFiltered.filter((b: any) =>
+      String(b.bill_number || '').toLowerCase().includes(q) ||
+      String(b.vendor?.company_name || '').toLowerCase().includes(q)
+    );
+  }, [bills, activeTab, searchTerm]);
 
   const calculateDaysOverdue = (dueDate: string) => {
     const due = new Date(dueDate);
@@ -203,10 +230,7 @@ export const PaymentQueue: React.FC = () => {
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden border-t border-zinc-100">
-        <Tabs defaultValue="all" className="flex-1 flex flex-col" onValueChange={(v) => {
-          const tabMap: any = { 'all': 0, 'overdue': 1, '7days': 2, '30days': 3 };
-          setActiveTab(tabMap[v]);
-        }}>
+        <Tabs defaultValue="all" className="flex-1 flex flex-col" onValueChange={handleTabChange}>
           <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50" style={{ paddingTop: 15, paddingBottom: 15 }}>
             <TabsList className="flex items-center gap-1 bg-transparent p-0">
               <TabsTrigger value="all" className="w-[150px] h-[26px] px-4 text-sm font-medium transition-colors data-[state=active]:bg-blue-600/10 data-[state=active]:text-blue-600 text-zinc-600 hover:bg-zinc-100">

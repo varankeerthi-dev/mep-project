@@ -289,7 +289,7 @@ export function QuotationItemsTable({
       <table className="grid-table cq-editable" style={{ minWidth: getTableMinWidth() }}>
         <thead className="grid-table-header-dark">
           <tr>
-            <th className="col-shrink" style={{ padding: '6px' }}>
+            <th className="col-check" style={{ padding: '6px' }}>
               <input
                 type="checkbox"
                 checked={items.length > 0 && items.filter(item => !item.is_header && !item.is_subtotal).every(item => selectedItemIds.includes(String(item.id)))}
@@ -303,7 +303,7 @@ export function QuotationItemsTable({
                 }}
               />
             </th>
-            <th className="col-shrink">#</th>
+            <th className="col-sno">#</th>
             {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
               <th className="col-hsn">{templateSettings?.column_settings?.labels?.hsn_code || 'HSN'}</th>
             )}
@@ -439,7 +439,7 @@ export function QuotationItemsTable({
                   onMouseEnter={() => setHoveredItemId(item.id)}
                   onMouseLeave={() => setHoveredItemId(null)}
                 >
-                  <td className="text-center cell-static col-shrink" style={{ padding: '6px' }}>
+                  <td className="text-center cell-static col-check" style={{ padding: '6px' }}>
                     <input
                       type="checkbox"
                       checked={selectedItemIds.includes(String(item.id))}
@@ -454,7 +454,7 @@ export function QuotationItemsTable({
                     />
                   </td>
                   <td 
-                    className="text-center cell-static col-shrink row-drag-handle" 
+                    className="text-center cell-static col-sno row-drag-handle" 
                     title="Drag to reorder" 
                     style={{ fontSize: '13px' }}
                     draggable

@@ -184,10 +184,6 @@ export default function CreateQuotation() {
     suggestions?: string[];
     allowEmpty?: boolean;
   } | null>(null);
-  const [discountConfirm, setDiscountConfirm] = useState<{
-    portfolio: any;
-    clientName: string;
-  } | null>(null);
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
   const [templateSettings, setTemplateSettings] = useState<any>(null);
   
@@ -210,7 +206,7 @@ export default function CreateQuotation() {
   const [multiDCError, setMultiDCError] = useState('');
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
-  const [clientSearch, setClientSearch] = useState('');
+  const [clientSearch, setClientSearch] = useState<string | null>(null);
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 
   const [formData, _setFormData] = useState<any>({
@@ -239,7 +235,7 @@ export default function CreateQuotation() {
     status: 'Draft',
     negotiation_mode: false,
     authorized_signatory_id: '',
-    include_erection_charges: true
+    include_erection_charges: false
   });
 
   const setFormData = useCallback((val: any) => {
@@ -743,7 +739,7 @@ export default function CreateQuotation() {
           }
           return null;
         })(),
-        include_erection_charges: data.include_erection_charges !== undefined ? data.include_erection_charges : true
+        include_erection_charges: data.include_erection_charges !== undefined ? data.include_erection_charges : false
       });
 
       if (data.items) {
@@ -1064,10 +1060,28 @@ export default function CreateQuotation() {
       setHeaderDiscounts(portfolio.discounts);
 
       if (items.length > 0) {
-        setDiscountConfirm({
-          portfolio,
-          clientName: client?.display_name || client?.name || 'this client'
-        });
+        setItems(items.map(item => {
+          if (item.is_header || item.is_subtotal) return item;
+          let disc = 0;
+          if (item.section === 'erection') {
+            disc = portfolio.discounts['erection'] || 0;
+          } else {
+            const mat = item.material || materials.find(m => m.id === item.item_id);
+            const dcId = item.discount_category_id || mat?.discount_category_id;
+            disc = dcId ? (portfolio.discounts[dcId] || 0) : 0;
+          }
+          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+          const finalRate = calculateVariantDiscountedRate(baseRate, disc);
+          return {
+            ...item,
+            discount_percent: disc,
+            applied_discount_percent: disc,
+            final_rate_snapshot: finalRate,
+            rate: finalRate,
+            is_override: false
+          };
+        }));
+        toast.success("client discount applied to the client");
       }
     }
   };
@@ -1822,9 +1836,9 @@ export default function CreateQuotation() {
       valid_till: z.string().nullable().optional(),
     }).refine((data) => {
       if (!data.date || !data.valid_till) return true;
-      return new Date(data.valid_till) >= new Date(data.date);
+      return new Date(data.valid_till) > new Date(data.date);
     }, {
-      message: 'Valid Till date cannot be before the Quote date',
+      message: 'Valid Till date must be after the Quote date',
       path: ['valid_till'],
     });
 
@@ -2889,113 +2903,6 @@ export default function CreateQuotation() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {discountConfirm && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 99999,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.3)',
-          }}
-          onClick={() => setDiscountConfirm(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#f0f0f0',
-              border: '1px solid #c4c4c4',
-              boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-              width: '420px',
-              fontFamily: '"Segoe UI", system-ui, sans-serif',
-              fontSize: '13px',
-              color: '#222',
-              userSelect: 'none',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '16px 20px 12px',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm1 15H9v-2h2v2zm0-4H9V5h2v6z" fill="#f5a623"/>
-              </svg>
-              <span style={{ fontWeight: 600, fontSize: '14px' }}>Apply client discount profile?</span>
-            </div>
-            <div style={{ padding: '0 20px 16px', lineHeight: 1.5, color: '#444' }}>
-              Apply <strong>{discountConfirm.clientName}</strong>&rsquo;s discount portfolio to all existing items? Row-level overrides will be reset.
-            </div>
-            <div
-              style={{
-                display: 'flex', justifyContent: 'flex-end', gap: '8px',
-                padding: '12px 20px',
-                borderTop: '1px solid #d4d4d4',
-                background: '#e8e8e8',
-              }}
-            >
-              <button
-                onClick={() => setDiscountConfirm(null)}
-                style={{
-                  padding: '6px 18px',
-                  border: '1px solid #b0b0b0',
-                  background: '#f5f5f5',
-                  color: '#222',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  minWidth: '70px',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e5e5'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#f5f5f5'}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const { portfolio } = discountConfirm;
-                  setItems(items.map(item => {
-                    if (item.is_header || item.is_subtotal) return item;
-                    let disc = 0;
-                    if (item.section === 'erection') {
-                      disc = portfolio.discounts['erection'] || 0;
-                    } else {
-                      const mat = item.material || materials.find(m => m.id === item.item_id);
-                      const dcId = item.discount_category_id || mat?.discount_category_id;
-                      disc = dcId ? (portfolio.discounts[dcId] || 0) : 0;
-                    }
-                    const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
-                    const finalRate = calculateVariantDiscountedRate(baseRate, disc);
-                    return {
-                      ...item,
-                      discount_percent: disc,
-                      applied_discount_percent: disc,
-                      final_rate_snapshot: finalRate,
-                      rate: finalRate,
-                      is_override: false
-                    };
-                  }));
-                  setDiscountConfirm(null);
-                }}
-                style={{
-                  padding: '6px 18px',
-                  border: '1px solid #0066cc',
-                  background: '#0066cc',
-                  color: '#fff',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  minWidth: '70px',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#0052a3'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#0066cc'}
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {inputDialog && (
         <Dialog open={inputDialog.open} onOpenChange={(open) => { if (!open) setInputDialog(null); }}>

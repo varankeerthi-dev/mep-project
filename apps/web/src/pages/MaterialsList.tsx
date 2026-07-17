@@ -210,7 +210,8 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-function ItemsTab() {
+// NOTE: Named export consumed by features/materials/page/ItemsTab.tsx re-export stub
+export function ItemsTab() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const organisationId = organisation?.id;
@@ -4263,7 +4264,8 @@ function ItemsTab() {
   );
 }
 
-function ServiceTab() {
+// NOTE: Named export consumed by features/materials/service/ServiceTab.tsx re-export stub
+export function ServiceTab() {
   const { data: allMaterials = [], isLoading: loading } = useMaterials();
   const services = useMemo(() => allMaterials.filter(m => m.item_type === 'service'), [allMaterials]);
   const [showForm, setShowForm] = useState(false);
@@ -4454,7 +4456,8 @@ function ServiceTab() {
   );
 }
 
-function ServiceRatesTab() {
+// NOTE: Named export consumed by features/materials/service/ServiceRatesTab.tsx re-export stub
+export function ServiceRatesTab() {
   const [serviceRates, setServiceRates] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -66,7 +66,7 @@ const NonBillableDCList = lazyAny(() => import('./pages/NonBillableDCList'));
 const DateWiseConsolidation = lazyAny(() => import('./pages/DateWiseConsolidation'));
 const MaterialWiseConsolidation = lazyAny(() => import('./pages/MaterialWiseConsolidation'));
 const DCConsolidation = lazyAny(() => import('./pages/DCConsolidation').then(m => ({ default: m.default })));
-const MaterialsList = lazyAny(() => import('./pages/MaterialsList'));
+const MaterialsList = lazyAny(() => import('./features/materials/page/MaterialsPage'));
 const StockTransfer = lazyAny(() => import('./pages/StockTransfer'));
 const TransactionNumberSeries = lazyAny(() => import('./pages/TransactionNumberSeries'));
 const CreatePO = lazyAny(() => import('./pages/CreatePO'));

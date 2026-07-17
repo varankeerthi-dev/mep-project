@@ -70,6 +70,18 @@ export const Payments: React.FC = () => {
   const [requestReason, setRequestReason] = useState('');
   const [activeView, setActiveView] = useState<'payments' | 'requests'>('payments');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [deleteConfirmRequest, setDeleteConfirmRequest] = useState<any | null>(null);
+
+  const handleDeletePaymentRequest = async () => {
+    if (!deleteConfirmRequest) return;
+    try {
+      await deletePaymentRequest.mutateAsync({ requestId: deleteConfirmRequest.id, organisationId: deleteConfirmRequest.organisation_id });
+      toast.success('Payment request deleted');
+      setDeleteConfirmRequest(null);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to delete payment request');
+    }
+  };
 
   const { data: payments = [], isLoading } = usePayments(organisation?.id);
   const { data: requests = [], isLoading: requestsLoading } = usePaymentRequests(organisation?.id);
@@ -396,12 +408,7 @@ export const Payments: React.FC = () => {
             <button
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
-                if (confirm('Delete this payment request?')) {
-                  deletePaymentRequest.mutate(
-                    { requestId: r.id, organisationId: r.organisation_id },
-                    { onSuccess: () => toast.success('Payment request deleted'), onError: (e: any) => toast.error(e?.message ?? 'Delete failed') }
-                  );
-                }
+                setDeleteConfirmRequest(r);
               }}
               disabled={deletePaymentRequest.isPending}
               className="h-7 px-2 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors active:scale-[0.98]"
@@ -1025,6 +1032,33 @@ export const Payments: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      {deleteConfirmRequest && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%' }}>
+            <h3 className="text-base font-bold text-zinc-900 mb-2">Delete Payment Request</h3>
+            <p className="text-sm text-zinc-500 mb-5">Are you sure you want to delete this payment request? This action cannot be undone.</p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirmRequest(null)}
+                className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePaymentRequest}
+                disabled={deletePaymentRequest.isPending}
+                className="inline-flex items-center justify-center text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+              >
+                {deletePaymentRequest.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
   );

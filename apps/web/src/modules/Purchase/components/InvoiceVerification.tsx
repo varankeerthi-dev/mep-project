@@ -9,7 +9,8 @@ import { usePurchaseBills, usePurchaseIVSettings, usePurchaseInvoiceVerification
 export default function InvoiceVerification() {
   const { organisation } = useAuth();
   const [search, setSearch] = useState('');
-  const { data: bills = [], isLoading: billsLoading } = usePurchaseBills(organisation?.id);
+  const { data: billsRes = { data: [], count: 0 }, isLoading: billsLoading } = usePurchaseBills(organisation?.id);
+  const bills = billsRes.data ?? [];
   const { data: settings } = usePurchaseIVSettings(organisation?.id);
   const { data: verifications = [], isLoading: ivLoading } = usePurchaseInvoiceVerifications(organisation?.id);
   const verify = useVerifyPurchaseBill3Way();

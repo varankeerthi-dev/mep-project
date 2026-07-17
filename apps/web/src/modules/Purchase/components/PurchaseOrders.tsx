@@ -31,6 +31,7 @@ import {
   User,
   Receipt
 } from 'lucide-react';
+import { toast } from '@/lib/logger';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -57,6 +58,7 @@ import {
 import { Label } from '../../../components/ui/label';
 import { cn } from '../../../lib/utils';
 
+import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseOrders, usePurchaseOrder, useVendors, useCreatePurchaseOrder, useUpdatePurchaseOrder, useUpdatePOStatus, useDeletePO } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
@@ -196,6 +198,7 @@ export const PurchaseOrders: React.FC = () => {
   const actionParam = searchParams.get('action');
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [poNumber, setPoNumber] = useState('');
   const [currency, setCurrency] = useState('INR');
@@ -396,7 +399,6 @@ export const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
 
   const { data: vendors = [], isLoading: vendorsLoading } = useVendors(organisation?.id);
-  const { data: poList = [], isLoading } = usePurchaseOrders(organisation?.id);
   const createPO = useCreatePurchaseOrder();
   const updatePO = useUpdatePurchaseOrder();
   const deletePO = useDeletePO();
@@ -404,15 +406,33 @@ export const PurchaseOrders: React.FC = () => {
   const editingPOId = searchParams.get('id');
   const { data: editingPO, isLoading: editingPOLoading } = usePurchaseOrder(editingPOId);
 
-  const filteredPOs = useMemo(() => {
-    if (!searchTerm) return poList;
-    const term = searchTerm.toLowerCase();
-    return poList.filter((po: any) =>
-      (po.po_number || '').toLowerCase().includes(term) ||
-      (po.vendor?.company_name || '').toLowerCase().includes(term) ||
-      (po.status || po.approval_status || '').toLowerCase().includes(term)
-    );
-  }, [poList, searchTerm]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
+
+  const { data: poResult, isLoading } = usePurchaseOrders(organisation?.id, {
+    page: pageIndex,
+    pageSize,
+    search: debouncedSearch || undefined,
+  });
+  const poList = poResult?.data ?? [];
+  const totalCount = poResult?.count ?? 0;
+  const pageCount = Math.ceil(totalCount / pageSize);
+
+  useEffect(() => { setPageIndex(0); }, [debouncedSearch]);
+
+  const getPageNumbers = (current: number, total: number): (number | '...')[] => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: (number | '...')[] = [];
+    const half = Math.floor(7 / 2);
+    let start = Math.max(1, current - half);
+    let end = Math.min(total, current + half);
+    if (start > 2) { pages.push(1, '...'); }
+    else if (start === 2) { pages.push(1); }
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < total - 1) { pages.push('...', total); }
+    else if (end === total - 1) { pages.push(total); }
+    return pages;
+  };
 
   // Materials for item select
   const fetchMaterials = useCallback((orgId: string) => {
@@ -842,73 +862,82 @@ export const PurchaseOrders: React.FC = () => {
   const handleSave = async (status: string) => {
     if (!organisation?.id || !validateForm()) return;
 
-    let attachment_url = attachmentUrl;
-    if (attachmentFile) {
-      const fileExt = attachmentFile.name.split('.').pop();
-      const fileName = `po-attachments/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('attachments')
-        .upload(fileName, attachmentFile);
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(fileName);
-        attachment_url = urlData?.publicUrl || '';
+    try {
+      let attachment_url = attachmentUrl;
+      if (attachmentFile) {
+        const fileExt = attachmentFile.name.split('.').pop();
+        const fileName = `po-attachments/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('attachments')
+          .upload(fileName, attachmentFile);
+        if (uploadError) {
+          toast.warning('Attachment upload failed. PO will be saved without attachment.');
+        } else {
+          const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(fileName);
+          attachment_url = urlData?.publicUrl || '';
+        }
       }
-    }
 
-    const poData = {
-      organisation_id: organisation.id,
-      po_number: poNumber,
-      vendor_id: vendorId,
-      po_date: poDate,
-      delivery_date: deliveryDate || null,
-      currency,
-      exchange_rate: currency === 'INR' ? 1 : exchangeRate,
-      status,
-      approval_status: status,
-      terms_conditions: termsContent || null,
-      internal_notes: notes || null,
-      delivery_location: deliveryLocation || null,
-      reference_no: referenceNo || null,
-      attachment_url: attachment_url || null,
-      total_amount: roundOff ? Math.round(totals.total) : totals.total,
-      subtotal: totals.subtotal,
-      discount_amount: totals.discount,
-      taxable_amount: totals.taxable,
-      cgst_amount: totals.cgst,
-      sgst_amount: totals.sgst,
-      igst_amount: totals.igst,
-      total_amount_inr: roundOff ? Math.round(totals.totalInr) : totals.totalInr,
-      authorized_signatory_id: authorizedSignatoryId || null,
-    };
+      const poData = {
+        organisation_id: organisation.id,
+        po_number: poNumber,
+        vendor_id: vendorId,
+        po_date: poDate,
+        delivery_date: deliveryDate || null,
+        currency,
+        exchange_rate: currency === 'INR' ? 1 : exchangeRate,
+        status,
+        approval_status: status,
+        terms_conditions: termsContent || null,
+        internal_notes: notes || null,
+        delivery_location: deliveryLocation || null,
+        reference_no: referenceNo || null,
+        attachment_url: attachment_url || null,
+        total_amount: roundOff ? Math.round(totals.total) : totals.total,
+        subtotal: totals.subtotal,
+        discount_amount: totals.discount,
+        taxable_amount: totals.taxable,
+        cgst_amount: totals.cgst,
+        sgst_amount: totals.sgst,
+        igst_amount: totals.igst,
+        total_amount_inr: roundOff ? Math.round(totals.totalInr) : totals.totalInr,
+        authorized_signatory_id: authorizedSignatoryId || null,
+      };
 
-    const itemsData = items.map(item => ({
-      item_name: item.item_name,
-      item_id: item.item_id || null,
-      hsn_code: item.hsn_code || null,
-      quantity: item.quantity,
-      unit: item.unit || 'Nos',
-      rate: item.rate,
-      discount_percent: item.discount_percent || 0,
-      discount_amount: item.discount_amount || 0,
-      taxable_value: item.taxable_value || 0,
-      cgst_percent: item.cgst_percent || 0,
-      cgst_amount: item.cgst_amount || 0,
-      sgst_percent: item.sgst_percent || 0,
-      sgst_amount: item.sgst_amount || 0,
-      igst_percent: item.igst_percent || 0,
-      igst_amount: item.igst_amount || 0,
-      total_amount: item.total_amount || 0,
-    }));
+      const itemsData = items.map(item => ({
+        item_name: item.item_name,
+        item_id: item.item_id || null,
+        hsn_code: item.hsn_code || null,
+        quantity: item.quantity,
+        unit: item.unit || 'Nos',
+        rate: item.rate,
+        discount_percent: item.discount_percent || 0,
+        discount_amount: item.discount_amount || 0,
+        taxable_value: item.taxable_value || 0,
+        cgst_percent: item.cgst_percent || 0,
+        cgst_amount: item.cgst_amount || 0,
+        sgst_percent: item.sgst_percent || 0,
+        sgst_amount: item.sgst_amount || 0,
+        igst_percent: item.igst_percent || 0,
+        igst_amount: item.igst_amount || 0,
+        total_amount: item.total_amount || 0,
+      }));
 
-    let poId: string;
-    if (editingPOId) {
-      const result = await updatePO.mutateAsync({ id: editingPOId, poData, items: itemsData });
-      poId = editingPOId;
-      logPOActivity(poId, 'UPDATED', `PO updated by ${(user as any)?.user_metadata?.full_name || 'System'}`);
-    } else {
-      const result = await createPO.mutateAsync({ poData, items: itemsData }) as any;
-      poId = result.id;
-      logPOActivity(poId, 'CREATED', `PO created by ${(user as any)?.user_metadata?.full_name || 'System'}`);
+      let poId: string;
+      if (editingPOId) {
+        const result = await updatePO.mutateAsync({ id: editingPOId, poData, items: itemsData });
+        poId = editingPOId;
+        logPOActivity(poId, 'UPDATED', `PO updated by ${(user as any)?.user_metadata?.full_name || 'System'}`);
+      } else {
+        const result = await createPO.mutateAsync({ poData, items: itemsData }) as any;
+        poId = result.id;
+        logPOActivity(poId, 'CREATED', `PO created by ${(user as any)?.user_metadata?.full_name || 'System'}`);
+      }
+
+      toast.success(editingPOId ? 'PO updated successfully' : 'PO created successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save purchase order');
+      throw err;
     }
   };
 
@@ -1880,7 +1909,7 @@ export const PurchaseOrders: React.FC = () => {
         <div className="flex items-center gap-3">
           <h1 className="text-base font-medium text-zinc-900">Purchase Orders</h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {filteredPOs.length}
+            {totalCount}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1940,15 +1969,15 @@ export const PurchaseOrders: React.FC = () => {
               <th className="sticky top-0 z-10 h-[36px] px-6 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[50px]">
                 <button
                   onClick={() => {
-                    if (selectedRows.length === filteredPOs.length) {
+                    if (selectedRows.length === poList.length) {
                       setSelectedRows([]);
                     } else {
-                      setSelectedRows(filteredPOs.map((po: any) => po.id));
+                      setSelectedRows(poList.map((po: any) => po.id));
                     }
                   }}
                   className="flex items-center justify-center"
                 >
-                  {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
+                  {selectedRows.length === poList.length && poList.length > 0 ? (
                     <CheckSquare className="h-3.5 w-3.5 text-indigo-600" />
                   ) : (
                     <Square className="h-3.5 w-3.5 text-zinc-300" />
@@ -1970,12 +1999,12 @@ export const PurchaseOrders: React.FC = () => {
               <tr>
                 <td colSpan={visibleColumns.size + 2} className="px-6 py-16 text-center text-sm text-zinc-500">Loading...</td>
               </tr>
-            ) : filteredPOs.length === 0 ? (
+            ) : poList.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumns.size + 2} className="px-6 py-16 text-center text-sm text-zinc-500">No purchase orders found</td>
               </tr>
             ) : (
-              filteredPOs.map((po: any, idx: number) => (
+              poList.map((po: any, idx: number) => (
                 <tr
                   key={po.id}
                   className={cn(
@@ -2092,6 +2121,74 @@ export const PurchaseOrders: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {totalCount > 0 && (
+        <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50 z-10">
+          <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
+            <span>
+              {pageIndex * pageSize + 1}-{Math.min((pageIndex + 1) * pageSize, totalCount)} of {totalCount}
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
+              className="ml-2 px-2 py-1 text-xs border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-500 bg-white"
+            >
+              {[10, 25, 50, 100].map((size) => (
+                <option key={size} value={size}>{size} per page</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPageIndex(0)}
+              disabled={pageIndex === 0}
+              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setPageIndex(p => Math.max(0, p - 1))}
+              disabled={pageIndex === 0}
+              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
+            >
+              Prev
+            </button>
+            <div className="flex items-center gap-1.5 mx-1">
+              {getPageNumbers(pageIndex + 1, pageCount).map((page, idx) =>
+                page === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-xs text-zinc-400">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => setPageIndex(page - 1)}
+                    className={`h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                      page === pageIndex + 1
+                        ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
+                        : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200 active:scale-[0.98]'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+            </div>
+            <button
+              onClick={() => setPageIndex(p => Math.min(pageCount - 1, p + 1))}
+              disabled={pageIndex >= pageCount - 1}
+              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setPageIndex(pageCount - 1)}
+              disabled={pageIndex >= pageCount - 1}
+              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectedRows.length > 0 && (
         <div className="sticky bottom-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">

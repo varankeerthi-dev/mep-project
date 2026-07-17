@@ -11,6 +11,7 @@ import {
   type ColumnFiltersState,
   type RowSelectionState,
   type PaginationState,
+  type OnChangeFn,
 } from '@tanstack/react-table';
 import { cn } from '../../lib/utils';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, MoreHorizontal, Search, X } from 'lucide-react';
@@ -51,6 +52,11 @@ export interface AppTableProps<T extends Record<string, any>> {
   };
   rowPadding?: string;
   cellAlign?: 'left' | 'center' | 'right';
+  manualPagination?: boolean;
+  totalCount?: number;
+  pageIndex?: number;
+  onPageChange?: (pageIndex: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -89,14 +95,35 @@ export function AppTable<T extends Record<string, any>>({
   bulkActions,
   rowPadding = 'py-3',
   cellAlign = 'left',
+  manualPagination = false,
+  totalCount,
+  pageIndex,
+  onPageChange,
+  onPageSizeChange,
 }: AppTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [pagination, setPagination] = useState<PaginationState>({
+  const [internalPagination, setInternalPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: defaultPageSize,
   });
+
+  const pagination = manualPagination
+    ? { pageIndex: pageIndex ?? 0, pageSize: defaultPageSize }
+    : internalPagination;
+
+  const setPagination: OnChangeFn<PaginationState> = (updater) => {
+    if (manualPagination) {
+      const next = typeof updater === 'function' ? updater(pagination) : updater;
+      onPageChange?.(next.pageIndex);
+      if (next.pageSize !== pagination.pageSize) {
+        onPageSizeChange?.(next.pageSize);
+      }
+    } else {
+      setInternalPagination(updater as any);
+    }
+  };
   const [globalFilter, setGlobalFilter] = useState('');
   const selectAllRef = useRef<HTMLInputElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -218,13 +245,19 @@ export function AppTable<T extends Record<string, any>>({
     return cols;
   }, [columns, enableRowSelection, enableActions, actions]);
 
+  const pageCount = manualPagination && totalCount != null
+    ? Math.ceil(totalCount / pagination.pageSize)
+    : undefined;
+
   const table = useReactTable({
     data,
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
     getFilteredRowModel: enableColumnFilters ? getFilteredRowModel() : undefined,
-    getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
+    getPaginationRowModel: (enablePagination && !manualPagination) ? getPaginationRowModel() : undefined,
+    manualPagination: manualPagination || undefined,
+    pageCount,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
@@ -494,7 +527,10 @@ export function AppTable<T extends Record<string, any>>({
         <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50 z-10">
           <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
             <span>
-              Page {pagination.pageIndex + 1} of {table.getPageCount()}
+              {manualPagination && totalCount != null
+                ? `${pagination.pageIndex * pagination.pageSize + 1}-${Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalCount)} of ${totalCount}`
+                : `Page ${pagination.pageIndex + 1} of ${table.getPageCount()}`
+              }
             </span>
             <select
               value={pagination.pageSize}

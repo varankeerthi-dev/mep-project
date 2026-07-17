@@ -3,7 +3,10 @@ import { useEmployees } from '../../hooks/useEmployees'
 import type { Employee } from '../../hooks/useEmployees'
 import { useOrganisationSettings } from '../../hooks/useOrganisationSettings'
 import { useMutateEmployee } from '../../hooks/useEmployees'
-import { Card, CardContent, CardHeader, CardTitle, Input, Button, Badge } from '@/components/ui'
+import { Card, CardContent, CardHeader, CardTitle, Input, Button } from '@/components/ui'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/reui/badge"
+import { Frame, FramePanel } from "@/components/reui/frame"
 import { 
   Table, 
   TableHeader, 
@@ -55,7 +58,7 @@ export function EmployeeDirectory({ onSelectEmployee }: EmployeeDirectoryProps) 
   // Organization settings sync
   const [groupBy, setGroupBy] = useState<string>('None')
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    ALL_COLUMNS.map(c => c.id)
+    ['code', 'name', 'department', 'designation', 'status']
   )
 
   useEffect(() => {
@@ -117,23 +120,66 @@ export function EmployeeDirectory({ onSelectEmployee }: EmployeeDirectoryProps) 
   }
 
   const renderCell = (emp: Employee, colId: string) => {
-    switch (colId) {
-      case 'code': return emp.employee_code || '-'
-      case 'name': return <span className="font-semibold text-slate-800">{emp.name || (emp as any).full_name || 'Unknown'}</span>
-      case 'department': return emp.department || '-'
-      case 'designation': return emp.designation || '-'
-      case 'status': return (
-        <Badge variant={emp.status?.toLowerCase() === 'active' ? 'default' : 'secondary'} className="capitalize">
+    const getVal = () => {
+      switch (colId) {
+        case 'code': return emp.employee_code
+        case 'name': return 'name_handled'
+        case 'department': return emp.department
+        case 'designation': return emp.designation
+        case 'status': return emp.status
+        case 'blood_group': return emp.blood_group
+        case 'employment_type': return emp.employment_type
+        case 'phone': return emp.phone || emp.mobile_no
+        case 'email': return emp.email || (emp as any).personal_email
+        case 'dob': return emp.date_of_birth ? new Date(emp.date_of_birth).toLocaleDateString() : null
+        default: return null
+      }
+    }
+
+    const val = getVal()
+    if (val === 'name_handled') {
+      const fallbackText = (emp.name || (emp as any).full_name || 'Unknown')
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+
+      return (
+        <div className="flex items-center gap-3">
+          <Avatar size="sm">
+            <AvatarFallback>
+              {fallbackText}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-slate-850">
+              {emp.name || (emp as any).full_name || 'Unknown'}
+            </span>
+            {emp.email && (
+              <span className="text-muted-foreground text-[10px] font-normal">
+                {emp.email}
+              </span>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    if (colId === 'status') {
+      const isAction = emp.status?.toLowerCase() === 'active';
+      return (
+        <Badge variant={isAction ? 'success-light' : 'outline'} size="sm" radius="full" className="capitalize">
           {emp.status}
         </Badge>
       )
-      case 'blood_group': return emp.blood_group || '-'
-      case 'employment_type': return emp.employment_type || '-'
-      case 'phone': return emp.phone || emp.mobile_no || '-'
-      case 'email': return emp.email || (emp as any).personal_email || '-'
-      case 'dob': return emp.date_of_birth ? new Date(emp.date_of_birth).toLocaleDateString() : '-'
-      default: return null
     }
+
+    if (!val) {
+      return <div className="text-center text-zinc-300 w-full">-</div>
+    }
+
+    return val
   }
 
   const activeCols = ALL_COLUMNS.filter(c => visibleColumns.includes(c.id))
@@ -233,86 +279,90 @@ export function EmployeeDirectory({ onSelectEmployee }: EmployeeDirectoryProps) 
         </div>
 
         {/* Table Area */}
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <TableRow className="hover:bg-transparent">
-                {activeCols.map(col => (
-                  <TableHead key={col.id} className="font-semibold text-slate-700 whitespace-nowrap">
-                    {col.label}
-                  </TableHead>
-                ))}
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            
-            {Object.entries(groupedData).map(([groupKey, groupEmployees]) => (
-              <TableBody key={groupKey}>
-                {groupBy !== 'None' && (
-                  <TableRow className="bg-slate-50 hover:bg-slate-50">
-                    <TableCell colSpan={activeCols.length + 1} className="py-2 px-4 font-semibold text-indigo-900 border-t border-b">
-                      {groupKey} ({groupEmployees.length})
-                    </TableCell>
+        <div className="flex-1 overflow-auto p-4 bg-slate-50/30">
+          <Frame spacing="xs" className="w-full">
+            <FramePanel className="p-0! overflow-hidden">
+              <Table className="min-w-[800px]">
+                <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                  <TableRow className="hover:bg-transparent h-[24px]">
+                    {activeCols.map(col => (
+                      <TableHead key={col.id} className="font-semibold text-slate-700 whitespace-nowrap border-r border-zinc-100 py-1 text-[11px] h-[24px] leading-none">
+                        {col.label}
+                      </TableHead>
+                    ))}
+                    <TableHead className="w-10 py-1 h-[24px] leading-none" />
                   </TableRow>
-                )}
+                </TableHeader>
                 
-                {groupEmployees.map(emp => (
-                    <TableRow 
-                      key={emp.id} 
-                      className="hover:bg-indigo-50/30 transition-colors"
-                    >
-                      {activeCols.map(col => (
-                        <TableCell key={col.id} className="py-3 cursor-pointer" onClick={() => onSelectEmployee(emp)}>
-                          {renderCell(emp, col.id)}
+                {Object.entries(groupedData).map(([groupKey, groupEmployees]) => (
+                  <TableBody key={groupKey}>
+                    {groupBy !== 'None' && (
+                      <TableRow className="bg-slate-50 hover:bg-slate-50">
+                        <TableCell colSpan={activeCols.length + 1} className="py-2 px-4 font-semibold text-indigo-900 border-t border-b">
+                          {groupKey} ({groupEmployees.length})
                         </TableCell>
-                      ))}
-                      {/* Action menu cell */}
-                      <TableCell className="py-3 w-10 text-right" onClick={e => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem
-                              className="gap-2.5 py-2.5 px-3 text-sm"
-                              onClick={() => setEditEmployee(emp)}
-                            >
-                              <Pencil className="h-4 w-4 text-gray-500" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2.5 py-2.5 px-3 text-sm"
-                              onClick={() => onSelectEmployee(emp)}
-                            >
-                              <Eye className="h-4 w-4 text-gray-500" />
-                              Show Details
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="gap-2.5 py-2.5 px-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
-                              onClick={() => handleDelete(emp)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                
-                {groupEmployees.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={activeCols.length + 1} className="h-24 text-center text-muted-foreground">
-                      No employees found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            ))}
-          </Table>
+                      </TableRow>
+                    )}
+                    
+                    {groupEmployees.map(emp => (
+                      <TableRow 
+                        key={emp.id} 
+                        className="hover:bg-indigo-50/30 transition-colors"
+                      >
+                        {activeCols.map(col => (
+                          <TableCell key={col.id} className="py-3 cursor-pointer border-r border-zinc-100" onClick={() => onSelectEmployee(emp)}>
+                            {renderCell(emp, col.id)}
+                          </TableCell>
+                        ))}
+                        {/* Action menu cell */}
+                        <TableCell className="py-3 w-10 text-right" onClick={e => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem
+                                className="gap-2.5 py-2.5 px-3 text-sm"
+                                onClick={() => setEditEmployee(emp)}
+                              >
+                                <Pencil className="h-4 w-4 text-gray-500" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="gap-2.5 py-2.5 px-3 text-sm"
+                                onClick={() => onSelectEmployee(emp)}
+                              >
+                                <Eye className="h-4 w-4 text-gray-500" />
+                                Show Details
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="gap-2.5 py-2.5 px-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => handleDelete(emp)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    
+                    {groupEmployees.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={activeCols.length + 1} className="h-24 text-center text-muted-foreground">
+                          No employees found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                ))}
+              </Table>
+            </FramePanel>
+          </Frame>
         </div>
       </CardContent>
 

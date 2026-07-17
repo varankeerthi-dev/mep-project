@@ -538,7 +538,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     about_client: '', discount_type: 'Standard', standard_pricelist_id: null,
     msme_register_type: '', msme_number: '',
     gst_treatment: '', client_type: 'Business', country: 'India',
-    contact_code: '+91', contact_person_2_contact_code: '+91', purchase_contact_code: '+91'
+    contact_code: '+91', contact_person_2_contact_code: '+91', purchase_contact_code: '+91',
+    use_arc_pricing: false
   });
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
