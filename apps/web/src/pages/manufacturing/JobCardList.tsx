@@ -340,16 +340,19 @@ export default function JobCardList({ onNavigate }: JobCardListProps) {
                 Create Similar
               </button>
             )}
-            {(jc.status === 'draft' || jc.status === 'cancelled') && (
-              <button
-                onClick={() => { setOpenMenuId(null); setDeleteConfirmId(jc.id); }}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderTop: '1px solid #f3f4f6', marginTop: '4px', paddingTop: '8px', background: 'transparent', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', textAlign: 'left', fontSize: '12px', color: '#3f3f46', cursor: 'pointer', borderRadius: '0 0 6px 6px', transition: 'all 0.15s', width: '100%' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#fafafa'; e.currentTarget.style.color = '#18181b'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#3f3f46'; }}
+            <button
+                onClick={() => { 
+                  if (jc.status !== 'archived') {
+                    setOpenMenuId(null); setDeleteConfirmId(jc.id);
+                  }
+                }}
+                title={jc.status === 'archived' ? 'Cannot delete archived job cards' : ''}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderTop: '1px solid #f3f4f6', marginTop: '4px', paddingTop: '8px', background: 'transparent', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', textAlign: 'left', fontSize: '12px', color: jc.status !== 'archived' ? '#3f3f46' : '#cbd5e1', cursor: jc.status !== 'archived' ? 'pointer' : 'not-allowed', borderRadius: '0 0 6px 6px', transition: 'all 0.15s', width: '100%', opacity: jc.status !== 'archived' ? 1 : 0.45 }}
+                onMouseEnter={e => { if (jc.status !== 'archived') { e.currentTarget.style.background = '#fafafa'; e.currentTarget.style.color = '#18181b'; } }}
+                onMouseLeave={e => { if (jc.status !== 'archived') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#3f3f46'; } }}
               >
                 <Trash2 size={13} /> Delete Job Card
               </button>
-            )}
           </div>
         );
       })()}

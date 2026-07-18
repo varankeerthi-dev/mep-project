@@ -1,5 +1,8 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
+import { Checkbox } from '../../../../components/ui/checkbox';
+import { Select } from '../../../../components/ui/select';
 import type { VendorMappingRow } from '../../model/aggregates';
 
 interface VendorSectionProps {
@@ -11,9 +14,29 @@ interface VendorSectionProps {
 }
 
 export function VendorSection({ vendorMappings, vendors, onAddRow, onRemoveRow, onRowChange }: VendorSectionProps) {
+  const [collapsed, setCollapsed] = useState(true);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!collapsed && sectionRef.current) {
+      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [collapsed]);
+
   return (
-    <fieldset className="border border-zinc-200 rounded-lg p-4 space-y-4">
-      <legend className="text-sm font-semibold text-zinc-700 px-2">Vendor Mappings</legend>
+    <div ref={sectionRef} className="rounded-lg shadow-[0px_0px_0px_1px_oklch(0_0_0_/_0.06),0px_1px_2px_-1px_oklch(0_0_0_/_0.06),0px_2px_4px_0px_oklch(0_0_0_/_0.04)] bg-amber-50 p-4 space-y-4">
+      <div
+        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <h4 className="text-sm font-semibold text-zinc-700">Purchase & Vendor Mapping</h4>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-zinc-400">Map vendor-specific pricing</span>
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+        </div>
+      </div>
+
+      {!collapsed && (<>
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-zinc-500">Map this item to preferred vendors</span>
@@ -26,17 +49,16 @@ export function VendorSection({ vendorMappings, vendors, onAddRow, onRemoveRow, 
       </div>
 
       {vendorMappings.map((row) => (
-        <div key={row.id} className="flex items-center gap-2 bg-zinc-50 rounded-lg p-2 flex-wrap">
-          <select
+        <div key={row.id} className="flex items-center gap-2 bg-zinc-50 rounded-md p-2 flex-wrap">
+          <Select
             value={row.vendor_id}
-            onChange={(e) => onRowChange(row.id, 'vendor_id', e.target.value)}
-            className="h-8 flex-[2] min-w-[150px] rounded-md border border-zinc-300 bg-white px-2 text-xs"
-          >
-            <option value="">Select vendor</option>
-            {vendors.map((v) => (
-              <option key={v.id} value={v.id}>{v.company_name}</option>
-            ))}
-          </select>
+            onValueChange={(v) => onRowChange(row.id, 'vendor_id', v)}
+            className="h-8 flex-[2] min-w-[150px] text-xs"
+            options={[
+              {value: '', label: 'Select vendor'},
+              ...vendors.map(v => ({value: v.id, label: v.company_name}))
+            ]}
+          />
           <Input
             value={row.base_rate}
             onChange={(e) => onRowChange(row.id, 'base_rate', parseFloat(e.target.value) || 0)}
@@ -56,17 +78,15 @@ export function VendorSection({ vendorMappings, vendors, onAddRow, onRemoveRow, 
             className="h-8 text-xs w-20"
           />
           <label className="flex items-center gap-1 text-xs cursor-pointer whitespace-nowrap">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={row.is_preferred}
-              onChange={(e) => onRowChange(row.id, 'is_preferred', e.target.checked)}
-              className="rounded border-zinc-300"
+              onCheckedChange={(checked) => onRowChange(row.id, 'is_preferred', checked)}
             />
             Preferred
           </label>
           <button
             onClick={() => onRemoveRow(row.id)}
-            className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"
+            className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors relative after:absolute after:inset-[-8px]"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -76,6 +96,7 @@ export function VendorSection({ vendorMappings, vendors, onAddRow, onRemoveRow, 
       {vendorMappings.length === 0 && (
         <p className="text-xs text-zinc-400 italic">No vendor mappings. Click "Add Vendor" to add one.</p>
       )}
-    </fieldset>
+      </>)}
+    </div>
   );
 }

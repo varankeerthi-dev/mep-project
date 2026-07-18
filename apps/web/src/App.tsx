@@ -175,19 +175,7 @@ const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
 
 // Manufacturing
-const ManufacturingDashboard = lazyAny(() => import('./pages/manufacturing/ManufacturingDashboard'));
-const ManufacturingInventory = lazyAny(() => import('./pages/manufacturing/InventoryReport'));
-const BOMList = lazyAny(() => import('./pages/manufacturing/BOMList'));
-const BOMEditor = lazyAny(() => import('./pages/manufacturing/BOMEditor'));
-const ProductionScheduleList = lazyAny(() => import('./pages/manufacturing/ProductionScheduleList'));
-const ProductionScheduleEditor = lazyAny(() => import('./pages/manufacturing/ProductionScheduleEditor'));
-const JobCardList = lazyAny(() => import('./pages/manufacturing/JobCardList'));
-const JobCardCreate = lazyAny(() => import('./pages/manufacturing/JobCardCreate'));
-const JobCardDetail = lazyAny(() => import('./pages/manufacturing/JobCardDetail'));
-const ProductionEntryForm = lazyAny(() => import('./pages/manufacturing/ProductionEntryForm'));
-const CustomUnits = lazyAny(() => import('./pages/manufacturing/CustomUnits'));
-const CustomFields = lazyAny(() => import('./pages/manufacturing/CustomFields'));
-const ActivityLog = lazyAny(() => import('./pages/manufacturing/ActivityLog'));
+import ManufacturingShell from './pages/manufacturing/ManufacturingShell';
 const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
 const IssueAllList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueAllList })));
 const IssueDashboard = lazyAny(() => import('./issues/pages/IssueDashboard').then(m => ({ default: m.IssueDashboard })));
@@ -442,21 +430,22 @@ export default function App() {
       case '/estimation/tenders/detail': return <PermissionGuard permission="estimation.tender.read" fallback={<div className="p-6">Access Denied</div>}><TenderDetailPage /></PermissionGuard>;
       case '/estimation/resources': return <PermissionGuard permission="estimation.resources.read" fallback={<div className="p-6">Access Denied</div>}><ResourceCatalogPage /></PermissionGuard>;
       // Manufacturing
-      case '/manufacturing': return <ManufacturingDashboard onNavigate={navigate} />;
-      case '/manufacturing/inventory': return <ManufacturingInventory onNavigate={navigate} />;
-      case '/manufacturing/boms': return <BOMList onNavigate={navigate} />;
-      case '/manufacturing/boms/create': return <BOMEditor onSuccess={() => navigate('/manufacturing/boms')} onCancel={() => navigate('/manufacturing/boms')} />;
-      case '/manufacturing/boms/edit': return <BOMEditor onSuccess={() => navigate('/manufacturing/boms')} onCancel={() => navigate('/manufacturing/boms')} />;
-      case '/manufacturing/schedules': return <ProductionScheduleList onNavigate={navigate} />;
-      case '/manufacturing/schedules/create': return <ProductionScheduleEditor onSuccess={() => navigate('/manufacturing/schedules')} onCancel={() => navigate('/manufacturing/schedules')} />;
-      case '/manufacturing/schedules/edit': return <ProductionScheduleEditor onSuccess={() => navigate('/manufacturing/schedules')} onCancel={() => navigate('/manufacturing/schedules')} />;
-      case '/manufacturing/job-cards': return <JobCardList onNavigate={navigate} />;
-      case '/manufacturing/job-cards/create': return <JobCardCreate onSuccess={() => navigate('/manufacturing/job-cards')} onCancel={() => navigate('/manufacturing/job-cards')} />;
-      case '/manufacturing/production': return <ProductionEntryForm onNavigate={navigate} />;
-      case '/manufacturing/production/create': return <ProductionEntryForm onNavigate={navigate} />;
-      case '/manufacturing/custom-units': return <CustomUnits onNavigate={navigate} />;
-      case '/manufacturing/custom-fields': return <CustomFields onNavigate={navigate} />;
-      case '/manufacturing/activity-log': return <ActivityLog onNavigate={navigate} />;
+      case '/manufacturing':
+      case '/manufacturing/inventory':
+      case '/manufacturing/boms':
+      case '/manufacturing/boms/create':
+      case '/manufacturing/boms/edit':
+      case '/manufacturing/schedules':
+      case '/manufacturing/schedules/create':
+      case '/manufacturing/schedules/edit':
+      case '/manufacturing/job-cards':
+      case '/manufacturing/job-cards/create':
+      case '/manufacturing/production':
+      case '/manufacturing/production/create':
+      case '/manufacturing/custom-units':
+      case '/manufacturing/custom-fields':
+      case '/manufacturing/activity-log':
+        return <ManufacturingShell />;
       case '/documents': return <Documents />;
       case '/issue': return <IssueDashboard />;
       case '/issues': return <IssueListPage />;
@@ -564,8 +553,7 @@ export default function App() {
           return <WorkOrderDetailView workOrderId={id} onNavigate={navigate} />;
         }
         if (pathKey.startsWith('/manufacturing/job-cards/')) {
-          const jobCardId = pathKey.split('/manufacturing/job-cards/')[1];
-          return <JobCardDetail jobCardId={jobCardId} onNavigate={navigate} />;
+          return <ManufacturingShell />;
         }
         if (pathKey.startsWith('/meetings/') && pathKey.includes('/minutes')) {
           const meetingId = pathKey.split('/meetings/')[1].split('/minutes')[0];

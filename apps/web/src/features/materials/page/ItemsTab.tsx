@@ -84,6 +84,7 @@ export function ItemsTab() {
 
   // ─── UI State ────────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('');
+  const [showTechnical, setShowTechnical] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [hideInactive, setHideInactive] = useState(false);
@@ -208,6 +209,28 @@ export function ItemsTab() {
     form.setClientMappings((prev: any[]) => [...prev, { id: 'temp-' + Date.now(), client_id: '', company_variant_id: '', client_part_no: '', client_description: '' }]);
   }, [form]);
 
+  const handleAddClientPricingRow = useCallback(() => {
+    form.setClientPricing((prev: any[]) => [...prev, { id: 'temp-' + Date.now(), client_id: '', company_variant_id: '', pricing_type: 'Fixed ARC', rate: '', valid_from: '', valid_to: '', status: 'active' }]);
+  }, [form]);
+
+  const handleRemoveClientPricingRow = useCallback((id: string) => {
+    form.setClientPricing((prev: any[]) => prev.filter((p: any) => p.id !== id));
+  }, [form]);
+
+  const handleClientPricingRowChange = useCallback((id: string, field: string, value: any) => {
+    form.setClientPricing((prev: any[]) => prev.map((p: any) => p.id === id ? { ...p, [field]: value } : p));
+  }, [form]);
+
+  const handleShowPricingHistory = useCallback(() => {
+    if (form.editingMaterial) {
+      form.loadPricingHistory(form.editingMaterial.id);
+    }
+  }, [form]);
+
+  const handleToggleTechnical = useCallback(() => {
+    setShowTechnical((prev) => !prev);
+  }, []);
+
   // ─── Multi-Item Handlers ─────────────────────────────────────
   const handleMultiItemSave = useCallback(async () => {
     if (isSavingSequentially || !orgId || multiItemRows.length === 0) return;
@@ -301,6 +324,8 @@ export function ItemsTab() {
         warehouseStock={form.warehouseStock}
         vendorMappings={form.vendorMappings}
         clientMappings={form.clientMappings}
+        clientPricing={form.clientPricing}
+        pricingHistory={form.pricingHistory}
         variants={variants}
         warehouses={warehouses}
         vendors={vendors}
@@ -310,6 +335,7 @@ export function ItemsTab() {
         editingMaterial={form.editingMaterial}
         materialSavePending={form.materialSavePending}
         saveNotice={form.saveNotice}
+        showTechnical={showTechnical}
         onUsesVariantChange={handleUsesVariantChange}
         onAddVariantRow={handleAddVariantRow}
         onRemoveVariantRow={(id) => form.setVariantPricing((prev: any[]) => prev.filter((p: any) => p.id !== id))}
@@ -322,6 +348,11 @@ export function ItemsTab() {
         onAddClientRow={handleAddClientRow}
         onRemoveClientRow={(id) => form.setClientMappings((prev: any[]) => prev.filter((p: any) => p.id !== id))}
         onClientRowChange={(id, field, value) => form.setClientMappings((prev: any[]) => prev.map((p: any) => p.id === id ? { ...p, [field]: value } : p))}
+        onAddClientPricingRow={handleAddClientPricingRow}
+        onRemoveClientPricingRow={handleRemoveClientPricingRow}
+        onClientPricingRowChange={handleClientPricingRowChange}
+        onShowPricingHistory={handleShowPricingHistory}
+        onToggleTechnical={handleToggleTechnical}
         discountCategories={discountCategories}
         onClassificationChange={handleClassificationChange}
         onSubmit={handleFormSubmit}

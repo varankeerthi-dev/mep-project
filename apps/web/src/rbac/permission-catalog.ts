@@ -176,6 +176,13 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'manufacturing',
+    label: 'Manufacturing',
+    actions: [
+      { key: make('manufacturing', 'clear_activity_log'), label: 'Clear Activity Log' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [

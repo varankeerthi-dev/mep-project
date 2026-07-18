@@ -225,11 +225,11 @@ const menuData: MenuSection[] = [
         flyout: true,
         submenu: [
           { id: 'materials-list', label: 'Items/materials', path: '/store/materials' },
-          { id: 'material-inward', label: 'Material inward', path: '/store/inward' },
-          { id: 'material-outward', label: 'Material outward', path: '/store/outward' },
-          { id: 'stock-transfer', label: 'Stock transfer', path: '/store/transfer' },
-          { id: 'stock-balance', label: 'Stock balance', path: '/store/stock' },
-          { id: 'quick-stock-check', label: 'Stock check', path: '/quick-stock-check' },
+          { id: 'material-inward', label: 'Material inward', path: '/store/materials?tab=inward' },
+          { id: 'material-outward', label: 'Material outward', path: '/store/materials?tab=outward' },
+          { id: 'stock-transfer', label: 'Stock transfer', path: '/store/materials?tab=stock-transfer' },
+          { id: 'stock-balance', label: 'Stock balance', path: '/store/materials?tab=stock-balance' },
+          { id: 'quick-stock-check', label: 'Stock check', path: '/store/materials?tab=stock-check' },
           { id: 'warehouses', label: 'Warehouses', path: '/store/materials?tab=warehouses' }
         ]
       },

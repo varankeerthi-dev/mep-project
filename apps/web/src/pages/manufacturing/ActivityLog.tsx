@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMyPermissions } from '../../rbac/hooks';
 
 type ActivityLogProps = {
   onNavigate: (path: string) => void;
@@ -45,10 +46,16 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export default function ActivityLog({ onNavigate }: ActivityLogProps) {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [actionFilter, setActionFilter] = useState<string>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmClear, setConfirmClear] = useState(false);
+  const orgId = (organisation as any)?.id ?? null;
+  const { data: permissions } = useMyPermissions(user?.id, orgId);
+  const canClear = permissions?.includes('manufacturing.clear_activity_log' as any) || permissions?.includes('admin_all_access' as any);
 
   const { data: logs, isLoading } = useQuery({
     queryKey: ['activity-log', organisation?.id, entityFilter, actionFilter],
@@ -67,8 +74,48 @@ export default function ActivityLog({ onNavigate }: ActivityLogProps) {
     enabled: !!organisation?.id
   });
 
+  const { mutate: clearSelected, isPending: isClearing } = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('manufacturing_activity_log').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-log'] });
+      setSelectedIds(new Set());
+      setConfirmClear(false);
+    },
+  });
+
   const totalPages = logs ? Math.ceil(logs.length / PAGE_SIZE) : 1;
   const pagedData = logs?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
+
+  const allPagedIds = pagedData.map(l => l.id);
+  const allSelectedOnPage = allPagedIds.length > 0 && allPagedIds.every(id => selectedIds.has(id));
+  const someSelectedOnPage = allPagedIds.some(id => selectedIds.has(id));
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelectedOnPage) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        allPagedIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        allPagedIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [allPagedIds, allSelectedOnPage]);
 
   const formatTime = (ts: string) => {
     const d = new Date(ts);
@@ -105,6 +152,30 @@ export default function ActivityLog({ onNavigate }: ActivityLogProps) {
           <h1 className="text-2xl font-semibold text-zinc-900">Activity Log</h1>
           <p className="text-zinc-500 mt-1">Track all manufacturing actions and changes</p>
         </div>
+        <div className="flex items-center gap-3">
+          {canClear && selectedIds.size > 0 && (
+            !confirmClear ? (
+              <button onClick={() => setConfirmClear(true)}
+                className="h-10 px-4 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
+                Clear Selected ({selectedIds.size})
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-600">
+                  Delete {selectedIds.size} log{selectedIds.size !== 1 ? 's' : ''}?
+                </span>
+                <button onClick={() => clearSelected(Array.from(selectedIds))} disabled={isClearing}
+                  className="h-10 px-4 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50">
+                  {isClearing ? 'Deleting...' : 'Confirm'}
+                </button>
+                <button onClick={() => { setConfirmClear(false); setSelectedIds(new Set()); }}
+                  className="h-10 px-4 border border-zinc-200 text-sm font-medium text-zinc-700 rounded-lg hover:bg-zinc-50">
+                  Cancel
+                </button>
+              </div>
+            )
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-lg">
@@ -132,28 +203,35 @@ export default function ActivityLog({ onNavigate }: ActivityLogProps) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-200">
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Time</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Entity</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Action</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">User</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Details</th>
-              </tr>
-            </thead>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-200">
+                    <th className="w-10 px-2 py-4 text-center">
+                      <input type="checkbox"
+                        checked={allSelectedOnPage}
+                        ref={(el) => { if (el) el.indeterminate = someSelectedOnPage && !allSelectedOnPage; }}
+                        onChange={toggleSelectAll}
+                        className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                    </th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Time</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Entity</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Action</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">User</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Details</th>
+                  </tr>
+                </thead>
             <tbody>
               {isLoading ? (
                 [...Array(10)].map((_, i) => (
                   <tr key={i} className="border-b border-zinc-100">
-                    <td colSpan={5} className="px-6 py-4">
+                    <td colSpan={6} className="px-6 py-4">
                       <div className="h-4 bg-zinc-100 rounded animate-pulse" />
                     </td>
                   </tr>
                 ))
               ) : pagedData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
                     No activity found.
                   </td>
                 </tr>
@@ -161,7 +239,13 @@ export default function ActivityLog({ onNavigate }: ActivityLogProps) {
                 pagedData.map((log) => {
                   const entityLink = getEntityLink(log);
                   return (
-                    <tr key={log.id} className="border-b border-zinc-100 hover:bg-zinc-50">
+                    <tr key={log.id} className={`border-b border-zinc-100 hover:bg-zinc-50 ${selectedIds.has(log.id) ? 'bg-blue-50' : ''}`}>
+                      <td className="w-10 px-2 py-4 text-center">
+                        <input type="checkbox"
+                          checked={selectedIds.has(log.id)}
+                          onChange={() => toggleSelect(log.id)}
+                          className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                      </td>
                       <td className="px-6 py-4 text-sm text-zinc-500 whitespace-nowrap">
                         {formatTime(log.created_at)}
                       </td>

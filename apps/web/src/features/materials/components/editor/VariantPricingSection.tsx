@@ -1,5 +1,8 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
+import { Checkbox } from '../../../../components/ui/checkbox';
+import { Select } from '../../../../components/ui/select';
 import type { VariantPricingRow } from '../../model/aggregates';
 
 interface VariantPricingSectionProps {
@@ -21,16 +24,34 @@ export function VariantPricingSection({
   onRemoveRow,
   onRowChange,
 }: VariantPricingSectionProps) {
+  const [collapsed, setCollapsed] = useState(true);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!collapsed && sectionRef.current) {
+      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [collapsed]);
+
   return (
-    <fieldset className="border border-zinc-200 rounded-lg p-4 space-y-4">
-      <legend className="text-sm font-semibold text-zinc-700 px-2">Discount Category Pricing</legend>
+    <div ref={sectionRef} className="rounded-lg shadow-[0px_0px_0px_1px_oklch(0_0_0_/_0.06),0px_1px_2px_-1px_oklch(0_0_0_/_0.06),0px_2px_4px_0px_oklch(0_0_0_/_0.04)] bg-purple-50 p-4 space-y-4">
+      <div
+        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <h4 className="text-sm font-semibold text-zinc-700">Variant Pricing</h4>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-zinc-400">Leave blank to use default prices</span>
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+        </div>
+      </div>
+
+      {!collapsed && (<>
 
       <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={usesVariant}
-          onChange={(e) => onToggleVariant(e.target.checked)}
-          className="rounded border-zinc-300"
+          onCheckedChange={(checked) => onToggleVariant(checked)}
         />
         <span className="text-zinc-700">Enable Discount Category / Variant Pricing</span>
       </label>
@@ -48,17 +69,16 @@ export function VariantPricingSection({
           </div>
 
           {variantPricing.map((row) => (
-            <div key={row.id} className="flex items-center gap-2 bg-zinc-50 rounded-lg p-2">
-              <select
+            <div key={row.id} className="flex items-center gap-2 bg-zinc-50 rounded-md p-2">
+              <Select
                 value={row.company_variant_id}
-                onChange={(e) => onRowChange(row.id, 'company_variant_id', e.target.value)}
-                className="h-8 flex-1 rounded-md border border-zinc-300 bg-white px-2 text-xs"
-              >
-                <option value="">Select category</option>
-                {variants.map((v) => (
-                  <option key={v.id} value={v.id}>{v.variant_name}</option>
-                ))}
-              </select>
+                onValueChange={(v) => onRowChange(row.id, 'company_variant_id', v)}
+                className="flex-1 h-8 text-xs"
+                options={[
+                  {value: '', label: 'Select category'},
+                  ...variants.map(v => ({value: v.id, label: v.variant_name}))
+                ]}
+              />
               <Input
                 value={row.make}
                 onChange={(e) => onRowChange(row.id, 'make', e.target.value)}
@@ -83,7 +103,7 @@ export function VariantPricingSection({
               />
               <button
                 onClick={() => onRemoveRow(row.id)}
-                className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors"
+                className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors relative after:absolute after:inset-[-8px]"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -95,6 +115,7 @@ export function VariantPricingSection({
           )}
         </div>
       )}
-    </fieldset>
+      </>)}
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useProjects } from '../hooks/useProjects';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 const createEmptyItem = (id) => ({
   id,
@@ -23,6 +24,34 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
   const { data: warehouses = [] } = useWarehouses();
   const { data: variants = [] } = useVariants();
   const { data: projects = [] } = useProjects();
+  const [viewMode, setViewMode] = useState('form');
+  const [selectedOutward, setSelectedOutward] = useState<any>(null);
+
+  const outwardsQuery = useQuery({
+    queryKey: ['materialOutwardList', organisation?.id],
+    queryFn: async () => {
+      return timedSupabaseQuery(
+        supabase.from('material_outward').select('*, items:material_outward_items(*, item:materials(name, display_name))').eq('organisation_id', organisation?.id).order('created_at', { ascending: false }),
+        'Material outward list'
+      );
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString() : '-';
+
+  const handleView = (outward: any) => {
+    setSelectedOutward(outward);
+    setViewMode('view');
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this outward entry?')) {
+      await supabase.from('material_outward_items').delete().eq('outward_id', id);
+      await supabase.from('material_outward').delete().eq('id', id);
+      outwardsQuery.refetch();
+    }
+  };
   
   const [formData, setFormData] = useState({
     outward_date: new Date().toISOString().split('T')[0],
@@ -67,7 +96,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
     },
   });
 
-    const stockRows = stockQuery.data || [];
+    const stockRows = useMemo(() => stockQuery.data || [], [stockQuery.data]);
 
   const stockMap = useMemo(() => {
     const map = {};
@@ -245,10 +274,97 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
     );
   }
 
+  if (viewMode === 'list' || viewMode === 'view') {
+    return (
+      <div>
+        <div className="page-header">
+          <h1 className="page-title">Material Outward {viewMode === 'list' ? '- Past Entries' : ''}</h1>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {viewMode !== 'list' && (
+              <button className="btn btn-secondary" onClick={() => { setViewMode('list'); setSelectedOutward(null); }}>Back to List</button>
+            )}
+            <button className="btn btn-primary" onClick={() => { setViewMode('form'); setSelectedOutward(null); }}>+ New Outward</button>
+          </div>
+        </div>
+
+        {viewMode === 'list' && (
+          <div className="card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {outwardsQuery.isLoading ? (
+                  <TableRow><TableCell colSpan={6}>Loading...</TableCell></TableRow>
+                ) : outwardsQuery.data?.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>No entries found</TableCell></TableRow>
+                ) : (
+                  outwardsQuery.data?.map((outward: any) => (
+                    <TableRow key={outward.id}>
+                      <TableCell>{formatDate(outward.outward_date)}</TableCell>
+                      <TableCell>{warehouses.find(w => w.id === outward.warehouse_id)?.warehouse_name || '-'}</TableCell>
+                      <TableCell>{variants.find(v => v.id === outward.variant_id)?.variant_name || '-'}</TableCell>
+                      <TableCell>{projects.find(p => p.id === outward.project_id)?.project_name || '-'}</TableCell>
+                      <TableCell>{outward.items?.length || 0} items</TableCell>
+                      <TableCell>
+                        <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleView(outward)}>View</button>
+                        <button className="btn btn-sm btn-secondary" onClick={() => handleDelete(outward.id)}>Delete</button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {viewMode === 'view' && selectedOutward && (
+          <div className="card">
+            <h3 style={{ marginBottom: '16px' }}>Outward Details</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div><strong>Date:</strong> {formatDate(selectedOutward.outward_date)}</div>
+              <div><strong>Warehouse:</strong> {warehouses.find(w => w.id === selectedOutward.warehouse_id)?.warehouse_name || '-'}</div>
+              <div><strong>Category:</strong> {variants.find(v => v.id === selectedOutward.variant_id)?.variant_name || '-'}</div>
+              <div><strong>Project:</strong> {projects.find(p => p.id === selectedOutward.project_id)?.project_name || '-'}</div>
+              <div><strong>Remarks:</strong> {selectedOutward.remarks || '-'}</div>
+            </div>
+            <h4 style={{ marginBottom: '8px' }}>Items</h4>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Qty</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedOutward.items?.map((item: any, idx: number) => (
+                  <TableRow key={idx}>
+                    <TableCell>{item.item?.display_name || item.item?.name || '-'}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Material Outward</h1>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-secondary" onClick={() => setViewMode('list')}>View Past Entries</button>
+        </div>
       </div>
 
       {saveError && (

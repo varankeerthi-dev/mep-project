@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2, Edit2 } from 'lucide-react';
 
 
 type ProductionEntryFormProps = {
@@ -48,6 +48,174 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
 
   const [materialEntries, setMaterialEntries] = useState<MaterialEntry[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+
+  const loadEntryForEdit = useCallback(async (entry: any) => {
+    const { data: items } = await supabase
+      .from('production_entry_items')
+      .select('*, materials(name, unit, id)')
+      .eq('production_entry_id', entry.id);
+    if (items) {
+      setMaterialEntries(items.map((item: any) => ({
+        job_card_material_id: item.job_card_material_id,
+        material_id: item.material_id,
+        material_name: item.materials?.name || '',
+        issued_qty: item.issued_qty || 0,
+        consumed_qty: item.consumed_qty || 0,
+        wastage_qty: item.wastage_qty || 0,
+        return_qty: item.return_qty || 0
+      })));
+    }
+  }, []);
+
+  const deleteEntry = useMutation({
+    mutationFn: async (entryId: string) => {
+      if (!organisation?.id || !user?.id) throw new Error('Missing user or organisation');
+
+      const { data: entry } = await supabase
+        .from('production_entries')
+        .select('*, production_entry_items(*)')
+        .eq('id', entryId)
+        .single();
+      if (!entry) throw new Error('Entry not found');
+
+      const wh = whIds;
+      if (!wh?.wip || !wh?.fg || !wh?.mainStore) throw new Error('Required warehouses not found');
+
+      // 1. Reverse FG stock (decrease by actual_qty)
+      if (entry.actual_qty > 0) {
+        const { data: bomProduct } = await supabase
+          .from('job_cards')
+          .select('bom_headers(product_id)')
+          .eq('id', entry.job_card_id)
+          .maybeSingle();
+        const productId = (bomProduct as any)?.bom_headers?.product_id;
+        if (productId) {
+          const { data: fgStock } = await supabase
+            .from('item_stock')
+            .select('id, current_stock')
+            .eq('item_id', productId)
+            .eq('warehouse_id', wh.fg.id)
+            .eq('organisation_id', organisation.id)
+            .maybeSingle();
+          if (fgStock) {
+            await supabase.from('item_stock').update({ current_stock: Math.max(0, fgStock.current_stock - entry.actual_qty) }).eq('id', fgStock.id);
+          }
+        }
+      }
+
+      // 2. Reverse stock for each material item
+      for (const item of entry.production_entry_items || []) {
+        const consumedWastage = (item.consumed_qty || 0) + (item.wastage_qty || 0);
+        if (consumedWastage > 0) {
+          const { data: wipStock } = await supabase
+            .from('item_stock')
+            .select('id, current_stock')
+            .eq('item_id', item.material_id)
+            .eq('warehouse_id', wh.wip.id)
+            .eq('organisation_id', organisation.id)
+            .maybeSingle();
+          if (wipStock) {
+            await supabase.from('item_stock').update({ current_stock: (wipStock.current_stock || 0) + consumedWastage }).eq('id', wipStock.id);
+          }
+        }
+
+        if (item.return_qty > 0) {
+          const { data: mainStock } = await supabase
+            .from('item_stock')
+            .select('id, current_stock')
+            .eq('item_id', item.material_id)
+            .eq('warehouse_id', wh.mainStore.id)
+            .eq('organisation_id', organisation.id)
+            .maybeSingle();
+          if (mainStock) {
+            await supabase.from('item_stock').update({ current_stock: Math.max(0, (mainStock.current_stock || 0) - item.return_qty) }).eq('id', mainStock.id);
+          }
+        }
+      }
+
+      // 3. Update job_card_materials (subtract consumed/wastage/return)
+      for (const item of entry.production_entry_items || []) {
+        const { data: jcm } = await supabase
+          .from('job_card_materials')
+          .select('consumed_qty, wastage_qty, return_qty')
+          .eq('id', item.job_card_material_id)
+          .maybeSingle();
+        if (jcm) {
+          await supabase
+            .from('job_card_materials')
+            .update({
+              consumed_qty: Math.max(0, (jcm.consumed_qty || 0) - (item.consumed_qty || 0)),
+              wastage_qty: Math.max(0, (jcm.wastage_qty || 0) - (item.wastage_qty || 0)),
+              return_qty: Math.max(0, (jcm.return_qty || 0) - (item.return_qty || 0))
+            })
+            .eq('id', item.job_card_material_id);
+        }
+      }
+
+      // 4. Delete items then entry
+      await supabase.from('production_entry_items').delete().eq('production_entry_id', entryId);
+      await supabase.from('production_entries').delete().eq('id', entryId);
+
+      // 5. Recalculate job card status based on remaining entries
+      const { data: remaining } = await supabase
+        .from('production_entries')
+        .select('actual_qty')
+        .eq('job_card_id', entry.job_card_id);
+      const remainingQty = (remaining || []).reduce((sum, e) => sum + (e.actual_qty || 0), 0);
+      const { data: jc } = await supabase
+        .from('job_cards')
+        .select('planned_qty')
+        .eq('id', entry.job_card_id)
+        .single();
+      const plannedQty = jc?.planned_qty || 0;
+      let jcStatus: string;
+      let jcCompletedAt: string | null;
+      if (remainingQty >= plannedQty) {
+        jcStatus = 'completed';
+        jcCompletedAt = new Date().toISOString();
+      } else if (remainingQty > 0) {
+        jcStatus = 'in_progress';
+        jcCompletedAt = null;
+      } else {
+        jcStatus = 'issued';
+        jcCompletedAt = null;
+      }
+      await supabase.from('job_cards').update({ status: jcStatus, completed_at: jcCompletedAt }).eq('id', entry.job_card_id);
+
+      // 6. Log deletion in activity log
+      const { data: jcInfo } = await supabase
+        .from('job_cards')
+        .select('job_card_no')
+        .eq('id', entry.job_card_id)
+        .maybeSingle();
+      await supabase.from('manufacturing_activity_log').insert({
+        entity_type: 'production_entry',
+        entity_id: entryId,
+        action: 'deleted',
+        action_details: {
+          entry_no: entry.entry_no,
+          actual_qty: entry.actual_qty,
+          job_card: jcInfo?.job_card_no || entry.job_card_id?.slice(0, 8)
+        },
+        user_id: user.id,
+        user_name: user.email || 'Unknown',
+        organisation_id: organisation.id
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['org-production-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['production-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['activity-log'] });
+      queryClient.invalidateQueries({ queryKey: ['manufacturing-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['job-cards'] });
+      setDeleteTarget(null);
+    },
+    onError: (err: any) => {
+      setSubmitError(err?.message || 'Failed to delete entry');
+    }
+  });
 
   // ─── QUERIES ─────────────────────────────────────────────────────
 
@@ -250,9 +418,55 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
     mutationFn: async () => {
       if (!organisation?.id || !user?.id || !formData.job_card_id) throw new Error('Missing required data');
       if (!formData.actual_qty || formData.actual_qty <= 0) throw new Error('Actual quantity must be greater than 0');
-      if (!allValid) throw new Error('Material quantities are invalid — consumed + wastage + return must equal issued');
 
       setSubmitError(null);
+
+      const yieldPct = selectedJobCard?.planned_qty
+        ? (formData.actual_qty / selectedJobCard.planned_qty) * 100
+        : 0;
+
+      // ─── EDIT MODE: update existing entry ─────────────────────────
+      if (editingEntryId) {
+        const { data: entry, error } = await supabase
+          .from('production_entries')
+          .update({
+            actual_qty: formData.actual_qty,
+            output_unit: formData.output_unit || selectedJobCard?.output_unit,
+            yield_pct: yieldPct,
+            notes: formData.notes,
+            production_start_time: formData.production_start_time || null,
+            production_end_time: formData.production_end_time || null,
+            operator_name: formData.operator_name || null,
+            machine_name: formData.machine_name || null,
+            scrap_byproducts: formData.scrap_byproducts || null
+          })
+          .eq('id', editingEntryId)
+          .select()
+          .single();
+        if (error) throw error;
+
+        await supabase.from('manufacturing_activity_log').insert({
+          entity_type: 'production_entry',
+          entity_id: entry.id,
+          action: 'updated',
+          action_details: {
+            entry_no: entry.entry_no,
+            actual_qty: entry.actual_qty,
+            job_card_id: entry.job_card_id,
+            notes: entry.notes,
+            operator_name: entry.operator_name,
+            machine_name: entry.machine_name
+          },
+          user_id: user.id,
+          user_name: user.email || 'Unknown',
+          organisation_id: organisation.id
+        });
+
+        return entry;
+      }
+
+      // ─── CREATE MODE: full creation flow ──────────────────────────
+      if (!allValid) throw new Error('Material quantities are invalid — consumed + wastage + return must equal issued');
 
       const wh = whIds;
       if (!wh?.wip || !wh?.fg || !wh?.mainStore) {
@@ -263,10 +477,6 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
       const { data: entryNo, error: noError } = await supabase
         .rpc('generate_production_entry_no', { org_id: organisation.id });
       if (noError) throw noError;
-
-      const yieldPct = selectedJobCard?.planned_qty
-        ? (formData.actual_qty / selectedJobCard.planned_qty) * 100
-        : 0;
 
       // 1. Create production entry
       const { data: entry, error: entryError } = await supabase
@@ -558,15 +768,34 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
         .eq('id', formData.job_card_id);
       if (jcError) throw jcError;
 
+      // 8. Log in activity log
+      await supabase.from('manufacturing_activity_log').insert({
+        entity_type: 'production_entry',
+        entity_id: entry.id,
+        action: 'created',
+        action_details: {
+          entry_no: entry.entry_no,
+          actual_qty: entry.actual_qty,
+          job_card_id: entry.job_card_id,
+          yield_pct: entry.yield_pct
+        },
+        user_id: user.id,
+        user_name: user.email || 'Unknown',
+        organisation_id: organisation.id
+      });
+
       return entry;
     },
     onSuccess: () => {
+      setEditingEntryId(null);
       queryClient.invalidateQueries({ queryKey: ['job-cards'] });
       queryClient.invalidateQueries({ queryKey: ['job-card', formData.job_card_id] });
       queryClient.invalidateQueries({ queryKey: ['job-card-materials', formData.job_card_id] });
       queryClient.invalidateQueries({ queryKey: ['production-entries', formData.job_card_id] });
       queryClient.invalidateQueries({ queryKey: ['org-production-entries'] });
-      onNavigate('/manufacturing/job-cards');
+      queryClient.invalidateQueries({ queryKey: ['activity-log'] });
+      queryClient.invalidateQueries({ queryKey: ['manufacturing-dashboard'] });
+      onNavigate('/manufacturing/production');
     },
     onError: (err: Error) => {
       setSubmitError(err.message);
@@ -603,8 +832,12 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
         <div>
-          <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Record Production Entry</h1>
-          <span style={{ fontSize: '11px', color: '#9ca3af' }}>Log actual consumption and output</span>
+          <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>
+            {editingEntryId ? 'Edit Production Entry' : 'Record Production Entry'}
+          </h1>
+          <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+            {editingEntryId ? 'Update entry details' : 'Log actual consumption and output'}
+          </span>
           {cumulativeActualQty > 0 && (
             <span style={{ fontSize: '11px', color: '#185FA5', marginLeft: '8px', fontWeight: 600 }}>
               (Previously produced: {cumulativeActualQty} {selectedJobCard?.output_unit})
@@ -635,7 +868,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
           </button>
           <button
             onClick={() => saveEntry.mutate()}
-            disabled={!formData.job_card_id || !formData.actual_qty || saveEntry.isPending || !allValid}
+            disabled={!formData.job_card_id || !formData.actual_qty || saveEntry.isPending || (!editingEntryId && !allValid)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -647,16 +880,30 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
               borderRadius: '6px',
               fontSize: '12px',
               fontWeight: 500,
-              cursor: (!formData.job_card_id || !formData.actual_qty || saveEntry.isPending || !allValid) ? 'not-allowed' : 'pointer',
-              opacity: (!formData.job_card_id || !formData.actual_qty || saveEntry.isPending || !allValid) ? 0.6 : 1,
+              cursor: (!formData.job_card_id || !formData.actual_qty || saveEntry.isPending || (!editingEntryId && !allValid)) ? 'not-allowed' : 'pointer',
+              opacity: (!formData.job_card_id || !formData.actual_qty || saveEntry.isPending || (!editingEntryId && !allValid)) ? 0.6 : 1,
               transition: 'all 0.15s'
             }}
-            onMouseEnter={e => { if (formData.job_card_id && formData.actual_qty && !saveEntry.isPending && allValid) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
-            onMouseLeave={e => { if (formData.job_card_id && formData.actual_qty && !saveEntry.isPending && allValid) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
+            onMouseEnter={e => { if (formData.job_card_id && formData.actual_qty && !saveEntry.isPending && (editingEntryId || allValid)) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
+            onMouseLeave={e => { if (formData.job_card_id && formData.actual_qty && !saveEntry.isPending && (editingEntryId || allValid)) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
           >
             {saveEntry.isPending && <Loader2 size={13} className="animate-spin" />}
-            {saveEntry.isPending ? 'Saving...' : 'Save Entry'}
+            {saveEntry.isPending ? 'Saving...' : (editingEntryId ? 'Update Entry' : 'Save Entry')}
           </button>
+          {editingEntryId && (
+            <button
+              onClick={() => { setEditingEntryId(null); setFormData({ job_card_id: jobCardId || '', actual_qty: 0, output_unit: 'nos', notes: '', production_start_time: '', production_end_time: '', operator_name: '', machine_name: '', scrap_byproducts: '' }); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px',
+                border: '1px solid #d1d5db', background: '#fff', color: '#374151',
+                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}
+              type="button"
+            >
+              Cancel Edit
+            </button>
+          )}
         </div>
       </div>
 
@@ -902,6 +1149,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                         <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Operator</th>
                         <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Machine</th>
                         <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Notes</th>
+                        <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', width: '70px' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -921,6 +1169,42 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                           <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{entry.machine_name || '—'}</td>
                           <td style={{ padding: '10px 12px', fontSize: '11px', color: '#6b7280', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.notes || entry.scrap_byproducts || ''}>
                             {entry.notes || entry.scrap_byproducts || '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', display: 'flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                            <button
+                              onClick={() => {
+                                setFormData({
+                                  job_card_id: entry.job_card_id || '',
+                                  actual_qty: entry.actual_qty || 0,
+                                  output_unit: entry.output_unit || 'nos',
+                                  notes: entry.notes || '',
+                                  production_start_time: entry.production_start_time?.split('T')[0] || '',
+                                  production_end_time: entry.production_end_time?.split('T')[0] || '',
+                                  operator_name: entry.operator_name || '',
+                                  machine_name: entry.machine_name || '',
+                                  scrap_byproducts: entry.scrap_byproducts || ''
+                                });
+                                setEditingEntryId(entry.id);
+                                loadEntryForEdit(entry);
+                              }}
+                              title="Edit entry"
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', borderRadius: '4px', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.color = '#185FA5'; e.currentTarget.style.background = '#eff6ff'; }}
+                              onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+                              type="button"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(entry.id)}
+                              title="Delete entry"
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', borderRadius: '4px', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { e.currentTarget.style.color = '#e11d48'; e.currentTarget.style.background = '#fef2f2'; }}
+                              onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+                              type="button"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1004,6 +1288,46 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
           </div>
         </div>
       </div>
+
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setDeleteTarget(null)}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: '0 0 8px 0' }}>Delete Production Entry?</h3>
+            <p style={{ fontSize: '12px', color: '#4b5563', lineHeight: '18px', margin: '0 0 20px 0' }}>
+              This will remove the entry and all associated material consumption records. 
+              Stock movements already recorded will not be automatically reversed. 
+              This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', height: '36px' }}>
+              <button onClick={() => setDeleteTarget(null)}
+                style={{
+                  height: '36px', padding: '0 16px', border: '1px solid #d1d5db',
+                  background: '#fff', color: '#4b5563', borderRadius: '8px',
+                  fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s'
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button onClick={() => deleteEntry.mutate(deleteTarget)} disabled={deleteEntry.isPending}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  height: '36px', padding: '0 16px', background: '#e11d48',
+                  border: '1px solid #e11d48', color: '#fff', borderRadius: '8px',
+                  fontSize: '12px', fontWeight: 600,
+                  cursor: deleteEntry.isPending ? 'not-allowed' : 'pointer',
+                  opacity: deleteEntry.isPending ? 0.6 : 1, transition: 'all 0.15s'
+                }}
+                type="button"
+              >
+                {deleteEntry.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

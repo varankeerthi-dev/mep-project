@@ -64,6 +64,6 @@ export const CLASSIFICATION_OPTIONS = [
 
 export const getMaterialsTabFromSearch = (search = '') => {
   const tab = new URLSearchParams(search || '').get('tab');
-  const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants', 'discount-categories']);
+  const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants', 'discount-categories', 'inward', 'outward', 'stock-transfer', 'stock-balance', 'stock-check', 'stock-adjust']);
   return allowedTabs.has(tab) ? tab : 'items';
 };

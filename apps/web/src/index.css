@@ -809,12 +809,21 @@ body {
   border: 1px solid var(--gray-300);
   border-radius: 4px;
   width: 100%;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.item-row input:hover,
+.item-row select:hover {
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.12);
+  background: #f8faff;
 }
 
 .item-row input:focus,
 .item-row select:focus {
+  box-shadow: inset 0 1px 4px rgba(59, 130, 246, 0.2), 0 0 0 1.5px #3b82f6;
+  border-color: #3b82f6;
   outline: none;
-  border-color: var(--primary);
 }
 
 /* Tables */
@@ -853,6 +862,32 @@ body {
 
 .table tbody tr:hover td {
   background: var(--gray-50);
+}
+
+/* Entry cells (input/select) inside table data cells — shadow to distinguish editable fields */
+.table td select,
+.table td input[type="text"],
+.table td input[type="number"],
+.table td input[type="date"] {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.table td select:hover,
+.table td input[type="text"]:hover,
+.table td input[type="number"]:hover,
+.table td input[type="date"]:hover {
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.12);
+  background: #f8faff;
+}
+
+.table td select:focus,
+.table td input[type="text"]:focus,
+.table td input[type="number"]:focus,
+.table td input[type="date"]:focus {
+  box-shadow: inset 0 1px 4px rgba(59, 130, 246, 0.2), 0 0 0 1.5px #3b82f6;
+  border-color: #3b82f6;
+  outline: none;
 }
 
 /* Badges */
@@ -1781,23 +1816,26 @@ body {
   padding: 0 6px;
   font-size: 11px;
   color: #1f2937;
-  background: transparent;
+  background: #ffffff;
   outline: none;
   box-sizing: border-box;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.grid-table .cell-input:hover, 
+.grid-table .cell-select:hover {
+  background: #f8faff;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .grid-table .cell-input:focus, 
 .grid-table .cell-select:focus {
   background: #f0f7ff;
-  outline: none;
-}
-
-.grid-table .cell-input:focus, 
-.grid-table .cell-select:focus {
-  background: #f0f7ff;
+  box-shadow: inset 0 1px 4px rgba(59, 130, 246, 0.2), 0 0 0 1.5px #3b82f6;
   outline: none;
 }
 

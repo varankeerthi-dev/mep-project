@@ -39,6 +39,7 @@ export function useMaterialForm() {
     setWarehouseStock({});
     setClientMappings([]);
     setClientPricing([]);
+    setPricingHistory([]);
   }, []);
 
   const loadVendorMappings = useCallback(async (itemId: string) => {
