@@ -56,6 +56,9 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   'proforma-invoices': 'proforma_invoices',
   'credit-notes': 'credit_notes',
   ledger: 'ledger',
+  billing: 'invoices',
+  estimation: 'estimation',
+  'partner-allocation': 'partner_allocation',
   boq: 'boq',
   issue: 'site_reports',
   procurement: 'materials',
@@ -136,6 +139,22 @@ const menuData: MenuSection[] = [
     ]
   },
   {
+    section: 'Estimation',
+    items: [
+      {
+        id: 'estimation',
+        label: 'Estimation',
+        submenu: [
+          { id: 'est-boq-list', label: 'BOQ list', path: '/estimation/boq' },
+          { id: 'est-boq-create', label: 'Create BOQ', path: '/estimation/boq/new' },
+          { id: 'est-tender-list', label: 'Tenders', path: '/estimation/tenders' },
+          { id: 'est-tender-create', label: 'Create Tender', path: '/estimation/tenders/new' },
+          { id: 'est-resources', label: 'Resource catalog', path: '/estimation/resources' }
+        ]
+      }
+    ]
+  },
+  {
     section: 'Commerce',
     items: [
       {
@@ -144,6 +163,15 @@ const menuData: MenuSection[] = [
         submenu: [
           { id: 'leads-list', label: 'List view', path: '/leads' },
           { id: 'leads-kanban', label: 'Kanban', path: '/leads/kanban' }
+        ]
+      },
+      {
+        id: 'partner-allocation',
+        label: 'Partner Allocation',
+        submenu: [
+          { id: 'pa-partners', label: 'Partners', path: '/partner-allocation/partners' },
+          { id: 'pa-allocations', label: 'Allocations', path: '/partner-allocation/allocations' },
+          { id: 'pa-inbox', label: 'Partner Inbox', path: '/partner-allocation/inbox' }
         ]
       },
       {
@@ -326,6 +354,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'client-communication': 'ChatBubbleLeftRightIcon',
   'manager-alerts': 'BellIcon',
   'client-lookup': 'PhoneIcon',
+  'partner-allocation': 'UserGroupIcon',
   subcontractor: 'UserGroupIcon',
   'client-requests': 'InboxIcon',
   leads: 'UserPlusIcon',
@@ -338,6 +367,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'follow-up': 'BellAlertIcon',
   boq: 'TableCellsIcon',
   documents: 'FolderOpenIcon',
+  estimation: 'CalculatorIcon',
   issue: 'ExclamationTriangleIcon',
   store: 'CubeIcon',
   purchase: 'ShoppingCartIcon',

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import DealerAvailabilityDrawer from '../../features/partner-allocation/components/DealerAvailabilityDrawer';
 import { 
   useIssue, 
   useIssueAttachments, 
@@ -585,6 +586,7 @@ export function IssueDetailPage() {
   const [closeRemark, setCloseRemark] = useState('');
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenRemark, setReopenRemark] = useState('');
+  const [showDealerDrawer, setShowDealerDrawer] = useState(false);
 
   // Fetch linked site reports
   const { data: linkedSiteReports, isLoading: isLoadingSiteReports } = useQuery({
@@ -1136,11 +1138,33 @@ export function IssueDetailPage() {
                     <div className="idp-detail-value">{issue.client?.client_name || '—'}</div>
                   </div>
                 </div>
+                <button
+                  className="idp-btn idp-btn-secondary"
+                  onClick={() => setShowDealerDrawer(true)}
+                  style={{ marginTop: '0.75rem', width: '100%', justifyContent: 'center' }}
+                >
+                  Find Dealer
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <DealerAvailabilityDrawer
+        isOpen={showDealerDrawer}
+        onClose={() => setShowDealerDrawer(false)}
+        issueId={issue.id}
+        issueTitle={issue.title}
+        organisationId={issue.organisation_id}
+        onAssignToPartner={(partnerId, partnerName, contactPerson) => {
+          assignIssue.mutate({
+            id: issue.id,
+            assignTo: partnerId,
+            assignToName: `${partnerName}${contactPerson ? ` (${contactPerson})` : ''}`,
+          });
+        }}
+      />
     </div>
   );
 }

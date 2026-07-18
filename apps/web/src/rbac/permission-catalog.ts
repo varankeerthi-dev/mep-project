@@ -127,6 +127,55 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'estimation.boq',
+    label: 'Estimation - BOQ',
+    actions: [
+      { key: 'estimation.boq.read', label: 'View' },
+      { key: 'estimation.boq.create', label: 'Create' },
+      { key: 'estimation.boq.update', label: 'Edit' },
+      { key: 'estimation.boq.delete', label: 'Delete' },
+    ],
+  },
+  {
+    id: 'estimation.tender',
+    label: 'Estimation - Tenders',
+    actions: [
+      { key: 'estimation.tender.read', label: 'View' },
+      { key: 'estimation.tender.create', label: 'Create' },
+      { key: 'estimation.tender.update', label: 'Edit' },
+      { key: 'estimation.tender.delete', label: 'Delete' },
+    ],
+  },
+  {
+    id: 'estimation.resources',
+    label: 'Estimation - Resource Catalog',
+    actions: [
+      { key: 'estimation.resources.read', label: 'View' },
+      { key: 'estimation.resources.create', label: 'Create' },
+      { key: 'estimation.resources.update', label: 'Edit' },
+    ],
+  },
+  {
+    id: 'partners',
+    label: 'Partner Allocation - Partners',
+    actions: [
+      { key: make('partners', 'read'), label: 'View' },
+      { key: make('partners', 'create'), label: 'Create' },
+      { key: make('partners', 'update'), label: 'Edit' },
+      { key: make('partners', 'delete'), label: 'Delete' },
+    ],
+  },
+  {
+    id: 'allocations',
+    label: 'Partner Allocation - Allocations',
+    actions: [
+      { key: make('allocations', 'read'), label: 'View' },
+      { key: make('allocations', 'create'), label: 'Assign' },
+      { key: make('allocations', 'update'), label: 'Update Status' },
+      { key: make('allocations', 'verify'), label: 'Verify' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [

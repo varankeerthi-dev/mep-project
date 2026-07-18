@@ -1,0 +1,145 @@
+---
+title: Quotations
+description: Create, manage, and revise BOQ-based quotations for MEP projects.
+---
+
+# Quotations
+
+The Quotation module is the core of the platform. It handles end-to-end BOQ (Bill of Quantities) creation with material pricing, erection charges, variant discounts, and revision tracking.
+
+## Create Quotation
+
+Navigate to **`/quotation/create`** to start a new quotation.
+
+### 1. Header Information
+
+Three-column card layout:
+
+| Column | Fields |
+|---|---|
+| **Client** | Client name, billing/shipping address, GSTIN, state, contact |
+| **Document** | Date, valid till, quotation number (auto-generated or manual), reference, payment terms, ARC pricing toggle |
+| **Project** | Project name, variant, signatory, remarks, include erection charges |
+
+### 2. Line Items
+
+The quotation items table supports:
+
+- **Item picker** — Search and select from the material master
+- **Variants** — Select item variant (size/type)
+- **Make** — Filter by manufacturer
+- **Inline editing** — Qty, rate, discount, GST, UOM
+- **Bulk operations** — Multi-select to delete or set discount
+- **Drag & drop** — Reorder items
+- **Custom columns** — Toggle visibility of HSN, make, variant, custom fields
+- **Stock indicators** — Hover to see warehouse-level stock breakdown
+- **Header/Subtotal rows** — Insert grouping rows with labels
+
+### 3. Erection Charges
+
+When enabled, the system auto-creates erection/installation line items for each material based on the **Service Rates** master table (`service_rates`).
+
+- Rates pulled from `service_rates` by material description match
+- Erection quantities auto-sync with material quantities
+- Rate can be manually overridden per row
+- Erection items can be individually removed (prevents auto-recreation)
+
+### 4. Pricing & Discounts
+
+**Variant Pricing** — Prices are pulled from `item_variant_pricing` by item + variant + make combination. The system builds a `pricingMap` on init for fast lookups.
+
+**ARC Pricing** — Toggle to use Annual Rate Contract pricing for the selected client. ARC rates override standard sale prices.
+
+**Header Discounts** — Set a discount percent per variant or discount category. Applied to all rows matching that variant/category. Rows with manual overrides are skipped.
+
+**Discount Categories** — Materials can be grouped into discount categories. Setting a header discount on a category applies it to all items in that category.
+
+**Extra Discount** — Additional percentage or flat amount discount on the entire quotation subtotal.
+
+### 5. Round Off & Totals
+
+- `round_off_enabled` — Auto-round to nearest integer, or manually set a round-off value
+- GST is calculated as IGST (inter-state) or CGST+SGST (intra-state) based on client state vs. company state
+- Amount in words (INR) auto-generated at the bottom
+
+### 6. Save & Revisions
+
+- **Autosave** — 15s debounce after last change (configurable in `useAutosave.ts`)
+- **Differential save** — Only inserts/updates/deletes changed rows via `itemDiff.ts`
+- **Revisions** — Save snapshots of the quotation at key milestones
+- **Conflict handling** — If `quotation_no` already exists (23505), the system retries with a unique suffix
+
+### 7. Multi-DC Allocation
+
+When converting multiple Delivery Challans to a quotation, the system allocates amounts pro-rata based on DC totals. This enables:
+
+- Single quotation consolidating multiple DCs
+- Editable allocation per DC
+- Validation: allocated total must match quotation grand total (within ₹1 tolerance)
+
+## Edit Quotation
+
+Navigate to **`/quotation/edit?id=<id>`**.
+
+- Loads existing quotation with all items, discounts, and settings
+- Full CRUD on line items
+- Supports revision history and approval workflow
+
+## Quick Quote
+
+The Quick Quote engine generates a complete BOQ from a template configuration. Configured via `quick_quote_config` in Supabase with:
+
+- Templates (item lists with qty and rates)
+- Variant / Make / Spec defaults
+- Valve and thread-item toggles
+- Size-based filtering
+
+## API / Database Schema
+
+### `quotation_header`
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `quotation_no` | TEXT | Unique quotation number |
+| `organisation_id` | UUID | FK to organisations |
+| `client_id` | UUID | FK to clients |
+| `project_id` | UUID | FK to projects (nullable) |
+| `status` | TEXT | Draft / Sent / Approved / Rejected |
+| `revision_no` | INT | Current revision number |
+| `extra_discount_percent` | DECIMAL | Additional % discount |
+| `extra_discount_amount` | DECIMAL | Additional flat discount |
+| `round_off` | DECIMAL | Round-off value |
+| `negotiation_mode` | BOOLEAN | Lock editing for negotiation |
+
+### `quotation_items`
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `quotation_id` | UUID | FK to quotation_header |
+| `item_id` | UUID | FK to materials (nullable for erection) |
+| `variant_id` | UUID | FK to item_variants (nullable) |
+| `section` | TEXT | `materials` or `erection` |
+| `description` | TEXT | Item description |
+| `qty` | DECIMAL | Quantity |
+| `uom` | TEXT | Unit of measure |
+| `rate` | DECIMAL | Unit rate |
+| `tax_percent` | DECIMAL | GST rate |
+| `line_total` | DECIMAL | Computed total |
+| `display_order` | INT | Row order |
+| `linked_material_id` | UUID | FK to parent material (for erection items) |
+
+## File Reference
+
+| File | Purpose |
+|---|---|
+| `pages/CreateQuotation/index.tsx` | Main component (3420 lines) |
+| `pages/CreateQuotation/components/QuotationHeaderForm.tsx` | 3-column header card layout |
+| `pages/CreateQuotation/components/QuotationItemsTable.tsx` | Materials table with inline editing |
+| `pages/CreateQuotation/components/ErectionItemsSection.tsx` | Erection charges table |
+| `pages/CreateQuotation/components/QuotationActions.tsx` | Toolbar with save, PDF, status |
+| `pages/CreateQuotation/hooks/useAutosave.ts` | 15s debounced autosave |
+| `pages/CreateQuotation/hooks/useQuotationCalculations.ts` | GST, totals, amount-in-words |
+| `pages/CreateQuotation/utils/itemDiff.ts` | Differential save logic |
+| `utils/erectionUtils.ts` | Auto-create/update erection items |

@@ -16,6 +16,7 @@ import { QuickAddLeadModal } from '../components/QuickAddLeadModal';
 import { Calendar } from '../components/ui/Calendar';
 import { createIssue } from '../issues/api';
 import type { IssueType, IssueSeverity } from '../issues/types';
+import PartnerSelect from '../features/partner-allocation/components/PartnerSelect';
 import {
   Plus,
   Search,
@@ -671,6 +672,7 @@ export function ClientCommunication() {
         subject: data.subject && data.subject !== '' ? data.subject : null,
         assigned_to: data.assigned_to && data.assigned_to !== '' ? data.assigned_to : currentUserProfileId,
         parent_communication_id: data.parent_communication_id && data.parent_communication_id !== '' ? data.parent_communication_id : null,
+        referred_to_partner_id: data.referred_to_partner_id && data.referred_to_partner_id !== '' ? data.referred_to_partner_id : null,
       };
       const { data: result, error } = await supabase
         .from('client_communication')
@@ -837,6 +839,7 @@ export function ClientCommunication() {
     linked_id: '',
     assigned_to: '',
     parent_communication_id: '',
+    referred_to_partner_id: '',
   });
 
   const [siteVisitData, setSiteVisitData] = useState({
@@ -979,6 +982,7 @@ export function ClientCommunication() {
       linked_id: '',
       assigned_to: '',
       parent_communication_id: '',
+      referred_to_partner_id: '',
     });
     setRequireSiteVisit(false);
     setIssueSiteVisitDate('');
@@ -2472,6 +2476,12 @@ export function ClientCommunication() {
                     {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}{u.orgRole ? ` (${u.orgRole})` : ''}</option>)}
                   </select>
                 </div>
+                {/* Referred to Partner */}
+                <PartnerSelect
+                  value={formData.referred_to_partner_id}
+                  onChange={partnerId => setFormData(f => ({ ...f, referred_to_partner_id: partnerId }))}
+                  label="Referred to Partner"
+                />
               </div>
 
               {/* Call Brief */}

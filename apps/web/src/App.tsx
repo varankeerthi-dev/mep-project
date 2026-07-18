@@ -206,6 +206,19 @@ const ApprovalSettings = lazyAny(() => import('./components/ApprovalSettings'));
 const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/PaymentsHub'));
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
+
+// Estimation pages
+const BOQListPage = lazyAny(() => import('./features/estimation/pages/boq/BOQListPage'));
+const BOQFormPage = lazyAny(() => import('./features/estimation/pages/boq/BOQFormPage'));
+const BOQDetailPage = lazyAny(() => import('./features/estimation/pages/boq/BOQDetailPage'));
+const TenderListPage = lazyAny(() => import('./features/estimation/pages/tenders/TenderListPage'));
+const TenderFormPage = lazyAny(() => import('./features/estimation/pages/tenders/TenderFormPage'));
+const TenderDetailPage = lazyAny(() => import('./features/estimation/pages/tenders/TenderDetailPage'));
+const ResourceCatalogPage = lazyAny(() => import('./features/estimation/pages/resources/ResourceCatalogPage'));
+const PartnerListPage = lazyAny(() => import('./features/partner-allocation/pages/partners/PartnerListPage'));
+const PartnerFormPage = lazyAny(() => import('./features/partner-allocation/pages/partners/PartnerFormPage'));
+const AllocationsListPage = lazyAny(() => import('./features/partner-allocation/pages/allocations/AllocationsListPage'));
+const PartnerInboxPage = lazyAny(() => import('./features/partner-allocation/pages/allocations/PartnerInboxPage'));
 const EmployeeCheckIn = lazyAny(() => import('./pages/EmployeeCheckIn'));
 const HRAdminDashboard = lazyAny(() => import('./pages/HRAdminDashboard'));
 const ClientLookup = lazyAny(() => import('./pages/ClientLookup'));
@@ -418,6 +431,16 @@ export default function App() {
       case '/follow-up': return <FollowUpCentre />;
       case '/boq': return <BOQList />;
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
+      // Estimation module
+      case '/estimation/boq': return <PermissionGuard permission="estimation.boq.read" fallback={<div className="p-6">Access Denied</div>}><BOQListPage /></PermissionGuard>;
+      case '/estimation/boq/new': return <PermissionGuard permission="estimation.boq.create" fallback={<div className="p-6">Access Denied</div>}><BOQFormPage /></PermissionGuard>;
+      case '/estimation/boq/edit': return <PermissionGuard permission="estimation.boq.update" fallback={<div className="p-6">Access Denied</div>}><BOQFormPage /></PermissionGuard>;
+      case '/estimation/boq/detail': return <PermissionGuard permission="estimation.boq.read" fallback={<div className="p-6">Access Denied</div>}><BOQDetailPage /></PermissionGuard>;
+      case '/estimation/tenders': return <PermissionGuard permission="estimation.tender.read" fallback={<div className="p-6">Access Denied</div>}><TenderListPage /></PermissionGuard>;
+      case '/estimation/tenders/new': return <PermissionGuard permission="estimation.tender.create" fallback={<div className="p-6">Access Denied</div>}><TenderFormPage /></PermissionGuard>;
+      case '/estimation/tenders/edit': return <PermissionGuard permission="estimation.tender.update" fallback={<div className="p-6">Access Denied</div>}><TenderFormPage /></PermissionGuard>;
+      case '/estimation/tenders/detail': return <PermissionGuard permission="estimation.tender.read" fallback={<div className="p-6">Access Denied</div>}><TenderDetailPage /></PermissionGuard>;
+      case '/estimation/resources': return <PermissionGuard permission="estimation.resources.read" fallback={<div className="p-6">Access Denied</div>}><ResourceCatalogPage /></PermissionGuard>;
       // Manufacturing
       case '/manufacturing': return <ManufacturingDashboard onNavigate={navigate} />;
       case '/manufacturing/inventory': return <ManufacturingInventory onNavigate={navigate} />;
@@ -503,6 +526,12 @@ export default function App() {
       case '/hr/planning': return <AttendancePlanning />;
       case '/hr/entry': return <AttendanceEntry />;
       case '/hr/salary-slip': return <SalarySlipDashboard />;
+      // Partner Allocation
+      case '/partner-allocation/partners': return <PermissionGuard permission="partners.read" fallback={<div className="p-6">Access Denied</div>}><PartnerListPage /></PermissionGuard>;
+      case '/partner-allocation/partners/new': return <PermissionGuard permission="partners.create" fallback={<div className="p-6">Access Denied</div>}><PartnerFormPage /></PermissionGuard>;
+      case '/partner-allocation/partners/edit': return <PermissionGuard permission="partners.update" fallback={<div className="p-6">Access Denied</div>}><PartnerFormPage /></PermissionGuard>;
+      case '/partner-allocation/allocations': return <PermissionGuard permission="allocations.read" fallback={<div className="p-6">Access Denied</div>}><AllocationsListPage /></PermissionGuard>;
+      case '/partner-allocation/inbox': return <PermissionGuard permission="allocations.update" fallback={<div className="p-6">Access Denied</div>}><PartnerInboxPage /></PermissionGuard>;
       default:
         if (pathKey.startsWith('/issue/')) {
           // Match /issue/<id> but not /issue/new

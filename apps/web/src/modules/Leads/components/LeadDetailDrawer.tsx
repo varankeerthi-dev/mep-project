@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, User, Building2, Phone, Mail, Tag, FileText, DollarSign, Calendar, MessageSquare, MapPin, Loader } from 'lucide-react';
+import { X, Clock, User, Building2, Phone, Mail, Tag, FileText, DollarSign, Calendar, MessageSquare, MapPin, Loader, Share2 } from 'lucide-react';
 import type { Lead } from '../../../types/leads';
 import { LeadHistoryTab } from './LeadHistoryTab';
 import { supabase } from '../../../supabase';
+import AllocatePartnerModal from '../../../features/partner-allocation/components/AllocatePartnerModal';
 
 interface LeadDetailDrawerProps {
   lead: Lead;
@@ -18,6 +19,7 @@ export const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClos
   const [editData, setEditData] = useState({ ...lead });
   const [saving, setSaving] = useState(false);
   const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [linkedVisits, setLinkedVisits] = useState<any[]>([]);
   const [loadingVisits, setLoadingVisits] = useState(false);
 
@@ -157,15 +159,32 @@ export const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClos
                   <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Site Visits
                   </div>
-                  <button
-                    onClick={() => setShowSiteVisitModal(true)}
-                    style={{
-                      padding: '5px 10px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      border: '1px solid #185FA5',
-                      borderRadius: '5px',
-                      background: '#185FA5',
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => setShowAllocateModal(true)}
+                      style={{
+                        padding: '5px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        border: '1px solid #9333EA',
+                        borderRadius: '5px',
+                        background: '#9333EA',
+                        color: '#fff',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Share2 size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                      Allocate to Partner
+                    </button>
+                    <button
+                      onClick={() => setShowSiteVisitModal(true)}
+                      style={{
+                        padding: '5px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        border: '1px solid #185FA5',
+                        borderRadius: '5px',
+                        background: '#185FA5',
                       color: '#fff',
                       cursor: 'pointer',
                     }}
@@ -244,6 +263,16 @@ export const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClos
           onClose={() => setShowSiteVisitModal(false)}
           onCreated={() => {
             setShowSiteVisitModal(false);
+            onUpdate();
+          }}
+        />
+      )}
+      {showAllocateModal && (
+        <AllocatePartnerModal
+          leadId={lead.id}
+          onClose={() => setShowAllocateModal(false)}
+          onSuccess={() => {
+            setShowAllocateModal(false);
             onUpdate();
           }}
         />

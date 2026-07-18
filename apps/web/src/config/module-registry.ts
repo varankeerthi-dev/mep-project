@@ -224,6 +224,22 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     category: 'projects',
     route: '/site-expenses',
   },
+  {
+    id: 'partner_allocation',
+    label: 'Partner Allocation',
+    description: 'Lead assignment to external partners, subcontractors, and technicians.',
+    icon: 'UserPlus',
+    category: 'sales',
+    route: '/partner-allocation/partners',
+  },
+  {
+    id: 'estimation',
+    label: 'Estimation',
+    description: 'BOQ, tender management, rate analysis, and resource catalogs.',
+    icon: 'Calculator',
+    category: 'sales',
+    route: '/estimation/boq',
+  },
 ];
 
 export const MODULE_CATEGORIES: Record<string, { label: string; color: string }> = {
