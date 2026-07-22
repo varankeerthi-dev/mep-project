@@ -28,7 +28,7 @@ export default function MaterialsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 p-1 flex flex-wrap gap-[20px] shadow-sm">
+      <div className="bg-[#F3F1F1] rounded-[26px] p-[6px] gap-x-[10px] gap-y-4 inline-flex flex-wrap">
         <TabButton active={activeTab === 'items'} onClick={() => changeTab('items')}>Items</TabButton>
         <TabButton active={activeTab === 'service'} onClick={() => changeTab('service')}>Service</TabButton>
         <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>

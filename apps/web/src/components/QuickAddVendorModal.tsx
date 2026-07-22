@@ -248,7 +248,7 @@ export function QuickAddVendorModal({ isOpen, onClose, onSuccess }: QuickAddVend
                   <option value="">Select Type</option>
                   <option value="micro">Micro Enterprise</option>
                   <option value="small">Small Enterprise</option>
-                  <option value="macro">Macro Enterprise</option>
+                  <option value="medium">Medium Enterprise</option>
                 </select>
               </div>
               <div className="group">

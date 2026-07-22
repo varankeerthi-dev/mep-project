@@ -18,7 +18,7 @@ interface CommercialSectionProps {
 }
 
 export function CommercialSection({ formData, onChange }: CommercialSectionProps) {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

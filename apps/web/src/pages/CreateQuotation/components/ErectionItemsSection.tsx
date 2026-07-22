@@ -464,98 +464,109 @@ export function ErectionItemsSection({
                   )}
                   {templateSettings?.column_settings?.optional?.item !== false && (
                     <td className="col-item" style={{ position: 'relative' }}>
-                      <SearchableItemSelect
-                        value={item.item_id}
-                        materials={materials}
-                        onChange={(materialId, mat) => {
-                          if (mat) {
-                            const makes = itemMakes[mat.id] || [];
-                            const autoMake = makes.length === 1 ? makes[0] : '';
-                            const newRate = getRateForMaterialVariant(mat, item.variant_id || null, autoMake);
-                            const dcId = mat.discount_category_id || null;
-                            const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
-                            const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
-                            
-                            updateItem(item.id, {
-                              item_id: materialId,
-                              material: mat,
-                              hsn_code: mat.hsn_code || '',
-                              uom: mat.unit || '',
-                              description: '',
-                              tax_percent: mat.gst_rate || 0,
-                              discount_category_id: dcId,
-                              make: autoMake,
-                              base_rate_snapshot: newRate,
-                              discount_percent: categoryDiscount,
-                              applied_discount_percent: categoryDiscount,
-                              is_override: false,
-                              rate: finalRate
-                            });
-                          } else {
-                            updateItem(item.id, {
-                              item_id: '',
-                              material: null,
-                              hsn_code: '',
-                              uom: '',
-                              description: '',
-                              tax_percent: 0,
-                              discount_category_id: null,
-                              make: '',
-                              base_rate_snapshot: 0,
-                              discount_percent: 0,
-                              applied_discount_percent: 0,
-                              is_override: false,
-                              rate: 0
-                            });
-                          }
-                        }}
-                      />
-                      {hoveredItemId === item.id && item.item_id && (
-                        <button
-                          type="button"
-                          className="btn-x-hover"
-                          style={{
-                            position: 'absolute',
-                            top: '2px',
-                            right: '2px',
-                            padding: '2px 6px',
-                            fontSize: '12px',
-                            background: '#dc2626',
-                            color: 'white',
-                            border: 'none',
-                            cursor: 'pointer',
-                            borderRadius: '4px',
-                            opacity: 0,
-                            transform: 'scale(0)',
-                            transition: 'all 0.2s ease-in-out'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.opacity = '1';
-                            e.currentTarget.style.transform = 'scale(1.1)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = '0';
-                            e.currentTarget.style.transform = 'scale(1)';
-                          }}
-                          onClick={() => {
-                            setItems(prev => prev.map(p => 
-                              p.id === item.id ? { ...p, item_id: '', material: null, description: '', hsn_code: '' } : p
-                            ));
-                            setTimeout(() => {
-                              setItemSearch('');
-                              setShowItemPicker(true);
-                            }, 200);
-                          }}
-                          title="Clear item and select replacement"
-                        >
-                          ×
-                        </button>
-                      )}
-                      {item.item_id && (
-                        <InlineDescriptionCell
-                          materialName=""
-                          description={item.description}
-                          onSave={(desc) => updateItem(item.id, 'description', desc)}
+                      {item.item_id ? (
+                        <>
+                          <SearchableItemSelect
+                            value={item.item_id}
+                            materials={materials}
+                            onChange={(materialId, mat) => {
+                              if (mat) {
+                                const makes = itemMakes[mat.id] || [];
+                                const autoMake = makes.length === 1 ? makes[0] : '';
+                                const newRate = getRateForMaterialVariant(mat, item.variant_id || null, autoMake);
+                                const dcId = mat.discount_category_id || null;
+                                const categoryDiscount = dcId ? (headerDiscounts[dcId] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, categoryDiscount);
+                                
+                                updateItem(item.id, {
+                                  item_id: materialId,
+                                  material: mat,
+                                  hsn_code: mat.hsn_code || '',
+                                  uom: mat.unit || '',
+                                  description: '',
+                                  tax_percent: mat.gst_rate || 0,
+                                  discount_category_id: dcId,
+                                  make: autoMake,
+                                  base_rate_snapshot: newRate,
+                                  discount_percent: categoryDiscount,
+                                  applied_discount_percent: categoryDiscount,
+                                  is_override: false,
+                                  rate: finalRate
+                                });
+                              } else {
+                                updateItem(item.id, {
+                                  item_id: '',
+                                  material: null,
+                                  hsn_code: '',
+                                  uom: '',
+                                  description: '',
+                                  tax_percent: 0,
+                                  discount_category_id: null,
+                                  make: '',
+                                  base_rate_snapshot: 0,
+                                  discount_percent: 0,
+                                  applied_discount_percent: 0,
+                                  is_override: false,
+                                  rate: 0
+                                });
+                              }
+                            }}
+                          />
+                          {hoveredItemId === item.id && (
+                            <button
+                              type="button"
+                              className="btn-x-hover"
+                              style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                background: '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
+                                opacity: 0,
+                                transform: 'scale(0)',
+                                transition: 'all 0.2s ease-in-out'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '0';
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}
+                              onClick={() => {
+                                setItems(prev => prev.map(p => 
+                                  p.id === item.id ? { ...p, item_id: '', material: null, description: '', hsn_code: '' } : p
+                                ));
+                                setTimeout(() => {
+                                  setItemSearch('');
+                                  setShowItemPicker(true);
+                                }, 200);
+                              }}
+                              title="Clear item and select replacement"
+                            >
+                              ×
+                            </button>
+                          )}
+                          <InlineDescriptionCell
+                            materialName=""
+                            description={item.description}
+                            onSave={(desc) => updateItem(item.id, 'description', desc)}
+                          />
+                        </>
+                      ) : (
+                        <input
+                          type="text"
+                          className="cell-input"
+                          value={item.description || ''}
+                          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                          placeholder="Erection description..."
+                          style={{ width: '100%' }}
                         />
                       )}
                     </td>

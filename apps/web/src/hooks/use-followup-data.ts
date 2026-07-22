@@ -1,71 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import * as followUpApi from '../follow-up/api';
-import {
-  MOCK_ACTIVITY_LOGS,
-  MOCK_INVOICES,
-  MOCK_PODC_BACKLOG,
-  MOCK_QUOTATIONS,
-  MOCK_PROCUREMENT,
-} from '../mock/followup-data';
 import type {
-  FollowUpActivityLog,
   InvoiceFollowUp,
   PodcBacklogItem,
   PodcIssueFlag,
   QuotationFollowUp,
   QuotationFollowUpStatus,
   QuotationResponseOption,
-  ProcurementFollowUp,
 } from '../types/followup';
 import { getTransitionToStatus } from '../lib/followup/quotation-workflow';
 
 const FOLLOWUP_KEY = ['follow-up'] as const;
-
-const USE_MOCK = import.meta.env.VITE_FOLLOWUP_USE_MOCK === 'true';
-
-async function withMockFallback<T>(
-  fetcher: () => Promise<T>,
-  mock: T,
-  label: string
-): Promise<{ data: T; source: 'supabase' | 'mock' }> {
-  if (USE_MOCK) return { data: mock, source: 'mock' };
-  try {
-    const data = await fetcher();
-    return { data, source: 'supabase' };
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (followUpApi.isFollowUpSchemaError(e)) {
-      console.warn(`[Follow-Up] ${label}: schema not ready, using mock data. Run 051_follow_up_centre.sql in Supabase.`);
-      return { data: mock, source: 'mock' };
-    }
-    throw err;
-  }
-}
-
-export function useFollowUpDataSource() {
-  const { organisation } = useAuth();
-  const orgId = organisation?.id as string | undefined;
-
-  const q = useQuery({
-    queryKey: [...FOLLOWUP_KEY, 'source-probe', orgId],
-    queryFn: async () => {
-      if (!orgId || USE_MOCK) return 'mock' as const;
-      try {
-        await followUpApi.fetchFollowUpActivity(orgId, 1);
-        return 'supabase' as const;
-      } catch (err: unknown) {
-        const e = err as { code?: string; message?: string };
-        if (followUpApi.isFollowUpSchemaError(e)) return 'mock' as const;
-        return 'supabase' as const;
-      }
-    },
-    enabled: !!orgId,
-    staleTime: 60_000,
-  });
-
-  return q.data ?? (USE_MOCK ? 'mock' : 'supabase');
-}
 
 export function useFollowupQuotations() {
   const { organisation } = useAuth();
@@ -73,18 +19,9 @@ export function useFollowupQuotations() {
 
   return useQuery({
     queryKey: [...FOLLOWUP_KEY, 'quotations', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => followUpApi.fetchFollowUpQuotations(orgId),
-        MOCK_QUOTATIONS,
-        'quotations'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? followUpApi.fetchFollowUpQuotations(orgId) : []),
     enabled: !!orgId,
     staleTime: 30_000,
-    placeholderData: MOCK_QUOTATIONS,
   });
 }
 
@@ -94,18 +31,9 @@ export function useFollowupPodc() {
 
   return useQuery({
     queryKey: [...FOLLOWUP_KEY, 'podc', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => followUpApi.fetchFollowUpPodc(orgId),
-        MOCK_PODC_BACKLOG,
-        'podc'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? followUpApi.fetchFollowUpPodc(orgId) : []),
     enabled: !!orgId,
     staleTime: 30_000,
-    placeholderData: MOCK_PODC_BACKLOG,
   });
 }
 
@@ -115,18 +43,9 @@ export function useFollowupProcurement() {
 
   return useQuery({
     queryKey: [...FOLLOWUP_KEY, 'procurement', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => followUpApi.fetchFollowUpProcurement(orgId),
-        MOCK_PROCUREMENT,
-        'procurement'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? followUpApi.fetchFollowUpProcurement(orgId) : []),
     enabled: !!orgId,
     staleTime: 30_000,
-    placeholderData: MOCK_PROCUREMENT,
   });
 }
 
@@ -136,18 +55,9 @@ export function useFollowupInvoices() {
 
   return useQuery({
     queryKey: [...FOLLOWUP_KEY, 'invoices', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => followUpApi.fetchFollowUpInvoices(orgId),
-        MOCK_INVOICES,
-        'invoices'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? followUpApi.fetchFollowUpInvoices(orgId) : []),
     enabled: !!orgId,
     staleTime: 30_000,
-    placeholderData: MOCK_INVOICES,
   });
 }
 
@@ -157,18 +67,9 @@ export function useFollowupActivity() {
 
   return useQuery({
     queryKey: [...FOLLOWUP_KEY, 'activity', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => followUpApi.fetchFollowUpActivity(orgId),
-        MOCK_ACTIVITY_LOGS,
-        'activity'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? followUpApi.fetchFollowUpActivity(orgId) : []),
     enabled: !!orgId,
     staleTime: 15_000,
-    placeholderData: MOCK_ACTIVITY_LOGS,
   });
 }
 

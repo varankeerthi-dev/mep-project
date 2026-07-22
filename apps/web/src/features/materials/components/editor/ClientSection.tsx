@@ -44,7 +44,7 @@ export function ClientSection({
 }: ClientSectionProps) {
   const [clientMappingTab, setClientMappingTab] = useState<'code' | 'pricing'>('code');
   const [showPricingHistory, setShowPricingHistory] = useState(false);
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

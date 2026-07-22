@@ -1,7 +1,11 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ClipboardList, FolderOpen, Edit, Trash2, MoreHorizontal, Eye, X, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { 
+  Plus, ClipboardList, FolderOpen, Edit, Trash2, MoreHorizontal, Eye, X, ChevronDown, 
+  ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Save, Send, AlertCircle, CheckCircle2, RotateCcw
+} from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { z } from 'zod';
 import { useAuth } from '../../../contexts/AuthContext';
 import { 
   useApprovePurchaseRequisition, 
@@ -15,6 +19,7 @@ import {
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
+import { SearchableItemSelect } from '../../../components/SearchableItemSelect';
 import { useMaterials } from '../../../hooks/useMaterials';
 import { useVariants } from '../../../hooks/useVariants';
 import { 
@@ -85,6 +90,44 @@ const ALL_COLUMNS = [
 
 const MANDATORY_COLUMNS = ['requisition_no', 'date', 'status'];
 
+// ============================================
+// ZOD VALIDATION SCHEMAS
+// ============================================
+const requisitionLineSchema = z.object({
+  item_name: z.string().min(1, 'Item name is required'),
+  requested_qty: z
+    .number({ invalid_type_error: 'Quantity must be a valid number' })
+    .min(0.001, 'Quantity must be greater than 0'),
+  uom: z.string().min(1, 'UOM is required'),
+  estimated_rate: z
+    .number({ invalid_type_error: 'Rate must be a number' })
+    .min(0, 'Rate cannot be negative')
+    .nullable()
+    .optional(),
+});
+
+const requisitionFormSchema = z
+  .object({
+    purposeType: z.enum(PURPOSES, { required_error: 'Purpose is required' }),
+    priority: z.enum(PRIORITIES, { required_error: 'Priority is required' }),
+    requiredDate: z.string().min(1, 'Required date is required'),
+    projectId: z.string().optional(),
+    notes: z.string().optional(),
+    lines: z.array(requisitionLineSchema).min(1, 'At least one line item is required'),
+  })
+  .refine(
+    (data) => {
+      if (data.purposeType === 'PROJECT') {
+        return !!data.projectId && data.projectId.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: 'Project ID is required when Purpose is PROJECT',
+      path: ['projectId'],
+    }
+  );
+
 export const Requisitions: React.FC = () => {
   const { organisation, user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -101,6 +144,10 @@ export const Requisitions: React.FC = () => {
   ]);
 
   const [editingReqId, setEditingReqId] = useState<string | null>(null);
+  const [editingReqNumber, setEditingReqNumber] = useState<string>('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+
   const [viewReq, setViewReq] = useState<any | null>(null);
   const [deleteConfirmReq, setDeleteConfirmReq] = useState<any | null>(null);
   const [actionMenuReqId, setActionMenuReqId] = useState<string | null>(null);
@@ -136,6 +183,24 @@ export const Requisitions: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const columnCustomizerRef = useRef<HTMLDivElement>(null);
+
+  const DRAFT_KEY = useMemo(() => `pr_form_draft_${organisation?.id || 'default'}`, [organisation?.id]);
+
+  // Auto-save local draft when creating new PR
+  useEffect(() => {
+    if (openForm && !editingReqId) {
+      const draftData = {
+        purposeType,
+        priority,
+        requiredDate,
+        notes,
+        projectId,
+        lineItems,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    }
+  }, [openForm, editingReqId, purposeType, priority, requiredDate, notes, projectId, lineItems, DRAFT_KEY]);
 
   // Click outside handlers
   useEffect(() => {
@@ -229,10 +294,48 @@ export const Requisitions: React.FC = () => {
     return { totalItems, totalPages, currentPage: safePage, startIdx, endIdx: startIdx + currentItems.length, currentItems, hasPrev: safePage > 1, hasNext: safePage < totalPages };
   }, [filtered, currentPage, itemsPerPage]);
 
-  // Form logic (unchanged)
   const resetForm = () => {
     setOpenForm(false);
     setEditingReqId(null);
+    setEditingReqNumber('');
+    setFormErrors({});
+    setIsDraftRestored(false);
+    setPurposeType(projectIdFromContext ? 'PROJECT' : 'COMPANY_EXPENSE');
+    setPriority('Normal');
+    setRequiredDate(new Date().toISOString().split('T')[0]);
+    setProjectId(projectIdFromContext || '');
+    setLineItems([{ id: '1', item_id: '', item_name: '', make: '', variant_id: '', variant_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' }]);
+    setNotes('');
+  };
+
+  const handleOpenNewForm = () => {
+    resetForm();
+    // Check for saved local draft
+    const savedDraft = localStorage.getItem(DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.purposeType) setPurposeType(parsed.purposeType);
+          if (parsed.priority) setPriority(parsed.priority);
+          if (parsed.requiredDate) setRequiredDate(parsed.requiredDate);
+          if (parsed.notes) setNotes(parsed.notes);
+          if (parsed.projectId) setProjectId(parsed.projectId);
+          if (Array.isArray(parsed.lineItems) && parsed.lineItems.length > 0) {
+            setLineItems(parsed.lineItems);
+          }
+          setIsDraftRestored(true);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved draft:', e);
+      }
+    }
+    setOpenForm(true);
+  };
+
+  const handleDiscardLocalDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setIsDraftRestored(false);
     setPurposeType(projectIdFromContext ? 'PROJECT' : 'COMPANY_EXPENSE');
     setPriority('Normal');
     setRequiredDate(new Date().toISOString().split('T')[0]);
@@ -243,6 +346,9 @@ export const Requisitions: React.FC = () => {
 
   const handleEdit = (r: any) => {
     setEditingReqId(r.id);
+    setEditingReqNumber(r.requisition_number || '');
+    setFormErrors({});
+    setIsDraftRestored(false);
     setPurposeType(r.purpose_type);
     setPriority(r.priority);
     setRequiredDate(r.required_date || new Date().toISOString().split('T')[0]);
@@ -283,31 +389,463 @@ export const Requisitions: React.FC = () => {
     setLineItems(prev => prev.map(l => l.id === id ? { ...l, variant_id: variantId, variant_name: variant?.variant_name || '' } : l));
   };
 
+  const validateForm = () => {
+    const rawLines = lineItems.map((l) => ({
+      item_name: l.item_name.trim(),
+      requested_qty: l.requested_qty ? Number(l.requested_qty) : 0,
+      uom: l.uom.trim(),
+      estimated_rate: l.estimated_rate ? Number(l.estimated_rate) : null,
+    }));
+
+    const result = requisitionFormSchema.safeParse({
+      purposeType,
+      priority,
+      requiredDate,
+      projectId: projectId.trim(),
+      notes,
+      lines: rawLines,
+    });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const key = issue.path.join('.');
+        errors[key] = issue.message;
+      });
+      setFormErrors(errors);
+      return false;
+    }
+    setFormErrors({});
+    return true;
+  };
+
   const submit = async (status: 'Draft' | 'Pending' = 'Pending') => {
     if (!organisation?.id) return;
-    const validLines = lineItems.filter(l => l.item_name.trim() && Number(l.requested_qty) > 0).map(l => ({
-      item_id: l.item_id || null, item_name: l.item_name.trim(), variant_id: l.variant_id || null,
-      variant_name: l.variant_name || null, requested_qty: Number(l.requested_qty), uom: l.uom || 'Nos',
-      estimated_rate: l.estimated_rate ? Number(l.estimated_rate) : null, required_date: requiredDate,
-      notes: l.make ? `Make: ${l.make}` : null,
-    }));
-    if (validLines.length === 0) { alert('At least one valid line is required'); return; }
-    if (purposeType === 'PROJECT' && !projectId) { alert('Project is required for PROJECT requisition'); return; }
+    
+    // For Pending submit, enforce full Zod validation
+    if (status === 'Pending') {
+      if (!validateForm()) return;
+    } else {
+      // For Draft, require at least one line with name
+      if (!lineItems.some(l => l.item_name.trim())) {
+        setFormErrors({ general: 'Please specify at least one item name to save draft.' });
+        return;
+      }
+    }
+
+    const validLines = lineItems
+      .filter(l => l.item_name.trim())
+      .map(l => ({
+        item_id: l.item_id || null, 
+        item_name: l.item_name.trim(), 
+        variant_id: l.variant_id || null,
+        variant_name: l.variant_name || null, 
+        requested_qty: Number(l.requested_qty) || 1, 
+        uom: l.uom || 'Nos',
+        estimated_rate: l.estimated_rate ? Number(l.estimated_rate) : null, 
+        required_date: requiredDate,
+        notes: l.make ? `Make: ${l.make}` : null,
+      }));
+
     const payload = {
-      organisation_id: organisation.id, status, purpose_type: purposeType,
-      project_id: purposeType === 'PROJECT' ? projectId : null, required_date: requiredDate,
-      priority, notes, requested_by: user?.id || null, requested_by_name: user?.email || 'User',
-      source_context: projectIdFromContext ? 'PROJECT' : 'CENTRAL' as any, lines: [...validLines],
+      organisation_id: organisation.id, 
+      status, 
+      purpose_type: purposeType,
+      project_id: purposeType === 'PROJECT' ? projectId : null, 
+      required_date: requiredDate,
+      priority, 
+      notes, 
+      requested_by: user?.id || null, 
+      requested_by_name: user?.email || 'User',
+      source_context: projectIdFromContext ? 'PROJECT' : 'CENTRAL' as any, 
+      lines: [...validLines],
     };
-    if (editingReqId) await updateReq.mutateAsync({ id: editingReqId, input: payload });
-    else await createReq.mutateAsync(payload);
-    resetForm();
+
+    try {
+      if (editingReqId) await updateReq.mutateAsync({ id: editingReqId, input: payload });
+      else await createReq.mutateAsync(payload);
+
+      // Clear local auto-save draft upon successful submit
+      localStorage.removeItem(DRAFT_KEY);
+      resetForm();
+    } catch (e: any) {
+      console.error('Submit error:', e);
+      setFormErrors({ general: e.message || 'Failed to save requisition' });
+    }
   };
 
   const formatCurrency = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
   const getStatusStyle = (status: string) => STATUS_COLORS[status] || { bg: '#f3f4f6', color: '#6b7280' };
 
+  // ============================================
+  // BREADCRUMB FULL-PAGE FORM VIEW (NEW & EDIT)
+  // ============================================
+  if (openForm) {
+    return (
+      <div className="flex flex-col min-h-screen bg-zinc-50/60 pb-12">
+        {/* Breadcrumb Header */}
+        <div className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between shadow-xs sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-sm text-zinc-600 font-sans">
+            <button
+              onClick={resetForm}
+              className="hover:text-zinc-900 font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              Requisitions
+            </button>
+            <ChevronRight className="w-4 h-4 text-zinc-400" />
+            <span className="font-semibold text-zinc-900">
+              {editingReqId ? `Edit ${editingReqNumber || 'Requisition'}` : 'New Requisition'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-8"
+            >
+              <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
+                Cancel
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => submit('Draft')}
+              disabled={createReq.isPending || updateReq.isPending}
+              className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer antialiased h-8"
+            >
+              <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
+                {(createReq.isPending || updateReq.isPending) ? 'Saving...' : 'Save as Draft'}
+              </span>
+              <Save className="w-4 h-4 text-[#0A0A0A] flex-shrink-0" />
+            </button>
+            <button
+              type="button"
+              onClick={() => submit('Pending')}
+              disabled={createReq.isPending || updateReq.isPending}
+              className="[font-synthesis:none] items-center flex justify-center px-3.5 py-1.5 rounded-lg gap-1.5 bg-[#16A34A] [border-width:0.8px] border-solid border-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer antialiased h-8 shadow-xs"
+            >
+              <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-white">
+                {(createReq.isPending || updateReq.isPending) ? 'Saving...' : editingReqId ? 'Update & Submit' : 'Submit Requisition'}
+              </span>
+              <Send className="w-4 h-4 text-white flex-shrink-0" />
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-6xl w-full mx-auto px-6 pt-6 space-y-6">
+          {/* Unsaved draft restoration notice */}
+          {isDraftRestored && !editingReqId && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 px-4 flex items-center justify-between text-xs text-amber-800">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>Restored unsaved draft from your last session.</span>
+              </div>
+              <button
+                onClick={handleDiscardLocalDraft}
+                className="font-medium text-amber-700 hover:text-amber-900 underline flex items-center gap-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" /> Discard Draft
+              </button>
+            </div>
+          )}
+
+          {/* Form level error alert */}
+          {formErrors.general && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 px-4 flex items-center gap-2 text-xs text-red-700">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span>{formErrors.general}</span>
+            </div>
+          )}
+
+          {/* Requisition Details Card - Form Field Row Pattern (DESIGN.md) */}
+          <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
+              {/* Column 1 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                  Requisition Details
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Purpose:</span>
+                  <div style={{ flex: 1 }}>
+                    <select
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none"
+                      value={purposeType}
+                      onChange={(e) => setPurposeType(e.target.value as any)}
+                    >
+                      {PURPOSES.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {formErrors.purposeType && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.purposeType}</p>}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Priority:</span>
+                  <div style={{ flex: 1 }}>
+                    <select
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none"
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value as any)}
+                    >
+                      {PRIORITIES.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {formErrors.priority && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.priority}</p>}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Req Date:</span>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="date"
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none"
+                      value={requiredDate}
+                      onChange={(e) => setRequiredDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {formErrors.requiredDate && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.requiredDate}</p>}
+              </div>
+
+              {/* Column 2 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                  Project & Notes
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>
+                    Project ID: {purposeType === 'PROJECT' && <span className="text-red-500">*</span>}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="text"
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none disabled:bg-zinc-100"
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                      disabled={!!projectIdFromContext}
+                      placeholder={projectIdFromContext ? 'Auto-filled' : 'Enter project ID'}
+                    />
+                  </div>
+                </div>
+                {formErrors.projectId && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.projectId}</p>}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Notes:</span>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="text"
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Optional notes or justification..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Requested Line Items Card - Excel-Style Grid (CreateQuotationV2) */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Requested Line Items</h2>
+                <p className="text-[11px] text-zinc-500">Excel-style grid: Select items from master or enter custom materials</p>
+              </div>
+              <button
+                type="button"
+                onClick={addLine}
+                className="[font-synthesis:none] items-center flex justify-center px-2.5 py-1 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-7"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#0A0A0A] flex-shrink-0" />
+                <span className="inline-block text-[12px] font-medium text-[#0A0A0A]">
+                  Add Row
+                </span>
+              </button>
+            </div>
+
+            {formErrors.lines && <p className="text-xs text-red-600">{formErrors.lines}</p>}
+
+            <div style={{ border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', color: '#475569', height: '28px' }}>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '36px', textAlign: 'center', fontWeight: 600 }}>#</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '240px', textAlign: 'left', fontWeight: 600 }}>Item Name *</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '130px', textAlign: 'left', fontWeight: 600 }}>Make / Brand</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '140px', textAlign: 'left', fontWeight: 600 }}>Variant</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '85px', textAlign: 'right', fontWeight: 600 }}>Qty *</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '80px', textAlign: 'left', fontWeight: 600 }}>UOM</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '100px', textAlign: 'right', fontWeight: 600 }}>Est. Rate (₹)</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '110px', textAlign: 'right', fontWeight: 600 }}>Est. Total (₹)</th>
+                    <th style={{ border: '1px solid #cbd5e1', padding: '4px 6px', width: '36px', textAlign: 'center', fontWeight: 600 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.map((line, idx) => {
+                    const qtyNum = Number(line.requested_qty) || 0;
+                    const rateNum = Number(line.estimated_rate) || 0;
+                    const subtotal = qtyNum * rateNum;
+
+                    return (
+                      <tr key={line.id} style={{ height: '28px' }}>
+                        {/* Serial Number */}
+                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#f8fafc', color: '#64748b', fontWeight: 500 }}>
+                          {idx + 1}
+                        </td>
+
+                        {/* Searchable Item Dropdown / Custom Name */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff', verticalAlign: 'top' }}>
+                          <SearchableItemSelect
+                            materials={materials}
+                            value={line.item_id}
+                            onChange={(id, mat) => updateLineItem(line.id, id, mat)}
+                            placeholder="Select item..."
+                          />
+                          {!line.item_id && (
+                            <input
+                              type="text"
+                              style={{ width: '100%', height: '24px', border: 'none', borderTop: '1px solid #e2e8f0', padding: '2px 6px', fontSize: '11px', outline: 'none', background: '#fff' }}
+                              value={line.item_name}
+                              onChange={(e) => updateLine(line.id, 'item_name', e.target.value)}
+                              placeholder="Or enter custom item name..."
+                            />
+                          )}
+                          {formErrors[`lines.${idx}.item_name`] && (
+                            <p style={{ fontSize: '10px', color: '#ef4444', padding: '1px 6px' }}>{formErrors[`lines.${idx}.item_name`]}</p>
+                          )}
+                        </td>
+
+                        {/* Make / Brand */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff' }}>
+                          <input
+                            type="text"
+                            style={{ width: '100%', height: '100%', border: 'none', padding: '2px 6px', fontSize: '11px', outline: 'none', background: 'transparent' }}
+                            value={line.make}
+                            onChange={(e) => updateLine(line.id, 'make', e.target.value)}
+                            placeholder="Make / Brand"
+                          />
+                        </td>
+
+                        {/* Variant */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff' }}>
+                          <select
+                            style={{ width: '100%', height: '100%', border: 'none', padding: '2px 4px', fontSize: '11px', outline: 'none', background: 'transparent', cursor: 'pointer' }}
+                            value={line.variant_id || ''}
+                            onChange={(e) => updateLineVariant(line.id, e.target.value)}
+                          >
+                            <option value="">No variant</option>
+                            {variants.map((v: any) => (
+                              <option key={v.id} value={v.id}>{v.variant_name}</option>
+                            ))}
+                          </select>
+                        </td>
+
+                        {/* Qty */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff' }}>
+                          <input
+                            type="number"
+                            step="any"
+                            style={{ width: '100%', height: '100%', border: 'none', padding: '2px 6px', fontSize: '11px', textAlign: 'right', outline: 'none', background: 'transparent' }}
+                            value={line.requested_qty}
+                            onChange={(e) => updateLine(line.id, 'requested_qty', e.target.value)}
+                            placeholder="0"
+                          />
+                          {formErrors[`lines.${idx}.requested_qty`] && (
+                            <p style={{ fontSize: '10px', color: '#ef4444', padding: '1px 6px', textAlign: 'right' }}>
+                              {formErrors[`lines.${idx}.requested_qty`]}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* UOM */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff' }}>
+                          <input
+                            type="text"
+                            style={{ width: '100%', height: '100%', border: 'none', padding: '2px 6px', fontSize: '11px', outline: 'none', background: 'transparent' }}
+                            value={line.uom}
+                            onChange={(e) => updateLine(line.id, 'uom', e.target.value)}
+                            placeholder="Nos"
+                          />
+                        </td>
+
+                        {/* Est. Rate */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff' }}>
+                          <input
+                            type="number"
+                            step="any"
+                            style={{ width: '100%', height: '100%', border: 'none', padding: '2px 6px', fontSize: '11px', textAlign: 'right', outline: 'none', background: 'transparent' }}
+                            value={line.estimated_rate}
+                            onChange={(e) => updateLine(line.id, 'estimated_rate', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </td>
+
+                        {/* Est. Total */}
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px 6px', textAlign: 'right', fontWeight: 500, color: '#1e293b', background: '#f8fafc' }}>
+                          {formatCurrency(subtotal)}
+                        </td>
+
+                        {/* Delete row */}
+                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', background: '#fff' }}>
+                          <button
+                            type="button"
+                            onClick={() => removeLine(line.id)}
+                            disabled={lineItems.length === 1}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: lineItems.length === 1 ? 'not-allowed' : 'pointer',
+                              opacity: lineItems.length === 1 ? 0.3 : 0.7,
+                              padding: '2px',
+                            }}
+                            title="Remove row"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: '#f1f5f9', borderTop: '2px solid #cbd5e1', height: '30px' }}>
+                    <td colSpan={7} style={{ border: '1px solid #cbd5e1', padding: '4px 8px', textAlign: 'right', fontWeight: 600, fontSize: '11px', color: '#334155' }}>
+                      Total Estimated Requisition Amount:
+                    </td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '4px 8px', textAlign: 'right', fontWeight: 700, fontSize: '12px', color: '#16a34a' }}>
+                      {formatCurrency(
+                        lineItems.reduce(
+                          (sum, l) => sum + (Number(l.requested_qty) || 0) * (Number(l.estimated_rate) || 0),
+                          0
+                        )
+                      )}
+                    </td>
+                    <td style={{ border: '1px solid #cbd5e1' }}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // REQUISITIONS LIST VIEW
+  // ============================================
   return (
     <div className="flex flex-col h-full bg-white relative">
       {/* Bulk Action Header */}
@@ -418,7 +956,7 @@ export const Requisitions: React.FC = () => {
         </div>
         <div className="flex items-center gap-[10px]">
           <button
-            onClick={() => { resetForm(); setOpenForm(true); }}
+            onClick={handleOpenNewForm}
             className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
             style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
           >
@@ -450,22 +988,20 @@ export const Requisitions: React.FC = () => {
                             if (e.target.checked) setVisibleColumnsTemp([...tempVisibleColumns, col.id]);
                             else setVisibleColumnsTemp(tempVisibleColumns.filter(id => id !== col.id));
                           }}
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                          className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                         />
                         <span className="text-sm font-medium text-zinc-700">{col.label}</span>
                       </label>
                     );
                   })}
                 </div>
-                <div className="flex items-center gap-2 pt-4 border-t border-zinc-100">
+                <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-zinc-100">
                   <button
                     onClick={() => { setVisibleColumns(tempVisibleColumns); localStorage.setItem('requisition_list_columns', JSON.stringify(tempVisibleColumns)); setShowColumnCustomizer(false); }}
-                    className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors active:scale-[0.98]"
-                  >Save</button>
-                  <button
-                    onClick={() => { setVisibleColumnsTemp(visibleColumns); setShowColumnCustomizer(false); }}
-                    className="flex-1 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-[0.98]"
-                  >Cancel</button>
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
             )}
@@ -473,379 +1009,180 @@ export const Requisitions: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Content */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-full">
-          <table className="w-full border-separate border-spacing-0">
-            <thead className="z-10">
-              <tr>
-                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
-                    onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                  />
+        <table className="w-full text-left text-xs border-collapse">
+          <thead className="bg-zinc-50/80 border-b border-zinc-200 text-zinc-500 sticky top-0 z-10 backdrop-blur-xs">
+            <tr>
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={paginationData.currentItems.length > 0 && selectedIds.size === paginationData.currentItems.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </th>
+              {visibleColumns.includes('requisition_no') && <th className="px-4 py-3 font-semibold text-zinc-700">PR No</th>}
+              {visibleColumns.includes('date') && (
+                <th className="px-4 py-3 font-semibold text-zinc-700 cursor-pointer select-none" onClick={toggleSort}>
+                  <div className="flex items-center gap-1">
+                    Date
+                    {sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : sortOrder === 'desc' ? <ArrowDown className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowUpDown className="w-3.5 h-3.5 text-zinc-400" />}
+                  </div>
                 </th>
-                {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => (
-                  <th
-                    key={col.id}
-                    style={{ width: col.width }}
-                    className={`sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 ${
-                      ['estimated_total', 'lines'].includes(col.id) ? 'text-right' : 'text-left'
-                    }`}
-                  >
-                    {col.id === 'date' ? (
-                      <button onClick={toggleSort} className="flex items-center gap-2 hover:text-zinc-900 transition-colors group">
-                        {col.label}
-                        <div className="flex flex-col">
-                          {!sortOrder && <ArrowUpDown className="w-3 h-3 text-zinc-300 group-hover:text-zinc-400" />}
-                          {sortOrder === 'asc' && <ArrowUp className="w-3 h-3 text-indigo-600" />}
-                          {sortOrder === 'desc' && <ArrowDown className="w-3 h-3 text-indigo-600" />}
-                        </div>
-                      </button>
-                    ) : col.label}
-                  </th>
-                ))}
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white">
-              {isLoading ? (
-                <tr><td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">Loading requisitions...</td></tr>
-              ) : paginationData.currentItems.length === 0 ? (
-                <tr><td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">No requisitions found</td></tr>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {paginationData.currentItems.map((r: any, index) => {
-                    const estTotal = (r.lines || []).reduce((s: number, l: any) => s + Number(l.estimated_amount || 0), 0);
-                    const ss = getStatusStyle(r.status);
-                    return (
-                      <motion.tr
-                        key={r.id}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30, opacity: { duration: 0.2 } }}
-                        className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
-                          openMenuId === r.id ? 'z-50' : 'z-0'
-                        } ${index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} ${selectedIds.has(r.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
-                      >
-                        <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(r.id)}
-                            onChange={(e) => { e.stopPropagation(); toggleSelect(r.id); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                        </td>
-                        {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
-                          if (col.id === 'requisition_no') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                              {r.requisition_number}
-                            </td>
-                          );
-                          if (col.id === 'date') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 whitespace-nowrap border-t border-zinc-200/70">
-                              {new Date(r.created_at).toLocaleDateString('en-IN')}
-                            </td>
-                          );
-                          if (col.id === 'requested_by') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                              {r.requested_by_name || '-'}
-                            </td>
-                          );
-                          if (col.id === 'purpose') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                              <div className="flex items-center gap-1.5">
-                                <FolderOpen className="w-3 h-3 text-zinc-400" />
-                                {r.purpose_type}
-                              </div>
-                            </td>
-                          );
-                          if (col.id === 'priority') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium border-t border-zinc-200/70">
-                              <span style={{ color: PRIORITY_COLORS[r.priority] || '#6b7280' }}>{r.priority}</span>
-                            </td>
-                          );
-                          if (col.id === 'lines') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 tabular-nums text-right border-t border-zinc-200/70">
-                              {r.lines?.length || 0}
-                            </td>
-                          );
-                          if (col.id === 'estimated_total') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums text-right border-t border-zinc-200/70">
-                              {estTotal > 0 ? formatCurrency(estTotal) : '-'}
-                            </td>
-                          );
-                          if (col.id === 'status') return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                              <span
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold leading-5"
-                                style={{ backgroundColor: ss.bg, color: ss.color }}
-                              >
-                                {r.status}
-                              </span>
-                            </td>
-                          );
-                          if (col.id === 'fulfillment') {
-                            const stage = getFulfillmentStage(r);
-                            const fc = FULFILLMENT_COLORS[stage] || FULFILLMENT_COLORS['Not Started'];
-                            return (
-                              <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                                <span
-                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold leading-5"
-                                  style={{ backgroundColor: fc.bg, color: fc.color }}
-                                >
-                                  {stage}
-                                </span>
-                              </td>
-                            );
-                          }
-                          return null;
-                        })}
-                        <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                          <div className="relative inline-block" ref={openMenuId === r.id ? menuRef : null}>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === r.id ? null : r.id); }}
-                              className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
-                            >
-                              <MoreHorizontal className="w-4 h-4 text-zinc-500" />
-                            </button>
-                            {openMenuId === r.id && (
-                              <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
-                                index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
-                              }`}>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setViewReq(r); setOpenMenuId(null); }}
-                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                  style={{ padding: '6px' }}
-                                >
-                                  <Eye className="w-3.5 h-3.5" /> View Details
-                                </button>
-                                {(r.status === 'Draft' || r.status === 'Pending') && (
-                                  <>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleEdit(r); setOpenMenuId(null); }}
-                                      className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                      style={{ padding: '6px' }}
-                                    >
-                                      <Edit className="w-3.5 h-3.5" /> Edit
-                                    </button>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmReq(r); setOpenMenuId(null); }}
-                                      className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
-                                      style={{ padding: '6px' }}
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                                    </button>
-                                  </>
-                                )}
-                                {(r.status === 'Pending' || r.status === 'Draft') && (
-                                  <>
-                                    <div className="my-1 border-t border-zinc-100" />
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); approveReq.mutate({ requisitionId: r.id, actorId: user?.id || null }); setOpenMenuId(null); }}
-                                      className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98]"
-                                      style={{ padding: '6px' }}
-                                      disabled={approveReq.isPending}
-                                    >
-                                      {approveReq.isPending ? '...' : 'Quick Approve'}
-                                    </button>
-                                  </>
-                                )}
-                                {r.approval_status === 'Pending Approval' && (
-                                  <>
-                                    <div className="my-1 border-t border-zinc-100" />
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); processReq.mutate({ requisitionId: r.id, action: 'APPROVE', actorId: user?.id || null }); setOpenMenuId(null); }}
-                                      className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98]"
-                                      style={{ padding: '6px' }}
-                                      disabled={processReq.isPending}
-                                    >
-                                      Approve Level
-                                    </button>
-                                  </>
-                                )}
-                                <div className="my-1 border-t border-zinc-100" />
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setSelectedReqId(r.id); setOpenMenuId(null); }}
-                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                  style={{ padding: '6px' }}
-                                >
-                                  <ClipboardList className="w-3.5 h-3.5" /> Audit Log
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </AnimatePresence>
               )}
-            </tbody>
-          </table>
-        </div>
+              {visibleColumns.includes('requested_by') && <th className="px-4 py-3 font-semibold text-zinc-700">Requested By</th>}
+              {visibleColumns.includes('purpose') && <th className="px-4 py-3 font-semibold text-zinc-700">Purpose</th>}
+              {visibleColumns.includes('priority') && <th className="px-4 py-3 font-semibold text-zinc-700">Priority</th>}
+              {visibleColumns.includes('lines') && <th className="px-4 py-3 font-semibold text-zinc-700 text-center">Lines</th>}
+              {visibleColumns.includes('estimated_total') && <th className="px-4 py-3 font-semibold text-zinc-700 text-right">Est. Total</th>}
+              {visibleColumns.includes('status') && <th className="px-4 py-3 font-semibold text-zinc-700">Status</th>}
+              {visibleColumns.includes('fulfillment') && <th className="px-4 py-3 font-semibold text-zinc-700">Fulfillment</th>}
+              <th className="px-4 py-3 w-12 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {isLoading ? (
+              <tr>
+                <td colSpan={visibleColumns.length + 2} className="px-6 py-12 text-center text-zinc-400">Loading requisitions...</td>
+              </tr>
+            ) : paginationData.currentItems.length === 0 ? (
+              <tr>
+                <td colSpan={visibleColumns.length + 2} className="px-6 py-12 text-center text-zinc-400">No requisitions found.</td>
+              </tr>
+            ) : (
+              paginationData.currentItems.map((r: any) => {
+                const isSelected = selectedIds.has(r.id);
+                const totalEst = (r.lines || []).reduce((s: number, l: any) => s + Number(l.estimated_amount || 0), 0);
+                const stage = getFulfillmentStage(r);
+                const stageStyle = FULFILLMENT_COLORS[stage] || { bg: '#f3f4f6', color: '#6b7280' };
+
+                return (
+                  <tr key={r.id} className={`hover:bg-zinc-50/80 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(r.id)}
+                        className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
+                    {visibleColumns.includes('requisition_no') && (
+                      <td className="px-4 py-3 font-semibold text-zinc-900">
+                        <button onClick={() => setViewReq(r)} className="hover:text-blue-600 hover:underline cursor-pointer">
+                          {r.requisition_number}
+                        </button>
+                      </td>
+                    )}
+                    {visibleColumns.includes('date') && (
+                      <td className="px-4 py-3 text-zinc-600">{r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '-'}</td>
+                    )}
+                    {visibleColumns.includes('requested_by') && (
+                      <td className="px-4 py-3 text-zinc-700 truncate max-w-[150px]" title={r.requested_by_name}>
+                        {r.requested_by_name || '-'}
+                      </td>
+                    )}
+                    {visibleColumns.includes('purpose') && (
+                      <td className="px-4 py-3 text-zinc-700 font-medium">{r.purpose_type}</td>
+                    )}
+                    {visibleColumns.includes('priority') && (
+                      <td className="px-4 py-3">
+                        <span className="font-semibold" style={{ color: PRIORITY_COLORS[r.priority] || '#6b7280' }}>
+                          {r.priority}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.includes('lines') && (
+                      <td className="px-4 py-3 text-center font-semibold text-zinc-800">{r.lines?.length || 0}</td>
+                    )}
+                    {visibleColumns.includes('estimated_total') && (
+                      <td className="px-4 py-3 text-right font-semibold text-zinc-900">{formatCurrency(totalEst)}</td>
+                    )}
+                    {visibleColumns.includes('status') && (
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                          style={{ backgroundColor: getStatusStyle(r.status).bg, color: getStatusStyle(r.status).color }}
+                        >
+                          {r.status}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.includes('fulfillment') && (
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+                          style={{ backgroundColor: stageStyle.bg, color: stageStyle.color }}
+                        >
+                          {stage}
+                        </span>
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-center relative">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === r.id ? null : r.id)}
+                        className="p-1 hover:bg-zinc-200/60 rounded-md transition-colors text-zinc-500"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      {openMenuId === r.id && (
+                        <div ref={menuRef} className="absolute right-4 top-full mt-1 z-50 min-w-[140px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1 text-left">
+                          <button
+                            onClick={() => { setViewReq(r); setOpenMenuId(null); }}
+                            className="w-full px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View Details
+                          </button>
+                          {(r.status === 'Draft' || r.status === 'Pending') && (
+                            <button
+                              onClick={() => { handleEdit(r); setOpenMenuId(null); }}
+                              className="w-full px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
+                            >
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setDeleteConfirmReq(r); setOpenMenuId(null); }}
+                            className="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
-        <div className="text-sm font-medium text-zinc-600">
-          Showing {paginationData.totalItems === 0 ? 0 : paginationData.startIdx + 1} to {paginationData.endIdx} of {paginationData.totalItems} requisitions
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-200 bg-zinc-50/50 text-xs text-zinc-600">
+        <div>
+          Showing {paginationData.startIdx + 1} to {paginationData.endIdx} of {paginationData.totalItems} items
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setCurrentPage(paginationData.currentPage - 1)}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={!paginationData.hasPrev}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
-              paginationData.hasPrev ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm' : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
-            }`}
-          >Previous</button>
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: Math.max(1, Math.min(5, paginationData.totalPages)) }, (_, i) => {
-              let pageNum: number;
-              if (paginationData.totalPages <= 5) pageNum = i + 1;
-              else if (paginationData.currentPage <= 3) pageNum = i + 1;
-              else if (paginationData.currentPage >= paginationData.totalPages - 2) pageNum = paginationData.totalPages - 4 + i;
-              else pageNum = paginationData.currentPage - 2 + i;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
-                    paginationData.currentPage === pageNum
-                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
-                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
-                  }`}
-                >{pageNum}</button>
-              );
-            })}
-          </div>
+            className="px-3 py-1 bg-white border border-zinc-200 rounded-md disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+          >
+            Previous
+          </button>
+          <span className="font-semibold text-zinc-800">
+            Page {paginationData.currentPage} of {paginationData.totalPages}
+          </span>
           <button
-            onClick={() => setCurrentPage(paginationData.currentPage + 1)}
+            onClick={() => setCurrentPage(p => Math.min(paginationData.totalPages, p + 1))}
             disabled={!paginationData.hasNext}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
-              paginationData.hasNext ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm' : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
-            }`}
-          >Next</button>
+            className="px-3 py-1 bg-white border border-zinc-200 rounded-md disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+          >
+            Next
+          </button>
         </div>
       </div>
-
-      {/* Audit Log Panel */}
-      {selectedReqId && (
-        <div className="border border-zinc-200 rounded-lg p-3 mx-6 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs font-medium text-zinc-700">Requisition Audit</div>
-            <Button variant="outline" className="h-7 text-[11px]" onClick={() => setSelectedReqId(null)}>Close</Button>
-          </div>
-          <div className="space-y-1">
-            {auditLogs.map((a: any) => (
-              <div key={a.id} className="text-xs text-zinc-600">
-                {new Date(a.created_at).toLocaleString('en-IN')} - {a.action}
-              </div>
-            ))}
-            {auditLogs.length === 0 && <div className="text-xs text-zinc-500">No audit entries</div>}
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit Form as Dialog */}
-      <Dialog open={openForm} onOpenChange={(v) => { if (!v) resetForm(); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-zinc-800">{editingReqId ? 'Edit Requisition' : 'New Requisition'}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 py-2">
-            <div>
-              <label className="text-xs text-zinc-500">Purpose</label>
-              <Select value={purposeType} onValueChange={(v) => setPurposeType(v as any)}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>{PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500">Priority</label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>{PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500">Required Date</label>
-              <Input type="date" value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} className="h-8" />
-            </div>
-            <div className="md:col-span-3 border border-zinc-200 rounded-md p-2 space-y-2">
-              <div className="text-xs font-medium text-zinc-700">Line Items</div>
-              {lineItems.map((line, idx) => (
-                <div key={line.id} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-3">
-                    <label className="text-[11px] text-zinc-500">Item</label>
-                    <Select value={line.item_id || 'none'} onValueChange={(v) => updateLineItem(line.id, v === 'none' ? '' : v)}>
-                      <SelectTrigger className="h-8"><SelectValue placeholder="Select item" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Select item</SelectItem>
-                        {materials.map((m: any) => <SelectItem key={m.id} value={m.id}>{m.display_name || m.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[11px] text-zinc-500">Make</label>
-                    <Input value={line.make} onChange={(e) => updateLine(line.id, 'make', e.target.value)} className="h-8" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[11px] text-zinc-500">Variant</label>
-                    <Select value={line.variant_id || 'none'} onValueChange={(v) => updateLineVariant(line.id, v === 'none' ? '' : v)}>
-                      <SelectTrigger className="h-8"><SelectValue placeholder="Variant" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No variant</SelectItem>
-                        {variants.map((v: any) => <SelectItem key={v.id} value={v.id}>{v.variant_name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[11px] text-zinc-500">Qty</label>
-                    <Input type="number" value={line.requested_qty} onChange={(e) => updateLine(line.id, 'requested_qty', e.target.value)} className="h-8" />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[11px] text-zinc-500">UOM</label>
-                    <Input value={line.uom} onChange={(e) => updateLine(line.id, 'uom', e.target.value)} className="h-8" />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[11px] text-zinc-500">Rate</label>
-                    <Input type="number" value={line.estimated_rate} onChange={(e) => updateLine(line.id, 'estimated_rate', e.target.value)} className="h-8" />
-                  </div>
-                  <div className="col-span-1">
-                    <Button variant="outline" className="h-8 w-full text-xs" onClick={() => removeLine(line.id)} disabled={idx === 0 && lineItems.length === 1}>-</Button>
-                  </div>
-                </div>
-              ))}
-              <Button type="button" variant="outline" className="h-8 text-xs" onClick={addLine}>+ Add Line</Button>
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-xs text-zinc-500">Notes</label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500">Project ID (for PROJECT purpose)</label>
-              <Input value={projectId} onChange={(e) => setProjectId(e.target.value)} disabled={!!projectIdFromContext} className="h-8" placeholder={projectIdFromContext ? 'Auto-filled from project context' : 'Enter project id'} />
-            </div>
-          </div>
-          <DialogFooter className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" className="h-8 text-xs" onClick={resetForm}>Cancel</Button>
-            <Button variant="outline" className="h-8 text-xs" onClick={() => submit('Draft')} disabled={createReq.isPending || updateReq.isPending}>
-              {(createReq.isPending || updateReq.isPending) ? 'Saving...' : 'Save as Draft'}
-            </Button>
-            <Button className="h-8 text-xs" onClick={() => submit('Pending')} disabled={createReq.isPending || updateReq.isPending}>
-              {(createReq.isPending || updateReq.isPending) ? 'Saving...' : editingReqId ? 'Update & Submit' : 'Create & Submit'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* View Requisition Dialog */}
       {viewReq && (

@@ -91,11 +91,15 @@ const AccessControlPage = lazyAny(() => import('./pages/AccessControl'));
 const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })));
 const QuotationList = lazyAny(() => import('./pages/QuotationList'));
 const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation/index'));
+const CreateQuotationV2 = lazyAny(() => import('./pages/CreateQuotationV2/index'));
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const SalesOrderList = lazyAny(() => import('./pages/sales/SalesOrderList'));
 const SalesOrderCreate = lazyAny(() => import('./pages/sales/SalesOrderCreate'));
 const SalesOrderDetail = lazyAny(() => import('./pages/sales/SalesOrderDetail'));
 const DCView = lazyAny(() => import('./pages/DCView'));
+const ReturnListPage = lazyAny(() => import('./pages/ReturnListPage'));
+const ReturnEditorPage = lazyAny(() => import('./pages/ReturnEditorPage'));
+const ReturnViewPage = lazyAny(() => import('./pages/ReturnViewPage'));
 const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
 const QuickQuoteSettings = lazyAny(() => import('./pages/QuickQuoteSettings'));
@@ -111,6 +115,12 @@ const SiteExpenses = lazyAny(() => import('./pages/SiteExpenses').then(m => ({ d
 const Projects = lazyAny(() => import('./pages/Projects'));
 const DayBook = lazyAny(() => import('./pages/accounting/DayBook'));
 const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts'));
+const PricingTableOneDemo = lazyAny(() => import('./components/pricing-table-one-demo').then(m => ({ default: m.PricingTableOneDemo })));
+const FieldVariationsList = lazyAny(() => import('./pages/FieldVariationsList').then(m => ({ default: m.FieldVariationsList })));
+const MaterialReturnVerification = lazyAny(() => import('./pages/MaterialReturnVerification').then(m => ({ default: m.MaterialReturnVerification })));
+const VendorDisputesLog = lazyAny(() => import('./pages/VendorDisputesLog').then(m => ({ default: m.VendorDisputesLog })));
+const DCLineItemReconciliation = lazyAny(() => import('./pages/DCLineItemReconciliation').then(m => ({ default: m.DCLineItemReconciliation })));
+
 
 // Lazy load internally moved pages
 const Dashboard = lazyAny(() => import('./pages/Dashboard'));
@@ -187,6 +197,7 @@ const Documents = lazyAny(() => ProjectManagementInternal.then(m => ({ default: 
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
 const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
+const SettingsV2Page = lazyAny(() => import('./features/settings-v2/SettingsV2Page'));
 const ModuleSettingsPage = lazyAny(() => import('./components/ModuleSettings'));
 const StockAdjustmentPage = lazyAny(() => import('./pages/StockAdjustment'));
 const HelpPage = lazyAny(() => import('./pages/HelpPage'));
@@ -344,6 +355,7 @@ export default function App() {
 
     switch (pathKey) {
       case '/terms-conditions': return <TermsConditionsDashboard />;
+      case '/pricing-demo': return <PricingTableOneDemo />;
       case '/': 
         return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
       case '/login': 
@@ -397,6 +409,7 @@ export default function App() {
         return <LeadsModule />;
       case '/quotation': return <QuotationList />;
       case '/quotation/create': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} />;
+      case '/quotation/create-v2': return <CreateQuotationV2 />;
       case '/quotation/view': return <QuotationView />;
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/sales-orders': return <SalesOrderList />;
@@ -451,14 +464,17 @@ export default function App() {
       case '/issues': return <IssueListPage />;
       case '/issue/new': return <IssueCreateModal isOpen={true} onClose={() => navigate('/issues')} />;
       case '/purchase':
+      case '/purchase/dashboard':
       case '/purchase/vendors':
       case '/purchase/requisitions':
       case '/purchase/inquiries':
       case '/purchase/orders':
       case '/purchase/bills':
+      case '/purchase/invoice-verification':
       case '/purchase/debit-notes':
       case '/purchase/payments':
       case '/purchase/payment-queue':
+      case '/purchase/payment-accountant':
         return <PurchaseModule />;
       // Inventory
       case '/procurement': return <ProcurementList />;
@@ -489,9 +505,20 @@ export default function App() {
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
       case '/nb-dc/list': return <NonBillableDCList />;
       case '/nb-dc/create': return <CreateNonBillableDC onSuccess={() => navigate('/nb-dc/list')} onCancel={() => navigate('/nb-dc/list')} />;
+      // Operational Governance Modules
+      case '/field-variations': return <FieldVariationsList />;
+      case '/material-returns-verification': return <MaterialReturnVerification />;
+      case '/vendor-disputes': return <VendorDisputesLog />;
+      case '/dc-reconciliation': return <DCLineItemReconciliation />;
+      // Material Returns
+      case '/returns': return <ReturnListPage />;
+      case '/returns/create': return <ReturnEditorPage />;
+      case '/returns/edit': return <ReturnEditorPage />;
+      case '/returns/view': return <ReturnViewPage />;
       // Settings
       case '/help': return <HelpPage onNavigate={navigate} />;
       case '/settings': return <SettingsPage />;
+      case '/settings-v2': return <SettingsV2Page />;
       case '/settings/print': return <PrintSettings />;
       case '/settings/template': return <TemplateSettings />;
       case '/settings/discounts': return <DiscountSettings />;

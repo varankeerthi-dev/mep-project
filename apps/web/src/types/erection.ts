@@ -40,6 +40,11 @@ export interface QuotationItemExtended {
   is_auto_quantity?: boolean;
   erection_manually_removed?: boolean;
   rate_manually_edited?: boolean;
+  material?: {
+    display_name?: string;
+    name?: string;
+    id?: string;
+  } | null;
 }
 
 export interface ErectionItem extends QuotationItemExtended {

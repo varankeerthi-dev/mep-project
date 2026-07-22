@@ -230,3 +230,207 @@ onMouseEnter: background → '#0C447C', borderColor → '#0C447C'
 onMouseLeave: revert
 ```
 
+## Paper 2.0 Button Pattern
+
+Used in header action bars and breadcrumb views (`Requisitions.tsx`, `PurchaseModule.tsx`).
+
+```tsx
+// Neutral / Outline Button (Cancel, Discard)
+<button className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-8">
+  <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
+    Cancel
+  </span>
+</button>
+
+// Outline Action Button with Icon (Save as Draft, Export)
+<button className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-8">
+  <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
+    Save as Draft
+  </span>
+  <Save className="w-4 h-4 text-[#0A0A0A] flex-shrink-0" />
+</button>
+
+// Primary Dark Button (Submit Requisition, Save & Proceed)
+<button className="[font-synthesis:none] items-center flex justify-center px-3.5 py-1.5 rounded-lg gap-1.5 bg-[#0A0A0A] [border-width:0.8px] border-solid border-[#0A0A0A] hover:bg-[#262626] transition-colors cursor-pointer antialiased h-8 shadow-xs">
+  <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-white">
+    Submit Requisition
+  </span>
+  <Send className="w-4 h-4 text-white flex-shrink-0" />
+</button>
+```
+
+---
+
+# Sub-Tabs Navigation Bar Pattern
+
+Top-level sub-module navigation bar pattern based on Paper Design System (Paper 2.0).
+
+Used in: `PurchaseModule.tsx`, `SubTabsNav.tsx`, and top-level module views.
+
+## UI Specifications & Design Tokens
+
+| Property | Active State | Inactive State |
+|---|---|---|
+| Font Family | `"Inter", system-ui, sans-serif` | `"Inter", system-ui, sans-serif` |
+| Font Size / Weight | `14px` / `600` | `14px` / `500` |
+| Line Height | `142.857%` (`20px`) | `142.857%` (`20px`) |
+| Text Color | `#16A34A` (Green) | `#0A0A0A99` (60% opacity black) |
+| Active Underline | `#16A34A` (`height: 2px`, `position: absolute`, `bottom: -5px`, `left: 0`, `right: 0`, `width: 100%`) | Hidden |
+| Button Border Radius | `8px` | `8px` |
+| Button Border | `0.888889px solid #00000000` | `0.888889px solid #00000000` |
+| Button Padding | `2px` (block) / `10px` (inline) | `2px` (block) / `10px` (inline) |
+| Tab Gap | `8px` | `8px` |
+| Nav Bar Container | Height: `36px`, `display: flex`, `alignItems: center`, `overflowX: auto`, `borderBottom: 1px solid #E5E7EB` |
+
+## Reusable React Component
+
+Component file location: [SubTabsNav.tsx](file:///c:/Users/admin/mep-project/apps/web/src/components/ui/SubTabsNav.tsx)
+
+```tsx
+import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+export interface SubTabItem {
+  id: string;
+  label: string;
+  path: string;
+}
+
+export interface SubTabsNavProps {
+  tabs: SubTabItem[];
+  activeTabId?: string;
+  onTabChange?: (tab: SubTabItem) => void;
+  className?: string;
+}
+
+export const SubTabsNav: React.FC<SubTabsNavProps> = ({
+  tabs,
+  activeTabId,
+  onTabChange,
+  className = '',
+}) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const currentTabId =
+    activeTabId ||
+    tabs.find((t) => location.pathname === t.path || location.pathname.startsWith(t.path))?.id ||
+    tabs[0]?.id;
+
+  return (
+    <div
+      style={{
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        fontSynthesis: 'none',
+        gap: '8px',
+        MozOsxFontSmoothing: 'grayscale',
+        WebkitFontSmoothing: 'antialiased',
+        width: '100%',
+        borderBottom: '1px solid #E5E7EB',
+        marginBottom: '16px',
+        paddingBottom: '4px',
+      }}
+      className={className}
+    >
+      <div
+        style={{
+          alignItems: 'center',
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexShrink: '0',
+          gap: '8px',
+          height: '36px',
+          justifyContent: 'flex-start',
+          padding: '3px',
+          width: '100%',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        {tabs.map((tab) => {
+          const isActive = currentTabId === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                if (onTabChange) {
+                  onTabChange(tab);
+                } else {
+                  navigate(tab.path);
+                }
+              }}
+              style={{
+                alignItems: 'center',
+                borderColor: '#00000000',
+                borderRadius: '8px',
+                borderStyle: 'solid',
+                borderWidth: '0.888889px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexShrink: 0,
+                gap: '6px',
+                height: 'calc(100% - 1px)',
+                justifyContent: 'center',
+                paddingBlock: '2px',
+                paddingInline: '10px',
+                position: 'relative',
+                background: 'transparent',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <div
+                style={{
+                  boxSizing: 'border-box',
+                  color: isActive ? '#16A34A' : '#0A0A0A99',
+                  display: 'flex',
+                  flexShrink: '0',
+                  fontFamily: '"Inter", system-ui, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: isActive ? 600 : 500,
+                  lineHeight: '142.857%',
+                  textAlign: 'center',
+                  width: 'max-content',
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                {tab.label}
+              </div>
+              {isActive && (
+                <div
+                  style={{
+                    backgroundColor: '#16A34A',
+                    bottom: '-5px',
+                    boxSizing: 'border-box',
+                    height: '2px',
+                    left: '0px',
+                    position: 'absolute',
+                    right: '0px',
+                    width: '100%',
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+```
+
+## Usage Instructions
+
+1. **Routing Integration**:
+   - Provide an array of tabs where each tab has `{ id, label, path }`.
+   - Embed `<SubTabsNav tabs={MY_MODULE_TABS} />` at the top of the module container.
+   - Routing works out-of-the-box via React Router (`useNavigate` and `useLocation`).
+
+2. **Responsive Overflow**:
+   - The tab bar sets `overflowX: 'auto'` and `scrollbarWidth: 'none'` to preserve clean scrolling across dense sub-tabs on mobile or narrow viewports.
+   - Buttons use `flexShrink: 0` and `whiteSpace: 'nowrap'` so text remains crisp and unclipped.
+
+

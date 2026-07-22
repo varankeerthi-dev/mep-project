@@ -34,7 +34,6 @@ import {
   useLogQuotationResponse,
   useFlagPodcIssue,
   useRecordReminder,
-  useFollowUpDataSource,
   useAssignFollowUp,
   useFollowupProcurement,
 } from '@/hooks/use-followup-data';
@@ -93,7 +92,6 @@ import { toast } from 'sonner';
 export default function FollowUpCentre() {
   const { user, organisation } = useAuth();
   const { canManage, isReadOnly, role } = useFollowupAccess();
-  const dataSource = useFollowUpDataSource();
   const { filters, setFilters, setTab } = useFollowupFilters();
   const { search, setSearch } = useFollowupSearch(filters.q, (q) => setFilters({ q }));
 
@@ -485,7 +483,7 @@ export default function FollowUpCentre() {
       }
       case 'activity':
         return [
-          { label: 'Total events', value: activity.length, sublabel: 'All time (mock)' },
+          { label: 'Total events', value: activity.length, sublabel: 'All time' },
           { label: 'Filtered', value: filteredActivity.length, sublabel: 'Current view' },
           { label: 'Today', value: '—', sublabel: 'Grouped view' },
           { label: 'Source', value: filters.status === 'all' ? 'All' : filters.status, sublabel: 'Tab filter' },
@@ -1037,11 +1035,6 @@ export default function FollowUpCentre() {
                 New lead
               </Button>
             </div>
-            {dataSource === 'mock' && (
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900">
-                Demo data — run <code className="font-mono">051_follow_up_centre.sql</code> in Supabase
-              </span>
-            )}
             {isReadOnly && (
               <span className="text-[11px] text-zinc-500">Read-only (manager/admin required to act)</span>
             )}

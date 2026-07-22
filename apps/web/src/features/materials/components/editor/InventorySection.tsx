@@ -25,7 +25,7 @@ export function InventorySection({
   onToggleInventory,
   onStockChange,
 }: InventorySectionProps) {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

@@ -24,7 +24,7 @@ export function VariantPricingSection({
   onRemoveRow,
   onRowChange,
 }: VariantPricingSectionProps) {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

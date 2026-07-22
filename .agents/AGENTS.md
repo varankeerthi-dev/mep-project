@@ -20,3 +20,17 @@ These rules govern the development of the monorepo, specifically when implementi
   pnpm --filter=mobile build && pnpm --filter=mobile exec cap sync
   ```
 - Verify that the build completes with zero compilation warnings or TypeScript errors before completing a task.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs for this repo live as GitHub issues. See [issue-tracker.md](file:///c:/Users/admin/mep-project/docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Triage roles are mapped to standard label strings. See [triage-labels.md](file:///c:/Users/admin/mep-project/docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context layout, with domain glossary and architectural decisions under `apps/web/`. See [domain.md](file:///c:/Users/admin/mep-project/docs/agents/domain.md).

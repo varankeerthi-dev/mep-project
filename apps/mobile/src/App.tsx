@@ -13,7 +13,10 @@ import { PurchaseModule } from './screens/PurchaseModule';
 import { AlertTriangle } from 'lucide-react';
 import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, LogOut } from 'lucide-react';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup';
+import { FieldVariationMobile } from './screens/FieldVariationMobile';
+import { MaterialReturnMobile } from './screens/MaterialReturnMobile';
+
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return';
 type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
 
 function App() {
@@ -138,6 +141,8 @@ function App() {
             onLogout={handleLogout}
             onNavigateToApprovals={() => setCurrentScreen('approvals')}
             onNavigateToLookup={() => setCurrentScreen('lookup')}
+            onNavigateToFieldVariation={() => setCurrentScreen('field_variation')}
+            onNavigateToMaterialReturn={() => setCurrentScreen('material_return')}
             onOpenModule={(m) => setActiveModule(m)}
             isDemo={isDemo}
           />
@@ -146,6 +151,8 @@ function App() {
         {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} onFormDirtyChange={setFormDirty} />}
         {currentScreen === 'site_visits' && <SiteVisits isDemo={isDemo} />}
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
+        {currentScreen === 'field_variation' && <FieldVariationMobile onBack={() => setCurrentScreen('dashboard')} />}
+        {currentScreen === 'material_return' && <MaterialReturnMobile onBack={() => setCurrentScreen('dashboard')} />}
         {currentScreen === 'lookup' && (
           <ClientLookup 
             onBack={() => setCurrentScreen('dashboard')} 
