@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Plus, Edit, Trash2, Save, X, Search, Filter, Settings, ChevronDown, ChevronUp, Copy, Eye, EyeOff, MoreHorizontal, GripVertical } from 'lucide-react';
@@ -7,7 +7,7 @@ import { FileText, Plus, Edit, Trash2, Save, X, Search, Filter, Settings, Chevro
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
