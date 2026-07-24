@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "demo": "vite",
     "dev:api": "vercel dev",
+
     "dev:server": "node server/pincode.js",
     "build": "vite build",
     "lint": "eslint .",

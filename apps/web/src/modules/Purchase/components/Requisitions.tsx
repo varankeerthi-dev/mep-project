@@ -1,4 +1,7 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../../supabase';
+import { withSessionCheck } from '../../../queryClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, ClipboardList, FolderOpen, Edit, Trash2, MoreHorizontal, Eye, X, ChevronDown, 
@@ -20,8 +23,11 @@ import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { SearchableItemSelect } from '../../../components/SearchableItemSelect';
+import { DynamicTable, Column, RowAction } from '../../../components/ui/DynamicTable';
 import { useMaterials } from '../../../hooks/useMaterials';
 import { useVariants } from '../../../hooks/useVariants';
+import { useClients } from '../../../hooks/useClients';
+import { useProjects } from '../../../hooks/useProjects';
 import { 
   Dialog, 
   DialogContent, 
@@ -32,6 +38,18 @@ import {
 
 const PURPOSES = ['PROJECT', 'SITE_WORK', 'COMPANY_EXPENSE', 'MAINTENANCE', 'CAPEX', 'OTHER'] as const;
 const PRIORITIES = ['Low', 'Normal', 'High', 'Emergency'] as const;
+const DEPARTMENTS = [
+  'Finance & Accounts',
+  'HR & Admin',
+  'IT & Infrastructure',
+  'Operations & Logistics',
+  'Quality Control & Safety',
+  'Sales & Marketing',
+  'Maintenance & Facilities',
+  'Procurement & Store',
+  'Management & Executive',
+  'Other',
+] as const;
 
 const STATUS_FILTER_OPTIONS = ['All', 'Draft', 'Pending', 'Approved', 'Rejected', 'Pending Approval', 'Partially Fulfilled', 'Fulfilled', 'Cancelled'] as const;
 
@@ -110,21 +128,35 @@ const requisitionFormSchema = z
   .object({
     purposeType: z.enum(PURPOSES, { required_error: 'Purpose is required' }),
     priority: z.enum(PRIORITIES, { required_error: 'Priority is required' }),
-    requiredDate: z.string().min(1, 'Required date is required'),
+    requiredDate: z.string().min(1, 'Wanted date is required'),
+    department: z.string().optional(),
+    clientId: z.string().optional(),
     projectId: z.string().optional(),
     notes: z.string().optional(),
     lines: z.array(requisitionLineSchema).min(1, 'At least one line item is required'),
   })
   .refine(
     (data) => {
-      if (data.purposeType === 'PROJECT') {
+      if (data.purposeType === 'PROJECT' || data.purposeType === 'SITE_WORK') {
         return !!data.projectId && data.projectId.trim().length > 0;
       }
       return true;
     },
     {
-      message: 'Project ID is required when Purpose is PROJECT',
+      message: 'Project is required when Purpose is SITE_WORK or PROJECT',
       path: ['projectId'],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.purposeType === 'COMPANY_EXPENSE' || data.purposeType === 'MAINTENANCE') {
+        return !!data.department && data.department.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: 'Department is required when Purpose is COMPANY_EXPENSE or MAINTENANCE',
+      path: ['department'],
     }
   );
 
@@ -134,10 +166,12 @@ export const Requisitions: React.FC = () => {
   const projectIdFromContext = searchParams.get('project_id');
 
   const [openForm, setOpenForm] = useState(false);
-  const [purposeType, setPurposeType] = useState<(typeof PURPOSES)[number]>(projectIdFromContext ? 'PROJECT' : 'COMPANY_EXPENSE');
+  const [purposeType, setPurposeType] = useState<(typeof PURPOSES)[number]>(projectIdFromContext ? 'PROJECT' : 'SITE_WORK');
   const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>('Normal');
   const [requiredDate, setRequiredDate] = useState(new Date().toISOString().split('T')[0]);
+  const [department, setDepartment] = useState('');
   const [notes, setNotes] = useState('');
+  const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState(projectIdFromContext || '');
   const [lineItems, setLineItems] = useState<Array<{ id: string; item_id: string; item_name: string; make: string; variant_id: string; variant_name: string; requested_qty: string; uom: string; estimated_rate: string }>>([
     { id: '1', item_id: '', item_name: '', make: '', variant_id: '', variant_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' },
@@ -158,10 +192,67 @@ export const Requisitions: React.FC = () => {
   const deleteReq = useDeletePurchaseRequisition();
   const { data: materials = [] } = useMaterials();
   const { data: variants = [] } = useVariants();
+  const { data: clients = [] } = useClients();
+  const { data: projects = [] } = useProjects();
   const approveReq = useApprovePurchaseRequisition();
   const processReq = useProcessPurchaseRequisitionApproval();
   const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
   const { data: auditLogs = [] } = usePurchaseAuditLogs(organisation?.id, selectedReqId);
+
+  // Fetch item variant pricing map to dynamically filter available variants per item
+  const { data: itemVariantPricing = [] } = useQuery({
+    queryKey: ['item-variant-pricing', organisation?.id],
+    queryFn: withSessionCheck(async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('item_variant_pricing')
+        .select('item_id, company_variant_id, make, sale_price, purchase_price');
+      if (error) {
+        console.warn('item_variant_pricing query warning:', error);
+        return [];
+      }
+      return data || [];
+    }),
+    enabled: !!organisation?.id,
+  });
+
+  // Dynamically get available variants for a selected material item
+  const getItemVariants = useCallback((itemId: string) => {
+    if (!itemId) return variants;
+
+    // 1. Check if variants directly belong to this item_id
+    const directVariants = variants.filter((v: any) => v.item_id === itemId);
+    if (directVariants.length > 0) return directVariants;
+
+    // 2. Check item_variant_pricing mapping
+    const pricingVariantIds = itemVariantPricing
+      .filter((ivp: any) => ivp.item_id === itemId)
+      .map((ivp: any) => ivp.company_variant_id);
+
+    if (pricingVariantIds.length > 0) {
+      const matched = variants.filter((v: any) => pricingVariantIds.includes(v.id));
+      if (matched.length > 0) return matched;
+    }
+
+    // 3. Fallback: return all company variants
+    return variants;
+  }, [variants, itemVariantPricing]);
+
+  // Filter projects by selected client
+  const filteredProjects = useMemo(() => {
+    if (!clientId) return projects;
+    return projects.filter((p: any) => p.client_id === clientId || p.client_name === clients.find((c: any) => c.id === clientId)?.client_name);
+  }, [projects, clientId, clients]);
+
+  const handleSelectProject = (pId: string) => {
+    setProjectId(pId);
+    if (pId) {
+      const selectedProj: any = projects.find((p: any) => p.id === pId || p.project_code === pId);
+      if (selectedProj?.client_id) {
+        setClientId(selectedProj.client_id);
+      }
+    }
+  };
 
   // Table state
   const [searchTerm, setSearchTerm] = useState('');
@@ -285,14 +376,192 @@ export const Requisitions: React.FC = () => {
     totalEstimated: requisitions.reduce((sum: number, r: any) => sum + (r.lines || []).reduce((s: number, l: any) => s + Number(l.estimated_amount || 0), 0), 0),
   }), [requisitions]);
 
-  const paginationData = useMemo(() => {
-    const totalItems = filtered.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-    const safePage = Math.min(currentPage, totalPages);
-    const startIdx = (safePage - 1) * itemsPerPage;
-    const currentItems = filtered.slice(startIdx, startIdx + itemsPerPage);
-    return { totalItems, totalPages, currentPage: safePage, startIdx, endIdx: startIdx + currentItems.length, currentItems, hasPrev: safePage > 1, hasNext: safePage < totalPages };
-  }, [filtered, currentPage, itemsPerPage]);
+  // DynamicTable column definitions adaptable based on user visible columns selection
+  const tableColumns = useMemo<Column<any>[]>(() => {
+    const cols: Column<any>[] = [];
+
+    if (visibleColumns.includes('requisition_no')) {
+      cols.push({
+        key: 'requisition_no',
+        header: 'PR No',
+        width: '130px',
+        accessor: 'requisition_number',
+        render: (val, r) => (
+          <button
+            onClick={() => setViewReq(r)}
+            className="font-semibold text-zinc-900 hover:text-blue-600 hover:underline cursor-pointer"
+          >
+            {val || r.requisition_number}
+          </button>
+        ),
+      });
+    }
+
+    if (visibleColumns.includes('date')) {
+      cols.push({
+        key: 'date',
+        header: (
+          <div
+            className="flex items-center gap-1 cursor-pointer select-none"
+            onClick={toggleSort}
+          >
+            Date
+            {sortOrder === 'asc' ? (
+              <ArrowUp className="w-3.5 h-3.5 text-indigo-600" />
+            ) : sortOrder === 'desc' ? (
+              <ArrowDown className="w-3.5 h-3.5 text-indigo-600" />
+            ) : (
+              <ArrowUpDown className="w-3.5 h-3.5 text-zinc-400" />
+            )}
+          </div>
+        ),
+        width: '120px',
+        accessor: (r) => (r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '-'),
+      });
+    }
+
+    if (visibleColumns.includes('requested_by')) {
+      cols.push({
+        key: 'requested_by',
+        header: 'Requested By',
+        width: '150px',
+        accessor: 'requested_by_name',
+        render: (val) => (
+          <span className="truncate max-w-[150px] inline-block" title={val}>
+            {val || '-'}
+          </span>
+        ),
+      });
+    }
+
+    if (visibleColumns.includes('purpose')) {
+      cols.push({
+        key: 'purpose',
+        header: 'Purpose',
+        width: '140px',
+        accessor: 'purpose_type',
+        render: (val) => <span className="font-medium text-zinc-700">{val}</span>,
+      });
+    }
+
+    if (visibleColumns.includes('priority')) {
+      cols.push({
+        key: 'priority',
+        header: 'Priority',
+        width: '100px',
+        accessor: 'priority',
+        render: (val) => (
+          <span className="font-semibold" style={{ color: PRIORITY_COLORS[val] || '#6b7280' }}>
+            {val}
+          </span>
+        ),
+      });
+    }
+
+    if (visibleColumns.includes('lines')) {
+      cols.push({
+        key: 'lines',
+        header: 'Lines',
+        width: '80px',
+        align: 'center',
+        accessor: (r) => r.lines?.length || 0,
+        render: (val) => <span className="font-semibold text-zinc-800">{val}</span>,
+      });
+    }
+
+    if (visibleColumns.includes('estimated_total')) {
+      cols.push({
+        key: 'estimated_total',
+        header: 'Est. Total',
+        width: '130px',
+        align: 'left', // Strictly obeying table rule: monetary values left-aligned!
+        accessor: (r) => {
+          const totalEst = (r.lines || []).reduce(
+            (s: number, l: any) => s + Number(l.estimated_amount || 0),
+            0
+          );
+          return formatCurrency(totalEst);
+        },
+        cellStyle: { fontWeight: 600, color: '#111827' },
+      });
+    }
+
+    if (visibleColumns.includes('status')) {
+      cols.push({
+        key: 'status',
+        header: 'Status',
+        width: '120px',
+        accessor: 'status',
+        render: (val) => {
+          const style = getStatusStyle(val);
+          return (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+              style={{ backgroundColor: style.bg, color: style.color }}
+            >
+              {val}
+            </span>
+          );
+        },
+      });
+    }
+
+    if (visibleColumns.includes('fulfillment')) {
+      cols.push({
+        key: 'fulfillment',
+        header: 'Fulfillment',
+        width: '150px',
+        accessor: (r) => getFulfillmentStage(r),
+        render: (stage) => {
+          const stageStyle = FULFILLMENT_COLORS[stage] || { bg: '#f3f4f6', color: '#6b7280' };
+          return (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+              style={{ backgroundColor: stageStyle.bg, color: stageStyle.color }}
+            >
+              {stage}
+            </span>
+          );
+        },
+      });
+    }
+
+    return cols;
+  }, [visibleColumns, sortOrder]);
+
+  const rowActions = useMemo<RowAction<any>[]>(() => [
+    {
+      key: 'view',
+      label: 'View Details',
+      icon: <Eye className="w-3.5 h-3.5" />,
+      onClick: (r) => setViewReq(r),
+    },
+    {
+      key: 'edit',
+      label: 'Edit',
+      icon: <Edit className="w-3.5 h-3.5" />,
+      hidden: (r) => r.status !== 'Draft' && r.status !== 'Pending',
+      onClick: (r) => handleEdit(r),
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      icon: <Trash2 className="w-3.5 h-3.5 text-rose-500" />,
+      variant: 'danger',
+      onClick: (r) => setDeleteConfirmReq(r),
+    },
+  ], []);
+
+
+  const handlePurposeChange = (newPurpose: (typeof PURPOSES)[number]) => {
+    setPurposeType(newPurpose);
+    if (newPurpose === 'COMPANY_EXPENSE' || newPurpose === 'MAINTENANCE' || newPurpose === 'CAPEX' || newPurpose === 'OTHER') {
+      setClientId('');
+      setProjectId('');
+    } else if (newPurpose === 'SITE_WORK' || newPurpose === 'PROJECT') {
+      setDepartment('');
+    }
+  };
 
   const resetForm = () => {
     setOpenForm(false);
@@ -300,9 +569,11 @@ export const Requisitions: React.FC = () => {
     setEditingReqNumber('');
     setFormErrors({});
     setIsDraftRestored(false);
-    setPurposeType(projectIdFromContext ? 'PROJECT' : 'COMPANY_EXPENSE');
+    setPurposeType(projectIdFromContext ? 'PROJECT' : 'SITE_WORK');
     setPriority('Normal');
     setRequiredDate(new Date().toISOString().split('T')[0]);
+    setDepartment('');
+    setClientId('');
     setProjectId(projectIdFromContext || '');
     setLineItems([{ id: '1', item_id: '', item_name: '', make: '', variant_id: '', variant_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' }]);
     setNotes('');
@@ -319,7 +590,9 @@ export const Requisitions: React.FC = () => {
           if (parsed.purposeType) setPurposeType(parsed.purposeType);
           if (parsed.priority) setPriority(parsed.priority);
           if (parsed.requiredDate) setRequiredDate(parsed.requiredDate);
+          if (parsed.department) setDepartment(parsed.department);
           if (parsed.notes) setNotes(parsed.notes);
+          if (parsed.clientId) setClientId(parsed.clientId);
           if (parsed.projectId) setProjectId(parsed.projectId);
           if (Array.isArray(parsed.lineItems) && parsed.lineItems.length > 0) {
             setLineItems(parsed.lineItems);
@@ -336,9 +609,11 @@ export const Requisitions: React.FC = () => {
   const handleDiscardLocalDraft = () => {
     localStorage.removeItem(DRAFT_KEY);
     setIsDraftRestored(false);
-    setPurposeType(projectIdFromContext ? 'PROJECT' : 'COMPANY_EXPENSE');
+    setPurposeType(projectIdFromContext ? 'PROJECT' : 'SITE_WORK');
     setPriority('Normal');
     setRequiredDate(new Date().toISOString().split('T')[0]);
+    setDepartment('');
+    setClientId('');
     setProjectId(projectIdFromContext || '');
     setLineItems([{ id: '1', item_id: '', item_name: '', make: '', variant_id: '', variant_name: '', requested_qty: '', uom: 'Nos', estimated_rate: '' }]);
     setNotes('');
@@ -352,7 +627,9 @@ export const Requisitions: React.FC = () => {
     setPurposeType(r.purpose_type);
     setPriority(r.priority);
     setRequiredDate(r.required_date || new Date().toISOString().split('T')[0]);
+    setDepartment(r.department || '');
     setNotes(r.notes || '');
+    setClientId(r.client_id || '');
     setProjectId(r.project_id || '');
     setLineItems((r.lines || []).map((l: any) => ({
       id: l.id, item_id: l.item_id || '', item_name: l.item_name,
@@ -375,18 +652,48 @@ export const Requisitions: React.FC = () => {
   const removeLine = (id: string) => setLineItems(prev => (prev.length === 1 ? prev : prev.filter(l => l.id !== id)));
   const updateLine = (id: string, field: string, value: string) => setLineItems(prev => prev.map(l => (l.id === id ? { ...l, [field]: value } : l)));
 
-  const updateLineItem = (id: string, itemId: string) => {
-    const material: any = materials.find((m: any) => m.id === itemId);
-    setLineItems(prev => prev.map(l => l.id === id ? {
-      ...l, item_id: itemId, item_name: material?.display_name || material?.name || '',
-      make: material?.make || '', uom: material?.unit || l.uom || 'Nos',
-      estimated_rate: material?.sale_price != null ? String(material.sale_price) : l.estimated_rate,
-    } : l));
+  const updateLineItem = (id: string, itemId: string, material?: any) => {
+    const mat: any = material || materials.find((m: any) => m.id === itemId);
+    const availableVars = getItemVariants(itemId);
+
+    setLineItems(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      // Auto-validate/reset variant when item changes
+      const isCurrentVarValid = availableVars.some((v: any) => v.id === l.variant_id);
+      const newVarId = isCurrentVarValid ? l.variant_id : (availableVars.length === 1 ? availableVars[0].id : '');
+      const newVarObj: any = variants.find((v: any) => v.id === newVarId);
+
+      // Check variant pricing row if variant is active
+      const ivp = itemVariantPricing.find((p: any) => p.item_id === itemId && p.company_variant_id === newVarId);
+
+      return {
+        ...l,
+        item_id: itemId,
+        item_name: mat?.display_name || mat?.name || l.item_name || '',
+        make: ivp?.make || mat?.make || l.make || '',
+        variant_id: newVarId,
+        variant_name: newVarObj?.variant_name || '',
+        uom: mat?.unit || mat?.uom || l.uom || 'Nos',
+        estimated_rate: ivp?.sale_price != null ? String(ivp.sale_price) : (mat?.sale_price != null ? String(mat.sale_price) : (mat?.purchase_rate != null ? String(mat.purchase_rate) : l.estimated_rate)),
+      };
+    }));
   };
 
-  const updateLineVariant = (id: string, variantId: string) => {
+  const updateLineVariant = (id: string, variantId: string, itemId?: string) => {
     const variant: any = variants.find((v: any) => v.id === variantId);
-    setLineItems(prev => prev.map(l => l.id === id ? { ...l, variant_id: variantId, variant_name: variant?.variant_name || '' } : l));
+    const targetItemId = itemId || lineItems.find(l => l.id === id)?.item_id;
+    const ivp = itemVariantPricing.find((p: any) => p.item_id === targetItemId && p.company_variant_id === variantId);
+
+    setLineItems(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      return {
+        ...l,
+        variant_id: variantId,
+        variant_name: variant?.variant_name || '',
+        make: ivp?.make || l.make,
+        estimated_rate: ivp?.sale_price != null ? String(ivp.sale_price) : (ivp?.purchase_price != null ? String(ivp.purchase_price) : l.estimated_rate),
+      };
+    }));
   };
 
   const validateForm = () => {
@@ -401,6 +708,8 @@ export const Requisitions: React.FC = () => {
       purposeType,
       priority,
       requiredDate,
+      department,
+      clientId,
       projectId: projectId.trim(),
       notes,
       lines: rawLines,
@@ -451,10 +760,11 @@ export const Requisitions: React.FC = () => {
       organisation_id: organisation.id, 
       status, 
       purpose_type: purposeType,
-      project_id: purposeType === 'PROJECT' ? projectId : null, 
+      project_id: (purposeType === 'PROJECT' || purposeType === 'SITE_WORK') ? (projectId || null) : null, 
       required_date: requiredDate,
       priority, 
-      notes, 
+      notes: department ? `[Dept: ${department}] ${notes}` : notes,
+      department: department || null,
       requested_by: user?.id || null, 
       requested_by_name: user?.email || 'User',
       source_context: projectIdFromContext ? 'PROJECT' : 'CENTRAL' as any, 
@@ -562,19 +872,21 @@ export const Requisitions: React.FC = () => {
           {/* Requisition Details Card - Form Field Row Pattern (DESIGN.md) */}
           <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
-              {/* Column 1 */}
+              {/* Column 1: Purpose, Department, Urgency/Priority & Wanted Date */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  Requisition Details
+                  Requisition Details & Urgency
                 </div>
+                
+                {/* Purpose */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Purpose:</span>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Purpose:</span>
                   <div style={{ flex: 1 }}>
                     <select
                       style={{ padding: '4px 8px', fontSize: '12px' }}
-                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none"
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none cursor-pointer"
                       value={purposeType}
-                      onChange={(e) => setPurposeType(e.target.value as any)}
+                      onChange={(e) => handlePurposeChange(e.target.value as any)}
                     >
                       {PURPOSES.map((p) => (
                         <option key={p} value={p}>{p}</option>
@@ -582,14 +894,37 @@ export const Requisitions: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                {formErrors.purposeType && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.purposeType}</p>}
+                {formErrors.purposeType && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '103px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.purposeType}</p>}
 
+                {/* Department Dropdown (Active for COMPANY_EXPENSE or MAINTENANCE) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Priority:</span>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>
+                    Department: {(purposeType === 'COMPANY_EXPENSE' || purposeType === 'MAINTENANCE') && <span className="text-red-500">*</span>}
+                  </span>
                   <div style={{ flex: 1 }}>
                     <select
                       style={{ padding: '4px 8px', fontSize: '12px' }}
-                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none"
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none cursor-pointer disabled:bg-zinc-100 disabled:text-zinc-400 disabled:cursor-not-allowed"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      disabled={purposeType !== 'COMPANY_EXPENSE' && purposeType !== 'MAINTENANCE'}
+                    >
+                      <option value="">-- Select Department --</option>
+                      {DEPARTMENTS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {formErrors.department && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '103px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.department}</p>}
+
+                {/* Execution Urgency / Priority */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Urgency:</span>
+                  <div style={{ flex: 1 }}>
+                    <select
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none cursor-pointer"
                       value={priority}
                       onChange={(e) => setPriority(e.target.value as any)}
                     >
@@ -599,10 +934,11 @@ export const Requisitions: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                {formErrors.priority && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.priority}</p>}
+                {formErrors.priority && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '103px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.priority}</p>}
 
+                {/* Wanted Date (On-Site Required Date) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Req Date:</span>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Wanted Date:</span>
                   <div style={{ flex: 1 }}>
                     <input
                       type="date"
@@ -613,34 +949,59 @@ export const Requisitions: React.FC = () => {
                     />
                   </div>
                 </div>
-                {formErrors.requiredDate && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.requiredDate}</p>}
+                {formErrors.requiredDate && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '103px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.requiredDate}</p>}
               </div>
 
-              {/* Column 2 */}
+              {/* Column 2: Client, Project & Justification */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  Project & Notes
+                  Client & Project Details
                 </div>
+
+                {/* Client Dropdown (Greyed out for Company Expense / Maintenance) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>
-                    Project ID: {purposeType === 'PROJECT' && <span className="text-red-500">*</span>}
-                  </span>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Client:</span>
                   <div style={{ flex: 1 }}>
-                    <input
-                      type="text"
+                    <select
                       style={{ padding: '4px 8px', fontSize: '12px' }}
-                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none disabled:bg-zinc-100"
-                      value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
-                      disabled={!!projectIdFromContext}
-                      placeholder={projectIdFromContext ? 'Auto-filled' : 'Enter project ID'}
-                    />
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none cursor-pointer disabled:bg-zinc-100 disabled:text-zinc-400 disabled:cursor-not-allowed"
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      disabled={purposeType !== 'SITE_WORK' && purposeType !== 'PROJECT'}
+                    >
+                      <option value="">-- All / Select Client --</option>
+                      {clients.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.client_name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-                {formErrors.projectId && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '93px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.projectId}</p>}
 
+                {/* Project Selection (Greyed out for Company Expense / Maintenance) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>
+                    Project: {(purposeType === 'PROJECT' || purposeType === 'SITE_WORK') && <span className="text-red-500">*</span>}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <select
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md outline-none cursor-pointer disabled:bg-zinc-100 disabled:text-zinc-400 disabled:cursor-not-allowed"
+                      value={projectId}
+                      onChange={(e) => handleSelectProject(e.target.value)}
+                      disabled={purposeType !== 'SITE_WORK' && purposeType !== 'PROJECT' || !!projectIdFromContext}
+                    >
+                      <option value="">-- Select Project --</option>
+                      {filteredProjects.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.project_name || p.name || p.project_code} ({p.project_code || 'PRJ'})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {formErrors.projectId && <p style={{ fontSize: '10px', color: '#ef4444', marginLeft: '103px', marginTop: '-4px', marginBottom: '4px' }}>{formErrors.projectId}</p>}
+
+                {/* Notes / Justification */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ minWidth: '85px', maxWidth: '85px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Notes:</span>
+                  <span style={{ minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151', textAlign: 'right' }}>Notes:</span>
                   <div style={{ flex: 1 }}>
                     <input
                       type="text"
@@ -738,18 +1099,25 @@ export const Requisitions: React.FC = () => {
                           />
                         </td>
 
-                        {/* Variant */}
+                        {/* Dynamic Variant Dropdown per selected Item */}
                         <td style={{ border: '1px solid #cbd5e1', padding: 0, background: '#fff' }}>
-                          <select
-                            style={{ width: '100%', height: '100%', border: 'none', padding: '2px 4px', fontSize: '11px', outline: 'none', background: 'transparent', cursor: 'pointer' }}
-                            value={line.variant_id || ''}
-                            onChange={(e) => updateLineVariant(line.id, e.target.value)}
-                          >
-                            <option value="">No variant</option>
-                            {variants.map((v: any) => (
-                              <option key={v.id} value={v.id}>{v.variant_name}</option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const itemVars = getItemVariants(line.item_id);
+                            return (
+                              <select
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '2px 4px', fontSize: '11px', outline: 'none', background: 'transparent', cursor: 'pointer' }}
+                                value={line.variant_id || ''}
+                                onChange={(e) => updateLineVariant(line.id, e.target.value, line.item_id)}
+                              >
+                                <option value="">
+                                  {!line.item_id ? '-- Select item first --' : (itemVars.length > 0 ? 'No variant' : 'No variants available')}
+                                </option>
+                                {itemVars.map((v: any) => (
+                                  <option key={v.id} value={v.id}>{v.variant_name}</option>
+                                ))}
+                              </select>
+                            );
+                          })()}
                         </td>
 
                         {/* Qty */}
@@ -877,7 +1245,7 @@ export const Requisitions: React.FC = () => {
           <div className="flex items-center gap-3">
             <h1 className="text-base font-medium text-zinc-900">Requisitions</h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {paginationData.totalItems}
+              {filtered.length}
             </span>
           </div>
           <div className="h-4 w-px bg-zinc-200" />
@@ -1009,180 +1377,27 @@ export const Requisitions: React.FC = () => {
         </div>
       </div>
 
-      {/* Table Content */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-zinc-50/80 border-b border-zinc-200 text-zinc-500 sticky top-0 z-10 backdrop-blur-xs">
-            <tr>
-              <th className="px-4 py-3 w-10">
-                <input
-                  type="checkbox"
-                  checked={paginationData.currentItems.length > 0 && selectedIds.size === paginationData.currentItems.length}
-                  onChange={toggleSelectAll}
-                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                />
-              </th>
-              {visibleColumns.includes('requisition_no') && <th className="px-4 py-3 font-semibold text-zinc-700">PR No</th>}
-              {visibleColumns.includes('date') && (
-                <th className="px-4 py-3 font-semibold text-zinc-700 cursor-pointer select-none" onClick={toggleSort}>
-                  <div className="flex items-center gap-1">
-                    Date
-                    {sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600" /> : sortOrder === 'desc' ? <ArrowDown className="w-3.5 h-3.5 text-indigo-600" /> : <ArrowUpDown className="w-3.5 h-3.5 text-zinc-400" />}
-                  </div>
-                </th>
-              )}
-              {visibleColumns.includes('requested_by') && <th className="px-4 py-3 font-semibold text-zinc-700">Requested By</th>}
-              {visibleColumns.includes('purpose') && <th className="px-4 py-3 font-semibold text-zinc-700">Purpose</th>}
-              {visibleColumns.includes('priority') && <th className="px-4 py-3 font-semibold text-zinc-700">Priority</th>}
-              {visibleColumns.includes('lines') && <th className="px-4 py-3 font-semibold text-zinc-700 text-center">Lines</th>}
-              {visibleColumns.includes('estimated_total') && <th className="px-4 py-3 font-semibold text-zinc-700 text-right">Est. Total</th>}
-              {visibleColumns.includes('status') && <th className="px-4 py-3 font-semibold text-zinc-700">Status</th>}
-              {visibleColumns.includes('fulfillment') && <th className="px-4 py-3 font-semibold text-zinc-700">Fulfillment</th>}
-              <th className="px-4 py-3 w-12 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={visibleColumns.length + 2} className="px-6 py-12 text-center text-zinc-400">Loading requisitions...</td>
-              </tr>
-            ) : paginationData.currentItems.length === 0 ? (
-              <tr>
-                <td colSpan={visibleColumns.length + 2} className="px-6 py-12 text-center text-zinc-400">No requisitions found.</td>
-              </tr>
-            ) : (
-              paginationData.currentItems.map((r: any) => {
-                const isSelected = selectedIds.has(r.id);
-                const totalEst = (r.lines || []).reduce((s: number, l: any) => s + Number(l.estimated_amount || 0), 0);
-                const stage = getFulfillmentStage(r);
-                const stageStyle = FULFILLMENT_COLORS[stage] || { bg: '#f3f4f6', color: '#6b7280' };
-
-                return (
-                  <tr key={r.id} className={`hover:bg-zinc-50/80 transition-colors ${isSelected ? 'bg-indigo-50/30' : ''}`}>
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(r.id)}
-                        className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </td>
-                    {visibleColumns.includes('requisition_no') && (
-                      <td className="px-4 py-3 font-semibold text-zinc-900">
-                        <button onClick={() => setViewReq(r)} className="hover:text-blue-600 hover:underline cursor-pointer">
-                          {r.requisition_number}
-                        </button>
-                      </td>
-                    )}
-                    {visibleColumns.includes('date') && (
-                      <td className="px-4 py-3 text-zinc-600">{r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '-'}</td>
-                    )}
-                    {visibleColumns.includes('requested_by') && (
-                      <td className="px-4 py-3 text-zinc-700 truncate max-w-[150px]" title={r.requested_by_name}>
-                        {r.requested_by_name || '-'}
-                      </td>
-                    )}
-                    {visibleColumns.includes('purpose') && (
-                      <td className="px-4 py-3 text-zinc-700 font-medium">{r.purpose_type}</td>
-                    )}
-                    {visibleColumns.includes('priority') && (
-                      <td className="px-4 py-3">
-                        <span className="font-semibold" style={{ color: PRIORITY_COLORS[r.priority] || '#6b7280' }}>
-                          {r.priority}
-                        </span>
-                      </td>
-                    )}
-                    {visibleColumns.includes('lines') && (
-                      <td className="px-4 py-3 text-center font-semibold text-zinc-800">{r.lines?.length || 0}</td>
-                    )}
-                    {visibleColumns.includes('estimated_total') && (
-                      <td className="px-4 py-3 text-right font-semibold text-zinc-900">{formatCurrency(totalEst)}</td>
-                    )}
-                    {visibleColumns.includes('status') && (
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                          style={{ backgroundColor: getStatusStyle(r.status).bg, color: getStatusStyle(r.status).color }}
-                        >
-                          {r.status}
-                        </span>
-                      </td>
-                    )}
-                    {visibleColumns.includes('fulfillment') && (
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
-                          style={{ backgroundColor: stageStyle.bg, color: stageStyle.color }}
-                        >
-                          {stage}
-                        </span>
-                      </td>
-                    )}
-                    <td className="px-4 py-3 text-center relative">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === r.id ? null : r.id)}
-                        className="p-1 hover:bg-zinc-200/60 rounded-md transition-colors text-zinc-500"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      {openMenuId === r.id && (
-                        <div ref={menuRef} className="absolute right-4 top-full mt-1 z-50 min-w-[140px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1 text-left">
-                          <button
-                            onClick={() => { setViewReq(r); setOpenMenuId(null); }}
-                            className="w-full px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> View Details
-                          </button>
-                          {(r.status === 'Draft' || r.status === 'Pending') && (
-                            <button
-                              onClick={() => { handleEdit(r); setOpenMenuId(null); }}
-                              className="w-full px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
-                            >
-                              <Edit className="w-3.5 h-3.5" /> Edit
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { setDeleteConfirmReq(r); setOpenMenuId(null); }}
-                            className="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+      {/* Requisitions Table (Refactored to DynamicTable) */}
+      <div className="flex-1 p-4 overflow-hidden">
+        <DynamicTable
+          columns={tableColumns}
+          data={filtered}
+          actions={rowActions}
+          enableRowSelection={true}
+          selectedRowKeys={Array.from(selectedIds)}
+          onSelectionChange={(_rows, keys) => {
+            setSelectedIds(new Set(keys.map(String)));
+          }}
+          loading={isLoading}
+          pageSize={15}
+          enablePagination={true}
+          hoverable={true}
+          stickyHeader={true}
+          getRowKey={(r) => r.id}
+          emptyText="No requisitions found."
+        />
       </div>
 
-      {/* Pagination Footer */}
-      <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-200 bg-zinc-50/50 text-xs text-zinc-600">
-        <div>
-          Showing {paginationData.startIdx + 1} to {paginationData.endIdx} of {paginationData.totalItems} items
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={!paginationData.hasPrev}
-            className="px-3 py-1 bg-white border border-zinc-200 rounded-md disabled:opacity-40 hover:bg-zinc-50 transition-colors"
-          >
-            Previous
-          </button>
-          <span className="font-semibold text-zinc-800">
-            Page {paginationData.currentPage} of {paginationData.totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(paginationData.totalPages, p + 1))}
-            disabled={!paginationData.hasNext}
-            className="px-3 py-1 bg-white border border-zinc-200 rounded-md disabled:opacity-40 hover:bg-zinc-50 transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      </div>
 
       {/* View Requisition Dialog */}
       {viewReq && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../App';
 import { PackageCheck, AlertTriangle, CheckCircle, Clock, ShieldCheck, Warehouse } from 'lucide-react';
 
 interface MaterialReturnHandshake {

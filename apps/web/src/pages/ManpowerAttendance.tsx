@@ -16,6 +16,7 @@ import {
   RateUnit,
 } from '../types/manpower';
 import { EnhancedDataTable } from '../components/ui/table/index';
+import { SubcontractorModuleNav } from '../components/SubcontractorModuleNav';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search, Filter, RefreshCcw, BarChart3 } from 'lucide-react';
 
@@ -648,6 +649,8 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
           </button>
         </div>
       </div>
+
+      <SubcontractorModuleNav onNavigate={(path) => onNavigate?.(path)} />
 
       {/* Sub-tab Navigation */}
       <div style={{

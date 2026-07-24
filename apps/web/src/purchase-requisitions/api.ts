@@ -82,6 +82,21 @@ export async function createPurchaseRequisition(input: CreateRequisitionInput) {
   const { error: linesError } = await supabase.from('purchase_requisition_lines').insert(rows);
   if (linesError) throw linesError;
 
+  if (input.status === 'Pending' || !input.status) {
+    const totalAmount = rows.reduce((s, r) => s + (Number(r.estimated_amount) || 0), 0);
+    try {
+      const { ApprovalIntegration } = await import('../approvals/integration');
+      await ApprovalIntegration.createPurchaseRequisitionApproval(
+        header.id,
+        requisitionNumber,
+        totalAmount,
+        (input.priority?.toUpperCase() as any) || 'NORMAL'
+      );
+    } catch (err) {
+      console.warn('Failed to trigger ApprovalIntegration for purchase requisition:', err);
+    }
+  }
+
   return header;
 }
 
@@ -396,6 +411,27 @@ export async function updatePurchaseRequisition(requisitionId: string, input: Cr
 
   const { error: linesError } = await supabase.from('purchase_requisition_lines').insert(rows);
   if (linesError) throw linesError;
+
+  if (input.status === 'Pending' || !input.status) {
+    const totalAmount = rows.reduce((s, r) => s + (Number(r.estimated_amount) || 0), 0);
+    try {
+      const { data: header } = await supabase
+        .from('purchase_requisitions')
+        .select('requisition_number')
+        .eq('id', requisitionId)
+        .single();
+
+      const { ApprovalIntegration } = await import('../approvals/integration');
+      await ApprovalIntegration.createPurchaseRequisitionApproval(
+        requisitionId,
+        header?.requisition_number || 'PR',
+        totalAmount,
+        (input.priority?.toUpperCase() as any) || 'NORMAL'
+      );
+    } catch (err) {
+      console.warn('Failed to trigger ApprovalIntegration for purchase requisition update:', err);
+    }
+  }
 
   return { id: requisitionId };
 }

@@ -19,7 +19,9 @@ import AttendanceEntry from './pages/hr/AttendanceEntry'
 import { SalarySlipDashboard } from './pages/hr/salary-slip/SalarySlipDashboard'
 import { Toaster } from './lib/logger';
 import ToolsManagement from './pages/ToolsManagement';
+import { DynamicTableDemo } from './components/ui/DynamicTableDemo';
 import { AuthContext, useAuth, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
+
 
 export { useAuth };
 export type { AuthContextValue, Organisation, OrganisationMember };
@@ -120,6 +122,8 @@ const FieldVariationsList = lazyAny(() => import('./pages/FieldVariationsList').
 const MaterialReturnVerification = lazyAny(() => import('./pages/MaterialReturnVerification').then(m => ({ default: m.MaterialReturnVerification })));
 const VendorDisputesLog = lazyAny(() => import('./pages/VendorDisputesLog').then(m => ({ default: m.VendorDisputesLog })));
 const DCLineItemReconciliation = lazyAny(() => import('./pages/DCLineItemReconciliation').then(m => ({ default: m.DCLineItemReconciliation })));
+const SiteStoppageTaskIntents = lazyAny(() => import('./pages/SiteStoppageTaskIntents').then(m => ({ default: m.SiteStoppageTaskIntents })));
+const ProjectScheduleBaselineControl = lazyAny(() => import('./pages/ProjectScheduleBaselineControl').then(m => ({ default: m.ProjectScheduleBaselineControl })));
 
 
 // Lazy load internally moved pages
@@ -394,9 +398,9 @@ export default function App() {
       case '/subcontractors/workorders/create': return <SubcontractorWorkOrderCreate onNavigate={navigate} />;
       case '/subcontractors/attendance': return <ManpowerAttendance onNavigate={navigate} />;
       case '/subcontractors/attendance/list': return <ManpowerAttendanceList onNavigate={navigate} />;
-      case '/subcontractors/payments': return <SubcontractorPayments />;
-      case '/subcontractors/invoices': return <SubcontractorInvoices />;
-      case '/subcontractors/documents': return <SubcontractorDocuments />;
+      case '/subcontractors/payments': return <SubcontractorPayments onNavigate={navigate} />;
+      case '/subcontractors/invoices': return <SubcontractorInvoices onNavigate={navigate} />;
+      case '/subcontractors/documents': return <SubcontractorDocuments onNavigate={navigate} />;
 
       // Client PO
       case '/client-po': return <POList />;
@@ -510,13 +514,17 @@ export default function App() {
       case '/material-returns-verification': return <MaterialReturnVerification />;
       case '/vendor-disputes': return <VendorDisputesLog />;
       case '/dc-reconciliation': return <DCLineItemReconciliation />;
+      case '/site-stoppages-intents': return <SiteStoppageTaskIntents />;
+      case '/schedule-baseline-control': return <ProjectScheduleBaselineControl />;
       // Material Returns
       case '/returns': return <ReturnListPage />;
       case '/returns/create': return <ReturnEditorPage />;
       case '/returns/edit': return <ReturnEditorPage />;
       case '/returns/view': return <ReturnViewPage />;
       // Settings
+      case '/table-demo': return <DynamicTableDemo />;
       case '/help': return <HelpPage onNavigate={navigate} />;
+
       case '/settings': return <SettingsPage />;
       case '/settings-v2': return <SettingsV2Page />;
       case '/settings/print': return <PrintSettings />;

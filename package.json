@@ -5,7 +5,9 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "demo": "pnpm --filter=mep-project dev",
     "docs": "blume dev",
+
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck"
   },

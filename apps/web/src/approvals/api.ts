@@ -167,7 +167,8 @@ export class ApprovalAPI {
           'job_cards': 'job_cards',
           'sales_orders': 'sales_orders',
           'material_dispatches': 'material_dispatches',
-          'site_reports': 'site_reports'
+          'site_reports': 'site_reports',
+          'purchase_requisitions': 'purchase_requisitions'
         };
 
         await Promise.all(
@@ -735,6 +736,7 @@ const REFERENCE_DENORM_MAP: Record<
   material_dispatches:    { table: 'material_dispatches',    select: 'project_id, project:projects(name), dispatch_number', numberField: 'dispatch_number' },
   advances_expenses:      { table: 'advances_expenses',      select: 'employee_id, employee_name, project_id, project:projects(name), category_name, amount, narration', numberField: null },
   expense_entries:        { table: 'expense_entries',        select: 'project_id, project:projects(name), description, amount', numberField: null },
+  purchase_requisitions:  { table: 'purchase_requisitions',  select: 'project_id, project:projects(name), requisition_number', numberField: 'requisition_number' },
 };
 
 export class ApprovalExtensions {

@@ -21,6 +21,7 @@ const TYPE_META: Record<string, { label: string; icon: typeof Building2; color: 
   PURCHASE_ORDER: { label: 'Purchase Order', icon: Building2, color: 'text-indigo-600' },
   WORK_ORDER: { label: 'Work Order', icon: HardHat, color: 'text-teal-600' },
   INVOICE: { label: 'Invoice', icon: FileText, color: 'text-purple-600' },
+  PURCHASE_REQUISITION: { label: 'Purchase Requisition', icon: FileText, color: 'text-amber-600' },
 };
 
 export const ApprovalDetailDrawer: React.FC<ApprovalDetailDrawerProps> = ({

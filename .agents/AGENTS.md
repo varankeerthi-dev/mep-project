@@ -9,6 +9,8 @@ These rules govern the development of the monorepo, specifically when implementi
 ## 2. Design System Alignment
 - All mobile modules and screens must strictly follow the tokens, layout metrics, HSL color theme, glassmorphism card styling, and typography defined in [Mobile_app_design.md](file:///c:/Users/admin/mep-project/Mobile_app_design.md).
 - Avoid raw colors, non-standard border-radius, or custom fonts that deviate from the core design language.
+- **Table Alignment Rule**: All Amount, Price, and monetary value columns across tables must always be left-aligned (`align: 'left'`).
+
 
 ## 3. Role-Based Access Control (RBAC) Integration
 - The mobile app must respect and dynamically enforce the same Role-Based Access Control (RBAC) settings and permissions declared in the web application database schema.

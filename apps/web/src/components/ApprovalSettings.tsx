@@ -20,7 +20,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'WORK_ORDER' | 'PURCHASE_ORDER' | 'SALES_ORDER' | 'JOB_CARD' | 'SITE_EXPENSE_REQUEST' | 'SITE_EXPENSE_POST_PURCHASE';
+type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'WORK_ORDER' | 'PURCHASE_ORDER' | 'SALES_ORDER' | 'JOB_CARD' | 'SITE_EXPENSE_REQUEST' | 'SITE_EXPENSE_POST_PURCHASE' | 'PURCHASE_REQUISITION';
 
 type WorkflowLevel = {
   id: string;
@@ -37,6 +37,10 @@ type ModuleConfig = {
 };
 
 const MODULE_META: Record<ModuleKey, { label: string; description: string }> = {
+  PURCHASE_REQUISITION: {
+    label: 'Purchase Requisitions',
+    description: 'Internal requests for procurement of materials or services',
+  },
   PURCHASE_PAYMENT: {
     label: 'Purchase Payments',
     description: 'Vendor payments raised from the Purchase module',
@@ -236,6 +240,7 @@ export const ApprovalSettings: React.FC = () => {
   });
 
   const [modules, setModules] = useState<Record<ModuleKey, ModuleConfig>>(() => ({
+    PURCHASE_REQUISITION: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     PURCHASE_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     SUBCONTRACTOR_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
     PAYMENT_REQUEST: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
@@ -287,6 +292,7 @@ export const ApprovalSettings: React.FC = () => {
     if (hasInitialized || loadingWorkflows || loadingSettings || !orgId) return;
 
     const next: Record<ModuleKey, ModuleConfig> = {
+      PURCHASE_REQUISITION: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
       PURCHASE_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
       SUBCONTRACTOR_PAYMENT: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
       PAYMENT_REQUEST: { enabled: false, requiresReview: false, reviewerId: null, levels: [] },
@@ -513,7 +519,7 @@ export const ApprovalSettings: React.FC = () => {
         .from('approval_workflows')
         .delete()
         .eq('organisation_id', orgId)
-        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION', 'WORK_ORDER', 'PURCHASE_ORDER', 'SALES_ORDER', 'JOB_CARD', 'SITE_EXPENSE_REQUEST', 'SITE_EXPENSE_POST_PURCHASE']);
+        .in('approval_type', ['PURCHASE_REQUISITION', 'PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION', 'WORK_ORDER', 'PURCHASE_ORDER', 'SALES_ORDER', 'JOB_CARD', 'SITE_EXPENSE_REQUEST', 'SITE_EXPENSE_POST_PURCHASE']);
 
       if (error) throw error;
 

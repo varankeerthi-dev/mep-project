@@ -22,6 +22,7 @@ interface RequisitionItem {
   requisition_no?: string;
   title?: string;
   status?: string;
+  approval_status?: string;
   created_at?: string;
 }
 
@@ -115,7 +116,7 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({ onBack, isDemo =
 
       const [poRes, reqRes] = await Promise.all([
         supabase.from('purchase_orders').select('id, po_no, vendor_name, total_amount, status, order_date').eq('organisation_id', orgId).order('order_date', { ascending: false }),
-        supabase.from('purchase_requisitions').select('id, requisition_no, title, status, created_at').eq('organisation_id', orgId).order('created_at', { ascending: false }),
+        supabase.from('purchase_requisitions').select('id, requisition_no, title, status, approval_status, created_at').eq('organisation_id', orgId).order('created_at', { ascending: false }),
       ]);
 
       setOrders((poRes.data as POItem[]) || []);
@@ -128,7 +129,7 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({ onBack, isDemo =
     }
   };
 
-  const pendingRequisitions = useMemo(() => requisitions.filter(r => isPending(r.status)), [requisitions]);
+  const pendingRequisitions = useMemo(() => requisitions.filter(r => isPending(r.status) || isPending(r.approval_status)), [requisitions]);
   const pendingOrders = useMemo(() => orders.filter(o => isPending(o.status)), [orders]);
   const pendingCount = pendingRequisitions.length + pendingOrders.length;
 
