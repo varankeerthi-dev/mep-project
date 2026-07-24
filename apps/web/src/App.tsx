@@ -115,6 +115,8 @@ const HandoverList = lazyAny(() => import('./pages/HandoverList'));
 const ProjectOverview = lazyAny(() => import('./pages/ProjectOverview'));
 const SiteExpenses = lazyAny(() => import('./pages/SiteExpenses').then(m => ({ default: m.SiteExpenses })));
 const Projects = lazyAny(() => import('./pages/Projects'));
+const ProjectsV2 = lazyAny(() => import('./projects/pages/ProjectsV2'));
+const CreateProjectV2 = lazyAny(() => import('./projects/pages/CreateProjectV2'));
 const DayBook = lazyAny(() => import('./pages/accounting/DayBook'));
 const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts'));
 const PricingTableOneDemo = lazyAny(() => import('./components/pricing-table-one-demo').then(m => ({ default: m.PricingTableOneDemo })));
@@ -163,6 +165,7 @@ const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default
 const SubcontractorPayments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorPayments })));
 const SubcontractorInvoices = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorInvoices })));
 const SubcontractorDocuments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDocuments })));
+const SubcontractorsPage = lazyAny(() => import('./features/subcontractor-v2/pages/SubcontractorsPage'));
 
 const Reports = import('./pages/Reports');
 const StockBalance = lazyAny(() => Reports.then(m => ({ default: m.StockBalance })));
@@ -369,9 +372,12 @@ export default function App() {
       case '/operations':
         return <Operations />;
       case '/projects': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><Projects /></PermissionGuard>;
+      case '/projects-v2': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><ProjectsV2 /></PermissionGuard>;
       case '/tools': return <ToolsManagement />;
       case '/projects/new': return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
+      case '/projects-v2/new': return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><CreateProjectV2 onSuccess={() => navigate('/projects-v2')} onCancel={() => navigate('/projects-v2')} /></PermissionGuard>;
       case '/projects/edit': return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
+      case '/projects-v2/edit': return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProjectV2 onSuccess={() => navigate('/projects-v2')} onCancel={() => navigate('/projects-v2')} /></PermissionGuard>;
       case '/projects/daily-updates': return <Projects />;
       case '/projects/site-materials': return <Projects />;
       case '/todo': return <TodoList />;
@@ -401,6 +407,18 @@ export default function App() {
       case '/subcontractors/payments': return <SubcontractorPayments onNavigate={navigate} />;
       case '/subcontractors/invoices': return <SubcontractorInvoices onNavigate={navigate} />;
       case '/subcontractors/documents': return <SubcontractorDocuments onNavigate={navigate} />;
+
+      case '/subcontractors-v2':
+      case '/subcontractors-v2/new':
+      case '/subcontractors-v2/view':
+      case '/subcontractors-v2/edit':
+      case '/subcontractors-v2/workorders':
+      case '/subcontractors-v2/workorders/create':
+      case '/subcontractors-v2/attendance':
+      case '/subcontractors-v2/payments':
+      case '/subcontractors-v2/invoices':
+      case '/subcontractors-v2/documents':
+        return <SubcontractorsPage onNavigate={navigate} />;
 
       // Client PO
       case '/client-po': return <POList />;
@@ -604,6 +622,9 @@ export default function App() {
         }
         if (pathKey.startsWith('/projects/') && pathKey.endsWith('/edit')) {
           return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
+        }
+        if (pathKey.startsWith('/projects-v2/') && pathKey.endsWith('/edit')) {
+          return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProjectV2 onSuccess={() => navigate('/projects-v2')} onCancel={() => navigate('/projects-v2')} /></PermissionGuard>;
         }
         return <Dashboard onNavigate={navigate} />;
     }

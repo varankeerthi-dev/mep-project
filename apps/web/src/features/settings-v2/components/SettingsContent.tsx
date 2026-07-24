@@ -1,20 +1,35 @@
-import { cn } from '@/lib/utils';
+import React from 'react';
 
-interface SettingsContentProps {
+export interface SettingsContentProps {
   children: React.ReactNode;
-  className?: string;
+  title?: string;
+  description?: string;
 }
 
-export function SettingsContent({ children, className }: SettingsContentProps) {
+export const SettingsContent: React.FC<SettingsContentProps> = ({
+  children,
+  title,
+  description,
+}) => {
   return (
-    <div
-      className={cn(
-        'flex-1 overflow-y-auto px-12 py-8 bg-[#fafafa]',
-        className
-      )}
-      data-slot="settings-content"
-    >
-      <div className="max-w-[1000px] mx-auto">{children}</div>
-    </div>
+    <main className="flex-1 bg-zinc-50/50 min-h-screen overflow-y-auto pb-24">
+      <div className="max-w-4xl mx-auto px-12 py-8" style={{ maxWidth: '1000px', padding: '32px 48px' }}>
+        {(title || description) && (
+          <div className="mb-8 border-b border-zinc-200/80 pb-4">
+            {title && (
+              <h1 className="text-xl font-bold text-zinc-900 tracking-tight">
+                {title}
+              </h1>
+            )}
+            {description && (
+              <p className="text-xs text-zinc-500 mt-1">
+                {description}
+              </p>
+            )}
+          </div>
+        )}
+        {children}
+      </div>
+    </main>
   );
-}
+};

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '../supabase';
-import { useAuth } from '../App';
+import { supabase } from '../../../../supabase';
+import { useAuth } from '../../../../App';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { calculateFinance } from '../features/subcontractor/domain/financeCalculator';
+import { calculateFinance } from '../../domain/financeCalculator';
 import {
   ArrowLeft,
   FileText,
@@ -14,10 +14,10 @@ import {
   AlertTriangle,
   ChevronRight,
 } from 'lucide-react';
-import { ApprovalIntegration } from '../approvals/integration';
+import { ApprovalIntegration } from '../../../../approvals/integration';
 import { toast } from '@/lib/logger';
-import { useUnits } from '../hooks/useUnits';
-import { useVendorHolds } from '../modules/Purchase/hooks/usePurchaseQueries';
+import { useUnits } from '../../../../hooks/useUnits';
+import { useVendorHolds } from '../../../../modules/Purchase/hooks/usePurchaseQueries';
 
 /* ─── Design tokens: Grey + Blue only ───────────────────────────────────────── */
 const T = {
@@ -203,15 +203,11 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   const [error, setError] = useState('');
   const [draggedTerm, setDraggedTerm] = useState<number | null>(null);
 
-  // Fetch org units
   const { data: orgUnits = [] } = useUnits();
-
-  // Vendor Holds
   const { data: vendorHolds = [] } = useVendorHolds(organisation?.id, formData?.subcontractor_id || undefined);
 
-  // Fetch subcontractors
   const { data: subcontractors = [] } = useQuery({
-    queryKey: ['subcontractors', organisation?.id],
+    queryKey: ['subcontractors-v2', 'select', organisation?.id],
     queryFn: async () => {
       if (!organisation?.id) return [];
       const { data } = await supabase
@@ -225,7 +221,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     enabled: !!organisation?.id,
   });
 
-  // Fetch clients — select both name and client_name, use whichever is populated
   const { data: clients = [] } = useQuery({
     queryKey: ['clients', organisation?.id],
     queryFn: async () => {
@@ -243,7 +238,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     enabled: !!organisation?.id,
   });
 
-  // Fetch projects
   const { data: projects = [] } = useQuery({
     queryKey: ['projects', organisation?.id],
     queryFn: async () => {
@@ -258,13 +252,11 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     enabled: !!organisation?.id,
   });
 
-  // Filter projects by selected client
   const filteredProjects = useMemo(() => {
     if (!formData.client_id) return projects;
     return projects.filter((p: any) => p.client_id === formData.client_id);
   }, [projects, formData.client_id]);
 
-  // Fetch existing work order for edit
   const { data: editingWO, isLoading: isLoadingWO } = useQuery({
     queryKey: ['subcontractor_work_order', editId],
     queryFn: async () => {
@@ -280,7 +272,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     enabled: !!editId,
   });
 
-  // Fetch linked Issue info for pre-filling
   const { data: linkedIssue } = useQuery({
     queryKey: ['issue-for-wo', issueIdParam],
     enabled: !!issueIdParam && !editId,
@@ -295,7 +286,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     }
   });
 
-  // Pre-fill from issue
   useEffect(() => {
     if (linkedIssue && !editId && formData.line_items.length === 0) {
       const issueDesc = `${linkedIssue.title}${linkedIssue.description ? ` - ${linkedIssue.description}` : ''}`;
@@ -310,16 +300,16 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
         line_items: [{
           id: `item-${Date.now()}`,
           description: linkedIssue.equipment_tag || 'Labor Charges',
+          opacity: 1,
           quantity: 1,
           unit: orgUnits.length > 0 ? (orgUnits[0] as any).unit_code : 'Nos',
           rate: 0,
           amount: 0
-        }]
+        } as any]
       }));
     }
-  }, [linkedIssue, editId, projects]);
+  }, [linkedIssue, editId, projects, orgUnits]);
 
-  // Load editing work order details
   useEffect(() => {
     if (editingWO) {
       setFormData({
@@ -360,7 +350,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     }
   }, [editingWO]);
 
-  // Handle subcontractor change to pre-fill GST/TDS preferences
   const handleSubcontractorChange = (subId: string) => {
     const sub = subcontractors.find((s: any) => s.id === subId);
     if (!sub) {
@@ -388,7 +377,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     }));
   };
 
-  // Auto-generate work order number for new orders
   useEffect(() => {
     if (!editId && organisation?.id && !formData.work_order_no) {
       const generateWONumber = async () => {
@@ -410,7 +398,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     }
   }, [editId, organisation?.id, formData.work_order_no]);
 
-  // Calculate totals
   useEffect(() => {
     const calcResult = calculateFinance({
       lineItems: formData.line_items,
@@ -565,7 +552,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subcontractor_work_orders'] });
       if (editId) queryClient.invalidateQueries({ queryKey: ['work-order-detail', editId] });
-      if (onNavigate) onNavigate('/subcontractors/workorders');
+      if (onNavigate) onNavigate('/subcontractors-v2/workorders');
       else window.history.back();
     },
     onError: (err: any) => setError(err.message || 'Failed to save work order'),
@@ -580,7 +567,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   };
 
   const handleCancel = () => {
-    if (onNavigate) onNavigate('/subcontractors/workorders');
+    if (onNavigate) onNavigate('/subcontractors-v2/workorders');
     else window.history.back();
   };
 
@@ -856,7 +843,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                             <option key={u}>{u}</option>
                           ))
                         )}
-                        {/* If current unit not in list, add it */}
                         {orgUnits.length > 0 && !orgUnits.some((u: any) => u.unit_code === item.unit) && item.unit && (
                           <option value={item.unit}>{item.unit}</option>
                         )}
@@ -887,7 +873,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                 </div>
               </div>
               <div style={cardBody}>
-                {/* Tax type toggle */}
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
                   {(['GST', 'TDS', 'None'] as const).map((type) => (
                     <label
@@ -992,7 +977,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                   <span>{fmt(formData.total_amount)}</span>
                 </div>
 
-                {/* Advance */}
                 <div style={{ height: '1px', background: T.blueBorder, margin: '4px 0' }} />
                 <div style={{ fontSize: '12px', color: T.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Advance</div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1007,7 +991,6 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
                   <span style={{ fontSize: '13px', fontWeight: '700', color: T.blueText, marginLeft: 'auto' }}>{fmt(formData.advance_amount)}</span>
                 </div>
 
-                {/* Retention summary if enabled */}
                 {formData.retention_held && (
                   <>
                     <div style={{ height: '1px', background: T.blueBorder, margin: '4px 0' }} />
@@ -1171,3 +1154,4 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
     </div>
   );
 }
+export { SubcontractorWorkOrderCreate };

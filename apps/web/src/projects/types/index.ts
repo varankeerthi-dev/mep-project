@@ -1,0 +1,66 @@
+export type Project = {
+  id: string;
+  project_name?: string;
+  project_code?: string;
+  project_type?: string;
+  project_estimated_value?: number;
+  po_required?: boolean;
+  po_status?: string;
+  status?: string;
+  completion_percentage?: number;
+  start_date?: string;
+  expected_end_date?: string;
+  actual_end_date?: string;
+  remarks?: string;
+  client?: { client_name?: string } | null;
+  client_id?: string;
+  organisation_id?: string;
+  pos?: Array<{ po_total_value?: number }>;
+  contractor_scope?: string;
+  client_scope?: string;
+  excluded_scope?: string;
+  pending_approval?: string;
+  site_instructions?: string;
+  created_by?: string;
+  updated_by?: string;
+  created_by_user?: { full_name?: string } | null;
+  updated_by_user?: { full_name?: string } | null;
+};
+
+export type ProjectDetails = {
+  pos: any[];
+  invoices: any[];
+  expenses: any[];
+  payments: any[];
+};
+
+export type ProjectFormData = {
+  client_id: string;
+  project_name: string;
+  parent_project_id: string;
+  project_type: string;
+  project_estimated_value: string;
+  po_required: boolean;
+  po_status: string;
+  po_number: string;
+  po_date: string;
+  start_date: string;
+  expected_end_date: string;
+  actual_end_date: string;
+  completion_percentage: number;
+  status: string;
+  remarks: string;
+  contractor_scope: string;
+  client_scope: string;
+  excluded_scope: string;
+  pending_approval: string;
+  site_instructions: string;
+  client_po_ids?: string[];
+  target_margin_percent?: string;
+  liquidated_damages?: string;
+  cost_center_id?: string;
+  project_manager_id?: string;
+  site_engineer_id?: string;
+  site_address?: string;
+  client_po_id?: string; // added to match the initialFormData fields
+};
