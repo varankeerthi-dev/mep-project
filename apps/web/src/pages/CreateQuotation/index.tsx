@@ -739,7 +739,11 @@ export default function CreateQuotation() {
           }
           return null;
         })(),
-        include_erection_charges: data.include_erection_charges !== undefined ? data.include_erection_charges : false
+        include_erection_charges: data.items?.some((i: any) => 
+          i.section === 'erection' || 
+          (i.item_id === null && i.sac_code !== null) || 
+          (i.description && i.description.includes(' - Erection'))
+        ) || false
       });
 
       if (data.items) {
@@ -1649,22 +1653,48 @@ export default function CreateQuotation() {
   // Calculate erection charges immediately (without saving to DB)
   const calculateErectionCharges = async () => {
     if (!formData.include_erection_charges) {
-      // Remove all erection items from local state
       setItems((prevItems: any[]) => prevItems.filter(item => item.section !== 'erection'));
       return;
     }
     
     const materialItems = items.filter(item => !item.is_header && item.section !== 'erection');
+    console.log('[Erection] materialItems found:', materialItems.length, materialItems.map(i => i.description));
     const newErectionItems = [];
     
     for (const item of materialItems) {
-      const itemName = item.description || '';
+      const itemName = item.description || item.material?.display_name || item.material?.name || '';
       if (!itemName) continue;
       
-      // Import lookupServiceRate here to avoid scope issues (mechanically adjusted path)
-      const { lookupServiceRate } = await import('../../hooks/useErectionCharges');
-      const serviceRate = await lookupServiceRate(itemName);
-      if (!serviceRate) continue;
+      let lookupServiceRate: any;
+      try {
+        const mod = await import('../../hooks/useErectionCharges');
+        lookupServiceRate = mod.lookupServiceRate;
+      } catch (err) {
+        console.error('[Erection] dynamic import failed:', err);
+        continue;
+      }
+      
+      let serviceRate: any;
+      try {
+        serviceRate = await lookupServiceRate(itemName);
+      } catch (err) {
+        console.error(`[Erection] lookupServiceRate failed for "${itemName}":`, err);
+        continue;
+      }
+      if (!serviceRate) {
+        console.log(`[Erection] No service rate found for "${itemName}"`);
+        // Preserve existing DB-saved erection item if one exists
+        const existingDbErection = items.find(e => 
+          e.section === 'erection' && 
+          e.linked_material_id === item.id
+        );
+        if (existingDbErection) {
+          console.log(`[Erection] Preserving existing erection for "${itemName}"`);
+          newErectionItems.push(existingDbErection);
+        }
+        continue;
+      }
+      console.log(`[Erection] Rate found for "${itemName}":`, serviceRate.default_erection_rate);
       
       // Check if erection item already exists for this material
       const existingErection = items.find(e => 
@@ -1738,10 +1768,12 @@ export default function CreateQuotation() {
       }
     }
     
-    // Update items state: remove old erection items and add new ones
+    console.log('[Erection] newErectionItems created:', newErectionItems.length);
     setItems((prevItems: any[]) => {
       const nonErectionItems = prevItems.filter(item => item.section !== 'erection');
-      return [...nonErectionItems, ...newErectionItems];
+      const result = [...nonErectionItems, ...newErectionItems];
+      console.log('[Erection] setItems result length:', result.length, 'erection count:', result.filter((i: any) => i.section === 'erection').length);
+      return result;
     });
   };
 
@@ -1854,7 +1886,7 @@ export default function CreateQuotation() {
       }
       return;
     }
-    const cleanItems = items.filter(item => item.item_id || item.is_header || item.is_subtotal);
+    const cleanItems = items.filter(item => item.item_id || item.is_header || item.is_subtotal || item.section === 'erection');
     if (cleanItems.length === 0) {
       if (!isAutosave) {
         toast.error('Validation error', { description: 'Please add at least one item.' });
@@ -2104,15 +2136,29 @@ export default function CreateQuotation() {
       });
 
       const savedItems = await saveItemsDiff(quotationId, rawItems, originalItems);
-      
+
+      // Build temp-ID → DB-ID map so erection items' linked_material_id stays correct after save
+      const idMap = new Map<string, string>();
+      cleanItems.forEach((item, index) => {
+        const saved = savedItems[index];
+        if (saved && String(item.id) !== String(saved.id)) {
+          idMap.set(String(item.id), String(saved.id));
+        }
+      });
+
       const mappedSavedItems = savedItems.map((saved, index) => {
         const originalItem = cleanItems[index];
-        return {
+        const mapped: any = {
           ...originalItem,
           id: saved.id,
           created_at: saved.created_at,
           updated_at: saved.updated_at
         };
+        // Update linked_material_id if the parent material's ID changed
+        if (mapped.linked_material_id && idMap.has(String(mapped.linked_material_id))) {
+          mapped.linked_material_id = idMap.get(String(mapped.linked_material_id));
+        }
+        return mapped;
       });
       setItems(mappedSavedItems);
       setOriginalItems(JSON.parse(JSON.stringify(mappedSavedItems)));

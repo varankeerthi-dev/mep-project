@@ -10,6 +10,8 @@ interface DashboardProps {
   onLogout: () => void;
   onNavigateToApprovals: () => void;
   onNavigateToLookup: () => void;
+  onNavigateToFieldVariation?: () => void;
+  onNavigateToMaterialReturn?: () => void;
   onOpenModule: (module: 'client' | 'project' | 'purchase') => void;
   isDemo?: boolean;
 }
@@ -22,7 +24,15 @@ interface Project {
   status?: string;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToApprovals, onNavigateToLookup, onOpenModule, isDemo = false }) => {
+export const Dashboard: React.FC<DashboardProps> = ({
+  onLogout,
+  onNavigateToApprovals,
+  onNavigateToLookup,
+  onNavigateToFieldVariation,
+  onNavigateToMaterialReturn,
+  onOpenModule,
+  isDemo = false
+}) => {
   const {
     nextActions,
     history: nextActionsHistory,
@@ -219,8 +229,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigateToAppr
               <p className="text-xs text-muted-foreground mt-0.5">Verify dispatch status & scope on client calls</p>
             </div>
           </div>
-          <div className="text-muted-foreground group-hover:translate-x-1 transition-transform mr-1">
-            <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+        </div>
+
+        {/* Operational Governance Quick Actions */}
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <div
+            onClick={onNavigateToFieldVariation}
+            className="glass-card rounded-xl p-3.5 border border-teal-500/30 bg-teal-950/20 text-left cursor-pointer active:scale-[0.98] transition-all"
+          >
+            <div className="text-xs font-bold text-teal-400 uppercase tracking-wider mb-1">Scope Lock</div>
+            <p className="text-sm font-bold text-slate-100">Field Variation</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Lock site intent</p>
+          </div>
+
+          <div
+            onClick={onNavigateToMaterialReturn}
+            className="glass-card rounded-xl p-3.5 border border-amber-500/30 bg-amber-950/20 text-left cursor-pointer active:scale-[0.98] transition-all"
+          >
+            <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">Handshake</div>
+            <p className="text-sm font-bold text-slate-100">Material Return</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Dispatch return</p>
           </div>
         </div>
 

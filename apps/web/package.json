@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "demo": "vite",
     "dev:api": "vercel dev",
+
     "dev:server": "node server/pincode.js",
     "build": "vite build",
     "lint": "eslint .",
@@ -38,6 +40,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.575.0",
+    "motion": "^12.42.2",
     "pdf-lib": "^1.17.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

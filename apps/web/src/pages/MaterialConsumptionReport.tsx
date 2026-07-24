@@ -86,6 +86,7 @@ function SectionTable({ data, sectionLabel, sectionColor, bgColor }: { data: any
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Planned</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Received</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Used</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Returned</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Remaining</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Variance</th>
                     <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563' }}>Planned ₹</th>
@@ -108,6 +109,7 @@ function SectionTable({ data, sectionLabel, sectionColor, bgColor }: { data: any
                         <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '13px' }}>{item.planned_qty} <span style={{ color: '#6b7280' }}>{item.unit}</span></td>
                         <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '13px' }}>{item.received_qty} <span style={{ color: '#6b7280' }}>{item.unit}</span></td>
                         <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 500 }}>{item.used_qty} <span style={{ color: '#6b7280' }}>{item.unit}</span></td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '13px' }}>{item.returned_qty || 0} <span style={{ color: '#6b7280' }}>{item.unit}</span></td>
                         <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: '13px' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 500, background: remStatus.bg, color: remStatus.color }}>
                             {remStatus.icon} {remaining} {item.unit}
@@ -187,6 +189,7 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
         'Planned': item.planned_qty,
         'Received': item.received_qty,
         'Used': item.used_qty,
+        'Returned': item.returned_qty || 0,
         'Remaining': item.remaining_qty,
         'Unit': item.unit,
         'Variance': item.variance_qty,
@@ -208,7 +211,7 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
     const renderSection = (data: any[], label: string) => {
       if (data.length === 0) return '';
       return `
-        <tr><td colspan="11" style="padding:8px 12px;background:#f9fafb;font-weight:600;font-size:14px;border-bottom:2px solid #e5e7eb">${label} (${data.length} materials)</td></tr>
+        <tr><td colspan="12" style="padding:8px 12px;background:#f9fafb;font-weight:600;font-size:14px;border-bottom:2px solid #e5e7eb">${label} (${data.length} materials)</td></tr>
         ${data.map((item: any, i: number) => {
           const remaining = item.remaining_qty ?? 0;
           const variance = item.variance_qty ?? 0;
@@ -220,6 +223,7 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.planned_qty} ${item.unit}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.received_qty} ${item.unit}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">${item.used_qty} ${item.unit}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.returned_qty || 0} ${item.unit}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${remaining < 0 ? '#dc2626' : remaining === 0 ? '#d97706' : '#16a34a'}">${remaining} ${item.unit}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${variance > 0 ? '#dc2626' : variance < 0 ? '#16a34a' : '#6b7280'}">${variance > 0 ? '+' : ''}${variance} ${item.unit}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">₹${(item.planned_cost || 0).toFixed(2)}</td>
@@ -237,6 +241,7 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
       <table><thead><tr>
         <th style="text-align:left">#</th><th style="text-align:left">Material</th><th style="text-align:left">Discount Category</th>
         <th style="text-align:right">Planned</th><th style="text-align:right">Received</th><th style="text-align:right">Used</th>
+        <th style="text-align:right">Returned</th>
         <th style="text-align:right">Remaining</th><th style="text-align:right">Variance</th>
         <th style="text-align:right">Planned Cost</th><th style="text-align:right">Actual Cost</th><th style="text-align:right">Cost Var.</th>
       </tr></thead><tbody>${rows}</tbody></table></body></html>`);

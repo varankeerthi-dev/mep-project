@@ -1,22 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, 
-  Search, 
-  Building2, 
-  BookOpen, 
-  FileEdit, 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  CreditCard, 
-  Landmark, 
-  MoreHorizontal,
-  ChevronRight,
-  ShieldCheck,
-  AlertCircle,
-  UserPlus,
-  Eye
+  Search,
+  Upload,
+  FileText,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
@@ -26,22 +14,13 @@ import { Party360 } from '../../../components/Party360';
 
 // Import local UI components
 import { Modal } from '../../../components/ui/Modal';
-import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { Badge } from '../../../components/ui/Badge';
-import { Card, CardContent } from '../../../components/ui/Card';
 import { AppTable } from '../../../components/ui/AppTable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../lib/utils';
 
-import { 
-  validateGSTIN, 
-  validatePAN, 
-  validatePIN, 
-  validateEmail, 
-  validateNoNumbers 
-} from '../utils/validation';
+import { vendorValidationSchema, formatZodErrors } from '../utils/validation';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
@@ -81,6 +60,11 @@ interface VendorFormData {
   msme_register_type: string;
   msme_number: string;
   gst_treatment: string;
+  // Document uploads (Supabase Storage URLs — UI TBD)
+  pan_card_url: string;
+  cheque_leaf_url: string;
+  gstin_certificate_url: string;
+  msme_certificate_url: string;
 }
 
 const defaultFormData: VendorFormData = {
@@ -107,8 +91,31 @@ const defaultFormData: VendorFormData = {
   status: 'Active',
   msme_register_type: '',
   msme_number: '',
-  gst_treatment: ''
+  gst_treatment: '',
+  pan_card_url: '',
+  cheque_leaf_url: '',
+  gstin_certificate_url: '',
+  msme_certificate_url: '',
 };
+
+// --- Draft persistence helpers ---
+const getDraftKey = (orgId: string) => `vendor_draft_${orgId}`;
+const saveDraft = (orgId: string, data: VendorFormData) => {
+  try { localStorage.setItem(getDraftKey(orgId), JSON.stringify(data)); } catch {}
+};
+const loadDraft = (orgId: string): VendorFormData | null => {
+  try {
+    const raw = localStorage.getItem(getDraftKey(orgId));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const clearDraft = (orgId: string) => {
+  try { localStorage.removeItem(getDraftKey(orgId)); } catch {}
+};
+const isDirty = (data: VendorFormData): boolean =>
+  Object.keys(defaultFormData).some(
+    (k) => (data as any)[k] !== (defaultFormData as any)[k]
+  );
 
 export const Vendors: React.FC = () => {
   const { organisation } = useAuth();
@@ -123,10 +130,32 @@ export const Vendors: React.FC = () => {
   const [party360Open, setParty360Open] = useState(false);
   const [party360Data, setParty360Data] = useState<{ name: string; vendorId: string; clientId: string | null } | null>(null);
   const [addingAsClient, setAddingAsClient] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: vendors = [], isLoading } = useVendors(organisation?.id);
   const createVendor = useCreateVendor();
   const updateVendor = useUpdateVendor();
+
+  // Check for existing draft on mount
+  useEffect(() => {
+    if (organisation?.id) {
+      const draft = loadDraft(organisation.id);
+      if (draft && isDirty(draft)) {
+        setHasDraft(true);
+      }
+    }
+  }, [organisation?.id]);
+
+  // Auto-save draft while dialog is open (not in edit mode)
+  useEffect(() => {
+    if (openDialog && !editMode && organisation?.id && isDirty(formData)) {
+      saveDraft(organisation.id, formData);
+      setHasDraft(true);
+    }
+  }, [formData, openDialog, editMode, organisation?.id]);
 
   // Load document settings on mount
   useEffect(() => {
@@ -145,9 +174,44 @@ export const Vendors: React.FC = () => {
 
   const handleAdd = () => {
     setEditMode(false);
-    setFormData(defaultFormData);
     setErrors({});
+    // Restore draft if available
+    if (organisation?.id) {
+      const draft = loadDraft(organisation.id);
+      if (draft && isDirty(draft)) {
+        setFormData(draft);
+        setDraftRestored(true);
+        setTimeout(() => setDraftRestored(false), 3000);
+      } else {
+        setFormData(defaultFormData);
+      }
+    } else {
+      setFormData(defaultFormData);
+    }
     setOpenDialog(true);
+  };
+
+  // Upload file to Supabase Storage
+  const handleFileUpload = async (field: keyof VendorFormData, file: File) => {
+    if (!organisation?.id) return;
+    setUploadingDoc(field);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${organisation.id}/vendors/${Date.now()}_${field}.${ext}`;
+      const { error } = await supabase.storage
+        .from('vendor-documents')
+        .upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage
+        .from('vendor-documents')
+        .getPublicUrl(path);
+      setFormData({ ...formData, [field]: urlData.publicUrl });
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      alert('Upload failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploadingDoc(null);
+    }
   };
 
   const handleEdit = (vendor: any) => {
@@ -235,37 +299,13 @@ export const Vendors: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    // Company Name - No numbers
-    if (!formData.company_name.trim()) {
-      newErrors.company_name = 'Company name is required';
-    } else if (!validateNoNumbers(formData.company_name)) {
-      newErrors.company_name = 'Company name cannot contain numbers';
+    const result = vendorValidationSchema.safeParse(formData);
+    if (!result.success) {
+      setErrors(formatZodErrors(result.error));
+      return false;
     }
-    
-    // GSTIN validation
-    if (formData.gstin && !validateGSTIN(formData.gstin)) {
-      newErrors.gstin = 'Invalid GSTIN format (e.g., 27AABCU9603R1ZM)';
-    }
-    
-    // PAN validation
-    if (formData.pan && !validatePAN(formData.pan)) {
-      newErrors.pan = 'Invalid PAN format (e.g., ABCUP1234A)';
-    }
-    
-    // Email validation
-    if (formData.email && !validateEmail(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-    
-    // PIN validation
-    if (formData.pincode && !validatePIN(formData.pincode)) {
-      newErrors.pincode = 'PIN code must be 6 digits';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors({});
+    return true;
   };
 
   const handleSave = async () => {
@@ -274,11 +314,14 @@ export const Vendors: React.FC = () => {
       return;
     }
     
+    // Exclude transient UI-only fields from database payload
+    const { re_enter_account_number, ...vendorPayload } = formData;
+    
     try {
       if (editMode && selectedVendor) {
         await updateVendor.mutateAsync({
           id: selectedVendor.id,
-          ...formData,
+          ...vendorPayload,
         });
       } else {
         // Generate vendor code based on settings
@@ -315,7 +358,7 @@ export const Vendors: React.FC = () => {
         }
         
         await createVendor.mutateAsync({
-          ...formData,
+          ...vendorPayload,
           vendor_code: vendorCode,
           organisation_id: organisation?.id,
         });
@@ -333,6 +376,8 @@ export const Vendors: React.FC = () => {
           setDocSettings(prev => ({ ...prev, vendor_current_number: nextNum }));
         }
       }
+      clearDraft(organisation?.id || '');
+      setHasDraft(false);
       setOpenDialog(false);
       setErrors({});
     } catch (error: any) {
@@ -358,7 +403,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'vendor_code',
       header: 'Code',
       cell: ({ row }: any) => (
-        <span className="font-mono text-xs font-semibold bg-zinc-100 px-2 py-1 rounded text-zinc-700 border border-zinc-200">
+        <span className="inline-flex items-center h-5 px-2 rounded-[26px] border-[0.8px] border-solid border-[#E5E5E5] text-[12px] leading-[133.333%] font-medium text-[#0A0A0A] font-mono">
           {row.original.vendor_code}
         </span>
       ),
@@ -368,8 +413,10 @@ export const Vendors: React.FC = () => {
       header: 'Vendor Name',
       cell: ({ row }: any) => (
         <div className="flex flex-col">
-          <span className="font-bold text-zinc-900 line-clamp-1">{row.original.company_name}</span>
-          <span className="text-xs text-zinc-500">{row.original.contact_person}</span>
+          <span className="text-[14px] leading-[142.857%] text-[#0A0A0A] line-clamp-1">{row.original.company_name}</span>
+          {row.original.contact_person && (
+            <span className="text-[12px] text-zinc-400">{row.original.contact_person}</span>
+          )}
         </div>
       ),
     },
@@ -377,7 +424,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'remarks',
       header: 'Material Type',
       cell: ({ row }: any) => (
-        <span className="text-sm text-zinc-600 line-clamp-1 max-w-[150px]" title={row.original.remarks}>
+        <span className="text-[14px] leading-[142.857%] text-[#0A0A0A] line-clamp-1 max-w-[150px]" title={row.original.remarks}>
           {row.original.remarks || '-'}
         </span>
       ),
@@ -386,7 +433,7 @@ export const Vendors: React.FC = () => {
       accessorKey: 'gstin',
       header: 'GSTIN',
       cell: ({ getValue }: any) => (
-        <span className="text-xs font-medium text-zinc-600 tracking-tight">
+        <span className="text-[12px] font-mono text-[#0A0A0A]">
           {getValue() || '-'}
         </span>
       ),
@@ -395,16 +442,16 @@ export const Vendors: React.FC = () => {
       accessorKey: 'default_currency',
       header: 'Currency',
       cell: ({ getValue }: any) => (
-        <Badge variant="neutral">
+        <span className="inline-flex items-center h-5 px-2 rounded-[26px] border-[0.8px] border-solid border-[#E5E5E5] text-[12px] leading-[133.333%] font-medium text-[#0A0A0A]">
           {getValue()}
-        </Badge>
+        </span>
       ),
     },
     {
       accessorKey: 'credit_limit',
       header: 'Credit Limit',
       cell: ({ getValue }: any) => (
-        <span className="text-sm font-semibold text-zinc-700">
+        <span className="text-[14px] leading-[142.857%] text-[#0A0A0A] tabular-nums block text-right">
           ₹{Number(getValue() || 0).toLocaleString('en-IN')}
         </span>
       ),
@@ -413,69 +460,33 @@ export const Vendors: React.FC = () => {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ getValue }: any) => (
-        <Badge variant={getValue() === 'Active' ? 'success' : 'default'}>
+        <span className={cn(
+          'inline-flex items-center h-5 px-2 rounded-[26px] text-[12px] leading-[133.333%] font-medium',
+          getValue() === 'Active'
+            ? 'bg-[#DCFCE7] text-[oklch(52.7%_0.154_150.1)]'
+            : 'bg-[oklab(57.7%_0.218_0.112/10%)] text-[oklch(57.7%_0.245_27.3)]'
+        )}>
           {getValue()}
-        </Badge>
+        </span>
       ),
     },
-    {
-      accessorKey: 'actions',
-      header: '',
-      cell: ({ row }: any) => {
-        const vendor = row.original;
-        const hasLinkedClient = !!vendor.linked_client_id;
-        return (
-          <div className="flex items-center justify-end gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => handleOpenLedger(vendor)}
-              className="text-zinc-500 hover:text-blue-600"
-              title="Vendor Ledger"
-            >
-              <BookOpen className="w-4 h-4" />
-            </Button>
-            {hasLinkedClient && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleViewParty360(vendor)}
-                className="text-zinc-500 hover:text-purple-600"
-                title="Party 360°"
-              >
-                <Eye className="w-4 h-4" />
-              </Button>
-            )}
-            {!hasLinkedClient && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleAddAsClient(vendor)}
-                className="text-zinc-500 hover:text-emerald-600"
-                title="Also a Client"
-                disabled={addingAsClient === vendor.id}
-              >
-                {addingAsClient === vendor.id ? (
-                  <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <UserPlus className="w-4 h-4" />
-                )}
-              </Button>
-            )}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => handleEdit(vendor)}
-              className="text-zinc-500 hover:text-blue-600"
-              title="Edit Vendor"
-            >
-              <FileEdit className="w-4 h-4" />
-            </Button>
-          </div>
-        );
-      },
-    },
   ];
+
+  // DESIGN.md — Form Field Row tokens
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle = { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const fieldColStyle = { flex: 1 };
+  const sectionHeaderStyle = {
+    fontWeight: 600, fontSize: '11px', color: '#6b7280',
+    textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '2px'
+  };
+  const inputStyle = { padding: '4px 8px', fontSize: '12px', width: '100%', border: '1px solid #d1d5db', borderRadius: '4px' };
+  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -502,17 +513,28 @@ export const Vendors: React.FC = () => {
             style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            Add Vendor
+            Add Vendor{hasDraft ? ' (draft)' : ''}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto p-3.5">
         <AppTable
           columns={columns}
           data={filteredVendors}
           loading={isLoading}
           emptyMessage="No vendors found"
+          enableRowSelection
+          enableActions
+          actions={[
+            { label: 'View Ledger', onClick: (row: any) => handleOpenLedger(row) },
+            { label: 'Edit Vendor', onClick: (row: any) => handleEdit(row) },
+            { label: 'Add as Client', onClick: (row: any) => handleAddAsClient(row) },
+            { label: 'Party 360\u00B0', onClick: (row: any) => handleViewParty360(row) },
+          ]}
+          enablePagination
+          defaultPageSize={25}
+          enableSorting
         />
       </div>
 
@@ -521,359 +543,362 @@ export const Vendors: React.FC = () => {
         isOpen={openDialog}
         onClose={() => setOpenDialog(false)}
         title={editMode ? "Edit Vendor Details" : "Register New Vendor"}
-        size="lg"
+        size="xl"
+        footer={
+          <>
+            <button
+              onClick={() => setOpenDialog(false)}
+              style={{
+                padding: '7px 16px', background: '#fff', border: '1px solid #d1d5db',
+                borderRadius: '8px', fontSize: '12px', fontWeight: 500, color: '#374151',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!formData.company_name}
+              style={{
+                padding: '7px 16px', background: '#185FA5', border: '1px solid #185FA5',
+                borderRadius: '8px', fontSize: '12px', fontWeight: 600, color: '#fff',
+                cursor: formData.company_name ? 'pointer' : 'not-allowed',
+                opacity: formData.company_name ? 1 : 0.6,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => { if (formData.company_name) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+            >
+              {editMode ? 'Update Vendor' : 'Save Vendor'}
+            </button>
+          </>
+        }
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-2">
-          {/* Left Column: Basic Info */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-100 pb-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                <span>Basic Information</span>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Company Name *</label>
-                  <Input
-                    value={formData.company_name}
-                    onChange={(e) => {
-                      setFormData({ ...formData, company_name: e.target.value });
-                      if (errors.company_name) setErrors({ ...errors, company_name: '' });
-                    }}
-                    error={!!errors.company_name}
-                    placeholder="e.g. Acme Supplies Pvt Ltd"
-                    className="rounded-xl"
-                  />
-                  {errors.company_name && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.company_name}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Contact Person</label>
-                  <Input
-                    value={formData.contact_person}
+        {/* DESIGN.md modal body — 24px padding */}
+        <div style={{ padding: '24px' }}>
+          {/* Draft restored banner */}
+          {draftRestored && (
+            <div style={{
+              background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px',
+              padding: '8px 12px', marginBottom: '12px', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', fontSize: '12px', color: '#1e40af',
+            }}>
+              <span>Draft restored from your last session.</span>
+              <button
+                onClick={() => {
+                  setFormData(defaultFormData);
+                  clearDraft(organisation?.id || '');
+                  setHasDraft(false);
+                  setDraftRestored(false);
+                }}
+                style={{
+                  background: 'transparent', border: 'none', color: '#1e40af',
+                  fontSize: '12px', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline',
+                }}
+              >
+                Start fresh
+              </button>
+            </div>
+          )}
+          {/* DESIGN.md 2-column grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
+            {/* Column 1: Basic Information */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Basic Information</div>
+              <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+                {renderHeaderField('Company Name *',
+                  <div>
+                    <Input value={formData.company_name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, company_name: e.target.value });
+                        if (errors.company_name) setErrors({ ...errors, company_name: '' });
+                      }}
+                      error={!!errors.company_name} placeholder="e.g. Acme Supplies" style={inputStyle} />
+                    {errors.company_name && <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>{errors.company_name}</p>}
+                  </div>
+                )}
+                {renderHeaderField('Contact Person',
+                  <Input value={formData.contact_person}
                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
-                    placeholder="e.g. John Doe"
-                    className="rounded-xl"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Email Address</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-3 top-3 w-4 h-4 text-zinc-400 group-focus-within:text-blue-500" />
-                    <Input
-                      type="email"
-                      value={formData.email}
+                    placeholder="e.g. John Doe" style={inputStyle} />
+                )}
+                {renderHeaderField('Email',
+                  <div>
+                    <Input type="email" value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="vendor@example.com"
-                      className="pl-10 rounded-xl"
-                      error={!!errors.email}
-                    />
+                      placeholder="vendor@example.com" style={inputStyle} error={!!errors.email} />
+                    {errors.email && <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>{errors.email}</p>}
                   </div>
-                  {errors.email && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.email}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Phone Number</label>
-                  <div className="relative group">
-                    <Phone className="absolute left-3 top-3 w-4 h-4 text-zinc-400 group-focus-within:text-blue-500" />
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+91 98765 43210"
-                      className="pl-10 rounded-xl"
-                    />
+                )}
+                {renderHeaderField('Phone',
+                  <Input value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+91 98765 43210" style={inputStyle} />
+                )}
+                {renderHeaderField('GST Treatment',
+                  <Select value={formData.gst_treatment} onValueChange={(val) => setFormData({ ...formData, gst_treatment: val })}>
+                    <SelectTrigger style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}>
+                      <SelectValue placeholder="Select GST Treatment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Registered Business Regular">Registered Business Regular</SelectItem>
+                      <SelectItem value="Registered Business Composition">Registered Business Composition</SelectItem>
+                      <SelectItem value="Unregistered Business">Unregistered Business</SelectItem>
+                      <SelectItem value="Consumer">Consumer</SelectItem>
+                      <SelectItem value="Overseas">Overseas</SelectItem>
+                      <SelectItem value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ)</SelectItem>
+                      <SelectItem value="Deemed Export">Deemed Export</SelectItem>
+                      <SelectItem value="Tax Deductor">Tax Deductor</SelectItem>
+                      <SelectItem value="SEZ Developer">SEZ Developer</SelectItem>
+                      <SelectItem value="Input Service Distributor">Input Service Distributor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                {renderHeaderField('GSTIN',
+                  <div>
+                    <Input value={formData.gstin}
+                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                      placeholder="27AABCU9603R1ZM" style={{ ...inputStyle, textTransform: 'uppercase', fontFamily: 'monospace' }}
+                      error={!!errors.gstin} />
+                    {errors.gstin ? <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>{errors.gstin}</p> : <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>Format: 27AABCU9603R1ZM</p>}
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">GSTIN</label>
-                  <Input
-                    value={formData.gstin}
-                    onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
-                    placeholder="27AABCU9603R1ZM"
-                    className="rounded-xl uppercase font-mono text-sm"
-                    error={!!errors.gstin}
-                  />
-                  {errors.gstin ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.gstin}</p> : <p className="text-[10px] text-zinc-400 mt-1 ml-1">Format: 27AABCU9603R1ZM</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">PAN Number</label>
-                  <Input
-                    value={formData.pan}
-                    onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
-                    placeholder="ABCUP1234A"
-                    className="rounded-xl uppercase font-mono text-sm"
-                    error={!!errors.pan}
-                  />
-                  {errors.pan ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pan}</p> : <p className="text-[10px] text-zinc-400 mt-1 ml-1">Format: ABCUP1234A</p>}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">GST Treatment</label>
-                <Select
-                  value={formData.gst_treatment}
-                  onValueChange={(val) => setFormData({ ...formData, gst_treatment: val })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select GST Treatment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Registered Business Regular">Registered Business Regular - Standard GST registered business</SelectItem>
-                    <SelectItem value="Registered Business Composition">Registered Business Composition - Business under GST Composition Scheme</SelectItem>
-                    <SelectItem value="Unregistered Business">Unregistered Business - Not registered under GST</SelectItem>
-                    <SelectItem value="Consumer">Consumer - Regular end-consumer</SelectItem>
-                    <SelectItem value="Overseas">Overseas - Import/Export outside India</SelectItem>
-                    <SelectItem value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ) - Units located in an Indian SEZ</SelectItem>
-                    <SelectItem value="Deemed Export">Deemed Export - Supply to EOUs or against Advance Authorization</SelectItem>
-                    <SelectItem value="Tax Deductor">Tax Deductor - Government departments/local authorities</SelectItem>
-                    <SelectItem value="SEZ Developer">SEZ Developer - Owners of SEZ infrastructure</SelectItem>
-                    <SelectItem value="Input Service Distributor">Input Service Distributor - For distributing ITC across different branches</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">MSME Register Type</label>
-                  <Select
-                    value={formData.msme_register_type}
-                    onValueChange={(val) => setFormData({ ...formData, msme_register_type: val })}
-                  >
-                    <SelectTrigger className="rounded-xl">
+                )}
+                {renderHeaderField('PAN',
+                  <div>
+                    <Input value={formData.pan}
+                      onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                      placeholder="ABCUP1234A" style={{ ...inputStyle, textTransform: 'uppercase', fontFamily: 'monospace' }}
+                      error={!!errors.pan} />
+                    {errors.pan ? <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>{errors.pan}</p> : <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>Format: ABCUP1234A</p>}
+                  </div>
+                )}
+                {renderHeaderField('MSME Type',
+                  <Select value={formData.msme_register_type} onValueChange={(val) => setFormData({ ...formData, msme_register_type: val })}>
+                    <SelectTrigger style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}>
                       <SelectValue placeholder="Select MSME Type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="micro">Micro Enterprise</SelectItem>
                       <SelectItem value="small">Small Enterprise</SelectItem>
-                      <SelectItem value="macro">Macro Enterprise</SelectItem>
+                      <SelectItem value="medium">Medium Enterprise</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">MSME Number</label>
-                  <Input
-                    value={formData.msme_number}
+                )}
+                {renderHeaderField('MSME Number',
+                  <Input value={formData.msme_number}
                     onChange={(e) => setFormData({ ...formData, msme_number: e.target.value.toUpperCase() })}
-                    placeholder="UDYAM/MSME Registration Number"
-                    className="rounded-xl uppercase font-mono text-sm"
-                  />
-                </div>
+                    placeholder="UDYAM/MSME Registration Number" style={{ ...inputStyle, textTransform: 'uppercase', fontFamily: 'monospace' }} />,
+                  true
+                )}
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-100 pb-2">
-                <MapPin className="w-4 h-4 text-blue-600" />
-                <span>Address & Location</span>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Full Address</label>
-                <Textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Enter office/warehouse address..."
-                  className="rounded-xl min-h-[80px]"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">State</label>
-                  <Select
-                    value={formData.state}
-                    onValueChange={(val) => setFormData({ ...formData, state: val })}
-                  >
-                    <SelectTrigger className="rounded-xl">
+            {/* Column 2: Address & Location */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Address & Location</div>
+              <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+                {renderHeaderField('Address',
+                  <Textarea value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Enter office/warehouse address..."
+                    style={{ ...inputStyle, minHeight: '60px' }} />
+                )}
+                {renderHeaderField('State',
+                  <Select value={formData.state} onValueChange={(val) => setFormData({ ...formData, state: val })}>
+                    <SelectTrigger style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}>
                       <SelectValue placeholder="Select State" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent style={{ maxHeight: '200px' }}>
                       {INDIAN_STATES.map((state) => (
                         <SelectItem key={state} value={state}>{state}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Pincode</label>
-                  <Input
-                    value={formData.pincode}
-                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                    placeholder="400001"
-                    maxLength={6}
-                    className="rounded-xl"
-                  />
-                  {errors.pincode && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pincode}</p>}
-                </div>
+                )}
+                {renderHeaderField('Pincode',
+                  <div>
+                    <Input value={formData.pincode}
+                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      placeholder="400001" maxLength={6} style={inputStyle} />
+                    {errors.pincode && <p style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>{errors.pincode}</p>}
+                  </div>,
+                  true
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Financials & Bank */}
-          <div className="space-y-6 bg-zinc-50 p-6 rounded-3xl border border-zinc-100 shadow-inner">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-200 pb-2">
-                <CreditCard className="w-4 h-4 text-blue-600" />
-                <span>Financial Terms</span>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Default Currency</label>
-                <Select
-                  value={formData.default_currency}
-                  onValueChange={(val) => setFormData({ ...formData, default_currency: val })}
-                >
-                  <SelectTrigger className="rounded-xl bg-white border-zinc-200 shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((curr) => (
-                      <SelectItem key={curr} value={curr}>{curr}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Payment Terms</label>
-                <Select
-                  value={formData.payment_terms}
-                  onValueChange={(val) => setFormData({ ...formData, payment_terms: val })}
-                >
-                  <SelectTrigger className="rounded-xl bg-white border-zinc-200 shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_TERMS.map((term) => (
-                      <SelectItem key={term} value={term}>{term}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Credit Limit</label>
-                <div className="relative group">
-                  <span className="absolute left-3 top-3 text-zinc-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
-                  <Input
-                    type="number"
-                    value={formData.credit_limit}
+          {/* Financial Terms & Bank Details — full width below grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px', marginTop: '10px' }}>
+            {/* Financial Terms */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Financial Terms</div>
+              <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+                {renderHeaderField('Currency',
+                  <Select value={formData.default_currency} onValueChange={(val) => setFormData({ ...formData, default_currency: val })}>
+                    <SelectTrigger style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((curr) => (
+                        <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {renderHeaderField('Payment Terms',
+                  <Select value={formData.payment_terms} onValueChange={(val) => setFormData({ ...formData, payment_terms: val })}>
+                    <SelectTrigger style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_TERMS.map((term) => (
+                        <SelectItem key={term} value={term}>{term}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {renderHeaderField('Credit Limit',
+                  <Input type="number" value={formData.credit_limit}
                     onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-                    className="pl-8 rounded-xl bg-white border-zinc-200 shadow-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Status</label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(val) => setFormData({ ...formData, status: val })}
-                >
-                  <SelectTrigger className="rounded-xl bg-white border-zinc-200 shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+                    style={inputStyle} />
+                )}
+                {renderHeaderField('Status',
+                  <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                    <SelectTrigger style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>,
+                  true
+                )}
               </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t border-zinc-200">
-              <div className="flex items-center gap-2 text-zinc-900 font-bold border-b border-zinc-200 pb-2">
-                <Landmark className="w-4 h-4 text-blue-600" />
-                <span>Bank Details</span>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Account Holder Name</label>
-                <Input
-                  value={formData.account_holder_name}
-                  onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
-                  placeholder="Enter account holder name"
-                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Bank Name</label>
-                <Input
-                  value={formData.bank_name}
-                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                  placeholder="State Bank of India"
-                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Account Number</label>
-                <Input
-                  value={formData.bank_account_no}
-                  onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
-                  placeholder="00000000000"
-                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Re-enter Account Number</label>
-                <Input
-                  value={formData.re_enter_account_number}
-                  onChange={(e) => setFormData({ ...formData, re_enter_account_number: e.target.value })}
-                  placeholder="Re-enter account number"
-                  className="rounded-xl bg-white border-zinc-200 shadow-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">IFSC Code</label>
-                <Input
-                  value={formData.bank_ifsc}
-                  onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
-                  placeholder="SBIN0001234"
-                  className="rounded-xl bg-white border-zinc-200 shadow-sm uppercase font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1">Opening Balance</label>
-                <div className="relative group">
-                  <span className="absolute left-3 top-3 text-zinc-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
-                  <Input
-                    type="number"
-                    value={formData.opening_balance}
+            {/* Bank Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={sectionHeaderStyle}>Bank Details</div>
+              <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+                {renderHeaderField('Acct Holder',
+                  <Input value={formData.account_holder_name}
+                    onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
+                    placeholder="Enter account holder name" style={inputStyle} />
+                )}
+                {renderHeaderField('Bank Name',
+                  <Input value={formData.bank_name}
+                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                    placeholder="State Bank of India" style={inputStyle} />
+                )}
+                {renderHeaderField('Account No.',
+                  <Input value={formData.bank_account_no}
+                    onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
+                    placeholder="00000000000" style={inputStyle} />
+                )}
+                {renderHeaderField('Re-enter Acct',
+                  <Input value={formData.re_enter_account_number}
+                    onChange={(e) => setFormData({ ...formData, re_enter_account_number: e.target.value })}
+                    placeholder="Re-enter account number" style={inputStyle} />
+                )}
+                {renderHeaderField('IFSC Code',
+                  <Input value={formData.bank_ifsc}
+                    onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
+                    placeholder="SBIN0001234" style={{ ...inputStyle, textTransform: 'uppercase', fontFamily: 'monospace' }} />
+                )}
+                {renderHeaderField('Opening Bal.',
+                  <Input type="number" value={formData.opening_balance}
                     onChange={(e) => setFormData({ ...formData, opening_balance: Number(e.target.value) })}
-                    className="pl-8 rounded-xl bg-white border-zinc-200 shadow-sm"
-                  />
-                </div>
+                    style={inputStyle} />,
+                  true
+                )}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Remarks Section (Full Width) */}
-        <div className="mt-8 pt-6 border-t border-zinc-100">
-          <div className="flex items-center gap-2 text-zinc-900 font-bold mb-4">
-            <AlertCircle className="w-4 h-4 text-blue-600" />
-            <span>Material Type / Scope of Supply</span>
+          {/* Document Uploads Section */}
+          <div style={{ marginTop: '10px' }}>
+            <div style={sectionHeaderStyle}>Documents</div>
+            <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {[
+                  { field: 'pan_card_url' as const, label: 'PAN Card', accept: '.jpg,.jpeg,.png,.pdf' },
+                  { field: 'cheque_leaf_url' as const, label: 'Cheque Leaf', accept: '.jpg,.jpeg,.png,.pdf' },
+                  { field: 'gstin_certificate_url' as const, label: 'GST Certificate', accept: '.jpg,.jpeg,.png,.pdf' },
+                  { field: 'msme_certificate_url' as const, label: 'MSME Certificate', accept: '.jpg,.jpeg,.png,.pdf' },
+                ].map(({ field, label, accept }) => (
+                  <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151' }}>{label}</span>
+                    {formData[field] ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '11px' }}>
+                        <FileText size={14} style={{ color: '#185FA5', flexShrink: 0 }} />
+                        <a
+                          href={formData[field]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ flex: 1, color: '#185FA5', textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          View file
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, [field]: '' })}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#9ca3af' }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={uploadingDoc === field}
+                        onClick={() => fileInputRefs.current[field]?.click()}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 8px', background: '#fff', border: '1px dashed #d1d5db',
+                          borderRadius: '4px', fontSize: '11px', color: '#6b7280',
+                          cursor: uploadingDoc === field ? 'not-allowed' : 'pointer',
+                          opacity: uploadingDoc === field ? 0.6 : 1,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <Upload size={14} />
+                        {uploadingDoc === field ? 'Uploading...' : 'Upload'}
+                      </button>
+                    )}
+                    <input
+                      ref={(el) => { fileInputRefs.current[field] = el; }}
+                      type="file"
+                      accept={accept}
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(field, file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <Textarea
-            value={formData.remarks}
-            onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-            placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.). This helps in discovery via search."
-            className="rounded-2xl min-h-[100px] border-zinc-200 focus:ring-blue-100"
-          />
-          <p className="text-[11px] text-zinc-400 mt-2 px-2 italic">This information is used by the system to categorize vendors and improve search relevancy.</p>
-        </div>
 
-        {/* Modal Footer */}
-        <div className="flex justify-end gap-3 mt-10">
-          <Button variant="ghost" onClick={() => setOpenDialog(false)} className="rounded-xl px-10 border border-zinc-100 font-semibold tracking-wide">
-            Discard Changes
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSave} 
-            disabled={!formData.company_name}
-            className="rounded-xl px-12 font-bold shadow-lg shadow-blue-100"
-          >
-            {editMode ? 'Update Vendor' : 'Complete Registration'}
-          </Button>
+          {/* Remarks Section (Full Width) */}
+          <div style={{ marginTop: '10px' }}>
+            <div style={sectionHeaderStyle}>Material Type / Scope of Supply</div>
+            <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
+              <Textarea
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.)"
+                style={{ ...inputStyle, minHeight: '60px' }}
+              />
+            </div>
+          </div>
+
         </div>
       </Modal>
 

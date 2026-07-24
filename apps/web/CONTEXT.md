@@ -16,4 +16,9 @@
 * **Warranty Claim**: A formal transaction/request escalated to an equipment vendor or manufacturer to resolve a defect on supplied equipment during its warranty window.
 * **Vendor Dispute Reason**: The documented justification/explanation provided by a supplier when they reject or dispute a warranty claim.
 
+## Material Returns
+* **Material Return**: The transaction recording unused or leftover materials sent back from a project site to a warehouse.
+* **Good Return**: A returned item in reusable condition that automatically increments the warehouse's physical inventory stock.
+* **Scrap Return**: A returned item that is damaged or unusable. It reduces the project's net supplied quantity on site, but does not increment standard warehouse inventory.
+
 

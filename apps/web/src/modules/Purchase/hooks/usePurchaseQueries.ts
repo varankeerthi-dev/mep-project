@@ -406,6 +406,114 @@ export const usePurchaseOrder = (poId: string | null) => {
   });
 };
 
+export const useCreatePurchaseOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ poData, items }: { poData: any; items: any[] }) => {
+      const { data: po, error: poError } = await supabase
+        .from('purchase_orders')
+        .insert(poData)
+        .select()
+        .single();
+
+      if (poError) throw poError;
+
+      if (items && items.length > 0) {
+        const poItems = items.map((item: any) => ({
+          ...item,
+          po_id: po.id,
+          organisation_id: po.organisation_id,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(poItems);
+
+        if (itemsError) throw itemsError;
+      }
+
+      return po;
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
+    },
+  });
+};
+
+export const useUpdatePurchaseOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ id, poData, items }: { id: string; poData: any; items: any[] }) => {
+      const { data: po, error: poError } = await supabase
+        .from('purchase_orders')
+        .update(poData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (poError) throw poError;
+
+      // Delete existing items and re-insert
+      const { error: deleteError } = await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('po_id', id);
+
+      if (deleteError) throw deleteError;
+
+      if (items && items.length > 0) {
+        const poItems = items.map((item: any) => ({
+          ...item,
+          po_id: id,
+          organisation_id: po.organisation_id,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(poItems);
+
+        if (itemsError) throw itemsError;
+      }
+
+      return po;
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', data.id] });
+    },
+  });
+};
+
+export const useDeletePO = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ id, organisationId }: { id: string; organisationId: string }) => {
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('po_id', id);
+
+      if (itemsError) throw itemsError;
+
+      const { error } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', id)
+        .eq('organisation_id', organisationId);
+
+      if (error) throw error;
+      return { organisationId };
+    }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisationId] });
+    },
+  });
+};
+
 export const useVendorLedger = (
   organisationId: string | undefined,
   vendorId: string | undefined,
@@ -1235,6 +1343,48 @@ export const useReleasedPayments = (organisationId: string | undefined) => {
       return data || [];
     }),
     enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
+export const usePayments = (organisationId: string | undefined) => {
+  return useQuery({
+    queryKey: ['purchase-payments', organisationId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId) return [];
+      const { data, error } = await supabase
+        .from('purchase_payments')
+        .select('*, vendor:purchase_vendors(company_name)')
+        .eq('organisation_id', organisationId)
+        .order('payment_date', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: !!organisationId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
+export const useVendorOpenBills = (organisationId: string | undefined, vendorId: string | undefined, enabled = true) => {
+  return useQuery({
+    queryKey: ['purchase-vendor-open-bills', organisationId, vendorId],
+    queryFn: withSessionCheck(async () => {
+      if (!organisationId || !vendorId) return [];
+      const { data, error } = await supabase
+        .from('purchase_bills')
+        .select('*')
+        .eq('organisation_id', organisationId)
+        .eq('vendor_id', vendorId)
+        .in('payment_status', ['Unpaid', 'Partially Paid'])
+        .order('bill_date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }),
+    enabled: enabled && !!organisationId && !!vendorId,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });

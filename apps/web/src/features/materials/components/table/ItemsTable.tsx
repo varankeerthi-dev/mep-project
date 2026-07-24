@@ -11,14 +11,14 @@ interface ItemsTableProps {
 export const ItemsTable = memo(function ItemsTable({ table, onRowClick, selectedMaterialId }: ItemsTableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead className="bg-zinc-50 sticky top-0 z-10">
+      <table className="w-full" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif' }}>
+        <thead className="sticky top-0 z-10">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500 whitespace-nowrap"
+                  className="h-10 px-2 text-left align-middle text-sm font-medium text-black whitespace-nowrap"
                 >
                   {header.isPlaceholder
                     ? null
@@ -29,18 +29,18 @@ export const ItemsTable = memo(function ItemsTable({ table, onRowClick, selected
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map((row) => (
+          {table.getRowModel().rows.map((row, i) => (
             <tr
               key={row.id}
               onClick={() => onRowClick(row.original.id)}
-              className={`border-b border-zinc-100 transition-colors cursor-pointer ${
+              className={`${i < table.getRowModel().rows.length - 1 ? 'border-b border-[#E5E5E5]' : ''} transition-colors cursor-pointer ${
                 selectedMaterialId === row.original.id
                   ? 'bg-indigo-50 hover:bg-indigo-100'
-                  : 'hover:bg-zinc-50'
+                  : 'hover:bg-[#F5F5F5]'
               }`}
             >
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-3 py-2.5 align-middle text-sm">
+                <td key={cell.id} className="p-2 align-middle text-sm text-black">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

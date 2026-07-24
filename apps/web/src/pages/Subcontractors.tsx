@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { EnhancedDataTable } from '../components/ui/table/index';
 import { AppTable } from '../components/ui/AppTable';
+import { SubcontractorModuleNav } from '../components/SubcontractorModuleNav';
 import { cn } from '../lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 
@@ -844,6 +845,8 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
             </button>
           </div>
         </div>
+
+        <SubcontractorModuleNav onNavigate={onNavigate} />
 
         {/* Main Container */}
         <div style={{
@@ -3085,6 +3088,8 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
           </button>
         </div>
 
+        <SubcontractorModuleNav onNavigate={onNavigate} />
+
         <div className="grid gap-10 lg:grid-cols-4">
           <div className="lg:col-span-1">
              <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-xl shadow-zinc-200/50 space-y-4">
@@ -3795,6 +3800,8 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
               )}
             </div>
           </div>
+
+          <SubcontractorModuleNav onNavigate={onNavigate} />
 
           {/* Sub-tabs */}
           <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
@@ -5126,6 +5133,7 @@ export function SubcontractorInvoices({ onNavigate }: WithNavigate) {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Subcontractor Invoices</h1>
+      <SubcontractorModuleNav onNavigate={onNavigate} />
       <AppTable
         data={invoices}
         columns={[
@@ -5190,6 +5198,8 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
               <X size={20} />
             </button>
         </div>
+
+        <SubcontractorModuleNav onNavigate={onNavigate} />
 
         <div className="rounded-[2.5rem] border border-zinc-200 bg-white p-10 shadow-xl shadow-zinc-200/50">
           <div className="mb-10 flex flex-wrap items-center gap-6">

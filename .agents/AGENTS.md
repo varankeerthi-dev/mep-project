@@ -9,6 +9,8 @@ These rules govern the development of the monorepo, specifically when implementi
 ## 2. Design System Alignment
 - All mobile modules and screens must strictly follow the tokens, layout metrics, HSL color theme, glassmorphism card styling, and typography defined in [Mobile_app_design.md](file:///c:/Users/admin/mep-project/Mobile_app_design.md).
 - Avoid raw colors, non-standard border-radius, or custom fonts that deviate from the core design language.
+- **Table Alignment Rule**: All Amount, Price, and monetary value columns across tables must always be left-aligned (`align: 'left'`).
+
 
 ## 3. Role-Based Access Control (RBAC) Integration
 - The mobile app must respect and dynamically enforce the same Role-Based Access Control (RBAC) settings and permissions declared in the web application database schema.
@@ -20,3 +22,17 @@ These rules govern the development of the monorepo, specifically when implementi
   pnpm --filter=mobile build && pnpm --filter=mobile exec cap sync
   ```
 - Verify that the build completes with zero compilation warnings or TypeScript errors before completing a task.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs for this repo live as GitHub issues. See [issue-tracker.md](file:///c:/Users/admin/mep-project/docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Triage roles are mapped to standard label strings. See [triage-labels.md](file:///c:/Users/admin/mep-project/docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context layout, with domain glossary and architectural decisions under `apps/web/`. See [domain.md](file:///c:/Users/admin/mep-project/docs/agents/domain.md).

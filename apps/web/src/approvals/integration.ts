@@ -56,6 +56,60 @@ export class ApprovalIntegration {
     }
   }
 
+  static async createPurchaseRequisitionApproval(
+    requisitionId: string,
+    requisitionNumber: string,
+    totalAmount: number,
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
+  ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
+    try {
+      const check = await this.checkApprovalNeeded('PURCHASE_REQUISITION', totalAmount);
+      if (!check.needed) {
+        return { success: true, error: 'No approval required for this amount' };
+      }
+
+      const approvalRequest: ApprovalRequest = {
+        approval_type: 'PURCHASE_REQUISITION',
+        reference_id: requisitionId,
+        reference_type: 'purchase_requisitions',
+        title: `Purchase Requisition - ${requisitionNumber}`,
+        description: `Purchase requisition ${requisitionNumber} with total estimated amount of ₹${totalAmount.toLocaleString('en-IN')}`,
+        amount: totalAmount,
+        priority,
+        reviewer_id: check.reviewerId,
+        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
+      };
+
+      const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
+
+      if (response.success && response.data) {
+        await supabase
+          .from('purchase_requisitions')
+          .update({
+            approval_status: 'Pending Approval',
+            status: 'Pending',
+            approval_id: response.data.id
+          })
+          .eq('id', requisitionId);
+
+        return {
+          success: true,
+          approvalId: response.data.id
+        };
+      } else {
+        return {
+          success: false,
+          error: response.error?.message || 'Failed to create approval request'
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   static async createWorkOrderApproval(
     workOrderId: string,
     subcontractorName: string,
@@ -968,6 +1022,18 @@ export class ApprovalIntegration {
           }
           break;
 
+        case 'purchase_requisitions':
+          await supabase.from('purchase_requisitions').update({
+            approval_status: status === 'APPROVED' ? 'Approved' : 'Rejected',
+            status: status === 'APPROVED' ? 'Approved' : 'Rejected',
+            approved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }).eq('id', approval.reference_id);
+          if (status === 'APPROVED') {
+            await this.triggerPostApprovalActions('PURCHASE_REQUISITION', approval.reference_id);
+          }
+          break;
+
         case 'expense_entries':
           await supabase.from('expense_entries').update({
             status: status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
@@ -1104,6 +1170,14 @@ export class ApprovalIntegration {
 
         case 'SITE_EXPENSE_POST_PURCHASE':
           console.log('Site expense post-purchase approved:', documentId);
+          break;
+
+        case 'PURCHASE_REQUISITION':
+          try {
+            await supabase.rpc('approve_purchase_requisition', { p_requisition_id: documentId });
+          } catch (e) {
+            console.error('Error invoking approve_purchase_requisition RPC:', e);
+          }
           break;
       }
     } catch (error) {

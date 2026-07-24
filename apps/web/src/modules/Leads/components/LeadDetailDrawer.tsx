@@ -185,12 +185,13 @@ export const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClos
                         border: '1px solid #185FA5',
                         borderRadius: '5px',
                         background: '#185FA5',
-                      color: '#fff',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    + Schedule Visit
-                  </button>
+                        color: '#fff',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      + Schedule Visit
+                    </button>
+                  </div>
                 </div>
                 {loadingVisits ? (
                   <div style={{ textAlign: 'center', padding: '16px' }}>
@@ -398,8 +399,8 @@ const ScheduleSiteVisitModal: React.FC<{
 
             <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#f0f7ff', borderRadius: '6px', fontSize: '12px', color: '#1e40af' }}>
               From lead: <strong>{lead.contact_name}</strong>
-              {lead.company_name && <> · {lead.company_name}</>}
-              {lead.project_name && <><br />Project: {lead.project_name}</>}
+              {lead.company_name ? ` · ${lead.company_name}` : ''}
+              {lead.project_name && <div>Project: {lead.project_name}</div>}
             </div>
 
             <FormField2 label="Visit Date *">

@@ -39,6 +39,28 @@ export async function updateMaterial(id: string, data: Record<string, any>) {
 }
 
 export async function deleteMaterial(id: string) {
+  // Fetch pricing IDs first so we can delete history records by pricing_id
+  const { data: pricingRows } = await supabase
+    .from('material_client_pricing')
+    .select('id')
+    .eq('material_id', id);
+
+  if (pricingRows && pricingRows.length > 0) {
+    const pricingIds = pricingRows.map((r) => r.id);
+    await supabase
+      .from('material_client_pricing_history')
+      .delete()
+      .in('pricing_id', pricingIds);
+  }
+
+  // Delete related records
+  await supabase.from('material_client_pricing').delete().eq('material_id', id);
+  await supabase.from('material_client_mappings').delete().eq('material_id', id);
+  await supabase.from('vendor_material_pricing').delete().eq('material_id', id);
+  await supabase.from('material_units').delete().eq('material_id', id);
+  await supabase.from('item_variant_pricing').delete().eq('item_id', id);
+  await supabase.from('item_stock').delete().eq('item_id', id);
+  // Delete the material
   const { error } = await supabase.from('materials').delete().eq('id', id);
   if (error) throw error;
 }

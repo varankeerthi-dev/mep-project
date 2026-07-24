@@ -9,6 +9,11 @@ export function useMaterialActions(orgId: string | null, updateMaterialsCache: (
   const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const deleteMaterial = useCallback(async (material: any) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${material.display_name || material.name}"?\n\nIf this item is linked with transactions, it will be archived instead of hard deleted.`
+    );
+    if (!confirmed) return;
+
     setDeleteInProgress(true);
     try {
       const result = await deleteOrArchiveMaterial(material.id);

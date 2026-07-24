@@ -113,7 +113,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     );
     if (!matItem) return null;
     const planned = matItem.planned_qty ?? 0;
-    const received = summaryItem?.received_qty ?? 0;
+    const received = (summaryItem?.received_qty ?? 0) - (summaryItem?.returned_qty ?? 0);
     const used = summaryItem?.used_qty ?? 0;
     const available = Math.max(planned, received) - used;
     return Math.max(available, 0);

@@ -4,6 +4,7 @@ import { useReactTable, getCoreRowModel } from '@tanstack/react-table';
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useMaterialsPageData } from '../../../hooks/useMaterialsPageData';
+import { useUnits } from '../../../hooks/useUnits';
 import { useMaterialForm } from '../hooks/useMaterialForm';
 import { useItemTransactions } from '../hooks/useItemTransactions';
 import { useBulkPriceUpdate } from '../hooks/useBulkPriceUpdate';
@@ -16,8 +17,10 @@ import { buildColumns } from '../components/table/columns';
 import { ItemEditorDialog } from '../components/editor/ItemEditorDialog';
 import { ItemDetailsDialog } from '../components/viewer/ItemDetailsDialog';
 import { BulkPriceDialog } from '../components/dialogs/BulkPriceDialog';
-import { MultiItemDialog, ExcelEditorDialog } from '../components/dialogs';
+import { MultiItemDialog, ReviewModal, createEmptyRow } from '../components/dialogs/MultiItemDialog';
+import { ExcelEditorDialog } from '../components/dialogs/ExcelEditorDialog';
 import { checkVariantRecords } from '../persistence/materialsPersistence';
+import { generateItemCode } from '../lib/generateItemCode';
 import { CLASSIFICATION_PRESETS } from '../model/aggregates';
 import { ITEM_TABLE_COLUMNS, MANDATORY_ITEM_COLUMNS, DEFAULT_PAGE_SIZE, COLUMNS_STORAGE_KEY } from '../constants';
 import { MAIN_CATEGORIES } from '../shared/constants';
@@ -38,6 +41,7 @@ export function ItemsTab() {
   const clients = pageData?.clients ?? [];
   const discountCategories = pageData?.discountCategories ?? [];
   const categoryOptions = categories.length > 0 ? categories.map((c: any) => c.category_name) : MAIN_CATEGORIES;
+  const { data: units = [] } = useUnits();
 
   // Vendors (separate query)
   const { data: vendors = [] } = useQuery({
@@ -84,7 +88,7 @@ export function ItemsTab() {
 
   // ─── UI State ────────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('');
-  const [showTechnical, setShowTechnical] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [hideInactive, setHideInactive] = useState(false);
@@ -106,6 +110,7 @@ export function ItemsTab() {
 
   // ─── Dialog State ────────────────────────────────────────────
   const [showMultiItemModal, setShowMultiItemModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [showExcelEditor, setShowExcelEditor] = useState(false);
   const [multiItemRows, setMultiItemRows] = useState<any[]>([]);
   const [isSavingSequentially, setIsSavingSequentially] = useState(false);
@@ -235,33 +240,78 @@ export function ItemsTab() {
   const handleMultiItemSave = useCallback(async () => {
     if (isSavingSequentially || !orgId || multiItemRows.length === 0) return;
     setIsSavingSequentially(true);
+    setShowReviewModal(false);
     setSaveProgress({ current: 0, total: multiItemRows.length });
 
     let saved = 0;
     let failed = 0;
+    const materialIdCache = new Map<string, string>();
+
     for (let i = 0; i < multiItemRows.length; i++) {
       const row = multiItemRows[i];
+      setSaveProgress({ current: i + 1, total: multiItemRows.length });
+
+      const groupKey = `${row.name.trim().toLowerCase()}|${row.category}|${row.unit}`;
+      let materialId = materialIdCache.get(groupKey);
+
       try {
-        const materialData = {
-          name: row.name.trim(),
-          display_name: row.name.trim(),
-          item_code: 'ITEM-' + Date.now().toString(36).toUpperCase() + '-' + i,
-          unit: row.unit || 'nos',
-          sale_price: row.sale_price ? parseFloat(row.sale_price) : null,
-          purchase_price: row.purchase_price ? parseFloat(row.purchase_price) : null,
-          gst_rate: row.gst_rate ?? 18,
-          is_active: true,
-          item_type: 'product',
-          organisation_id: orgId,
-        };
-        const { error } = await supabase.from('materials').insert(materialData);
-        if (error) throw error;
+        if (!materialId) {
+          const materialData = {
+            item_code: generateItemCode(),
+            name: row.name.trim(),
+            display_name: row.name.trim(),
+            main_category: row.category || null,
+            unit: row.unit || 'nos',
+            hsn_code: row.hsn_code || null,
+            gst_rate: row.gst_rate ?? 18,
+            uses_variant: row.uses_variant,
+            item_type: 'product',
+            organisation_id: orgId,
+            is_active: true,
+            allow_purchase: true,
+            allow_sales: true,
+            show_in_bom: true,
+            is_manufactured: false,
+            sale_price: row.uses_variant ? 0 : (row.sale_price ? parseFloat(row.sale_price) : 0),
+          };
+          const { data, error } = await supabase.from('materials').insert(materialData).select().single();
+          if (error) throw error;
+          materialId = data.id;
+          materialIdCache.set(groupKey, materialId);
+        }
+
+        // Insert variant pricing if uses_variant
+        if (row.uses_variant && row.variant_id) {
+          const { error: pricingError } = await supabase.from('item_variant_pricing').insert({
+            item_id: materialId,
+            company_variant_id: row.variant_id,
+            sale_price: row.sale_price ? parseFloat(row.sale_price) : 0,
+            purchase_price: row.purchase_price ? parseFloat(row.purchase_price) : 0,
+            organisation_id: orgId,
+            updated_at: new Date().toISOString(),
+          });
+          if (pricingError) throw pricingError;
+        }
+
+        // Insert inventory if > 0
+        if (row.inventory > 0 && warehouses.length > 0) {
+          const defaultWh = warehouses.find((w: any) => w.is_default) || warehouses[0];
+          const { error: stockError } = await supabase.from('item_stock').insert({
+            item_id: materialId,
+            warehouse_id: defaultWh.id,
+            company_variant_id: row.uses_variant ? row.variant_id : null,
+            current_stock: row.inventory,
+            organisation_id: orgId,
+            updated_at: new Date().toISOString(),
+          });
+          if (stockError) throw stockError;
+        }
+
         saved++;
       } catch (err: any) {
-        console.error(`Failed to save row ${i + 1}:`, err);
+        console.error(`Failed to save row ${i + 1} (${row.name}):`, err);
         failed++;
       }
-      setSaveProgress({ current: i + 1, total: multiItemRows.length });
     }
 
     setIsSavingSequentially(false);
@@ -273,32 +323,45 @@ export function ItemsTab() {
       ? `${saved} item(s) saved, ${failed} failed.`
       : `${saved} item(s) saved successfully.`;
     form.setSaveNotice(msg);
-  }, [isSavingSequentially, orgId, multiItemRows, refreshMaterials, form]);
+  }, [isSavingSequentially, orgId, multiItemRows, warehouses, refreshMaterials, form]);
 
   // ─── Render ──────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      <ItemsToolbar
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        onAddItem={openForm}
-        onBulkImport={() => { setMultiItemRows([]); setShowMultiItemModal(true); }}
-        onBulkPrice={bulk.openBulkPriceModal}
-        onColumnSettings={() => setShowColumnSettings(!showColumnSettings)}
-        onExport={() => setShowExcelEditor(true)}
-        categoryFilter={categoryFilter}
-        categoryOptions={categoryOptions}
-        onCategoryChange={(cat) => { setCategoryFilter(cat); setShowCategoryDropdown(false); }}
-        showCategoryDropdown={showCategoryDropdown}
-        onToggleCategoryDropdown={() => setShowCategoryDropdown(!showCategoryDropdown)}
-        hideInactive={hideInactive}
-        onToggleHideInactive={() => setHideInactive(!hideInactive)}
-      />
-
-      <div className="relative bg-white border border-zinc-200 rounded-xl shadow-sm">
+      <div className="relative">
+        <ItemsToolbar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          onAddItem={openForm}
+          onBulkImport={() => { setMultiItemRows([createEmptyRow()]); setShowMultiItemModal(true); }}
+          onBulkPrice={bulk.openBulkPriceModal}
+          onColumnSettings={() => setShowColumnSettings(!showColumnSettings)}
+          onExport={() => setShowExcelEditor(true)}
+          onExcelEdit={() => setShowExcelEditor(true)}
+          categoryFilter={categoryFilter}
+          categoryOptions={categoryOptions}
+          onCategoryChange={(cat) => { setCategoryFilter(cat); setShowCategoryDropdown(false); }}
+          showCategoryDropdown={showCategoryDropdown}
+          onToggleCategoryDropdown={() => setShowCategoryDropdown(!showCategoryDropdown)}
+          hideInactive={hideInactive}
+          onToggleHideInactive={() => setHideInactive(!hideInactive)}
+        />
         {showColumnSettings && (
-          <ColumnSettingsDropdown columns={ITEM_TABLE_COLUMNS} visibleColumns={visibleColumns} onToggleColumn={toggleColumn} />
+          <ColumnSettingsDropdown
+            columns={ITEM_TABLE_COLUMNS}
+            visibleColumns={visibleColumns}
+            onToggleColumn={toggleColumn}
+            onClose={() => setShowColumnSettings(false)}
+            onSaveDefault={() => {
+              localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns));
+              setShowColumnSettings(false);
+              form.setSaveNotice('Column layout saved as default');
+            }}
+          />
         )}
+      </div>
+
+      <div className="bg-white border border-zinc-200 rounded-xl">
         {isLoading ? (
           <div className="p-12 text-center text-sm text-zinc-400">Loading items...</div>
         ) : (
@@ -376,6 +439,20 @@ export function ItemsTab() {
         rows={multiItemRows}
         onRowsChange={setMultiItemRows}
         onSave={handleMultiItemSave}
+        onReview={() => { setShowMultiItemModal(false); setShowReviewModal(true); }}
+        isSaving={isSavingSequentially}
+        saveProgress={saveProgress}
+        categoryOptions={categoryOptions}
+        variantOptions={variants}
+        unitOptions={units}
+      />
+
+      {/* Review Modal */}
+      <ReviewModal
+        open={showReviewModal}
+        onClose={() => { if (!isSavingSequentially) { setShowReviewModal(false); setShowMultiItemModal(true); } }}
+        rows={multiItemRows}
+        onConfirm={handleMultiItemSave}
         isSaving={isSavingSequentially}
         saveProgress={saveProgress}
       />

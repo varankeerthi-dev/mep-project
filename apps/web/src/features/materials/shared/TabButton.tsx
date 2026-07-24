@@ -11,10 +11,10 @@ export function TabButton({ active, onClick, children }: TabButtonProps) {
     <button
       onClick={onClick}
       className={cn(
-        "tab-button px-5 text-sm font-medium border-b-2 transition-all",
+        "px-3 py-1.5 text-sm font-medium transition-all",
         active 
-          ? "border-indigo-600 text-indigo-700 bg-indigo-50/50" 
-          : "border-transparent text-zinc-500 hover:text-indigo-600 hover:bg-zinc-50 hover:border-zinc-300"
+          ? "bg-white text-[#0C0A09] shadow-sm rounded-full" 
+          : "bg-transparent text-[#0C0A0999] hover:text-[#0C0A09] rounded-[14px]"
       )}
     >
       {children}

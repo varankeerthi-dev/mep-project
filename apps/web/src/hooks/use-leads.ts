@@ -6,14 +6,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import * as leadsApi from '../follow-up/leads-api';
-import {
-  MOCK_CADENCE_RULES,
-  MOCK_LEADS,
-  MOCK_LEAD_INDUSTRIES,
-  MOCK_LEAD_STATUSES,
-  MOCK_NEXT_ACTIONS,
-  MOCK_WIN_LOSS_REASONS,
-} from '../mock/leads-data';
 import type {
   CadenceRule,
   Lead,
@@ -42,27 +34,6 @@ const KEYS = {
   leadAssignmentRule: (orgId?: string) => ['lead-assignment-rule', orgId] as const,
 };
 
-const USE_MOCK = import.meta.env.VITE_FOLLOWUP_USE_MOCK === 'true';
-
-async function withMockFallback<T>(
-  fetcher: () => Promise<T>,
-  mock: T,
-  label: string
-): Promise<{ data: T; source: 'supabase' | 'mock' }> {
-  if (USE_MOCK) return { data: mock, source: 'mock' };
-  try {
-    const data = await fetcher();
-    return { data, source: 'supabase' };
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (leadsApi.isLeadsSchemaError(e)) {
-      console.warn(`[Leads] ${label}: schema not ready, using mock data. Run 076_leads_cadence_winloss.sql in Supabase.`);
-      return { data: mock, source: 'mock' };
-    }
-    throw err;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Leads
 // ---------------------------------------------------------------------------
@@ -73,18 +44,9 @@ export function useLeads() {
 
   return useQuery({
     queryKey: KEYS.leads(orgId),
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchLeads(orgId),
-        MOCK_LEADS,
-        'leads'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? leadsApi.fetchLeads(orgId) : []),
     enabled: !!orgId,
     staleTime: 30_000,
-    placeholderData: MOCK_LEADS,
   });
 }
 
@@ -94,18 +56,9 @@ export function useLeadsWithStatus(): { data: Lead[]; isLoading: boolean } {
 
   const q = useQuery({
     queryKey: KEYS.leads(orgId),
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchLeads(orgId),
-        MOCK_LEADS,
-        'leads'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? leadsApi.fetchLeads(orgId) : []),
     enabled: !!orgId,
     staleTime: 30_000,
-    placeholderData: MOCK_LEADS,
   });
 
   return { data: q.data ?? [], isLoading: q.isLoading };
@@ -119,9 +72,6 @@ export function useCreateLead() {
   return useMutation({
     mutationFn: async (input: NewLeadInput) => {
       if (!orgId || !user?.id) throw new Error('No active org / user');
-      if (USE_MOCK) {
-        return { ...MOCK_LEADS[0], ...input, id: `mock-${Date.now()}` } as Lead;
-      }
       return leadsApi.createLead(orgId, input, user.id);
     },
     onSuccess: () => {
@@ -137,9 +87,6 @@ export function useUpdateLead() {
 
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: LeadUpdateInput }) => {
-      if (USE_MOCK) {
-        return { id, ...patch } as unknown as Lead;
-      }
       return leadsApi.updateLead(id, patch);
     },
     onSuccess: () => {
@@ -163,7 +110,6 @@ export function useConvertLead() {
       clientId?: string;
       quotationId?: string;
     }) => {
-      if (USE_MOCK) return { id, status: 'Converted' as const } as unknown as Lead;
       return leadsApi.convertLead(id, { clientId, quotationId });
     },
     onSuccess: () => {
@@ -179,7 +125,6 @@ export function useDisqualifyLead() {
 
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      if (USE_MOCK) return { id, status: 'Disqualified' as const, disqualified_reason: reason } as unknown as Lead;
       return leadsApi.disqualifyLead(id, reason);
     },
     onSuccess: () => {
@@ -198,17 +143,7 @@ export function useWinLossReasons(category?: WinLossCategory) {
 
   return useQuery({
     queryKey: KEYS.wlReasons(orgId, category),
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchWinLossReasons(orgId, category),
-        category
-          ? MOCK_WIN_LOSS_REASONS.filter((r) => r.category === category)
-          : MOCK_WIN_LOSS_REASONS,
-        'win-loss-reasons'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? leadsApi.fetchWinLossReasons(orgId, category) : []),
     enabled: !!orgId,
     staleTime: 5 * 60_000,
   });
@@ -224,15 +159,7 @@ export function useCadenceRules() {
 
   return useQuery({
     queryKey: KEYS.cadence(orgId),
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchCadenceRules(orgId),
-        MOCK_CADENCE_RULES,
-        'cadence-rules'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? leadsApi.fetchCadenceRules(orgId) : []),
     enabled: !!orgId,
     staleTime: 5 * 60_000,
   });
@@ -245,7 +172,6 @@ export function useUpsertCadenceRule() {
 
   return useMutation({
     mutationFn: async (rule: Omit<CadenceRule, 'id' | 'created_at' | 'updated_at'>) => {
-      if (USE_MOCK) return rule as CadenceRule;
       return leadsApi.upsertCadenceRule(rule);
     },
     onSuccess: () => {
@@ -264,16 +190,9 @@ export function useClientNextAction(clientId: string | null | undefined) {
 
   return useQuery({
     queryKey: KEYS.nextAction(orgId, clientId),
-    queryFn: async () => {
+    queryFn: () => {
       if (!orgId || !clientId) return null;
-      const safeOrgId = orgId;
-      const safeClientId = clientId;
-      const { data } = await withMockFallback<NextAction | null>(
-        () => leadsApi.fetchClientNextAction(safeOrgId, safeClientId),
-        MOCK_NEXT_ACTIONS[0] ?? null,
-        `next-action:${safeClientId}`
-      );
-      return data;
+      return leadsApi.fetchClientNextAction(orgId, clientId);
     },
     enabled: !!orgId && !!clientId,
     staleTime: 30_000,
@@ -286,15 +205,9 @@ export function useClientNextActionsBulk(clientIds: string[]) {
 
   return useQuery({
     queryKey: KEYS.nextActionsBulk(orgId),
-    queryFn: async () => {
+    queryFn: () => {
       if (!orgId || clientIds.length === 0) return new Map<string, NextAction>();
-      const safeOrgId = orgId;
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchClientNextActionsBulk(safeOrgId, clientIds),
-        new Map<string, NextAction>(MOCK_NEXT_ACTIONS.map((n, i) => [clientIds[i] ?? '', n])),
-        'next-action-bulk'
-      );
-      return data;
+      return leadsApi.fetchClientNextActionsBulk(orgId, clientIds);
     },
     enabled: !!orgId && clientIds.length > 0,
     staleTime: 30_000,
@@ -311,18 +224,9 @@ export function useLeadStatuses() {
 
   return useQuery({
     queryKey: KEYS.leadStatuses(orgId),
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchLeadStatuses(orgId),
-        MOCK_LEAD_STATUSES,
-        'lead-statuses'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? leadsApi.fetchLeadStatuses(orgId) : []),
     enabled: !!orgId,
     staleTime: 5 * 60_000,
-    placeholderData: MOCK_LEAD_STATUSES,
   });
 }
 
@@ -382,18 +286,9 @@ export function useLeadIndustries() {
 
   return useQuery({
     queryKey: KEYS.leadIndustries(orgId),
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await withMockFallback(
-        () => leadsApi.fetchLeadIndustries(orgId),
-        MOCK_LEAD_INDUSTRIES,
-        'lead-industries'
-      );
-      return data;
-    },
+    queryFn: () => (orgId ? leadsApi.fetchLeadIndustries(orgId) : []),
     enabled: !!orgId,
     staleTime: 5 * 60_000,
-    placeholderData: MOCK_LEAD_INDUSTRIES,
   });
 }
 
@@ -462,10 +357,7 @@ export function useLeadAssignmentRule() {
 
   return useQuery({
     queryKey: KEYS.leadAssignmentRule(orgId),
-    queryFn: async () => {
-      if (!orgId) return null;
-      return leadsApi.fetchLeadAssignmentRule(orgId);
-    },
+    queryFn: () => (orgId ? leadsApi.fetchLeadAssignmentRule(orgId) : null),
     enabled: !!orgId,
     staleTime: 5 * 60_000,
   });
