@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ChevronLeft, ChevronRight, Filter, Download, Plus, MoreHorizontal } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/Card';
 
 // Types based on the PRD
 type VoucherType = 'Sales' | 'Purchase' | 'Receipt' | 'Payment' | 'Journal' | 'Contra' | 'Credit Note' | 'Debit Note';
