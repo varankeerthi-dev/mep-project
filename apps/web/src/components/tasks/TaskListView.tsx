@@ -12,9 +12,17 @@ import {
   useDeleteTask,
   useCreateGroup,
   useBulkUpdateTasks,
+  useActiveTimer,
+  useStartTimer,
+  useStopTimer,
+  getTimeHealth,
   taskKeys,
 } from './hooks';
 import { useTaskPermissions } from './useTaskPermissions';
+import ActiveTimerBanner from './ActiveTimerBanner';
+import TimeSummaryCards from './TimeSummaryCards';
+import BulkAssignModal from './BulkAssignModal';
+import QuickTimeLog from './QuickTimeLog';
 import type {
   Task,
   TaskGroup,
@@ -50,6 +58,7 @@ import {
   Columns,
   Save,
   FolderPlus,
+  Clock,
 } from 'lucide-react';
 
 interface TaskListViewProps {
@@ -74,6 +83,8 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
   const [showQuickAdd, setShowQuickAdd] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState('');
   const [quickAddGroupId, setQuickAddGroupId] = useState<string | null>(null);
+  const [bulkAssignMode, setBulkAssignMode] = useState<'assign' | 'unassign' | null>(null);
+  const [quickLogTaskId, setQuickLogTaskId] = useState<string | null>(null);
 
   // Data fetching
   const { data: tasks = [], isLoading: tasksLoading } = useTasks(
@@ -90,6 +101,11 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
   const deleteTask = useDeleteTask();
   const createGroup = useCreateGroup();
   const bulkUpdate = useBulkUpdateTasks();
+
+  // Timer hooks
+  const startTimer = useStartTimer(organisationId);
+  const stopTimer = useStopTimer();
+  const { data: activeTimer } = useActiveTimer(user?.id);
 
   // Bulk operations
   const toggleSelectAll = useCallback(() => {
@@ -213,6 +229,9 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
 
   return (
     <div className="flex h-full flex-col bg-white">
+      {/* Active Timer Banner */}
+      {user?.id && <ActiveTimerBanner userId={user.id} />}
+
       {/* Command Bar */}
       <div className="sticky top-0 z-20 border-b border-zinc-200 bg-white">
         <div className="flex items-center gap-2 px-4 py-2">
@@ -353,6 +372,19 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
               >
                 Cancel
               </button>
+              <div className="h-4 w-px bg-blue-200" />
+              <button
+                onClick={() => setBulkAssignMode('assign')}
+                className="rounded bg-blue-600 px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-blue-700"
+              >
+                Assign...
+              </button>
+              <button
+                onClick={() => setBulkAssignMode('unassign')}
+                className="rounded border border-blue-200 bg-white px-2.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-50"
+              >
+                Unassign...
+              </button>
             </div>
           )}
 
@@ -434,6 +466,12 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
 
       {/* Table Header */}
       <div className="sticky top-[49px] z-10 border-b border-zinc-200 bg-zinc-50">
+        {/* Time Summary Cards */}
+        {tasks.length > 0 && (
+          <div className="border-b border-zinc-100 px-4 py-2">
+            <TimeSummaryCards tasks={tasks} />
+          </div>
+        )}
         <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-zinc-500">
           <div className="flex w-8 shrink-0 items-center justify-center px-1 py-2.5">
             <GripVertical size={12} className="text-zinc-300" />
@@ -504,6 +542,7 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
                 onStatusChange={handleStatusChange}
                 onPriorityChange={handlePriorityChange}
                 onDelete={handleDeleteTask}
+                onQuickLog={setQuickLogTaskId}
                 onQuickAdd={() => {
                   setShowQuickAdd(group.id);
                   setQuickAddGroupId(group.id);
@@ -532,6 +571,7 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
                 onStatusChange={handleStatusChange}
                 onPriorityChange={handlePriorityChange}
                 onDelete={handleDeleteTask}
+                onQuickLog={setQuickLogTaskId}
                 onQuickAdd={() => {
                   setShowQuickAdd('__ungrouped__');
                   setQuickAddGroupId(null);
@@ -549,6 +589,25 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
           </>
         )}
       </div>
+
+      {/* Bulk Assign Modal */}
+      {bulkAssignMode && (
+        <BulkAssignModal
+          taskIds={Array.from(selectedTaskIds)}
+          mode={bulkAssignMode}
+          onClose={() => { setBulkAssignMode(null); setSelectedTaskIds(new Set()); }}
+        />
+      )}
+
+      {/* Quick Time Log Modal */}
+      {quickLogTaskId && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setQuickLogTaskId(null)} />
+          <div className="relative z-10 w-full max-w-sm">
+            <QuickTimeLog taskId={quickLogTaskId} onClose={() => setQuickLogTaskId(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -568,6 +627,7 @@ function TaskGroupSection({
   onStatusChange,
   onPriorityChange,
   onDelete,
+  onQuickLog,
   onQuickAdd,
   showQuickAdd,
   quickAddValue,
@@ -587,6 +647,7 @@ function TaskGroupSection({
   onStatusChange: (id: string, status: TaskStatus) => void;
   onPriorityChange: (id: string, priority: TaskPriority) => void;
   onDelete: (id: string) => void;
+  onQuickLog: (id: string) => void;
   onQuickAdd: () => void;
   showQuickAdd: boolean;
   quickAddValue: string;
@@ -636,6 +697,7 @@ function TaskGroupSection({
             onStatusChange={onStatusChange}
             onPriorityChange={onPriorityChange}
             onDelete={onDelete}
+            onQuickLog={onQuickLog}
             canEdit={canEdit}
             canDelete={canDelete}
           />
@@ -678,6 +740,7 @@ function TaskRow({
   onStatusChange,
   onPriorityChange,
   onDelete,
+  onQuickLog,
   canEdit,
   canDelete,
 }: {
@@ -688,6 +751,7 @@ function TaskRow({
   onStatusChange: (id: string, status: TaskStatus) => void;
   onPriorityChange: (id: string, priority: TaskPriority) => void;
   onDelete: (id: string) => void;
+  onQuickLog: (id: string) => void;
   canEdit: boolean;
   canDelete: boolean;
 }) {
@@ -924,15 +988,36 @@ function TaskRow({
         </div>
       )}
 
-      {/* Act. Hours */}
+      {/* Act. Hours + Time Health */}
       {col.actual_hours?.visible && (
-        <div className="w-20 shrink-0 px-2 py-2.5 text-center text-[11px] tabular-nums text-zinc-500">
-          {task.actual_hours ?? <span className="text-zinc-300">—</span>}
+        <div className="w-24 shrink-0 px-2 py-2.5 flex items-center justify-center gap-1.5">
+          {(() => {
+            const health = getTimeHealth(task.estimated_hours, task.actual_hours);
+            const dotColor = health === 'on-track' ? 'bg-emerald-500' :
+              health === 'warning' ? 'bg-amber-500' :
+              health === 'over-budget' ? 'bg-red-500' : 'bg-zinc-300';
+            return (
+              <>
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotColor}`} />
+                <span className="text-[11px] tabular-nums text-zinc-500">
+                  {task.actual_hours ?? <span className="text-zinc-300">—</span>}
+                </span>
+              </>
+            );
+          })()}
         </div>
       )}
 
       {/* Actions */}
-      <div className="w-10 shrink-0 px-1 py-2.5 text-center">
+      <div className="w-16 shrink-0 px-1 py-2.5 flex items-center justify-center gap-0.5">
+        {/* Timer button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onQuickLog(task.id); }}
+          className="rounded p-1 text-zinc-300 opacity-0 transition-colors hover:bg-blue-50 hover:text-blue-500 group-hover:opacity-100"
+          title="Log time"
+        >
+          <Clock size={12} />
+        </button>
         {canDelete && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
