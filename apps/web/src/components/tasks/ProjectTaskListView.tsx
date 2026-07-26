@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
-import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { useAuth } from '../../contexts/AuthContext';
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
   Search,
@@ -30,6 +31,7 @@ import ProjectTaskCalendar from './ProjectTaskCalendar';
 import TaskEditDrawer from './TaskEditDrawer';
 import TaskCreateDrawer from './TaskCreateDrawer';
 import GroupCreateModal from './GroupCreateModal';
+import ActiveTimerBanner from './ActiveTimerBanner';
 import { TaskViewType } from './types';
 
 interface ProjectTaskListViewProps {
@@ -618,7 +620,8 @@ export default function ProjectTaskListView({
 
   // DnD sensors
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 5 } })
   );
 
   // Close dropdowns when clicking outside
@@ -1122,6 +1125,9 @@ export default function ProjectTaskListView({
 
   return (
     <div className="ptl-container">
+      {/* Active Timer Banner */}
+      {userId && <ActiveTimerBanner userId={userId} />}
+
       {/* Toolbar */}
       <div className={`ptl-toolbar ${toolbarCollapsed ? 'collapsed' : ''}`}>
         <div className={`ptl-toolbar-left ${toolbarCollapsed ? 'collapsed' : ''}`}>
