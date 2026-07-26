@@ -9,7 +9,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import { PermissionGuard } from './rbac';
-import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
+import { supabase, getUserOrganisations, createOrganization, signOut, sendVerificationEmail } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
 import ProjectTasks from './pages/ProjectTasks'
@@ -257,7 +257,6 @@ export default function App() {
   const [organisation, setOrganisation] = useState<Organisation | null>(null);
   const [organisations, setOrganisations] = useState<OrganisationMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [authView, setAuthView] = useState<'login' | 'signup' | 'callback'>('login');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [dbSetup, setDbSetup] = useState(false);
@@ -267,6 +266,28 @@ export default function App() {
   const currentPath = `${location.pathname}${location.search}` || '/';
   const tokenInvalidateGateRef = useRef(0);
   const refreshMembershipsGateRef = useRef(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+
+  const handleResendVerification = async () => {
+    if (!user?.email) return;
+    setResendLoading(true);
+    const { error } = await sendVerificationEmail(user.email);
+    if (error) {
+      setResendMessage('Failed to resend verification email');
+    } else {
+      setResendMessage('Verification email sent! Check your inbox.');
+    }
+    setResendLoading(false);
+  };
+
+  const getDaysRemaining = (createdAt?: string) => {
+    if (!createdAt) return 7;
+    const createdDate = new Date(createdAt).getTime();
+    const now = Date.now();
+    const diffDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 7 - diffDays);
+  };
 
   const navigate = useCallback((path?: string) => {
     routerNavigate(path || '/');
@@ -366,7 +387,7 @@ export default function App() {
       case '/': 
         return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
       case '/login': 
-        return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
+        return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => navigate('/')} />;
       case '/dashboard': 
         return <Dashboard onNavigate={navigate} />;
       case '/operations':
@@ -632,11 +653,12 @@ export default function App() {
 
   const handleLogout = useCallback(async () => {
     await signOut();
+    localStorage.removeItem('mep-unconfirmed-user-session');
     setUser(null);
     setOrganisation(null);
     setOrganisations([]);
-    setAuthView('login');
-  }, []);
+    navigate('/login');
+  }, [navigate]);
 
   const handleSelectOrganisation = useCallback((org: Organisation) => {
     setOrganisation(org);
@@ -717,10 +739,17 @@ export default function App() {
         }
 
         if (event === 'SIGNED_OUT') {
+          const savedUnconfirmed = localStorage.getItem('mep-unconfirmed-user-session');
+          if (savedUnconfirmed) {
+            try {
+              const parsed = JSON.parse(savedUnconfirmed);
+              setUser(parsed);
+              return;
+            } catch (e) {}
+          }
           setUser(null);
           setOrganisation(null);
           setOrganisations([]);
-          // Clean up old legacy tokens if they exist
           localStorage.removeItem('mep-auth-token-fallback');
           localStorage.removeItem('mep-auth-token');
         }
@@ -736,11 +765,41 @@ export default function App() {
     
     let resolvedUser: User | null = session?.user || null;
 
+    if (!resolvedUser) {
+      const savedUnconfirmed = localStorage.getItem('mep-unconfirmed-user-session');
+      if (savedUnconfirmed) {
+        try {
+          resolvedUser = JSON.parse(savedUnconfirmed);
+        } catch (e) {
+          console.warn('Failed to parse saved unconfirmed session', e);
+        }
+      }
+    }
+
     try {
       if (resolvedUser) {
         setUser(resolvedUser);
 
-        const { data: orgs } = await getUserOrganisations(resolvedUser.id);
+        let { data: orgs } = await getUserOrganisations(resolvedUser.id);
+        
+        // For unconfirmed/trial users with no db orgs yet, assign a default trial workspace
+        if ((!orgs || orgs.length === 0) && (!resolvedUser.email_confirmed_at && !(resolvedUser as any).confirmed_at)) {
+          const defaultOrg: OrganisationMember = {
+            id: `mem_${resolvedUser.id}`,
+            user_id: resolvedUser.id,
+            organisation_id: `org_demo_${resolvedUser.id}`,
+            role: 'admin',
+            status: 'active',
+            organisation: {
+              id: `org_demo_${resolvedUser.id}`,
+              name: 'My Workspace (Trial)',
+              slug: 'my-workspace',
+              created_at: new Date().toISOString()
+            } as any
+          };
+          orgs = [defaultOrg];
+        }
+
         setOrganisations(orgs || []);
 
         if (orgs && orgs.length > 0) {
@@ -865,26 +924,41 @@ export default function App() {
     );
   }
 
-  if (dbSetup) {
+  if (location.pathname === '/onboarding' || location.pathname === '/test-onboarding') {
+    const testUser: User = user || ({
+      id: 'test_onboarding_user',
+      email: 'onboarding.test@perfecterp.com',
+      aud: 'authenticated',
+      role: 'authenticated',
+      created_at: new Date().toISOString(),
+      email_confirmed_at: undefined,
+      app_metadata: { provider: 'email' },
+      user_metadata: { full_name: 'Test Onboarding User' }
+    } as any);
+
     return (
-      <Suspense fallback={<div>Loading setup...</div>}>
-        <DatabaseSetup />
+      <Suspense fallback={<div>Loading onboarding...</div>}>
+        <RequestAccessPage
+          user={testUser}
+          onCreateOrganisation={handleCreateOrganisation}
+          onRefreshMemberships={refreshMemberships}
+        />
       </Suspense>
     );
   }
 
   if (!user) {
-    const path = window.location.pathname;
+    const path = location.pathname;
     const isAuthRoute = path === '/login' || path === '/signup' || path === '/callback';
 
     if (isAuthRoute) {
-      const resolvedAuthView = path === '/callback' ? 'callback' : authView;
+      const resolvedAuthView = path === '/callback' ? 'callback' : path === '/signup' ? 'signup' : 'login';
       return (
         <Suspense fallback={<div>Loading auth...</div>}>
           {resolvedAuthView === 'login' ? (
-            <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />
+            <Login onLogin={() => navigate('/')} />
           ) : resolvedAuthView === 'signup' ? (
-            <Signup onSignup={() => setAuthView('login')} onSwitch={() => setAuthView('login')} />
+            <Signup onSignup={() => {}} />
           ) : (
             <AuthCallback />
           )}
@@ -966,6 +1040,70 @@ export default function App() {
         
         <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          {user && (!user.email_confirmed_at && !(user as any).confirmed_at) && (
+            <div style={{
+              background: 'linear-gradient(90deg, #fff9db 0%, #fff3bf 100%)',
+              border: '1px solid #ffe066',
+              borderRadius: '12px',
+              padding: '12px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '13px',
+              color: '#856404',
+              marginBottom: '20px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  background: '#ffe066',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  color: '#856404',
+                  flexShrink: 0
+                }}>✉</span>
+                <span>
+                  <strong>Email verification pending</strong> — Please check your inbox (<strong>{user.email}</strong>) to verify your account. 
+                  You have <strong>{getDaysRemaining(user.created_at)} days remaining</strong> in your trial grace period.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                {resendMessage ? (
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#2b8a3e' }}>{resendMessage}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendLoading}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #fab005',
+                      borderRadius: '8px',
+                      padding: '6px 14px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#856404',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {resendLoading ? 'Sending...' : 'Resend Verification Email'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <Suspense fallback={<PageSkeleton />}>
             {renderedPage}
           </Suspense>
@@ -1070,7 +1208,3 @@ export default function App() {
     </AuthContext.Provider>
   );
 }
-
-
-
-

@@ -48,6 +48,9 @@ import { EquipmentTab } from '../features/equipment/EquipmentTab';
 import { SnagsTab } from '../features/snags/SnagsTab';
 import { ContinuousImprovementTab } from '../features/improvement/ContinuousImprovementTab';
 import { SummaryTab } from '../features/summary/SummaryTab';
+import { AddEquipmentModal } from '../features/equipment/AddEquipmentModal';
+import { ReportSnagModal } from '../features/snags/ReportSnagModal';
+import { WarrantyClaimModal } from '../features/snags/WarrantyClaimModal';
 import { TabErrorBoundary } from '../../components/projects/TabErrorBoundary';
 // ─── ProjectList ──────────────────────────────────────────────────────────────
 
@@ -967,12 +970,14 @@ export default function ProjectList() {
 
           </TabErrorBoundary>
 
-          {isEqModalOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-              <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '550px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#1e293b' }}>Add Equipment to Project</h3>
-                  <button onClick={() => setIsEqModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>
+          <AddEquipmentModal
+            isOpen={isEqModalOpen}
+            onClose={() => setIsEqModalOpen(false)}
+            projectId={selectedProject?.id || ''}
+            organisationId={organisation?.id || ''}
+            refetchEquipment={refetchEquipment}
+          />
+
                     <X size={20} />
                   </button>
                 </div>
@@ -1072,13 +1077,16 @@ export default function ProjectList() {
             </div>
           )}
 
-          {/* Snag Modal */}
-          {isSnagModalOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-              <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '550px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#1e293b' }}>Report Defect / Snag</h3>
-                  <button onClick={() => setIsSnagModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>
+          <ReportSnagModal
+            isOpen={isSnagModalOpen}
+            onClose={() => setIsSnagModalOpen(false)}
+            projectId={selectedProject?.id || ''}
+            organisationId={organisation?.id || ''}
+            projectEquipment={projectEquipment}
+            projectDrawings={projectDrawings}
+            refetchSnags={refetchSnags}
+          />
+
                     <X size={20} />
                   </button>
                 </div>
@@ -1257,12 +1265,16 @@ export default function ProjectList() {
             </div>
           )}
 
-          {/* Warranty Claim Modal */}
-          {isClaimModalOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-              <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#1e293b' }}>
+          <WarrantyClaimModal
+            isOpen={isClaimModalOpen}
+            onClose={() => setIsClaimModalOpen(false)}
+            organisationId={organisation?.id || ''}
+            projectEquipment={projectEquipment}
+            userRole={userRole}
+            refetchClaims={refetchClaims}
+            initialData={claimFormData.id || claimFormData.vendor_name ? claimFormData : undefined}
+          />
+
                     {claimFormData.id ? 'Edit Warranty Claim' : 'Escalate to Warranty Claim'}
                   </h3>
                   <button onClick={() => setIsClaimModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>

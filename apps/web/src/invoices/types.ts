@@ -1,7 +1,7 @@
 export const invoiceSourceTypes = ['quotation', 'challan', 'po', 'direct'] as const;
 export const invoiceTemplateTypes = ['standard', 'lot', 'client_custom'] as const;
 export const invoiceModes = ['itemized', 'lot'] as const;
-export const invoiceStatuses = ['draft', 'final'] as const;
+export const invoiceStatuses = ['draft', 'final', 'converted', 'sent', 'paid', 'overdue', 'cancelled', 'partially_paid'] as const;
 
 export type InvoiceSourceType = (typeof invoiceSourceTypes)[number];
 export type InvoiceTemplateType = (typeof invoiceTemplateTypes)[number];

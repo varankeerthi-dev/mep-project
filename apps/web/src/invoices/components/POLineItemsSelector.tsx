@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Check, FilePlus, AlertCircle } from 'lucide-react';
+import { X, Check, AlertCircle, AlertTriangle } from 'lucide-react';
+import OverbillingReasonPanel, { type OverbillingReasonData } from './OverbillingReasonPanel';
 
 interface POLineItem {
   id: string;
@@ -32,6 +33,8 @@ interface SelectedItem {
   basic_amount: number;
   full_amount: number;
   original_quantity: number;
+  original_rate: number;
+  overbilling_reason?: OverbillingReasonData;
 }
 
 interface POLineItemsSelectorProps {
@@ -54,6 +57,7 @@ export default function POLineItemsSelector({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [editableQuantities, setEditableQuantities] = useState<Record<string, number>>({});
   const [editableRates, setEditableRates] = useState<Record<string, number>>({});
+  const [overbillingReasons, setOverbillingReasons] = useState<Record<string, OverbillingReasonData>>({});
 
   if (!isOpen) return null;
 
@@ -119,6 +123,10 @@ export default function POLineItemsSelector({
       const quantity = editableQuantities[itemId] || item.quantity;
       const rate = editableRates[itemId] || item.rate_per_unit;
       
+      const overbilling = (quantity > item.quantity || rate > item.rate_per_unit)
+        ? (overbillingReasons[item.id] ?? null)
+        : null;
+
       selectedData.push({
         id: item.id,
         description: item.description,
@@ -130,7 +138,9 @@ export default function POLineItemsSelector({
         item_code: item.item_code,
         basic_amount: calculateBasicAmount(item, quantity, rate),
         full_amount: calculateFullAmount(item, quantity, rate),
-        original_quantity: item.quantity
+        original_quantity: item.quantity,
+        original_rate: item.rate_per_unit,
+        overbilling_reason: overbilling
       });
     });
 
@@ -323,87 +333,150 @@ export default function POLineItemsSelector({
                 const editableRate = editableRates[item.id] || item.rate_per_unit;
                 const basicAmount = calculateBasicAmount(item, editableQty, editableRate);
                 const fullAmount = calculateFullAmount(item, editableQty, editableRate);
+                const hasOverage = isSelected && (editableQty > item.quantity || editableRate > item.rate_per_unit);
 
                 return (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '40px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
-                      padding: '12px 16px',
-                      fontSize: '13px',
-                      borderBottom: '1px solid #f3f4f6',
-                      backgroundColor: isSelected ? '#f0f9ff' : 'white',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleItemToggle(item.id)}
-                        style={{
-                          width: '16px',
-                          height: '16px',
-                          cursor: 'pointer'
-                        }}
-                      />
+                  <div key={item.id}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '40px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                        padding: '12px 16px',
+                        fontSize: '13px',
+                        borderBottom: hasOverage ? 'none' : '1px solid #f3f4f6',
+                        backgroundColor: isSelected ? '#f0f9ff' : 'white',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleItemToggle(item.id)}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      </div>
+                      <div style={{
+                        fontWeight: 500,
+                        color: '#374151',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        {item.description}
+                        {hasOverage && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            color: '#d97706',
+                            backgroundColor: '#fef3c7',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            <AlertTriangle size={10} />
+                            OVER
+                          </span>
+                        )}
+                      </div>
+                      <div>{item.hsn_sac_code || '-'}</div>
+                      <div>{item.unit || '-'}</div>
+                      <div>{item.quantity}</div>
+                      <div>
+                        <input
+                          type="number"
+                          value={editableQty}
+                          onChange={(e) => {
+                            handleQuantityChange(item.id, parseFloat(e.target.value) || 0);
+                            // Clear overbilling reason if qty is back within bounds
+                            const newQty = parseFloat(e.target.value) || 0;
+                            if (newQty <= item.quantity && (editableRate <= item.rate_per_unit)) {
+                              const newReasons = { ...overbillingReasons };
+                              delete newReasons[item.id];
+                              setOverbillingReasons(newReasons);
+                            }
+                          }}
+                          disabled={!isSelected}
+                          min="0"
+                          step="0.01"
+                          style={{
+                            width: '80px',
+                            padding: '4px 8px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            backgroundColor: isSelected ? 'white' : '#f9fafb',
+                            cursor: isSelected ? 'text' : 'not-allowed'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="number"
+                          value={editableRate}
+                          onChange={(e) => {
+                            handleRateChange(item.id, parseFloat(e.target.value) || 0);
+                            // Clear overbilling reason if rate is back within bounds
+                            const newRate = parseFloat(e.target.value) || 0;
+                            if (newRate <= item.rate_per_unit && (editableQty <= item.quantity)) {
+                              const newReasons = { ...overbillingReasons };
+                              delete newReasons[item.id];
+                              setOverbillingReasons(newReasons);
+                            }
+                          }}
+                          disabled={!isSelected}
+                          min="0"
+                          step="0.01"
+                          style={{
+                            width: '80px',
+                            padding: '4px 8px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            backgroundColor: isSelected ? 'white' : '#f9fafb',
+                            cursor: isSelected ? 'text' : 'not-allowed'
+                          }}
+                        />
+                      </div>
+                      <div style={{
+                        textAlign: 'right',
+                        fontWeight: 500,
+                        color: '#374151'
+                      }}>{formatCurrency(basicAmount)}</div>
+                      <div style={{
+                        textAlign: 'right',
+                        fontWeight: 600,
+                        color: '#111827'
+                      }}>{formatCurrency(fullAmount)}</div>
                     </div>
-                    <div style={{
-                      fontWeight: 500,
-                      color: '#374151'
-                    }}>{item.description}</div>
-                    <div>{item.hsn_sac_code || '-'}</div>
-                    <div>{item.unit || '-'}</div>
-                    <div>{item.quantity}</div>
-                    <div>
-                      <input
-                        type="number"
-                        value={editableQty}
-                        onChange={(e) => handleQuantityChange(item.id, parseFloat(e.target.value) || 0)}
-                        disabled={!isSelected}
-                        min="0"
-                        step="0.01"
-                        style={{
-                          width: '80px',
-                          padding: '4px 8px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          backgroundColor: isSelected ? 'white' : '#f9fafb',
-                          cursor: isSelected ? 'text' : 'not-allowed'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="number"
-                        value={editableRate}
-                        onChange={(e) => handleRateChange(item.id, parseFloat(e.target.value) || 0)}
-                        disabled={!isSelected}
-                        min="0"
-                        step="0.01"
-                        style={{
-                          width: '80px',
-                          padding: '4px 8px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          backgroundColor: isSelected ? 'white' : '#f9fafb',
-                          cursor: isSelected ? 'text' : 'not-allowed'
-                        }}
-                      />
-                    </div>
-                    <div style={{
-                      textAlign: 'right',
-                      fontWeight: 500,
-                      color: '#374151'
-                    }}>{formatCurrency(basicAmount)}</div>
-                    <div style={{
-                      textAlign: 'right',
-                      fontWeight: 600,
-                      color: '#111827'
-                    }}>{formatCurrency(fullAmount)}</div>
+
+                    {/* Overbilling reason panel - inline below the row */}
+                    {hasOverage && (
+                      <div style={{
+                        padding: '0 16px 12px 56px',
+                        backgroundColor: '#f0f9ff',
+                        borderBottom: '1px solid #f3f4f6'
+                      }}>
+                        <OverbillingReasonPanel
+                          itemId={item.id}
+                          originalQty={item.quantity}
+                          originalRate={item.rate_per_unit}
+                          enteredQty={editableQty}
+                          enteredRate={editableRate}
+                          reasonData={overbillingReasons[item.id]}
+                          onChange={(id, data) => {
+                            setOverbillingReasons(prev => ({ ...prev, [id]: data }));
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

@@ -969,19 +969,26 @@ export async function resolveClientIdFromName(
 }
 
 // Get status to set on source document after conversion
+// Returns canonical status enum values for state machine consistency
+//
+// CASING CONVENTION:
+// - Quotation DB uses title-case statuses: 'Draft', 'Sent', 'Converted', 'Approved', etc.
+// - Proforma/Invoice DB uses lowercase statuses: 'draft', 'sent', 'converted', 'final', etc.
+// This function returns the correct casing per target table.
+// When adding new conversion types, match the target table's convention.
 export function getSourceStatusAfterConversion(conversionType: ConversionType): string {
   const statusMap: Record<ConversionType, string> = {
-    'quotation-to-proforma': 'Converted to Proforma',
-    'quotation-to-invoice': 'Converted to Sales',
-    'quotation-to-dc': 'Converted to Delivery',
-    'dc-to-quotation': 'Converted to Quotation',
-    'dc-to-proforma': 'Converted to Proforma',
-    'proforma-to-invoice': 'Converted to Invoice',
-    'multi-dc-to-quotation': 'Converted to Quotation',
-    'invoice-to-creditnote': 'Converted to Credit Note',
-    'invoice-to-challan': 'Converted to Delivery',
-    'client-po-to-invoice': 'Converted to Invoice',
-    'dc-to-invoice': 'Converted to Invoice',
+    'quotation-to-proforma': 'Converted',
+    'quotation-to-invoice': 'Converted',
+    'quotation-to-dc': 'Converted',
+    'dc-to-quotation': 'Converted',
+    'dc-to-proforma': 'Converted',
+    'proforma-to-invoice': 'converted',
+    'multi-dc-to-quotation': 'Converted',
+    'invoice-to-creditnote': 'converted',
+    'invoice-to-challan': 'converted',
+    'client-po-to-invoice': 'converted',
+    'dc-to-invoice': 'Converted',
     'purchase-po-to-bill': 'Billed',
   };
 

@@ -24,23 +24,15 @@ import {
 } from 'lucide-react';
 import { useProformaInvoices, useCloneProforma, useSendProforma, useMarkAccepted, useMarkRejected, useDeleteProforma } from '../hooks';
 import { downloadProformaPdf, emailProformaInvoice } from '../pdf';
+import { DocumentStatusBadge } from '../../components/DocumentStatusBadge';
 import { PDFDocument } from 'pdf-lib';
+import ProformaTemplateSelector from '../components/ProformaTemplateSelector';
 
-const PROFORMA_STATUSES = ['All', 'draft', 'sent', 'accepted', 'rejected'];
+const PROFORMA_STATUSES = ['All', 'draft', 'sent', 'accepted', 'rejected', 'converted', 'expired'];
 
 const SUB_TABS = ['All Proformas', 'Drafts'];
 
-const STATUS_FILTER_OPTIONS = ['All', 'sent', 'accepted', 'rejected'];
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  draft:    { bg: '#f3f4f6', color: '#6b7280' },
-  sent:     { bg: '#fef3c7', color: '#92400e' },
-  accepted: { bg: '#d1fae5', color: '#047857' },
-  rejected: { bg: '#fee2e2', color: '#dc2626' },
-};
-
-const getStatusColor = (status?: string) =>
-  STATUS_COLORS[status ?? ''] ?? STATUS_COLORS['draft'];
+const STATUS_FILTER_OPTIONS = ['All', 'sent', 'accepted', 'rejected', 'converted', 'expired'];
 
 const MANDATORY_COLUMNS = ['date', 'pi_number', 'client', 'total'];
 const ALL_COLUMNS = [
@@ -74,6 +66,9 @@ export default function ProformaListPage() {
     return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
   });
   const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [downloadForProformaId, setDownloadForProformaId] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -87,6 +82,31 @@ export default function ProformaListPage() {
   const { mutate: acceptMutate } = useMarkAccepted();
   const { mutate: rejectMutate } = useMarkRejected();
   const { mutate: deleteMutate } = useDeleteProforma();
+
+  // Fetch default proforma template
+  const { data: defaultTemplate } = useQuery({
+    queryKey: ['default-proforma-template', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('id')
+        .eq('organisation_id', organisation?.id)
+        .in('document_type', ['proforma', 'invoice'])
+        .eq('is_default', true)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!organisation?.id,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Sync selected template from default on load
+  useEffect(() => {
+    if (defaultTemplate && !selectedTemplateId) {
+      setSelectedTemplateId(defaultTemplate.id);
+    }
+  }, [defaultTemplate, selectedTemplateId]);
 
   const { data: proformas = [], isLoading } = useProformaInvoices({
     organisationId: organisation?.id || undefined,
@@ -421,6 +441,15 @@ export default function ProformaListPage() {
             Create Proforma
           </button>
 
+          <button
+            onClick={() => setShowTemplateSelector(true)}
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors active:scale-[0.98]"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            <FileCheckIcon className="w-4 h-4 mr-1.5" />
+            Choose Template
+          </button>
+
           <div className="relative" ref={columnCustomizerRef}>
             <button
               onClick={() => setShowColumnCustomizer(!showColumnCustomizer)}
@@ -532,7 +561,7 @@ export default function ProformaListPage() {
                         if (col.id === 'prepared_by') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70"><div className="truncate" title={p.creator?.full_name || p.prepared_by || '-'}>{p.creator?.full_name || p.prepared_by || '-'}</div></td>;
                         if (col.id === 'status') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                            <span className="text-sm font-medium" style={{ color: getStatusColor(p.status).color }}>{p.status}</span>
+                            <DocumentStatusBadge status={p.status} />
                           </td>
                         );
                         if (col.id === 'subtotal') return <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(p.subtotal)}</div></td>;
@@ -549,7 +578,7 @@ export default function ProformaListPage() {
                             }`}>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/proforma-invoices/edit?id=${p.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><EyeIcon className="w-3.5 h-3.5" />View / Edit</button>
                               <button onClick={(e) => { e.stopPropagation(); navigate(`/invoices/create?convertFrom=proforma-to-invoice&sourceId=${p.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><FileCheckIcon className="w-3.5 h-3.5" />Convert to Invoice</button>
-                              <button onClick={(e) => { e.stopPropagation(); downloadProformaPdf(p, { organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
+                              <button onClick={(e) => { e.stopPropagation(); setDownloadForProformaId(p.id!); setShowTemplateSelector(true); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</button>
                               <button onClick={(e) => { e.stopPropagation(); cloneMutate({ id: p.id!, organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><CopyIcon className="w-3.5 h-3.5" />Duplicate</button>
                               <div className="my-1 border-t border-zinc-100" />
                               <button onClick={(e) => { e.stopPropagation(); if(confirm('Delete proforma?')) deleteMutate({ id: p.id!, organisationId: organisation?.id! }); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]" style={{ padding: '6px' }}><Trash2Icon className="w-3.5 h-3.5" />Delete</button>
@@ -580,6 +609,60 @@ export default function ProformaListPage() {
           <button onClick={() => setCurrentPage(currentPage + 1)} disabled={!paginationData.hasNextPage} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${paginationData.hasNextPage ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm' : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'}`}>Next</button>
         </div>
       </div>
+      {/* Template Selector Modal */}
+      <ProformaTemplateSelector
+        isOpen={showTemplateSelector}
+        onClose={() => {
+          setShowTemplateSelector(false);
+          setDownloadForProformaId(null);
+        }}
+        onDownload={async (templateId: string) => {
+          // Fetch the full template so PDF generation gets all fields (template_code, column_settings, etc.)
+          const { data: fullTemplate } = await supabase
+            .from('document_templates')
+            .select('*')
+            .eq('id', templateId)
+            .maybeSingle();
+          if (!fullTemplate) {
+            console.error('Template not found:', templateId);
+            return;
+          }
+          const proformaId = downloadForProformaId;
+          if (proformaId) {
+            const proforma = proformas.find(p => p.id === proformaId);
+            if (proforma) {
+              await downloadProformaPdf(proforma, { organisationId: organisation?.id!, template: fullTemplate });
+            }
+          } else if (filteredProformas.length > 0) {
+            const count = filteredProformas.length;
+            if (count > 1 && !confirm(`Download ${count} proforma invoices with this template?`)) {
+              return;
+            }
+            for (const p of filteredProformas) {
+              await downloadProformaPdf(p, { organisationId: organisation?.id!, template: fullTemplate });
+            }
+          }
+          setSelectedTemplateId(templateId);
+          setDownloadForProformaId(null);
+          // Invalidate the default template query so the badge updates
+          queryClient.invalidateQueries({ queryKey: ['default-proforma-template', organisation?.id] });
+        }}
+        onPreview={async (templateId: string) => {
+          const { data: fullTemplate } = await supabase
+            .from('document_templates')
+            .select('*')
+            .eq('id', templateId)
+            .maybeSingle();
+          if (!fullTemplate) return;
+          const firstProforma = filteredProformas[0];
+          if (firstProforma) {
+            await downloadProformaPdf(firstProforma, { 
+              organisationId: organisation?.id!, 
+              template: fullTemplate 
+            });
+          }
+        }}
+      />
     </div>
   );
 }

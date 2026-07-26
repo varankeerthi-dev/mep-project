@@ -27,15 +27,16 @@ import {
 } from 'lucide-react';
 import { useInvoices, useDeleteInvoice } from '../hooks';
 import { downloadInvoicePDF, printInvoicePDF, emailInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
+import { DocumentStatusBadge } from '../../components/DocumentStatusBadge';
 import { PDFDocument } from 'pdf-lib';
 import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
 import AddSubmittedDetailsDrawer from '../components/AddSubmittedDetailsDrawer';
 
-const INVOICE_STATUSES = ['All', 'draft', 'sent', 'paid', 'overdue', 'cancelled'];
+const INVOICE_STATUSES = ['All', 'draft', 'sent', 'paid', 'overdue', 'cancelled', 'converted'];
 
 const SUB_TABS = ['All Invoices', 'Drafts', 'Unpaid'];
 
-const STATUS_FILTER_OPTIONS = ['All', 'sent', 'paid', 'overdue', 'cancelled'];
+const STATUS_FILTER_OPTIONS = ['All', 'sent', 'paid', 'overdue', 'cancelled', 'converted'];
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   draft:     { bg: '#f3f4f6', color: '#6b7280' },
@@ -481,15 +482,7 @@ export default function InvoiceListPage() {
                         );
                         if (col.id === 'status') return (
                           <td key={col.id} className="px-6 py-[32px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                            <span 
-                              className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" 
-                              style={{ 
-                                backgroundColor: getStatusColor(getPaymentStatus(i)).bg,
-                                color: getStatusColor(getPaymentStatus(i)).color 
-                              }}
-                            >
-                              {getPaymentStatus(i)}
-                            </span>
+                            <DocumentStatusBadge status={getPaymentStatus(i)} />
                           </td>
                         );
                         if (col.id === 'subtotal') return <td key={col.id} className="px-6 py-[32px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70"><div className="text-right">{formatCurrency(i.subtotal)}</div></td>;

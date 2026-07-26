@@ -13,11 +13,16 @@ import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
 import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
 import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { DocumentConversionChain } from '../../components/DocumentConversionChain';
+import { RevisionBadge } from '../../components/RevisionBadge';
+import { RevisionHistoryDialog } from '../../components/RevisionHistoryDialog';
+import { RevisionReasonDialog } from '../../components/RevisionReasonDialog';
 import { ArcPricingToggle, ArcPricingStatusBadge } from '@/components/ArcPricingToggle';
 import { ArcConfirmationDialog, type ArcPricingItem } from '@/components/ArcConfirmationDialog';
 import { fetchArcPricingForItems } from '@/lib/arc-pricing';
 import { AddShippingAddressModal } from '../components/AddShippingAddressModal';
 import POLineItemsSelector from '../components/POLineItemsSelector';
+import { updatePoLineItemBilling, extractInvoicePoItems } from '../../lib/poBillingUtils';
 import QuotationLineItemsSelector from '../components/QuotationLineItemsSelector';
 import ProformaLineItemsSelector from '../components/ProformaLineItemsSelector';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
@@ -284,6 +289,14 @@ export default function InvoiceEditorPage() {
   const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
   const [pendingArcEnabled, setPendingArcEnabled] = useState(false);
 
+  // ── Revision Management ──
+  const [invoiceRevisionNo, setInvoiceRevisionNo] = useState(1);
+  const [invoiceRevisionHistory, setInvoiceRevisionHistory] = useState<any[]>([]);
+  const [invoiceRevisionReason, setInvoiceRevisionReason] = useState('');
+  const [invoiceRevisionDialogOpen, setInvoiceRevisionDialogOpen] = useState(false);
+  const [invoiceReasonDialogOpen, setInvoiceReasonDialogOpen] = useState(false);
+  const [pendingInvoiceSave, setPendingInvoiceSave] = useState<boolean>(false);
+
   const handlePOSelection = () => {
     if (selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data) {
       setIsPOSelectorOpen(true);
@@ -310,12 +323,15 @@ export default function InvoiceEditorPage() {
           uom: item.unit || 'Nos',
           item_code: item.item_code || null,
           po_line_item_id: item.id,
+          po_id: selectedSourceId || null,
           original_quantity: item.original_quantity,
+          original_rate: item.original_rate || item.rate_per_unit,
           base_rate: poRate,
           rate_after_discount: poRate,
           material_id: item.item_id || null,
           variant_id: item.variant_id || null,
           make: item.make || null,
+          overbilling_reason: item.overbilling_reason || null,
         },
       };
     });
@@ -1034,6 +1050,9 @@ export default function InvoiceEditorPage() {
 
     loadedInvoiceIdRef.current = invoiceQuery.data.id ?? '';
     reset(invoiceToFormValues(invoiceQuery.data));
+    setInvoiceRevisionNo(invoiceQuery.data.revision_no ?? 1);
+    setInvoiceRevisionHistory(invoiceQuery.data.revision_history ?? []);
+    setInvoiceRevisionReason(invoiceQuery.data.revision_reason ?? '');
     initialSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}`;
     hydratedSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}:${invoiceQuery.data.mode}`;
   }, [invoiceQuery.data, reset]);
@@ -1375,6 +1394,23 @@ export default function InvoiceEditorPage() {
           .eq('id', newInvoiceId);
       }
 
+      // Update PO line item billing after successful save (first creation only)
+      if (newInvoiceId) {
+        try {
+          const poItems = extractInvoicePoItems(values.items);
+          if (poItems.length > 0) {
+            await updatePoLineItemBilling({
+              organisationId: organisation?.id!,
+              sourceType: 'invoice',
+              sourceId: newInvoiceId,
+              items: poItems,
+            });
+          }
+        } catch (billingError) {
+          console.error('Failed to update PO billing:', billingError);
+        }
+      }
+
       navigate('/invoices');
     } catch (error) {
       console.error('Failed to save invoice:', error);
@@ -1442,7 +1478,57 @@ export default function InvoiceEditorPage() {
     }
   };
 
+  // ── Revision Management: Save current invoice revision snapshot before bumping ──
+  const saveInvoiceCurrentRevision = useCallback(async (reason: string): Promise<boolean> => {
+    if (!invoiceId || !organisation?.id) return false;
+    const currentRevNo = invoiceRevisionNo || 1;
+    const newRevNo = currentRevNo + 1;
+    const revisionSnapshot = {
+      revision_no: currentRevNo,
+      saved_at: new Date().toISOString(),
+      reason: reason || '',
+      items: watchedItems.map(item => ({ ...item })),
+      header: {
+        subtotal: totals.subtotal,
+        total: totals.total,
+        cgst: totals.cgst,
+        sgst: totals.sgst,
+        igst: totals.igst,
+      },
+    };
+    const newHistory = [...(invoiceRevisionHistory || []), revisionSnapshot];
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          revision_no: newRevNo,
+          revision_history: newHistory,
+          revision_reason: reason || invoiceRevisionReason,
+        })
+        .eq('id', invoiceId);
+      if (error) throw error;
+      setInvoiceRevisionNo(newRevNo);
+      setInvoiceRevisionHistory(newHistory);
+      setInvoiceRevisionReason(reason || invoiceRevisionReason);
+      return true;
+    } catch (err) {
+      console.error('Error saving invoice revision:', err);
+      return false;
+    }
+  }, [invoiceId, organisation?.id, invoiceRevisionNo, invoiceRevisionHistory, invoiceRevisionReason, watchedItems, totals]);
+
   const handleSaveAsDraft = handleSubmit(async (values) => {
+    // For existing invoices, ask for revision reason before proceeding
+    if (isEditMode && invoiceId) {
+      setPendingInvoiceSave(true);
+      setInvoiceReasonDialogOpen(true);
+      return;
+    }
+
+    await executeInvoiceDraftSave(values);
+  });
+
+  const executeInvoiceDraftSave = async (values: any) => {
     const payload = composeInvoiceInput({
       ...values,
       invoice_no: null,
@@ -1460,7 +1546,7 @@ export default function InvoiceEditorPage() {
       console.error('Failed to save draft:', error);
       alert('Failed to save draft: ' + (error as Error).message);
     }
-  });
+  };
 
   const handleEmailPdf = async () => {
     if (!invoiceId) return;
@@ -1498,15 +1584,18 @@ export default function InvoiceEditorPage() {
         marginBottom: '16px',
         paddingBottom: '12px',
         borderBottom: '1px solid #e5e5e5'
-      }}>
-        <h1 style={{ 
-          fontSize: '20px', 
-          fontWeight: 600, 
+      }}>        <div style={{
+          fontSize: '20px',
+          fontWeight: 600,
           color: '#0a0a0a',
-          margin: 0
+          margin: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
         }}>
           {isEditMode ? 'Edit Invoice' : isDuplicating ? 'Create Invoice from Existing' : 'New Invoice'}
-        </h1>
+          <RevisionBadge revisionNo={invoiceRevisionNo} onClick={() => setInvoiceRevisionDialogOpen(true)} />
+          </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           <InvoiceStatusBadge status={getValues('status')} />
@@ -1665,6 +1754,14 @@ export default function InvoiceEditorPage() {
             </button>
           </div>
         )}
+
+        {/* Conversion Chain Breadcrumb */}
+        {invoiceId && (
+          <div style={{ marginBottom: '12px' }}>
+            <DocumentConversionChain documentType="invoice" documentId={invoiceId} />
+          </div>
+        )}
+
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
@@ -2481,6 +2578,36 @@ export default function InvoiceEditorPage() {
           reference_number: form.getValues('invoice_no')
         }}
         onImport={handleImportSuccess}
+      />
+
+      {/* Revision Reason Dialog */}
+      <RevisionReasonDialog
+        open={invoiceReasonDialogOpen}
+        onClose={() => {
+          setInvoiceReasonDialogOpen(false);
+          setPendingInvoiceSave(false);
+        }}
+        onConfirm={async (reason) => {
+          setInvoiceRevisionReason(reason);
+          setInvoiceReasonDialogOpen(false);
+          await saveInvoiceCurrentRevision(reason);
+          setPendingInvoiceSave(false);
+          // Re-trigger the save after revision snapshot
+          const values = getValues();
+          executeInvoiceDraftSave(values);
+        }}
+        currentRevisionNo={invoiceRevisionNo}
+        documentNumber={getValues('invoice_no') || 'INV-0001'}
+      />
+
+      {/* Revision History Dialog */}
+      <RevisionHistoryDialog
+        open={invoiceRevisionDialogOpen}
+        onClose={() => setInvoiceRevisionDialogOpen(false)}
+        revisionHistory={invoiceRevisionHistory}
+        currentRevisionNo={invoiceRevisionNo}
+        currentTotal={totals?.total || 0}
+        documentNumber={getValues('invoice_no') || 'INV-0001'}
       />
     </div>
   );

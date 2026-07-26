@@ -13,7 +13,8 @@ import { isInterstate } from '../logic';
 import { createProforma, updateProforma, getProformaById, sendProforma, markAccepted } from '../api';
 import type { ProformaStatus } from '../types';
 import type { ProformaInput, ProformaItem } from '../schemas';
-import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Briefcase, Calendar, User, Info, RotateCcw } from 'lucide-react';
+import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Briefcase, User, Info, RotateCcw, ArrowUpDown, Columns } from 'lucide-react';
+import { CustomDatePicker, DocumentActionBar, HeaderFormGrid, HeaderCard, HeaderField, PrimaryButton, SecondaryButton, ImportButton } from '../../components/document-editor';
 import ItemSelectorDrawer from '../../components/ItemSelectorDrawer';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
 import { useClientPOs } from '../hooks';
@@ -25,8 +26,17 @@ import { ArcPricingToggle, ArcPricingStatusBadge } from '../../components/ArcPri
 import { getArcRateFromMap, fetchArcPricingForItems } from '../../lib/arc-pricing';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { ArcConfirmationDialog, type ArcPricingItem } from '../../components/ArcConfirmationDialog';
-import { format, subMonths, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
 import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
+import { TermsConditionsDrawer } from '../../components/TermsConditionsDrawer';
+import { z } from 'zod';
+import { ProformaItemsTable } from '../components/ProformaItemsTable';
+import { DocumentConversionChain } from '../../components/DocumentConversionChain';
+import POLineItemsSelector from '../../invoices/components/POLineItemsSelector';
+import { updatePoLineItemBilling } from '../../lib/poBillingUtils';
+import { RevisionBadge } from '../../components/RevisionBadge';
+import { RevisionHistoryDialog } from '../../components/RevisionHistoryDialog';
+import { RevisionReasonDialog } from '../../components/RevisionReasonDialog';
+import { PdfFlavorSelector, getFlavorConfig, type PdfFlavor } from '../../components/PdfFlavorSelector';
 
 // Helper to convert number to words for INR
 function numberToWords(num: number) {
@@ -49,156 +59,7 @@ function numberToWords(num: number) {
   return inWords(Math.round(num));
 }
 
-interface CustomDatePickerProps {
-  value: string;
-  onChange: (val: string) => void;
-  placeholder?: string;
-  inputStyle?: React.CSSProperties;
-  disabled?: boolean;
-}
-
-function CustomDatePicker({ value, onChange, placeholder = "Select date", inputStyle, disabled }: CustomDatePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(() => {
-    return value ? new Date(value) : new Date();
-  });
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handlePrevMonth = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentDate(prev => subMonths(prev, 1));
-  };
-
-  const handleNextMonth = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentDate(prev => addMonths(prev, 1));
-  };
-
-  const handleSelectDay = (day: Date, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const formatted = format(day, 'yyyy-MM-dd');
-    onChange(formatted);
-    setIsOpen(false);
-  };
-
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startDayOfWeek = getDay(monthStart);
-
-  const getFormattedValue = () => {
-    if (!value) return '';
-    try {
-      return format(new Date(value), 'dd MMM yyyy');
-    } catch (e) {
-      return value;
-    }
-  };
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      <div 
-        onClick={() => {
-          if (!disabled) setIsOpen(!isOpen);
-        }}
-        className="cq-datepicker-input"
-        style={{ ...inputStyle, cursor: disabled ? 'not-allowed' : 'pointer', background: disabled ? '#f3f4f6' : undefined }}
-      >
-        <span style={{ color: value ? '#1f2937' : '#9ca3af', fontWeight: value ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {getFormattedValue() || placeholder}
-        </span>
-      </div>
-
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          marginTop: '4px',
-          zIndex: 100,
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
-          padding: '12px',
-          width: '250px'
-        }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <button type="button" onClick={handlePrevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&lt;</button>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>
-              {format(currentDate, 'MMMM yyyy')}
-            </span>
-            <button type="button" onClick={handleNextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', padding: '2px 6px', fontSize: '14px', fontWeight: 'bold' }}>&gt;</button>
-          </div>
-
-          {/* Weekday headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '4px' }}>
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((wd) => (
-              <span key={wd} style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af' }}>{wd}</span>
-            ))}
-          </div>
-
-          {/* Days Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-            {/* Empty cells for leading days */}
-            {Array.from({ length: startDayOfWeek }).map((_, i) => (
-              <span key={`empty-${i}`} />
-            ))}
-            
-            {/* Days in Month */}
-            {daysInMonth.map((day) => {
-              const isSelected = value && isSameDay(day, new Date(value));
-              const isToday = isSameDay(day, new Date());
-              return (
-                <button
-                  key={day.toString()}
-                  type="button"
-                  onClick={(e) => handleSelectDay(day, e)}
-                  style={{
-                    background: isSelected ? '#2563eb' : 'transparent',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: isSelected || isToday ? 'bold' : 'normal',
-                    color: isSelected ? 'white' : isToday ? '#2563eb' : '#374151',
-                    cursor: 'pointer',
-                    height: '24px',
-                    width: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.1s'
-                  }}
-                  onMouseEnter={e => {
-                    if (!isSelected) e.currentTarget.style.background = '#f3f4f6';
-                  }}
-                  onMouseLeave={e => {
-                    if (!isSelected) e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  {format(day, 'd')}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface LineItem {
+export interface LineItem {
   description: string;
   hsn_code: string | null;
   qty: number;
@@ -328,6 +189,7 @@ export default function ProformaEditorPage() {
   const [roundOff, setRoundOff] = useState(false);
   const [renderAsTaxInvoice, setRenderAsTaxInvoice] = useState(false);
   const [showWatermark, setShowWatermark] = useState(false);
+  const [pdfFlavor, setPdfFlavor] = useState<PdfFlavor>('proforma');
   const [discountPercent, setDiscountPercent] = useState<number | string>(0);
   const [discountAmount, setDiscountAmount] = useState<number | string>(0);
   const [templateSettings, setTemplateSettings] = useState<any>(null);
@@ -336,25 +198,21 @@ export default function ProformaEditorPage() {
   const [discountCategoryMap, setDiscountCategoryMap] = useState<Record<string, any>>({});
   const [authorizedSignatoryId, setAuthorizedSignatoryId] = useState('');
   const [isSigDropdownOpen, setIsSigDropdownOpen] = useState(false);
+  const [draggingItemId, setDraggingItemId] = useState<string | number | null>(null);
+  const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
+  const [showTermsDrawer, setShowTermsDrawer] = useState(false);
+  const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
+  const [moveToDialog, setMoveToDialog] = useState<{
+    open: boolean;
+    itemId: string | number | null;
+    currentSNo: number;
+    value: string;
+    error: string;
+  } | null>(null);
 
-  // Client search UI state
-  const [clientSearch, setClientSearch] = useState('');
+  // Client search UI state (null = show selected client name; string = show typed text)
+  const [clientSearch, setClientSearch] = useState<string | null>(null);
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
-
-  // Top action bar measurement state
-  const headerRef = useRef<HTMLDivElement>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
-
-  useEffect(() => {
-    const measure = () => {
-      if (headerRef.current) {
-        setHeaderHeight(headerRef.current.offsetHeight);
-      }
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
 
   // ARC Pricing state
   const [useArcPricing, setUseArcPricing] = useState(false);
@@ -362,6 +220,21 @@ export default function ProformaEditorPage() {
   const [arcPricingNotice, setArcPricingNotice] = useState(false);
   const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
   const [variantPricing, setVariantPricing] = useState<Record<string, Record<string, Record<string, number>>>>({});
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
+  const [pickerItems, setPickerItems] = useState<any[]>([]);
+  const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
+  const [isPOSelectorOpen, setIsPOSelectorOpen] = useState(false);
+  const [selectedPOLineItems, setSelectedPOLineItems] = useState<any[]>([]);
+  const [isApplyingPOItems, setIsApplyingPOItems] = useState(false);
+
+  // ── Revision Management ──
+  const [revisionNo, setRevisionNo] = useState(1);
+  const [revisionHistory, setRevisionHistory] = useState<any[]>([]);
+  const [revisionReason, setRevisionReason] = useState('');
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [pendingSaveWithReason, setPendingSaveWithReason] = useState<{ shouldPrint: boolean } | null>(null);
 
   const { data: clients = [] } = useClients();
   const selectedClient = useMemo(() => clients.find(c => c.id === clientId) as any, [clients, clientId]);
@@ -372,6 +245,29 @@ export default function ProformaEditorPage() {
       .join(', ');
   }, [selectedClient]);
   const { data: clientPOs = [] } = useClientPOs(clientId);
+
+  // PO details query for line items selector
+  const poDetailsQuery = useQuery({
+    queryKey: ['po-details', selectedPOId, organisation?.id],
+    queryFn: async () => {
+      if (!selectedPOId) return null;
+      const { data: header } = await supabase
+        .from('client_purchase_orders')
+        .select('id, po_number, po_total_value, po_utilized_value, po_available_value')
+        .eq('id', selectedPOId)
+        .single();
+      if (!header) return null;
+      const { data: items } = await supabase
+        .from('po_line_items')
+        .select('*')
+        .eq('po_id', selectedPOId)
+        .order('line_order', { ascending: true });
+      return { header, items: items || [] };
+    },
+    enabled: !!selectedPOId && !!organisation?.id,
+    staleTime: 0,
+  });
+
   const { data: variants = [] } = useQuery({
     queryKey: ['company-variants'],
     queryFn: async () => {
@@ -513,6 +409,20 @@ export default function ProformaEditorPage() {
           };
         });
         setDiscountSettings(settingsMap);
+
+        // Load variant pricing data
+        const { data: pricing } = await supabase
+          .from('item_variant_pricing')
+          .select('item_id, company_variant_id, sale_price, make')
+          .eq('organisation_id', organisation.id);
+
+        const vPricing: Record<string, Record<string, Record<string, number>>> = {};
+        (pricing || []).forEach((row: any) => {
+          if (!vPricing[row.item_id]) vPricing[row.item_id] = {};
+          if (!vPricing[row.item_id][row.company_variant_id]) vPricing[row.item_id][row.company_variant_id] = {};
+          vPricing[row.item_id][row.company_variant_id][row.make] = row.sale_price;
+        });
+        setVariantPricing(vPricing);
 
         // Load template settings
         if (templateId) {
@@ -771,6 +681,16 @@ export default function ProformaEditorPage() {
       setDiscountPercent(proforma.discount_percent !== null && proforma.discount_percent !== undefined ? Number(proforma.discount_percent) : 0);
       setDiscountAmount(proforma.discount_amount !== null && proforma.discount_amount !== undefined ? Number(proforma.discount_amount) : 0);
       setRenderAsTaxInvoice(proforma.render_as_tax_invoice ?? false);
+      // Derive PDF flavor from stored preference or existing flag
+      if (proforma.pdf_flavor) {
+        setPdfFlavor(proforma.pdf_flavor);
+      } else {
+        // Backward compat: map old render_as_tax_invoice boolean
+        setPdfFlavor(proforma.render_as_tax_invoice ? 'review' : 'proforma');
+      }
+      setRevisionNo(proforma.revision_no ?? 1);
+      setRevisionHistory(proforma.revision_history ?? []);
+      setRevisionReason(proforma.revision_reason ?? '');
     }
   }, [proforma]);
 
@@ -944,7 +864,7 @@ export default function ProformaEditorPage() {
         updated[index] = {
           ...updated[index],
           item_id: mat.id,
-          description: mat.display_name || mat.item_name || mat.name || '',
+          description: updated[index].description || '',
           hsn_code: mat.hsn_code || '',
           tax_percent: mat.gst_rate || 18,
           discount_category_id: dcId,
@@ -972,6 +892,194 @@ export default function ProformaEditorPage() {
       return updated;
     });
   };
+
+  const commitQtyInput = (itemId: string | number) => {
+    setQtyDrafts((prev) => {
+      if (!(itemId in prev)) return prev;
+      const rawValue = prev[itemId].trim();
+      const parsedQty = rawValue === '' ? 0 : Math.max(0, parseFloat(rawValue) || 0);
+      handleItemChange(items.findIndex((i, idx) => i.id === itemId || (!i.id && idx === Number(itemId))), 'qty', parsedQty);
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const resetQtyInput = (itemId: string | number) => {
+    setQtyDrafts((prev) => {
+      if (!(itemId in prev)) return prev;
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  // Drag & Drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent, itemId: string | number) => {
+    setDraggingItemId(itemId);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDropOnRow = useCallback((e: React.DragEvent, targetId: string | number) => {
+    e.preventDefault();
+    if (!draggingItemId || draggingItemId === targetId) return;
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((r, i) => r.id === draggingItemId || (!r.id && i === Number(draggingItemId)));
+      const toIndex = prev.findIndex((r, i) => r.id === targetId || (!r.id && i === Number(targetId)));
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+    setDraggingItemId(null);
+  }, [draggingItemId]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingItemId(null);
+  }, []);
+
+  // Move To dialog
+  const openMoveToDialog = useCallback((itemId: string | number, currentSNo: number) => {
+    setMoveToDialog({
+      open: true,
+      itemId,
+      currentSNo,
+      value: '',
+      error: ''
+    });
+  }, []);
+
+  const confirmMoveTo = useCallback(() => {
+    if (!moveToDialog || !moveToDialog.itemId) return;
+    const targetSNo = parseInt(moveToDialog.value);
+    if (isNaN(targetSNo) || targetSNo <= 0) {
+      setMoveToDialog(prev => prev ? { ...prev, error: 'Enter a valid serial number' } : null);
+      return;
+    }
+    const maxSNo = items.filter(i => !i.is_header && !i.is_subtotal).length;
+    if (targetSNo > maxSNo) {
+      setMoveToDialog(prev => prev ? { ...prev, error: `S.No cannot exceed ${maxSNo}` } : null);
+      return;
+    }
+    moveToSerialNo(moveToDialog.itemId, targetSNo);
+    setMoveToDialog(null);
+  }, [moveToDialog, items]);
+
+  const moveToSerialNo = useCallback((itemId: string | number, targetSNo: number) => {
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((item, idx) => item.id === itemId || (!item.id && idx === Number(itemId)));
+      if (fromIndex < 0) return prev;
+
+      let regularCount = 0;
+      let targetIndex = -1;
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i].is_header || prev[i].is_subtotal) continue;
+        regularCount++;
+        if (regularCount === targetSNo) {
+          targetIndex = i;
+          break;
+        }
+      }
+
+      const updated = [...prev];
+      const [movedItem] = updated.splice(fromIndex, 1);
+      const insertIndex = targetIndex >= 0 ? targetIndex : updated.length;
+      updated.splice(insertIndex, 0, movedItem);
+      return updated;
+    });
+  }, []);
+
+  const updateTemplateSettingsInDb = async (newSettings: any) => {
+    if (!newSettings?.id) return;
+    try {
+      const { error } = await supabase
+        .from('document_templates')
+        .update({ column_settings: newSettings.column_settings })
+        .eq('id', newSettings.id);
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error updating template settings:', err);
+    }
+  };
+
+  const addEmptyItemRow = useCallback(() => {
+    const rowId = Date.now() + Math.random();
+    setItems((prev) => [...prev, {
+      id: rowId,
+      description: '',
+      hsn_code: null,
+      qty: 1,
+      rate: 0,
+      amount: 0,
+      discount_percent: 0,
+      rate_after_discount: 0,
+      tax_percent: 18,
+      item_id: null,
+      variant_id: null,
+      discount_category_id: null,
+      make: null,
+      variant: null,
+      unit: null,
+      custom1: '',
+      custom2: '',
+    } as LineItem]);
+  }, [setItems]);
+
+  const addSectionHeaderRow = useCallback(() => {
+    const rowId = 'hdr-' + (Date.now() + Math.random());
+    setItems((prev) => [...prev, {
+      id: rowId,
+      is_header: true,
+      description: '',
+      hsn_code: null,
+      qty: 0,
+      rate: 0,
+      amount: 0,
+      discount_percent: 0,
+      rate_after_discount: 0,
+      tax_percent: 0,
+      item_id: null,
+      variant_id: null,
+      discount_category_id: null,
+      make: null,
+      variant: null,
+      unit: null,
+      custom1: '',
+      custom2: '',
+    } as any]);
+  }, [setItems]);
+
+  const addSubtotalRow = useCallback(() => {
+    const rowId = 'st-' + (Date.now() + Math.random());
+    setItems((prev) => [...prev, {
+      id: rowId,
+      is_subtotal: true,
+      subtotal_label: 'Sub-total:',
+      description: 'Sub-total:',
+      hsn_code: null,
+      qty: 0,
+      rate: 0,
+      amount: 0,
+      discount_percent: 0,
+      rate_after_discount: 0,
+      tax_percent: 0,
+      item_id: null,
+      variant_id: null,
+      discount_category_id: null,
+      make: null,
+      variant: null,
+      unit: null,
+      custom1: '',
+      custom2: '',
+    } as any]);
+  }, [setItems]);
 
   const handleAddItem = () => {
     setItems(prev => [...prev, { description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, discount_category_id: null, make: null, variant: null, unit: null }]);
@@ -1002,6 +1110,39 @@ export default function ProformaEditorPage() {
     return Number(item.sale_price || item.default_rate || 0);
   };
 
+  // PO Line Items selection handlers
+  const handleChoosePOLineItems = useCallback(() => {
+    if (selectedPOId && poDetailsQuery.data) {
+      setIsPOSelectorOpen(true);
+    }
+  }, [selectedPOId, poDetailsQuery.data]);
+
+  const handlePOLineItemsApply = (selectedItems: any[]) => {
+    setIsApplyingPOItems(true);
+    const newItems = selectedItems.map((item: any) => ({
+      description: item.description,
+      hsn_code: item.hsn_sac_code || null,
+      qty: item.quantity,
+      rate: item.rate_per_unit,
+      amount: item.basic_amount,
+      discount_percent: 0,
+      rate_after_discount: item.rate_per_unit,
+      tax_percent: item.gst_percentage,
+      item_id: null,
+      variant_id: null,
+      discount_category_id: null,
+      make: null,
+      variant: null,
+      unit: item.unit || 'Nos',
+      custom1: '',
+      custom2: '',
+    }));
+    setItems((prev) => [...prev.filter(i => i.description || i.item_id), ...newItems]);
+    setSelectedPOLineItems(selectedItems);
+    setIsApplyingPOItems(false);
+    setIsPOSelectorOpen(false);
+  };
+
   const handleItemSelectorSuccess = (newItems: any[]) => {
     const newLineItems = newItems.map((newItem: any) => {
       const dcId = newItem.discount_category_id || null;
@@ -1010,7 +1151,7 @@ export default function ProformaEditorPage() {
       const rateAfterDiscount = rate - (rate * categoryDiscount / 100);
 
       return {
-        description: newItem.display_name || newItem.item_name || newItem.name,
+        description: '',
         hsn_code: newItem.hsn_code,
         qty: 1,
         rate: rate,
@@ -1040,7 +1181,7 @@ export default function ProformaEditorPage() {
     setItems(prev => [
       ...prev,
       {
-        description: newItem.display_name || newItem.item_name,
+        description: '',
         hsn_code: newItem.hsn_code,
         qty: 1,
         rate: rate,
@@ -1059,15 +1200,99 @@ export default function ProformaEditorPage() {
     setShowItemCreateDrawer(false);
   };
 
+  // ── Revision Management: Save current revision snapshot before bumping ──
+  const saveCurrentRevision = useCallback(async (reason?: string): Promise<string | null> => {
+    if (!id || !organisation?.id) return null;
+    const currentRevNo = revisionNo || 1;
+    const newRevNo = currentRevNo + 1;
+    const revisionSnapshot = {
+      revision_no: currentRevNo,
+      saved_at: new Date().toISOString(),
+      reason: reason || revisionReason || '',
+      items: items.map(item => ({ ...item })),
+      header: {
+        subtotal: totals.subtotal,
+        total: totals.total,
+        discount_amount: Number(discountAmount) || 0,
+        discount_percent: Number(discountPercent) || 0,
+      },
+    };
+    const newHistory = [...(revisionHistory || []), revisionSnapshot];
+    try {
+      const { error } = await supabase
+        .from('proforma_invoices')
+        .update({
+          revision_no: newRevNo,
+          revision_history: newHistory,
+          revision_reason: reason || revisionReason || null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+      setRevisionNo(newRevNo);
+      setRevisionHistory(newHistory);
+      setRevisionReason(reason || revisionReason || '');
+      return newRevNo;
+    } catch (err) {
+      console.error('Error saving revision:', err);
+      return null;
+    }
+  }, [id, organisation?.id, revisionNo, revisionHistory, revisionReason, items, totals, discountAmount, discountPercent]);
+
   const handleSave = async (shouldPrint: boolean = false) => {
     if (!clientId || !organisation?.id) {
       alert('Please select a client');
       return;
     }
 
-    const hasEmptyDescription = items.some(item => !item.description?.trim());
-    if (hasEmptyDescription) {
-      alert('Please fill in all item descriptions');
+    // For existing documents, ask for revision reason before proceeding
+    if (!isNew && id) {
+      setPendingSaveWithReason({ shouldPrint });
+      setReasonDialogOpen(true);
+      return;
+    }
+
+    await executeSave(shouldPrint);
+  };
+
+  const executeSave = async (shouldPrint: boolean = false) => {
+    if (!clientId || !organisation?.id) {
+      alert('Please select a client');
+      return;
+    }
+
+    // Zod validation
+    const proformaValidationSchema = z.object({
+      client_id: z.string().min(1, 'Client is required'),
+      items: z.array(z.object({
+        description: z.string().min(1, 'Item description is required'),
+        qty: z.number().positive('Qty must be greater than 0'),
+        rate: z.number().min(0, 'Rate cannot be negative'),
+        amount: z.number().min(0, 'Amount cannot be negative'),
+        tax_percent: z.number().min(0).max(100),
+      })).min(1, 'At least one item is required'),
+      pi_number: z.string().optional(),
+      created_at: z.string().min(1, 'Date is required'),
+      payment_terms: z.string().optional(),
+    });
+
+    const validationResult = proformaValidationSchema.safeParse({
+      client_id: clientId,
+      items: items.map(item => ({
+        description: item.description,
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount,
+        tax_percent: item.tax_percent || 18,
+      })),
+      pi_number: proformaNumber,
+      created_at: proformaDate ? new Date(proformaDate).toISOString() : new Date().toISOString(),
+      payment_terms: paymentTerms,
+    });
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      alert(firstError.message);
+      setSaving(false);
       return;
     }
     
@@ -1128,6 +1353,7 @@ export default function ProformaEditorPage() {
       };
       
       let savedProforma;
+      // Note: revision snapshot is saved in the onConfirm handler before executeSave is called
       if (isNew) {
         savedProforma = await createProforma(input);
       } else if (id) {
@@ -1148,6 +1374,34 @@ export default function ProformaEditorPage() {
             converted_to_type: 'proforma',
           })
           .eq('id', sourceId);
+      }
+
+      // Update PO line item billing after successful save (first creation only)
+      if (isNew && savedProforma && savedProforma.id && selectedPOLineItems.length > 0) {
+        try {
+          const poItems = selectedPOLineItems.map((poItem: any) => ({
+            po_line_item_id: poItem.id,
+            po_id: selectedPOId,
+            description: poItem.description,
+            qty: poItem.quantity,
+            rate: poItem.rate_per_unit,
+            amount: poItem.full_amount || poItem.basic_amount || 0,
+            original_qty: poItem.original_quantity,
+            original_rate: poItem.original_rate || poItem.rate_per_unit,
+            overbilling_reason: poItem.overbilling_reason || null,
+          })).filter((p: any) => p.po_line_item_id);
+          if (poItems.length > 0) {
+            await updatePoLineItemBilling({
+              organisationId: organisation.id,
+              sourceType: 'proforma',
+              sourceId: savedProforma.id,
+              sourceNumber: savedProforma.pi_number || undefined,
+              items: poItems,
+            });
+          }
+        } catch (billingError) {
+          console.error('Failed to update PO billing:', billingError);
+        }
       }
 
       if (shouldPrint && savedProforma && savedProforma.id) {
@@ -1290,17 +1544,7 @@ export default function ProformaEditorPage() {
     return getVisibleColumnCount() - 2;
   };
 
-  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
-  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
-  const fieldColStyle = { flex: 1 };
   const inputStyle = { padding: '4px 8px', fontSize: '12px' };
-
-  const renderHeaderField = (label: string, field: React.ReactNode, isLast = false) => (
-    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
-      <span style={labelColStyle}>{label}</span>
-      <div style={fieldColStyle}>{field}</div>
-    </div>
-  );
 
   if (isLoading) {
     return (
@@ -1312,59 +1556,27 @@ export default function ProformaEditorPage() {
 
   return (
     <div>
-      {/* Fixed top action bar */}
-      <div ref={headerRef} className="flex items-center justify-between fixed top-0 left-0 right-0 z-50 bg-white pt-4 pb-3 px-6 border-b border-zinc-200" style={{ top: '32px', left: '220px', marginBottom: 0 }}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-bold text-zinc-900 tracking-tight">
-            {isNew ? 'Create Proforma' : 'Edit Proforma'}
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setIsParserOpen(true)}
-            className="h-9 px-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
-          >
-            <FileText className="w-4 h-4 mr-1.5" />
-            Import PDF/Image
-          </button>
-          <button type="button" onClick={() => navigate('/proforma-invoices')} className="h-9 px-3 rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all border border-zinc-300 bg-white">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSave(false)}
-            disabled={saving || !clientId}
-            className={`h-9 px-4 rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all border border-zinc-300 bg-white ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-            <span className="ml-1.5">Save as Draft</span>
-          </button>
-          <button
-            type="button"
-            style={{
-              height: '36px', padding: '0 16px', minWidth: '100px',
-              background: '#185FA5', border: '1px solid #185FA5',
-              color: '#fff', borderRadius: '6px',
-              fontSize: '12px', fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: (saving || !clientId) ? 'not-allowed' : 'pointer',
-              opacity: (saving || !clientId) ? 0.6 : 1,
-              transition: 'all 0.15s'
-            }}
-            onClick={() => handleSave(true)}
-            disabled={saving || !clientId}
-            onMouseEnter={e => { if (!saving && clientId) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
-            onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-          >
-            {saving ? <Loader2 className="animate-spin" size={14} /> : <FileCheck size={14} />}
-            <span className="ml-1.5">Save & Print</span>
-          </button>
-        </div>
-      </div>
+      <DocumentActionBar
+        title={isNew ? 'Create Proforma' : 'Edit Proforma'}
+        fixed={{ top: 32, left: 220 }}
+        rightActions={
+          <>
+            <ImportButton onClick={() => setIsParserOpen(true)} />
+            <SecondaryButton onClick={() => navigate('/proforma-invoices')}>Cancel</SecondaryButton>
+            <SecondaryButton onClick={() => handleSave(false)} disabled={saving || !clientId}>
+              {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+              Save as Draft
+            </SecondaryButton>
+            <PrimaryButton onClick={() => handleSave(true)} disabled={saving || !clientId}>
+              {saving ? <Loader2 className="animate-spin" size={14} /> : <FileCheck size={14} />}
+              Save & Print
+            </PrimaryButton>
+          </>
+        }
+      />
 
-      {/* Main page layout */}
-      <div style={{ paddingTop: headerHeight, background: '#f8fafc', padding: '16px', minHeight: 'calc(100vh - 64px)' }}>
+      {/* Main page layout (paddingTop offsets the fixed action bar at top:32 + ~68px height = 100px) */}
+      <div style={{ background: '#f8fafc', padding: '100px 16px 16px', minHeight: 'calc(100vh - 64px)' }}>
         {activeImportSessionId && (
           <div className="bg-indigo-900/40 border border-indigo-800/60 text-indigo-200 px-6 py-3 rounded-lg flex items-center justify-between text-xs font-semibold mb-4 animate-in slide-in-from-top">
             <div className="flex items-center gap-2">
@@ -1382,27 +1594,35 @@ export default function ProformaEditorPage() {
           </div>
         )}
         
+        {/* Conversion Chain Breadcrumb */}
+        {id && (
+          <div style={{ marginBottom: '12px' }}>
+            <DocumentConversionChain documentType="proforma" documentId={id} />
+          </div>
+        )}
+
         {/* Document Details Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
+        <HeaderFormGrid>
           
           {/* Column 1: CLIENT CARD */}
-          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
-              <User size={14} style={{ color: '#2563eb' }} /> Client
-            </div>
+          <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Client">
             
-            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-              <span style={labelColStyle}>Client *:</span>
-              <div style={{ ...fieldColStyle, position: 'relative' }} className="client-dropdown-container">
+            <HeaderField label="Client *" labelWidth="70px">
+              <div style={{ position: 'relative' }} className="client-dropdown-container">
                 <input
                   type="text"
                   className="form-input"
                   style={inputStyle}
                   placeholder="Search or select client..."
-                  value={clientSearch || (clientId ? clients.find(c => c.id === clientId)?.client_name : '')}
+                  value={clientSearch !== null ? clientSearch : (clientId ? clients.find(c => c.id === clientId)?.client_name || '' : '')}
                   onChange={(e) => { setClientSearch(e.target.value); setIsClientDropdownOpen(true); }}
                   onClick={() => setIsClientDropdownOpen(true)}
                   onFocus={() => setIsClientDropdownOpen(true)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setClientSearch(null);
+                    }, 200);
+                  }}
                   disabled={!isNew}
                 />
                 {isClientDropdownOpen && isNew && (
@@ -1413,7 +1633,7 @@ export default function ProformaEditorPage() {
                         <div key={c.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
                           onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
                           onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                          onClick={() => { setClientId(c.id); setClientSearch(c.client_name); setIsClientDropdownOpen(false); setClientSearch(''); }}
+                          onClick={() => { setClientId(c.id); setIsClientDropdownOpen(false); setClientSearch(null); }}
                         >{c.client_name}</div>
                       ))}
                     {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
@@ -1422,21 +1642,28 @@ export default function ProformaEditorPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </HeaderField>
 
-            {renderHeaderField('Client State:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clientState || 'Auto-populated from client'}</div>)}
+            <HeaderField label="Client State" labelWidth="70px">
+              <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clientState || 'Auto-populated from client'}</div>
+            </HeaderField>
             {clientId && (
               <>
-                {renderHeaderField('Contact:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedClient?.contact || selectedClient?.email || 'N/A'}</div>)}
-                {renderHeaderField('Address:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{billingAddress || 'Auto-populated from client'}</div>)}
-                {renderHeaderField('GSTIN:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedClient?.gstin || 'N/A'}</div>)}
+                <HeaderField label="Contact" labelWidth="70px">
+                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedClient?.contact || selectedClient?.email || 'N/A'}</div>
+                </HeaderField>
+                <HeaderField label="Address" labelWidth="70px">
+                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'pre-wrap', minHeight: '32px', lineHeight: '1.4' }}>{billingAddress || 'Auto-populated from client'}</div>
+                </HeaderField>
+                <HeaderField label="GSTIN" labelWidth="70px">
+                  <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedClient?.gstin || 'N/A'}</div>
+                </HeaderField>
               </>
             )}
             
             {clientId && (
-              <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-                <span style={labelColStyle}>Pricing:</span>
-                <div style={{ ...fieldColStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <HeaderField label="Pricing" labelWidth="70px">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ArcPricingToggle
                     clientId={clientId}
                     enabled={useArcPricing}
@@ -1457,49 +1684,66 @@ export default function ProformaEditorPage() {
                     itemsWithoutArcRate={items.length - Object.values(arcPricingMap).filter(Boolean).length}
                   />
                 </div>
-              </div>
+              </HeaderField>
             )}
-          </div>
+          </HeaderCard>
 
           {/* Column 2: DOCUMENT CARD */}
-          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
-              <FileText size={14} style={{ color: '#2563eb' }} /> Document
-            </div>
+          <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
             
-            {renderHeaderField('PI Number:', <input type="text" className="form-input" style={inputStyle} value={proformaNumber} onChange={(e) => setProformaNumber(e.target.value)} placeholder="Auto-generated" disabled={!isNew} />)}
+            <HeaderField label="PI Number" labelWidth="70px">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input type="text" className="form-input" style={{ ...inputStyle, flex: 1 }} value={proformaNumber} onChange={(e) => setProformaNumber(e.target.value)} placeholder="Auto-generated" disabled={!isNew} />
+                <RevisionBadge revisionNo={revisionNo} onClick={() => setRevisionDialogOpen(true)} />
+              </div>
+            </HeaderField>
             
-            <div style={{ ...headerFieldStyle, marginBottom: '8px', flexWrap: 'nowrap' }}>
-              <span style={{ ...labelColStyle, whiteSpace: 'nowrap' }}>Date:</span>
-              <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'nowrap', minWidth: '0px' }}>
+            <HeaderField label="Date" labelWidth="70px">
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', minWidth: '0px' }}>
                 <CustomDatePicker value={proformaDate} onChange={(val) => setProformaDate(val)} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
               </div>
-            </div>
+            </HeaderField>
 
-            {renderHeaderField('Status:', <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', textTransform: 'capitalize' }}>{status}</div>)}
-            {renderHeaderField('Payment:', <input type="text" className="form-input" style={inputStyle} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g., Net 30, 50% Advance" />, true)}
-          </div>
+            <HeaderField label="Status" labelWidth="70px">
+              <div style={{ ...inputStyle, background: '#f3f4f6', border: '1px solid transparent', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {status}
+                <PdfFlavorSelector
+                  value={pdfFlavor}
+                  onChange={(flavor) => {
+                    setPdfFlavor(flavor);
+                    const config = getFlavorConfig(flavor);
+                    setRenderAsTaxInvoice(config.isReviewCopy);
+                    setShowWatermark(config.showWatermark);
+                    localStorage.setItem('proforma_watermark_default', config.showWatermark ? 'true' : 'false');
+                  }}
+                />
+              </div>
+            </HeaderField>
+            <HeaderField label="Payment" labelWidth="70px">
+              <input type="text" className="form-input" style={inputStyle} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g., Net 30, 50% Advance" />
+            </HeaderField>
+          </HeaderCard>
 
           {/* Column 3: PO DETAILS CARD */}
-          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '4px' }}>
-              <Briefcase size={14} style={{ color: '#2563eb' }} /> PO & Template
-            </div>
+          <HeaderCard icon={<Briefcase size={14} style={{ color: '#2563eb' }} />} title="PO & Template">
             
-            {renderHeaderField('Template:', <select className="form-select" style={inputStyle} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-              <option value="">Default Template</option>
-              {templates.map(template => (
-                <option key={template.id} value={template.id}>
-                  {template.template_name} ({template.document_type})
-                </option>
-              ))}
-            </select>)}
+            <HeaderField label="Template" labelWidth="70px">
+              <select className="form-select" style={inputStyle} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                <option value="">Default Template</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.template_name} ({template.document_type})
+                  </option>
+                ))}
+              </select>
+            </HeaderField>
 
-            {renderHeaderField('Your State:', <input type="text" className="form-input" style={inputStyle} value={companyState} onChange={(e) => setCompanyState(e.target.value)} placeholder="e.g., Karnataka" />)}
+            <HeaderField label="Your State" labelWidth="70px">
+              <input type="text" className="form-input" style={inputStyle} value={companyState} onChange={(e) => setCompanyState(e.target.value)} placeholder="e.g., Karnataka" />
+            </HeaderField>
 
-            <div style={{ ...headerFieldStyle, marginBottom: '8px' }}>
-              <span style={labelColStyle}>PO Number:</span>
-              <div style={{ ...fieldColStyle, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <HeaderField label="PO Number" labelWidth="70px">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '11px', fontWeight: 500, cursor: 'pointer', color: '#4b5563' }}>
                   <input
                     type="checkbox"
@@ -1509,6 +1753,7 @@ export default function ProformaEditorPage() {
                       if (e.target.checked) {
                         setPoNumber('');
                         setPoDate('');
+                        setSelectedPOId(null);
                       }
                     }}
                     style={{ cursor: 'pointer', width: '13px', height: '13px' }}
@@ -1532,9 +1777,11 @@ export default function ProformaEditorPage() {
                       if (selectedPO) {
                         setPoNumber(selectedPO.po_number);
                         setPoDate(selectedPO.po_date || '');
+                        setSelectedPOId(selectedPO.id);
                       } else {
                         setPoNumber('');
                         setPoDate('');
+                        setSelectedPOId(null);
                       }
                     }}
                     className="form-select"
@@ -1549,14 +1796,42 @@ export default function ProformaEditorPage() {
                   </select>
                 )}
               </div>
-            </div>
+            </HeaderField>
 
-            <div style={{ ...headerFieldStyle, marginBottom: '8px', flexWrap: 'nowrap' }}>
-              <span style={{ ...labelColStyle, whiteSpace: 'nowrap' }}>PO Date:</span>
+            <HeaderField label="PO Date" labelWidth="70px">
               <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'nowrap', minWidth: '0px' }}>
                 <CustomDatePicker value={poDate} onChange={(val) => setPoDate(val)} inputStyle={{ flex: '1 1 0%', minWidth: '0px' }} />
               </div>
-            </div>
+            </HeaderField>
+
+            {/* Choose PO Line Items button */}
+            {!manualPO && poNumber && poDetailsQuery.data && (
+              <HeaderField label="" labelWidth="70px">
+                <button
+                  onClick={handleChoosePOLineItems}
+                  disabled={!poDetailsQuery.data?.items?.length}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    background: poDetailsQuery.data?.items?.length ? '#059669' : '#d1d5db',
+                    color: poDetailsQuery.data?.items?.length ? 'white' : '#9ca3af',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: poDetailsQuery.data?.items?.length ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { if (poDetailsQuery.data?.items?.length) { (e.currentTarget as HTMLElement).style.background = '#047857'; } }}
+                  onMouseLeave={e => { if (poDetailsQuery.data?.items?.length) { (e.currentTarget as HTMLElement).style.background = '#059669'; } }}
+                >
+                  <FileText size={14} />
+                  Choose PO Line Items {poDetailsQuery.data?.items?.length ? `(${poDetailsQuery.data.items.length} available)` : ''}
+                </button>
+              </HeaderField>
+            )}
 
             {/* Pricing Rules (Discount Categories) */}
             {discountCategories.length > 0 && (
@@ -1591,357 +1866,47 @@ export default function ProformaEditorPage() {
             )}
 
 
-          </div>
-        </div>
+          </HeaderCard>
+        </HeaderFormGrid>
 
-        {/* Line Items Table Card */}
-        <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-zinc-900">Line Items</h3>
-              <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-none">
-                {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={handleAddItem} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
-                <Plus size={14} /> Add Item
-              </button>
-              <button type="button" onClick={() => setShowItemSelectorDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
-                <Plus size={14} /> Select from Inventory
-              </button>
-              <button type="button" onClick={() => setShowItemCreateDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
-                <Plus size={14} /> Create New Material
-              </button>
-            </div>
-          </div>
-
-          <div className="grid-table-container">
-            <table className="grid-table cq-editable">
-              <thead className="grid-table-header-dark">
-                <tr>
-                  <th className="col-shrink">#</th>
-                  {(templateSettings?.column_settings?.optional?.hsn_code !== false) && <th className="col-hsn">HSN Code</th>}
-                  {(templateSettings?.column_settings?.optional?.item !== false) && (
-                    <th className="col-item" style={{ position: 'relative' }}>
-                      {templateSettings?.column_settings?.labels?.item || 'Description'}
-                    </th>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
-                    <th className="col-code">{templateSettings?.column_settings?.labels?.client_part_no || 'Client Part No'}</th>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.client_description === true) && (
-                    <th className="col-item">{templateSettings?.column_settings?.labels?.client_description || 'Client Description'}</th>
-                  )}
-                  {(templateSettings?.column_settings?.optional?.make !== false) && <th className="col-make">Make</th>}
-                  {(templateSettings?.column_settings?.optional?.variant !== false) && <th className="col-variant">Variant</th>}
-                  <th className="col-disc-cat">Discount Category</th>
-                  <th className="col-qty">Qty</th>
-                  {(templateSettings?.column_settings?.optional?.unit !== false) && <th className="col-unit">Unit</th>}
-                  {(templateSettings?.column_settings?.optional?.rate !== false) && <th className="col-rate">Rate</th>}
-                  {(templateSettings?.column_settings?.optional?.discount_percent !== false) && <th className="col-disc">Discount %</th>}
-                  {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && <th className="col-rate-after-disc">Rate After Disc</th>}
-                  {(templateSettings?.column_settings?.optional?.tax_percent !== false) && <th className="col-gst">Tax %</th>}
-                  {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
-                    <th className="col-custom">{templateSettings.column_settings.labels.custom1 || 'Custom 1'}</th>
-                  )}
-                  {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
-                    <th className="col-custom">{templateSettings.column_settings.labels.custom2 || 'Custom 2'}</th>
-                  )}
-                  <th className="col-amount">Amount</th>
-                  <th style={{ width: '40px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, index) => (
-                  <tr key={index}>
-                    <td className="text-center font-semibold text-[11px] text-zinc-500 pt-2">{index + 1}</td>
-                    {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
-                      <td className="cell-input">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.hsn_code ?? ''}
-                          onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
-                          placeholder="HSN"
-                        />
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.item !== false) && (
-                      <td className="col-item pr-6 relative">
-                        <SearchableItemSelect
-                          value={item.item_id || ''}
-                          materials={materials}
-                          onChange={(materialId, mat) => handleMaterialChange(index, mat)}
-                        />
-                        {item.item_id && (
-                          <button
-                            type="button"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-500 font-bold text-sm bg-transparent border-none p-1 z-10"
-                            onClick={() => handleMaterialChange(index, null)}
-                            title="Clear item"
-                          >
-                            ×
-                          </button>
-                        )}
-                        {item.item_id && (
-                          <InlineDescriptionCell
-                            materialName=""
-                            description={item.description}
-                            onSave={(desc) => handleItemChange(index, 'description', desc)}
-                          />
-                        )}
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
-                      <td className="col-shrink cell-static text-center" style={{ fontSize: '11px', color: '#64748b', padding: '4px' }}>
-                        {(() => {
-                          const mapping = clientId && ((materials as any[]).find(m => m.id === item.item_id)?.mappings as any[])?.find((m: any) => m.client_id === clientId) as any;
-                          return mapping?.client_part_no || '-';
-                        })()}
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.client_description === true) && (
-                      <td className="col-item cell-static" style={{ fontSize: '11px', color: '#64748b', padding: '4px' }}>
-                        {(() => {
-                          const mapping = clientId && ((materials as any[]).find(m => m.id === item.item_id)?.mappings as any[])?.find((m: any) => m.client_id === clientId) as any;
-                          return mapping?.client_description || '-';
-                        })()}
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.make !== false) && (
-                      <td className="cell-input">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.make ?? ''}
-                          onChange={(e) => handleItemChange(index, 'make', e.target.value)}
-                          placeholder="Make"
-                          list={`make-options-${index}`}
-                          autoComplete="off"
-                        />
-                        <datalist id={`make-options-${index}`}>
-                          {Array.from(new Set(items.map(i => i.make).filter(Boolean) as string[])).map((make) => (
-                            <option key={make} value={make} />
-                          ))}
-                        </datalist>
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.variant !== false) && (
-                      <td className="col-shrink relative">
-                        <VariantCell
-                          value={item.variant_id}
-                          variants={variants}
-                          onChange={(nextVariant) => {
-                            const selectedVariant = variants.find(v => v.id === nextVariant);
-                            handleItemChange(index, 'variant_id', nextVariant);
-                            handleItemChange(index, 'variant', selectedVariant?.variant_name || null);
-                          }}
-                        />
-                      </td>
-                    )}
-                    <td className="cell-input">
-                      <select
-                        className="cell-input text-center"
-                        value={item.discount_category_id || ''}
-                        onChange={(e) => handleItemChange(index, 'discount_category_id', e.target.value || null)}
-                        style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '12px' }}
-                      >
-                        <option value="">None</option>
-                        {discountCategories.map(dc => (
-                          <option key={dc.id} value={dc.id}>{dc.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="cell-input">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.qty}
-                        onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                        min="0"
-                        step="0.001"
-                      />
-                    </td>
-                    {(templateSettings?.column_settings?.optional?.unit !== false) && (
-                      <td className="cell-input">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.unit ?? ''}
-                          onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                          placeholder="Unit"
-                        />
-                      </td>
-                    )}
-                    <td className="cell-input">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.rate}
-                        onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                        min="0"
-                        step="0.01"
-                      />
-                    </td>
-                    {(templateSettings?.column_settings?.optional?.discount_percent !== false) && (
-                      <td className="cell-input">
-                        <input
-                          type="number"
-                          className="cell-input text-right"
-                          value={item.discount_percent}
-                          onChange={(e) => handleItemChange(index, 'discount_percent', Number(e.target.value))}
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          placeholder="0"
-                        />
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && (
-                      <td className="cell-input col-rate-after-disc">
-                        <input
-                          type="number"
-                          className="cell-input text-right bg-zinc-50/50 cursor-default font-medium"
-                          value={item.rate_after_discount}
-                          readOnly
-                          placeholder="0"
-                        />
-                      </td>
-                    )}
-                    {(templateSettings?.column_settings?.optional?.tax_percent !== false) && (
-                      <td className="cell-input">
-                        <input
-                          type="number"
-                          className="cell-input text-right"
-                          value={item.tax_percent}
-                          onChange={(e) => handleItemChange(index, 'tax_percent', Number(e.target.value))}
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          placeholder="18"
-                        />
-                      </td>
-                    )}
-                    {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
-                      <td className="cell-input">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.custom1 || ''}
-                          onChange={(e) => handleItemChange(index, 'custom1', e.target.value)}
-                          placeholder={templateSettings.column_settings.labels.custom1 || 'Custom 1'}
-                          style={{ width: '100%' }}
-                        />
-                      </td>
-                    )}
-                    {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
-                      <td className="cell-input">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.custom2 || ''}
-                          onChange={(e) => handleItemChange(index, 'custom2', e.target.value)}
-                          placeholder={templateSettings.column_settings.labels.custom2 || 'Custom 2'}
-                          style={{ width: '100%' }}
-                        />
-                      </td>
-                    )}
-                    <td className="text-right pr-4 font-semibold text-[12px] pt-2 tabular-nums" style={{ color: '#0f172a' }}>
-                      {formatCurrency(item.amount)}
-                    </td>
-                    <td className="text-center pt-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="text-red-500 hover:bg-red-50 hover:text-red-700 w-5 h-5 rounded flex items-center justify-center transition-all mx-auto"
-                        disabled={items.length === 1}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-
-                {/* Subtotal & taxes breakdown inside the table footer */}
-                <tr className="footer-breakdown-row">
-                  <td colSpan={getColsBeforeAmount()} className="text-right pr-4 font-semibold" style={{ textAlign: 'right' }}>Subtotal</td>
-                  <td className="text-right pr-4 tabular-nums font-semibold" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                    {formatCurrency(totals.subtotal)}
-                  </td>
-                  <td></td>
-                </tr>
-
-                {totals.discount > 0 && (
-                  <tr className="footer-breakdown-row">
-                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4 text-red-600 font-medium" style={{ textAlign: 'right' }}>Discount</td>
-                    <td className="text-right pr-4 tabular-nums text-red-600 font-medium" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      -{formatCurrency(totals.discount)}
-                    </td>
-                    <td></td>
-                  </tr>
-                )}
-
-                {totals.cgst > 0 && (
-                  <tr className="footer-breakdown-row">
-                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>CGST</td>
-                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      {formatCurrency(totals.cgst)}
-                    </td>
-                    <td></td>
-                  </tr>
-                )}
-
-                {totals.sgst > 0 && (
-                  <tr className="footer-breakdown-row">
-                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>SGST</td>
-                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      {formatCurrency(totals.sgst)}
-                    </td>
-                    <td></td>
-                  </tr>
-                )}
-
-                {totals.igst > 0 && (
-                  <tr className="footer-breakdown-row">
-                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>IGST</td>
-                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      {formatCurrency(totals.igst)}
-                    </td>
-                    <td></td>
-                  </tr>
-                )}
-
-                {roundOff && totals.roundOffAmount !== 0 && (
-                  <tr className="footer-breakdown-row">
-                    <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>Round Off</td>
-                    <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                      {formatCurrency(totals.roundOffAmount)}
-                    </td>
-                    <td></td>
-                  </tr>
-                )}
-
-                <tr className="footer-breakdown-row grand-total-row">
-                  <td colSpan={getColsBeforeAmount()} className="text-right pr-4" style={{ textAlign: 'right' }}>Grand Total</td>
-                  <td className="text-right pr-4 tabular-nums" style={{ textAlign: 'right', paddingRight: '16px' }}>
-                    {formatCurrency(totals.total)}
-                  </td>
-                  <td></td>
-                </tr>
-
-                {totals.amountInWords && (
-                  <tr className="footer-breakdown-row amount-words-row">
-                    <td colSpan={getVisibleColumnCount()} className="text-right pr-4" style={{ textAlign: 'right' }}>
-                      INR {totals.amountInWords}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ProformaItemsTable
+          items={items}
+          setItems={setItems}
+          materials={materials}
+          variants={variants}
+          variantPricing={variantPricing}
+          discountCategories={discountCategories}
+          discountCategoryMap={discountCategoryMap}
+          templateSettings={templateSettings}
+          clientId={clientId}
+          handleItemChange={handleItemChange}
+          handleMaterialChange={handleMaterialChange}
+          handleAddItem={handleAddItem}
+          handleRemoveItem={handleRemoveItem}
+          setShowItemSelectorDrawer={setShowItemSelectorDrawer}
+          setShowItemCreateDrawer={setShowItemCreateDrawer}
+          setShowCustomLabelEditor={setShowCustomLabelEditor}
+          onShowItemPicker={() => setShowItemPicker(true)}
+          onAddSectionHeader={addSectionHeaderRow}
+          onAddSubtotal={addSubtotalRow}
+          getVisibleColumnCount={getVisibleColumnCount}
+          getColsBeforeAmount={getColsBeforeAmount}
+          qtyDrafts={qtyDrafts}
+          setQtyDrafts={setQtyDrafts}
+          commitQtyInput={commitQtyInput}
+          resetQtyInput={resetQtyInput}
+          draggingItemId={draggingItemId}
+          handleDragStart={handleDragStart}
+          handleDragOver={handleDragOver}
+          handleDropOnRow={handleDropOnRow}
+          handleDragEnd={handleDragEnd}
+          moveToDialog={moveToDialog}
+          openMoveToDialog={openMoveToDialog}
+          confirmMoveTo={confirmMoveTo}
+          setMoveToDialog={setMoveToDialog}
+          totals={totals}
+          roundOff={roundOff}
+        />
 
         {/* Bottom grid layout: Notes, Terms, and Adjustments */}
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4 mt-6">
@@ -1963,23 +1928,41 @@ export default function ProformaEditorPage() {
             />
           </div>
 
-          {/* Terms Card */}
-          <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Terms & Conditions:</label>
-            </div>
-            <textarea
-              className="form-input"
-              style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
-              placeholder="Payment terms, delivery terms, etc..."
-              value={terms}
-              onChange={(e) => {
-                setTerms(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-              }}
-            />
-          </div>
+          {/* Terms Card */}           <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Terms & Conditions:</label>
+               <button
+                 onClick={() => setShowTermsDrawer(true)}
+                 style={{
+                   padding: '6px 12px',
+                   border: '1px solid #d4d4d4',
+                   borderRadius: '4px',
+                   background: '#fff',
+                   color: '#525252',
+                   fontSize: '13px',
+                   fontWeight: 500,
+                   cursor: 'pointer',
+                   display: 'flex',
+                   alignItems: 'center',
+                   gap: '6px',
+                 }}
+               >
+                 <FileText size={12} />
+                 {terms ? 'Edit' : 'Add'}
+               </button>
+             </div>
+             <textarea
+               className="form-input"
+               style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none', overflow: 'hidden' }}
+               placeholder="Payment terms, delivery terms, etc..."
+               value={terms}
+               onChange={(e) => {
+                 setTerms(e.target.value);
+                 e.target.style.height = 'auto';
+                 e.target.style.height = e.target.scrollHeight + 'px';
+               }}
+             />
+           </div>
 
           {/* Adjustments Card */}
           <div className="cq-card-elevated">
@@ -2029,29 +2012,8 @@ export default function ProformaEditorPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Render as Tax Invoice (Review Copy)</span>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={renderAsTaxInvoice}
-                    onChange={(e) => handleRenderAsTaxInvoiceChange(e.target.checked)}
-                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    style={{ cursor: 'pointer' }}
-                  />
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>Show DRAFT Watermark</span>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showWatermark}
-                    onChange={(e) => handleShowWatermarkChange(e.target.checked)}
-                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                    style={{ cursor: 'pointer' }}
-                  />
-                </label>
+                <span style={{ fontWeight: 500, color: '#4b5563', fontSize: '12px' }}>PDF Output</span>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Set in header bar</span>
               </div>
 
               {/* Authorized Signatory */}
@@ -2239,6 +2201,352 @@ export default function ProformaEditorPage() {
           payment_terms: paymentTerms
         }}
         onImport={handleImportSuccess}
+      />
+
+      {/* Columns Customization Modal */}
+      {showCustomLabelEditor && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowCustomLabelEditor(false)}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '90%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#18181b' }}>Column Settings</h3>
+              <button onClick={() => setShowCustomLabelEditor(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>&times;</button>
+            </div>
+            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
+              Toggle columns to show/hide on the printed document. You can also customize their display labels.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+              {[
+                { key: 'item', label: 'Item Name' },
+                { key: 'item_code', label: 'Internal Part No' },
+                { key: 'client_part_no', label: 'Client Part No' },
+                { key: 'hsn_code', label: 'HSN/SAC' },
+                { key: 'make', label: 'Make/Brand' },
+                { key: 'variant', label: 'Category Details' },
+                { key: 'description', label: 'Description' },
+                { key: 'client_description', label: 'Client Description' },
+                { key: 'custom1', label: 'Custom Column 1' },
+                { key: 'custom2', label: 'Custom Column 2' }
+              ].map(col => {
+                const isEnabled = templateSettings?.column_settings?.optional?.[col.key] !== false;
+                const customLabel = templateSettings?.column_settings?.labels?.[col.key] || '';
+                
+                return (
+                  <div key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={isEnabled}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setTemplateSettings((prev: any) => {
+                          const updated = {
+                            ...prev,
+                            column_settings: {
+                              ...prev.column_settings,
+                              optional: {
+                                ...prev.column_settings?.optional,
+                                [col.key]: checked
+                              }
+                            }
+                          };
+                          updateTemplateSettingsInDb(updated);
+                          return updated;
+                        });
+                      }}
+                      style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                    />
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#18181b', minWidth: '100px' }}>{col.label}</div>
+                    <input 
+                      type="text"
+                      placeholder="Custom label"
+                      className="form-input"
+                      style={{ flex: 1, height: '28px', fontSize: '11px', padding: '2px 6px', border: '1px solid #d4d4d8', borderRadius: '4px' }}
+                      value={customLabel}
+                      onChange={(e) => {
+                        const newLabel = e.target.value;
+                        setTemplateSettings((prev: any) => {
+                          const updated = {
+                            ...prev,
+                            column_settings: {
+                              ...prev.column_settings,
+                              labels: {
+                                ...prev.column_settings?.labels,
+                                [col.key]: newLabel
+                              }
+                            }
+                          };
+                          updateTemplateSettingsInDb(updated);
+                          return updated;
+                        });
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
+                onClick={() => setShowCustomLabelEditor(false)}
+              >Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Terms & Conditions Drawer */}
+      {showTermsDrawer && (
+        <TermsConditionsDrawer
+          isOpen={showTermsDrawer}
+          onClose={() => setShowTermsDrawer(false)}
+          onSelect={(termsObj: any) => {
+            setTerms(termsObj.terms_text);
+            setShowTermsDrawer(false);
+          }}
+          documentType="Proforma"
+        />
+      )}
+
+      {/* Add Multiple Items (Item Picker) Modal */}
+      {showItemPicker && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => { setShowItemPicker(false); setPickerItems([]); setItemSearch(''); }}>
+          <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '720px', height: '550px', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>Add Multiple Items</h3>
+              <button onClick={() => { setShowItemPicker(false); setPickerItems([]); setItemSearch(''); }} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>&times;</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, minHeight: 0 }}>
+              {/* Left panel: Search + Material list */}
+              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb' }}>
+                  <input
+                    type="text"
+                    placeholder="Search materials..."
+                    className="form-input"
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '13px' }}
+                  />
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+                  {(materials as any[])
+                    .filter((m: any) => !itemSearch || (m.display_name || m.item_name || m.name || '').toLowerCase().includes(itemSearch.toLowerCase()))
+                    .slice(0, 50)
+                    .map((mat: any) => {
+                      const isInPicker = pickerItems.some((p: any) => p.item_id === mat.id);
+                      return (
+                        <div
+                          key={mat.id}
+                          onClick={() => {
+                            if (!isInPicker) {
+                              setPickerItems((prev: any[]) => [...prev, {
+                                item_id: mat.id,
+                                name: mat.display_name || mat.item_name || mat.name || 'Unknown',
+                                hsn_code: mat.hsn_code || '',
+                                tax_percent: mat.gst_rate || 18,
+                                unit: mat.unit || 'Nos',
+                                qty: 1,
+                                rate: 0,
+                                material: mat,
+                              }]);
+                            }
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: isInPicker ? 'default' : 'pointer',
+                            borderRadius: '6px',
+                            marginBottom: '4px',
+                            background: isInPicker ? '#f0fdf4' : 'transparent',
+                            border: '1px solid transparent',
+                            borderColor: isInPicker ? '#bbf7d0' : 'transparent',
+                            fontSize: '13px',
+                            color: '#1e293b',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                          onMouseEnter={e => { if (!isInPicker) { (e.currentTarget as HTMLElement).style.background = '#f8fafc'; } }}
+                          onMouseLeave={e => { if (!isInPicker) { (e.currentTarget as HTMLElement).style.background = 'transparent'; } }}
+                        >
+                          <span style={{ fontWeight: isInPicker ? 600 : 400 }}>
+                            {mat.display_name || mat.item_name || mat.name || 'Unknown'}
+                          </span>
+                          {isInPicker ? (
+                            <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>Selected</span>
+                          ) : (
+                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>Click to add</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Right panel: Selected items with qty inputs */}
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', fontWeight: 600, fontSize: '13px', color: '#374151', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Selected Items</span>
+                  <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>
+                    {pickerItems.length}
+                  </span>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+                  {pickerItems.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                      Click materials on the left to add them here. Adjust quantities before inserting.
+                    </div>
+                  ) : (
+                    pickerItems.map((pickerItem: any, idx: number) => (
+                      <div key={pickerItem.item_id || idx} style={{ marginBottom: '6px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '12px', color: '#1e293b', flex: 1 }}>
+                            {pickerItem.name}
+                          </span>
+                          <button
+                            onClick={() => setPickerItems((prev: any[]) => prev.filter((_: any, i: number) => i !== idx))}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
+                            title="Remove"
+                          >&times;</button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>Qty:</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={pickerItem.qty}
+                            onChange={(e) => {
+                              const newQty = Math.max(0, parseFloat(e.target.value) || 0);
+                              setPickerItems((prev: any[]) => prev.map((p: any, i: number) =>
+                                i === idx ? { ...p, qty: newQty } : p
+                              ));
+                            }}
+                            style={{
+                              width: '60px',
+                              padding: '3px 6px',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              textAlign: 'center',
+                            }}
+                          />
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>{pickerItem.unit || 'Nos'}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Insert button */}
+                {pickerItems.length > 0 && (
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
+                    <button
+                      onClick={() => {
+                        // Single-pass batch insert: compute all items at once
+                        const newItems = pickerItems.map((pickerItem: any) => {
+                          const mat = pickerItem.material;
+                          const dcId = mat?.discount_category_id || null;
+                          const categoryDiscount = dcId ? (headerDiscounts[dcId] !== undefined ? headerDiscounts[dcId] : (discountCategoryMap[dcId]?.default_discount_percent ?? 0)) : 0;
+                          const rate = getRateForItem(mat, null);
+                          const rateAfterDiscount = rate - (rate * categoryDiscount / 100);
+                          return {
+                            description: '',
+                            hsn_code: mat?.hsn_code || null,
+                            qty: pickerItem.qty,
+                            rate,
+                            amount: pickerItem.qty * rateAfterDiscount,
+                            discount_percent: categoryDiscount,
+                            rate_after_discount: Math.max(0, rateAfterDiscount),
+                            tax_percent: mat?.gst_rate || 18,
+                            item_id: mat?.id || null,
+                            variant_id: null,
+                            discount_category_id: dcId,
+                            make: null,
+                            variant: null,
+                            unit: mat?.unit || 'Nos',
+                            custom1: '',
+                            custom2: '',
+                          } as LineItem;
+                        });
+                        setItems((prev) => [...prev.filter(i => i.description || i.item_id), ...newItems]);
+                        setPickerItems([]);
+                        setShowItemPicker(false);
+                        setItemSearch('');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 16px',
+                        background: '#2563eb',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1d4ed8'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#2563eb'; }}
+                    >
+                      Insert Selected ({pickerItems.length}) Item{pickerItems.length > 1 ? 's' : ''}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PO Line Items Selector Modal */}
+      {isPOSelectorOpen && poDetailsQuery.data && (
+        <POLineItemsSelector
+          isOpen={isPOSelectorOpen}
+          onClose={() => setIsPOSelectorOpen(false)}
+          poHeader={{
+            po_number: poDetailsQuery.data.header.po_number,
+            po_total_value: poDetailsQuery.data.header.po_total_value,
+            po_utilized_value: poDetailsQuery.data.header.po_utilized_value,
+            po_available_value: poDetailsQuery.data.header.po_available_value,
+          }}
+          lineItems={poDetailsQuery.data.items}
+          onApply={handlePOLineItemsApply}
+        />
+      )}
+
+      {/* Revision Reason Dialog */}
+      <RevisionReasonDialog
+        open={reasonDialogOpen}
+        onClose={() => {
+          setReasonDialogOpen(false);
+          setPendingSaveWithReason(null);
+        }}
+        onConfirm={async (reason) => {
+          setRevisionReason(reason);
+          setReasonDialogOpen(false);
+          // Save the revision snapshot with the reason BEFORE executing the main save
+          await saveCurrentRevision(reason);
+          // Then execute the main save
+          const pending = pendingSaveWithReason;
+          setPendingSaveWithReason(null);
+          if (pending) {
+            executeSave(pending.shouldPrint);
+          }
+        }}
+        currentRevisionNo={revisionNo}
+        documentNumber={proformaNumber || 'PRO-0001'}
+      />
+
+      {/* Revision History Dialog */}
+      <RevisionHistoryDialog
+        open={revisionDialogOpen}
+        onClose={() => setRevisionDialogOpen(false)}
+        revisionHistory={revisionHistory}
+        currentRevisionNo={revisionNo}
+        currentTotal={totals?.total || 0}
+        documentNumber={proformaNumber || 'PRO-0001'}
       />
     </div>
   );

@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { signInWithEmail, signUp, signInWithGoogle, sendVerificationEmail, resetPassword, getCurrentUser, onAuthStateChange } from '../supabase'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { TrendingUp, Target, FileText, Boxes, Briefcase, Clock, Bot, ShoppingCart, Calculator, ArrowLeft, Lightbulb, Eye, EyeOff } from 'lucide-react'
+import { z } from 'zod'
+import { supabase, signInWithEmail, signUp, signInWithGoogle, sendVerificationEmail, resetPassword, getCurrentUser, onAuthStateChange } from '../supabase'
 import { sendOnboardingSuccessEmail } from '../utils/emailService'
 
 type LoginProps = {
@@ -13,7 +17,7 @@ type SignupProps = {
 }
 
 type AuthCallbackProps = {
-  onAuth: (user: User | null) => void
+  onAuth?: (user: User | null) => void
 }
 
 type SelectOrganisationProps = {
@@ -22,24 +26,153 @@ type SelectOrganisationProps = {
   onCreateNew: (name: string) => void
 }
 
+const circularModules = [
+  { name: 'Procurement', icon: ShoppingCart, angle: -90, color: '#007AFF' },
+  { name: 'Quotation', icon: Calculator, angle: -38, color: '#FF2D55' },
+  { name: 'Invoice', icon: FileText, angle: 14, color: '#34C759' },
+  { name: 'Inventory', icon: Boxes, angle: 66, color: '#FF9500' },
+  { name: 'Project', icon: Briefcase, angle: 118, color: '#5856D6' },
+  { name: 'Followup', icon: Clock, angle: 170, color: '#AF52DE' },
+  { name: 'AI Agents', icon: Bot, angle: 222, color: '#00C7BE' },
+]
+
+const isGmailAddress = (emailStr: string) => {
+  const clean = emailStr.trim().toLowerCase()
+  return clean.endsWith('@gmail.com') || clean.endsWith('@googlemail.com')
+}
+
+const emailSchema = z
+  .string()
+  .trim()
+  .min(1, { message: 'Email address is required' })
+  .email({ message: 'Please enter a valid email address (e.g. name@company.com)' })
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, { message: 'Name must be at least 2 characters' })
+  .regex(/^[a-zA-Z\s]+$/, { message: 'Name can only contain letters and spaces (no numbers, dots, hyphens, or special characters)' })
+
+const passwordSchema = z
+  .string()
+  .min(6, { message: 'Password must be at least 6 characters' })
+  .regex(/\d/, { message: 'Password must contain at least one number' })
+  .regex(/^[a-zA-Z0-9_@]+$/, { message: 'Password can only use letters, numbers, and allowed special characters (_ and @)' })
+
+const signupSchema = z
+  .object({
+    fullName: nameSchema,
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string()
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword']
+  })
+
 export function Login({ onLogin }: LoginProps) {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showForgot, setShowForgot] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [activeInput, setActiveInput] = useState<string | null>(null)
+  const [resendLoginLoading, setResendLoginLoading] = useState(false)
+  const [resendLoginMessage, setResendLoginMessage] = useState('')
+
+  const createUnconfirmedUser = async (userEmail: string): Promise<User> => {
+    let profile: any = null
+    try {
+      const res = await supabase
+        .from('user_profiles')
+        .select('user_id, full_name, created_at')
+        .eq('email', userEmail)
+        .maybeSingle()
+      profile = res.data
+    } catch (e) {
+      console.warn('Profile fetch warning (non-fatal):', e)
+    }
+
+    return {
+      id: profile?.user_id || `unconfirmed_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      email: userEmail,
+      aud: 'authenticated',
+      role: 'authenticated',
+      created_at: profile?.created_at || new Date().toISOString(),
+      email_confirmed_at: undefined,
+      app_metadata: { provider: 'email' },
+      user_metadata: { full_name: profile?.full_name || userEmail.split('@')[0] }
+    } as any
+  }
+
+  const handleResendLoginVerification = async () => {
+    if (!email) {
+      setError('Please enter your email address first.')
+      return
+    }
+    setResendLoginLoading(true)
+    await sendVerificationEmail(email).catch(console.error)
+    
+    // Grant immediate access to application during trial grace period
+    const userObj = await createUnconfirmedUser(email)
+    localStorage.setItem('mep-unconfirmed-user-session', JSON.stringify(userObj))
+    onLogin(userObj)
+    navigate('/', { replace: true })
+  }
+
+  const getInputStyle = (field: string) => ({
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '10px',
+    background: activeInput === field ? '#ffffff' : '#f8f9fa',
+    border: activeInput === field ? '1.5px solid #007AFF' : '1px solid #d0d5dd',
+    boxShadow: activeInput === field 
+      ? '0 0 0 4px rgba(0, 122, 255, 0.15), 0 1px 2px rgba(16, 24, 40, 0.05)' 
+      : '0 1px 2px rgba(16, 24, 40, 0.05)',
+    fontSize: '14px',
+    color: '#101828',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+    transition: 'all 0.2s ease'
+  })
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+    
+    // Zod validation for email
+    const emailValidation = emailSchema.safeParse(email)
+    if (!emailValidation.success) {
+      setError(emailValidation.error.errors[0].message)
+      return
+    }
+
+    setLoading(true)
     
     const { data, error: err } = await signInWithEmail(email, password)
     
     if (err) {
+      const isUnconfirmedError = 
+        (err as any)?.code === 'email_not_confirmed' ||
+        (err as any)?.error_code === 'email_not_confirmed' ||
+        /email.*not.*confirm|unconfirmed/i.test(err.message || '') ||
+        /email.*not.*confirm|unconfirmed/i.test(String((err as any)?.code || ''))
+
+      if (isUnconfirmedError) {
+        // Bypasses email confirmation block so existing unconfirmed users enter the app during grace period
+        const unconfirmedUser = await createUnconfirmedUser(email)
+        localStorage.setItem('mep-unconfirmed-user-session', JSON.stringify(unconfirmedUser))
+        onLogin(unconfirmedUser)
+        navigate('/', { replace: true })
+        return
+      }
       setError(err.message)
       setLoading(false)
     } else {
+      localStorage.removeItem('mep-unconfirmed-user-session')
       onLogin(data.user)
     }
   }
@@ -54,10 +187,15 @@ export function Login({ onLogin }: LoginProps) {
   }
 
   const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email')
+    setError('')
+    
+    // Zod validation for email
+    const emailValidation = emailSchema.safeParse(email)
+    if (!emailValidation.success) {
+      setError(emailValidation.error.errors[0].message)
       return
     }
+
     setLoading(true)
     const { error: err } = await resetPassword(email)
     if (err) {
@@ -69,271 +207,534 @@ export function Login({ onLogin }: LoginProps) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#0a0a0a',
-      padding: '24px',
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    }}>
+    <div className="auth-container" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Ambient background glow orbs */}
       <div style={{
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{ 
-            display: 'inline-flex',
+        position: 'absolute',
+        width: '500px',
+        height: '500px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(0, 122, 255, 0.12) 0%, rgba(255, 255, 255, 0) 70%)',
+        top: '-10%',
+        left: '-10%',
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        width: '500px',
+        height: '500px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(88, 86, 214, 0.12) 0%, rgba(255, 255, 255, 0) 70%)',
+        bottom: '-10%',
+        right: '-10%',
+        pointerEvents: 'none'
+      }} />
+
+      {/* Left Glassy Beveled Banner */}
+      <motion.div
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0, y: [0, -10, 0] }}
+        transition={{
+          opacity: { duration: 0.8 },
+          x: { duration: 0.8 },
+          y: { duration: 5, repeat: Infinity, ease: 'easeInOut' }
+        }}
+        className="hidden lg:flex"
+        style={{
+          position: 'absolute',
+          left: '6%',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '310px',
+          padding: '28px',
+          borderRadius: '24px',
+          background: 'rgba(255, 255, 255, 0.65)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          boxShadow: `
+            inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+            inset -2px -2px 6px rgba(0, 0, 0, 0.05),
+            0 20px 40px rgba(0, 122, 255, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.05)
+          `,
+          flexDirection: 'column',
+          gap: '14px',
+          zIndex: 1
+        }}
+      >
+        {/* Motion Outer Hover Line */}
+        <motion.div
+          animate={{
+            boxShadow: [
+              '0 0 0 0px rgba(0, 122, 255, 0.25)',
+              '0 0 0 10px rgba(0, 122, 255, 0)',
+              '0 0 0 0px rgba(0, 122, 255, 0.25)'
+            ]
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute',
+            inset: -2,
+            borderRadius: '26px',
+            border: '1.5px solid rgba(0, 122, 255, 0.4)',
+            pointerEvents: 'none'
+          }}
+        />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, rgba(0, 122, 255, 0.2) 0%, rgba(88, 86, 214, 0.2) 100%)',
+            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '48px',
-            height: '48px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
-            marginBottom: '20px'
+            color: '#007AFF'
           }}>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: '24px' }}>P</span>
+            <TrendingUp size={20} />
           </div>
-          <h1 style={{ 
-            fontSize: '28px', 
-            fontWeight: 600, 
-            color: '#fff',
-            marginBottom: '8px',
-            letterSpacing: '-0.5px'
-          }}>Welcome back</h1>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '15px' }}>
-            Sign in to your Perfect ERP account
-          </p>
+          <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#007AFF' }}>
+            Strategic Wisdom
+          </span>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: '20px',
-          padding: '32px'
+        <h3 style={{
+          fontSize: '22px',
+          fontWeight: 800,
+          lineHeight: '1.35',
+          color: '#1c1c1e',
+          letterSpacing: '-0.5px',
+          margin: 0
         }}>
-          {error && (
-            <div style={{
-              background: 'rgba(255,59,48,0.1)',
-              border: '1px solid rgba(255,59,48,0.2)',
-              borderRadius: '12px',
-              padding: '14px 16px',
-              marginBottom: '24px',
-              color: '#ff453a',
-              fontSize: '14px'
-            }}>
-              {error}
-            </div>
-          )}
+          "Profit comes from planning"
+        </h3>
+        
+        <p style={{ fontSize: '13px', color: '#636366', lineHeight: '1.5', margin: 0 }}>
+          Organize your engineering workflows, material estimates, and financial margins with foresight.
+        </p>
+      </motion.div>
 
-          {showForgot ? (
-            <div>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '24px' }}>
-                Enter your email and we'll send you a reset link.
-              </p>
-              <button 
-                onClick={handleForgotPassword} 
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: '#007AFF',
-                  color: '#fff',
-                  border: 'none',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  marginBottom: '16px'
-                }}
-              >
-                {loading ? 'Sending...' : 'Send Reset Link'}
-              </button>
-              <button 
-                onClick={() => setShowForgot(false)}
-                style={{
-                  width: '100%',
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}
-              >
-                ← Back to login
-              </button>
+      {/* Center Entry Form */}
+      <div className="auth-card" style={{ zIndex: 10, position: 'relative' }}>
+        {/* Logo with Circular Auto-Popup Badges */}
+        <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{
+            position: 'relative',
+            width: '180px',
+            height: '130px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '8px'
+          }}>
+            {/* Center Logo */}
+            <div style={{ 
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
+              boxShadow: '0 8px 18px rgba(0, 122, 255, 0.3)',
+              zIndex: 2
+            }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: '24px' }}>P</span>
             </div>
-          ) : (
-            <>
-              <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    color: 'rgba(255,255,255,0.7)', 
-                    fontSize: '13px', 
-                    fontWeight: 500,
-                    marginBottom: '8px'
-                  }}>
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@company.com"
-                    style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      borderRadius: '12px',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#fff',
-                      fontSize: '15px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      transition: 'border-color 0.2s'
+
+            {/* Circular Orbit Pill Badges */}
+            {circularModules.map((mod, idx) => {
+              const radiusX = 80
+              const radiusY = 50
+              const rad = (mod.angle * Math.PI) / 180
+              const targetX = Math.cos(rad) * radiusX
+              const targetY = Math.sin(rad) * radiusY
+
+              return (
+                <motion.div
+                  key={mod.name}
+                  initial={{ opacity: 0, scale: 0.3, x: 0, y: 0 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1, 
+                    x: targetX, 
+                    y: targetY 
+                  }}
+                  transition={{
+                    opacity: { duration: 0.4, delay: idx * 0.18 + 0.3 },
+                    scale: { type: 'spring', stiffness: 350, damping: 22, delay: idx * 0.18 + 0.3 },
+                    x: { duration: 0.5, delay: idx * 0.18 + 0.3 },
+                    y: { duration: 0.5, delay: idx * 0.18 + 0.3 }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 8px',
+                    borderRadius: '20px',
+                    background: 'rgba(255, 255, 255, 0.88)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    border: `1px solid ${mod.color}35`,
+                    boxShadow: `0 4px 10px ${mod.color}15, inset 0 1px 1px rgba(255, 255, 255, 0.9)`,
+                    zIndex: 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.06, 1], y: [0, -2, 0] }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: idx * 0.3 + 1.2
                     }}
-                    onFocus={(e) => e.target.style.borderColor = '#007AFF'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                  />
-                </div>
-                
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    color: 'rgba(255,255,255,0.7)', 
-                    fontSize: '13px', 
-                    fontWeight: 500,
-                    marginBottom: '8px'
-                  }}>
-                    Password
-                  </label>
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <mod.icon size={11} color={mod.color} />
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: '#1c1c1e',
+                      letterSpacing: '-0.2px'
+                    }}>
+                      {mod.name}
+                    </span>
+                  </motion.div>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          <h1>Welcome back</h1>
+          <p>Sign in to your Perfect ERP account</p>
+        </div>
+
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>{error}</span>
+            {(/email not confirmed|email address not confirmed|unconfirmed/i.test(error) || error.toLowerCase().includes('confirm')) && (
+              <div style={{ marginTop: '4px' }}>
+                {resendLoginMessage ? (
+                  <span style={{ fontSize: '12px', color: '#12b76a', fontWeight: 600 }}>{resendLoginMessage}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendLoginVerification}
+                    disabled={resendLoginLoading}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #d92d20',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#d92d20',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    {resendLoginLoading ? 'Sending...' : 'Resend Verification Email'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isGmailAddress(email) && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            background: 'rgba(66, 133, 244, 0.08)',
+            border: '1px solid rgba(66, 133, 244, 0.25)',
+            borderRadius: '12px',
+            padding: '10px 14px',
+            marginBottom: '20px',
+            fontSize: '13px',
+            color: '#1a73e8'
+          }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" style={{ flexShrink: 0 }}>
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span>Gmail detected! You can log in instantly with <strong>Continue with Google</strong>.</span>
+          </div>
+        )}
+
+        {showForgot ? (
+          <div>
+            <p style={{ color: 'var(--gray-600)', fontSize: '14px', marginBottom: '24px', textAlign: 'center' }}>
+              Enter your email and we'll send you a reset link.
+            </p>
+            <button 
+              onClick={handleForgotPassword} 
+              disabled={loading}
+              className="btn btn-primary btn-block"
+              style={{ marginBottom: '16px' }}
+            >
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+            <button 
+              onClick={() => setShowForgot(false)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                background: 'linear-gradient(180deg, #ffffff 0%, #f1f3f5 100%)',
+                border: '1px solid rgba(0, 0, 0, 0.15)',
+                boxShadow: `
+                  inset 1.5px 1.5px 3px rgba(255, 255, 255, 1),
+                  inset -1.5px -1.5px 3px rgba(0, 0, 0, 0.08),
+                  0 4px 8px rgba(0, 0, 0, 0.06)
+                `,
+                color: '#212529',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <ArrowLeft size={16} /> Back to Login
+            </button>
+          </div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label className="form-label" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: activeInput === 'email' ? '#007AFF' : '#344054', marginBottom: '6px', transition: 'color 0.2s' }}>Email</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setActiveInput('email')}
+                  onBlur={() => setActiveInput(null)}
+                  required
+                  placeholder="you@company.com"
+                  style={getInputStyle('email')}
+                />
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '20px' }}>
+                <label className="form-label" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: activeInput === 'password' ? '#007AFF' : '#344054', marginBottom: '6px', transition: 'color 0.2s' }}>Password</label>
+                <div style={{ position: 'relative' }}>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-input"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setActiveInput('password')}
+                    onBlur={() => setActiveInput(null)}
                     required
                     placeholder="••••••••"
                     style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      borderRadius: '12px',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#fff',
-                      fontSize: '15px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      transition: 'border-color 0.2s'
+                      ...getInputStyle('password'),
+                      paddingRight: '40px'
                     }}
-                    onFocus={(e) => e.target.style.borderColor = '#007AFF'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#667085',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px'
+                    }}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
                 
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    background: '#007AFF',
-                    color: '#fff',
-                    border: 'none',
-                    fontSize: '15px',
-                    fontWeight: 600,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.7 : 1,
-                    transition: 'transform 0.2s, box-shadow 0.2s'
-                  }}
-                >
-                  {loading ? 'Signing in...' : 'Continue'}
-                </button>
-              </form>
-              
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                margin: '24px 0'
-              }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>or</span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                {!showForgot && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                    <button 
+                      type="button"
+                      onClick={() => setShowForgot(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#007AFF',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
               </div>
               
               <button 
-                onClick={handleGoogleLogin}
+                type="submit" 
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  fontSize: '15px',
-                  fontWeight: 500,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10px'
-                }}
+                className="btn btn-primary btn-block"
               >
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Continue with Google
+                {loading ? 'Signing in...' : 'Continue'}
               </button>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        {!showForgot && (
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
+            </form>
+            
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              margin: '20px 0'
+            }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--gray-200)' }} />
+              <span style={{ color: 'var(--gray-400)', fontSize: '13px' }}>or</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--gray-200)' }} />
+            </div>
+            
             <button 
-              onClick={() => setShowForgot(true)}
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="btn btn-secondary btn-block"
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255,255,255,0.5)',
-                fontSize: '14px',
-                cursor: 'pointer',
-                marginBottom: '12px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
               }}
             >
-              Forgot password?
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Continue with Google
             </button>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
-              Don't have an account?{' '}
-              <a 
-                href="#signup" 
-                onClick={(e) => { e.preventDefault(); window.location.hash = 'signup'; }}
-                style={{ color: '#007AFF', textDecoration: 'none', fontWeight: 500 }}
-              >
-                Sign up
-              </a>
-            </p>
-          </div>
+
+            <div className="auth-footer" style={{ marginTop: '20px' }}>
+              <p>
+                Don't have an account?{' '}
+                <a 
+                  href="/signup" 
+                  onClick={(e) => { e.preventDefault(); navigate('/signup'); }}
+                >
+                  Sign up
+                </a>
+              </p>
+            </div>
+          </>
         )}
       </div>
+
+      {/* Right Glassy Beveled Banner */}
+      <motion.div
+        initial={{ opacity: 0, x: 40 }}
+        animate={{ opacity: 1, x: 0, y: [0, 10, 0] }}
+        transition={{
+          opacity: { duration: 0.8 },
+          x: { duration: 0.8 },
+          y: { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }
+        }}
+        className="hidden lg:flex"
+        style={{
+          position: 'absolute',
+          right: '6%',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '310px',
+          padding: '28px',
+          borderRadius: '24px',
+          background: 'rgba(255, 255, 255, 0.65)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          boxShadow: `
+            inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+            inset -2px -2px 6px rgba(0, 0, 0, 0.05),
+            0 20px 40px rgba(88, 86, 214, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.05)
+          `,
+          flexDirection: 'column',
+          gap: '14px',
+          zIndex: 1
+        }}
+      >
+        {/* Motion Outer Hover Line */}
+        <motion.div
+          animate={{
+            boxShadow: [
+              '0 0 0 0px rgba(88, 86, 214, 0.25)',
+              '0 0 0 10px rgba(88, 86, 214, 0)',
+              '0 0 0 0px rgba(88, 86, 214, 0.25)'
+            ]
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+          style={{
+            position: 'absolute',
+            inset: -2,
+            borderRadius: '26px',
+            border: '1.5px solid rgba(88, 86, 214, 0.4)',
+            pointerEvents: 'none'
+          }}
+        />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, rgba(88, 86, 214, 0.2) 0%, rgba(255, 45, 85, 0.2) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#5856D6'
+          }}>
+            <Target size={20} />
+          </div>
+          <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#5856D6' }}>
+            Precision Standard
+          </span>
+        </div>
+
+        <h3 style={{
+          fontSize: '22px',
+          fontWeight: 800,
+          lineHeight: '1.35',
+          color: '#1c1c1e',
+          letterSpacing: '-0.5px',
+          margin: 0
+        }}>
+          "Planning gets you near-perfection"
+        </h3>
+        
+        <p style={{ fontSize: '13px', color: '#636366', lineHeight: '1.5', margin: 0 }}>
+          Execute project milestones with zero operational friction and flawless accuracy.
+        </p>
+      </motion.div>
     </div>
   )
 }
 
 export function Signup({ onSignup }: SignupProps) {
+  const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -341,18 +742,40 @@ export function Signup({ onSignup }: SignupProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [activeInput, setActiveInput] = useState<string | null>(null)
+
+  const getInputStyle = (field: string) => ({
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '10px',
+    background: activeInput === field ? '#ffffff' : '#f8f9fa',
+    border: activeInput === field ? '1.5px solid #007AFF' : '1px solid #d0d5dd',
+    boxShadow: activeInput === field 
+      ? '0 0 0 4px rgba(0, 122, 255, 0.15), 0 1px 2px rgba(16, 24, 40, 0.05)' 
+      : '0 1px 2px rgba(16, 24, 40, 0.05)',
+    fontSize: '14px',
+    color: '#101828',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+    transition: 'all 0.2s ease'
+  })
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    // Zod validation for all signup entry fields
+    const signupValidation = signupSchema.safeParse({
+      fullName,
+      email,
+      password,
+      confirmPassword
+    })
+
+    if (!signupValidation.success) {
+      setError(signupValidation.error.errors[0].message)
       return
     }
     
@@ -363,92 +786,253 @@ export function Signup({ onSignup }: SignupProps) {
     if (err) {
       setError(err.message)
       setLoading(false)
-    } else {
-      // Send onboarding success email
-      await sendOnboardingSuccessEmail({
+    } else if (data.user) {
+      // Save unconfirmed session for immediate trial grace period access
+      if (!data.session || !data.user.email_confirmed_at) {
+        localStorage.setItem('mep-unconfirmed-user-session', JSON.stringify(data.user))
+        await signInWithEmail(email, password).catch(() => {})
+      }
+      
+      // Send onboarding welcome email in background
+      sendOnboardingSuccessEmail({
         to: email,
         fullName: fullName,
         organisationName: 'your organization'
-      })
+      }).catch(console.error)
       
-      setSuccess(true)
+      onSignup(data.user)
+      navigate('/', { replace: true })
+    } else {
       setLoading(false)
     }
-  }
-
-  if (success) {
-    return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <h1>Check Your Email</h1>
-            <p>We've sent a verification link to <strong>{email}</strong></p>
-          </div>
-          <div className="alert alert-success">
-            Click the link in the email to verify your account, then sign in.
-          </div>
-          <div className="auth-footer">
-            <a href="#login" onClick={(e) => { e.preventDefault(); window.location.hash = 'login'; }}>Back to Login</a>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
     <div className="auth-container">
       <div className="auth-card">
+        {/* Top Back to Login Button */}
+        <button 
+          type="button"
+          onClick={() => navigate('/login')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            borderRadius: '12px',
+            background: 'linear-gradient(180deg, #ffffff 0%, #f1f3f5 100%)',
+            border: '1px solid rgba(0, 0, 0, 0.15)',
+            boxShadow: `
+              inset 1.5px 1.5px 3px rgba(255, 255, 255, 1),
+              inset -1.5px -1.5px 3px rgba(0, 0, 0, 0.08),
+              0 4px 8px rgba(0, 0, 0, 0.06)
+            `,
+            color: '#212529',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            marginBottom: '20px'
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Login
+        </button>
+
         <div className="auth-header">
           <h1>Create Account</h1>
           <p>Sign up for your account</p>
         </div>
         
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && <div className="alert alert-error" style={{ marginBottom: '16px' }}>{error}</div>}
+
+        {isGmailAddress(email) && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            background: 'rgba(66, 133, 244, 0.08)',
+            border: '1px solid rgba(66, 133, 244, 0.25)',
+            borderRadius: '12px',
+            padding: '10px 14px',
+            marginBottom: '16px',
+            fontSize: '13px',
+            color: '#1a73e8'
+          }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" style={{ flexShrink: 0 }}>
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span>Gmail detected! You can log in faster using <strong>Google SSO</strong> on the login page.</span>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Full Name</label>
+          <div className="form-group" style={{ marginBottom: '16px' }}>
+            <label className="form-label" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: activeInput === 'fullName' ? '#007AFF' : '#344054', marginBottom: '6px', transition: 'color 0.2s' }}>What people would call you?</label>
             <input
               type="text"
               className="form-input"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              onFocus={() => setActiveInput('fullName')}
+              onBlur={() => setActiveInput(null)}
               required
+              placeholder="John Doe"
+              style={getInputStyle('fullName')}
             />
           </div>
           
-          <div className="form-group">
-            <label className="form-label">Email</label>
+          <div className="form-group" style={{ marginBottom: '16px' }}>
+            <label className="form-label" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: activeInput === 'email' ? '#007AFF' : '#344054', marginBottom: '6px', transition: 'color 0.2s' }}>Email</label>
             <input
               type="email"
               className="form-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => setActiveInput('email')}
+              onBlur={() => setActiveInput(null)}
               required
+              placeholder="you@company.com"
+              style={getInputStyle('email')}
             />
           </div>
           
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
+          <div className="form-group" style={{ marginBottom: '16px' }}>
+            <label className="form-label" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: activeInput === 'password' ? '#007AFF' : '#344054', marginBottom: '6px', transition: 'color 0.2s' }}>Password</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setActiveInput('password')}
+                onBlur={() => setActiveInput(null)}
+                required
+                placeholder="At least 6 characters"
+                style={{
+                  ...getInputStyle('password'),
+                  paddingRight: '40px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#667085',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px'
+                }}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              marginTop: '6px',
+              fontSize: '12px',
+              color: '#98a2b3'
+            }}>
+              <span style={{ 
+                color: password.length >= 6 ? '#12b76a' : '#98a2b3', 
+                fontWeight: password.length >= 6 ? 600 : 400,
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '4px',
+                transition: 'color 0.2s ease'
+              }}>
+                <span style={{ fontSize: '13px', lineHeight: 1 }}>{password.length >= 6 ? '✓' : '•'}</span> Min 6 characters
+              </span>
+
+              <span style={{ 
+                color: /\d/.test(password) ? '#12b76a' : '#98a2b3', 
+                fontWeight: /\d/.test(password) ? 600 : 400,
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '4px',
+                transition: 'color 0.2s ease'
+              }}>
+                <span style={{ fontSize: '13px', lineHeight: 1 }}>{/\d/.test(password) ? '✓' : '•'}</span> Use number
+              </span>
+
+              <span style={{ 
+                color: (password.length > 0 && /^[a-zA-Z0-9_@]+$/.test(password) && /[_@]/.test(password)) ? '#12b76a' : '#98a2b3', 
+                fontWeight: (password.length > 0 && /^[a-zA-Z0-9_@]+$/.test(password) && /[_@]/.test(password)) ? 600 : 400,
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '4px',
+                transition: 'color 0.2s ease'
+              }}>
+                <span style={{ fontSize: '13px', lineHeight: 1 }}>{(password.length > 0 && /^[a-zA-Z0-9_@]+$/.test(password) && /[_@]/.test(password)) ? '✓' : '•'}</span> Use only _ and @
+              </span>
+            </div>
           </div>
           
-          <div className="form-group">
-            <label className="form-label">Confirm Password</label>
-            <input
-              type="password"
-              className="form-input"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label className="form-label" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: activeInput === 'confirmPassword' ? '#007AFF' : '#344054', marginBottom: '6px', transition: 'color 0.2s' }}>Confirm Password</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                className="form-input"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={() => setActiveInput('confirmPassword')}
+                onBlur={() => setActiveInput(null)}
+                required
+                placeholder="Re-enter your password"
+                style={{
+                  ...getInputStyle('confirmPassword'),
+                  paddingRight: '40px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#667085',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px'
+                }}
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            
+            {confirmPassword.length > 0 && (
+              <div style={{
+                marginTop: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: confirmPassword === password ? '#12b76a' : '#f04438',
+                transition: 'color 0.2s ease'
+              }}>
+                <span>{confirmPassword === password ? '✓ Passwords match' : '✕ Passwords do not match'}</span>
+              </div>
+            )}
           </div>
           
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
@@ -458,7 +1042,7 @@ export function Signup({ onSignup }: SignupProps) {
         
         <div className="auth-footer">
           <p>
-            Already have an account? <a href="#login" onClick={(e) => { e.preventDefault(); window.location.hash = 'login'; }}>Sign In</a>
+            Already have an account? <a href="/login" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>Sign In</a>
           </p>
         </div>
       </div>
@@ -469,19 +1053,24 @@ export function Signup({ onSignup }: SignupProps) {
 export function AuthCallback({ onAuth }: AuthCallbackProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     const handleCallback = async () => {
       const userResponse = await getCurrentUser()
       if (userResponse.error) {
         setError(userResponse.error.message)
+        setLoading(false)
       } else if (userResponse.data?.user) {
-        onAuth(userResponse.data.user)
+        onAuth?.(userResponse.data.user)
+        navigate('/', { replace: true })
+        // no setLoading(false) here — we're navigating away, no need to re-render this view
+      } else {
+        setLoading(false)
       }
-      setLoading(false)
     }
     handleCallback()
-  }, [onAuth])
+  }, [onAuth, navigate])
 
   if (loading) {
     return (
@@ -503,7 +1092,7 @@ export function AuthCallback({ onAuth }: AuthCallbackProps) {
             <h1>Authentication Failed</h1>
             <p>{error}</p>
           </div>
-          <a href="#login" className="btn btn-primary btn-block">Back to Login</a>
+          <button onClick={() => navigate('/login')} className="btn btn-primary btn-block">Back to Login</button>
         </div>
       </div>
     )
@@ -643,5 +1232,3 @@ export function SelectOrganisation({ organisations, onSelect, onCreateNew }: Sel
     </div>
   )
 }
-
-

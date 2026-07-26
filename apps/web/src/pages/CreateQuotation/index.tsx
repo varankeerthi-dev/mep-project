@@ -34,6 +34,7 @@ import { ErectionItemsSection } from './components/ErectionItemsSection';
 import { saveItemsDiff } from './utils/itemDiff';
 import { useAutosave } from './hooks/useAutosave';
 import { usePresence } from './hooks/usePresence';
+import { DocumentConversionChain } from '../../components/DocumentConversionChain';
 import { PresenceBanner } from './components/PresenceBanner';
 import { autoCreateOrUpdateErection } from '../../utils/erectionUtils';
 
@@ -2405,6 +2406,13 @@ export default function CreateQuotation() {
               <RotateCcw className="w-3.5 h-3.5" />
               Undo Import
             </button>
+          </div>
+        )}
+
+        {/* Conversion Chain Breadcrumb */}
+        {editId && (
+          <div style={{ marginBottom: '12px' }}>
+            <DocumentConversionChain documentType="quotation" documentId={editId} />
           </div>
         )}
 

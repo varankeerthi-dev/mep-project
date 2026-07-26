@@ -6,7 +6,6 @@ interface EquipmentTabProps {
   projectEquipment: any[];
   projectTcProtocols: any[];
   equipmentStats: any;
-  setEqFormData: (data: any) => void;
   setIsEqModalOpen: (open: boolean) => void;
   setSelectedTcCert: (cert: any) => void;
   fmtD: (val: any) => string;
@@ -17,7 +16,6 @@ export function EquipmentTab({
   projectEquipment,
   projectTcProtocols,
   equipmentStats,
-  setEqFormData,
   setIsEqModalOpen,
   setSelectedTcCert,
   fmtD,
@@ -28,18 +26,7 @@ export function EquipmentTab({
         <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Equipment & Warranty Register</h3>
         <button 
           className="pl-btn pl-btn-primary" 
-          onClick={() => {
-            setEqFormData({
-              equipment_name: '',
-              make_model: '',
-              serial_number: '',
-              supplier: '',
-              quantity: 1,
-              warranty_start_date: new Date().toISOString().split('T')[0],
-              warranty_duration_months: 12
-            });
-            setIsEqModalOpen(true);
-          }}
+          onClick={() => setIsEqModalOpen(true)}
           style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8125rem' }}
         >
           <Plus size={14} /> Add Equipment

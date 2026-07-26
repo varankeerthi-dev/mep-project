@@ -1,4 +1,4 @@
-export const proformaStatuses = ['draft', 'sent', 'accepted', 'rejected'] as const;
+export const proformaStatuses = ['draft', 'sent', 'accepted', 'rejected', 'converted', 'expired'] as const;
 export const proformaSourceTypes = ['quotation', 'challan', 'po', 'manual'] as const;
 
 export type ProformaStatus = (typeof proformaStatuses)[number];
