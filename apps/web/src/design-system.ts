@@ -73,6 +73,8 @@ export const shadows = {
   xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
   inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
   none: 'none',
+  card: '0 1px 3px rgba(0,0,0,0.06)',
+  elevated: '0 4px 12px rgba(0,0,0,0.08)',
 };
 
 export const radii = {
@@ -103,7 +105,7 @@ export const transitions = {
 
 export const typography = {
   fontFamily: {
-    sans: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    sans: '"Uncut Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
   },
   sizes: {
@@ -114,6 +116,8 @@ export const typography = {
     xl: { size: '18px', lineHeight: '28px' },
     '2xl': { size: '20px', lineHeight: '28px' },
     '3xl': { size: '24px', lineHeight: '32px' },
+    stat: { size: '28px', lineHeight: '32px' },
+    hero: { size: '36px', lineHeight: '40px' },
   },
   weights: {
     normal: '400',

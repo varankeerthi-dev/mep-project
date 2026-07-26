@@ -300,7 +300,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
       <DashboardHeader isRefreshing={isRefreshing} onRefresh={handleRefresh} onNavigate={onNavigate} />
 
       {/* Main Content */}
-      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
         
         {/* Stats Summary Grid */}
         <StatsRow
@@ -325,7 +325,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
         />
 
         {/* 2-Column Section */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '24px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '32px', alignItems: 'start' }}>
           
           {/* Left Column: Module Cards */}
           <ModuleCards onNavigate={onNavigate} />

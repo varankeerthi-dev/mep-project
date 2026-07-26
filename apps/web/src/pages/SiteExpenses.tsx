@@ -10,6 +10,8 @@ import { ApprovalIntegration } from '@/approvals/integration';
 import { supabase } from '@/lib/supabase';
 import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_CONFIG } from '@/types/expense';
 import type { ExpenseEntry, ExpenseEntryType, ExpenseCategory, ExpenseItemType, ExpensePaymentMethod, ExpenseEntryInsert } from '@/types/expense';
+import ReceiptPreview from '@/components/ReceiptPreview';
+import ExpenseSummary from '@/components/ExpenseSummary';
 
 // ─── Design Tokens (DESIGN.md) ──────────────────────────────────────────────
 const styles = {
@@ -198,6 +200,13 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
         </select>
       </div>
 
+      {/* Expense Summary (Feature #26) */}
+      {filtered && filtered.length > 0 && (
+        <div style={{ padding: '0 24px 16px' }}>
+          <ExpenseSummary expenses={filtered} />
+        </div>
+      )}
+
       {/* Table */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {isLoading ? (
@@ -226,6 +235,7 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
                 <th style={{ padding: '12px 24px' }}>Status</th>
                 <th style={{ padding: '12px 24px' }}>Approval</th>
                 <th style={{ padding: '12px 24px' }}>Vendor</th>
+                <th style={{ padding: '12px 24px' }}>Receipt</th>
                 {!projectId && <th style={{ padding: '12px 24px' }}>Project</th>}
                 <th style={{ padding: '12px 24px' }}>Actions</th>
               </tr>
@@ -275,6 +285,13 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
                     )}
                   </td>
                   <td style={{ padding: '12px 24px', color: '#52525b' }}>{entry.vendor_name || '-'}</td>
+                  <td style={{ padding: '12px 24px' }}>
+                    {entry.payment_proof ? (
+                      <ReceiptPreview url={entry.payment_proof} size="sm" />
+                    ) : (
+                      <span style={{ color: '#a1a1aa' }}>-</span>
+                    )}
+                  </td>
                   {!projectId && (
                     <td style={{ padding: '12px 24px', color: '#52525b' }}>
                       {entry.project?.project_name || '-'}

@@ -1,5 +1,5 @@
 import { Building2, Wrench, AlertTriangle, Clock } from 'lucide-react';
-import { colors, shadows, radii } from '../../design-system';
+import { colors, shadows, radii, typography } from '../../design-system';
 
 interface ClaimsStats {
   totalActive: number;
@@ -24,7 +24,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         borderRadius: radii.md,
         padding: '20px',
         border: `1px solid ${colors.gray[200]}`,
-        boxShadow: shadows.sm,
+        boxShadow: shadows.card,
         display: 'flex',
         alignItems: 'center',
         gap: '16px'
@@ -34,7 +34,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         </div>
         <div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: colors.gray[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Projects</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: colors.gray[900], marginTop: '4px' }}>
+          <div style={{ fontSize: typography.sizes.stat.size, fontWeight: 700, color: colors.gray[900], marginTop: '4px' }}>
             {projectsLoading ? '...' : projectsCount}
           </div>
         </div>
@@ -46,7 +46,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         borderRadius: radii.md,
         padding: '20px',
         border: `1px solid ${colors.gray[200]}`,
-        boxShadow: shadows.sm,
+        boxShadow: shadows.card,
         display: 'flex',
         alignItems: 'center',
         gap: '16px'
@@ -56,7 +56,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         </div>
         <div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: colors.gray[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Claims</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: colors.gray[900], marginTop: '4px' }}>
+          <div style={{ fontSize: typography.sizes.stat.size, fontWeight: 700, color: colors.gray[900], marginTop: '4px' }}>
             {claimsLoading ? '...' : claimsStats.totalActive}
           </div>
         </div>
@@ -68,7 +68,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         borderRadius: radii.md,
         padding: '20px',
         border: `1px solid ${claimsStats.overdueCount > 0 ? '#feb2b2' : colors.gray[200]}`,
-        boxShadow: shadows.sm,
+        boxShadow: shadows.card,
         display: 'flex',
         alignItems: 'center',
         gap: '16px'
@@ -83,7 +83,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         </div>
         <div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: colors.gray[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overdue SLA</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: claimsStats.overdueCount > 0 ? colors.error.dark : colors.gray[900], marginTop: '4px' }}>
+          <div style={{ fontSize: typography.sizes.stat.size, fontWeight: 700, color: claimsStats.overdueCount > 0 ? colors.error.dark : colors.gray[900], marginTop: '4px' }}>
             {claimsLoading ? '...' : claimsStats.overdueCount}
           </div>
         </div>
@@ -95,7 +95,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         borderRadius: radii.md,
         padding: '20px',
         border: `1px solid ${claimsStats.criticalCount > 0 ? '#fef3c7' : colors.gray[200]}`,
-        boxShadow: shadows.sm,
+        boxShadow: shadows.card,
         display: 'flex',
         alignItems: 'center',
         gap: '16px'
@@ -110,7 +110,7 @@ export function StatsRow({ projectsLoading, projectsCount, claimsLoading, claims
         </div>
         <div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: colors.gray[500], textTransform: 'uppercase', letterSpacing: '0.05em' }}>Critical SLA</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: claimsStats.criticalCount > 0 ? colors.warning.dark : colors.gray[900], marginTop: '4px' }}>
+          <div style={{ fontSize: typography.sizes.stat.size, fontWeight: 700, color: claimsStats.criticalCount > 0 ? colors.warning.dark : colors.gray[900], marginTop: '4px' }}>
             {claimsLoading ? '...' : claimsStats.criticalCount}
           </div>
         </div>

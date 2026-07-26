@@ -27,6 +27,8 @@ import { useAuth } from '@/App';
 import { supabase } from '@/lib/supabase';
 import { useHandovers } from '@/hooks/useHandovers';
 import { useOpenStoppagesByOrg, useResolveStoppage, useReopenStoppage, useDeleteStoppage } from '@/hooks/useStoppages';
+import { useBudgetAlerts, type BudgetAlert } from '@/hooks/useBudgetAlerts';
+import { useProjectActivity, type ActivityItem } from '@/hooks/useProjectActivity';
 import {
   labelForStoppageCategory,
   labelForBlockingParty,
@@ -138,6 +140,12 @@ export default function ProjectOverview() {
   });
 
   const handoversQuery = useHandovers(orgId);
+
+  // Budget alerts (Feature #24)
+  const budgetAlertsQuery = useBudgetAlerts(orgId || null);
+
+  // Activity feed (Feature #5)
+  const activityQuery = useProjectActivity(orgId || null, 20);
 
   const reportsQuery = useQuery({
     queryKey: ['overview-reports', orgId, window],
@@ -400,6 +408,58 @@ export default function ProjectOverview() {
       </header>
 
       <main className="max-w-[1440px] mx-auto px-6 py-8 space-y-8">
+        {/* Budget Alerts (Feature #24) */}
+        {budgetAlertsQuery.data && budgetAlertsQuery.data.length > 0 && (
+          <motion.section variants={item}>
+            <div className="rounded-xl border overflow-hidden" style={{
+              borderColor: budgetAlertsQuery.data[0].severity === 'critical' ? '#fecaca' :
+                budgetAlertsQuery.data[0].severity === 'danger' ? '#fed7aa' :
+                budgetAlertsQuery.data[0].severity === 'warning' ? '#fef3c7' : '#e0f2fe',
+              backgroundColor: budgetAlertsQuery.data[0].severity === 'critical' ? '#fef2f2' :
+                budgetAlertsQuery.data[0].severity === 'danger' ? '#fff7ed' :
+                budgetAlertsQuery.data[0].severity === 'warning' ? '#fffbeb' : '#f0f9ff',
+            }}>
+              <div className="p-4 flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{
+                  backgroundColor: budgetAlertsQuery.data[0].severity === 'critical' ? '#fee2e2' :
+                    budgetAlertsQuery.data[0].severity === 'danger' ? '#ffedd5' :
+                    budgetAlertsQuery.data[0].severity === 'warning' ? '#fef3c7' : '#e0f2fe',
+                }}>
+                  <ExclamationTriangleIcon className="w-4 h-4" style={{
+                    color: budgetAlertsQuery.data[0].severity === 'critical' ? '#dc2626' :
+                      budgetAlertsQuery.data[0].severity === 'danger' ? '#ea580c' :
+                      budgetAlertsQuery.data[0].severity === 'warning' ? '#d97706' : '#0284c7',
+                  }} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold" style={{ color: '#1c1917' }}>
+                    Budget Alert{budgetAlertsQuery.data.length > 1 ? `s (${budgetAlertsQuery.data.length})` : ''}
+                  </h3>
+                  <div className="mt-1 space-y-0.5">
+                    {budgetAlertsQuery.data.slice(0, 3).map((alert) => (
+                      <p key={alert.projectId} className="text-xs" style={{ color: '#57534e' }}>
+                        {alert.message} — ₹{alert.spentAmount.toLocaleString('en-IN')} of ₹{alert.budgetAmount.toLocaleString('en-IN')}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/projects-overview')}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                  style={{
+                    color: budgetAlertsQuery.data[0].severity === 'critical' ? '#dc2626' :
+                      budgetAlertsQuery.data[0].severity === 'danger' ? '#ea580c' :
+                      budgetAlertsQuery.data[0].severity === 'warning' ? '#d97706' : '#0284c7',
+                    backgroundColor: 'rgba(255,255,255,0.6)',
+                  }}
+                >
+                  View All
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
         {/* Attention + Stoppages side by side */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Attention Feed */}
@@ -714,6 +774,72 @@ export default function ProjectOverview() {
             )}
           </div>
         </motion.section>
+
+        {/* Recent Activity Feed (Feature #5) */}
+        {activityQuery.data && activityQuery.data.length > 0 && (
+          <motion.section variants={item}>
+            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1c1917' }}>
+                  <BellAlertIcon className="w-4 h-4" style={{ color: '#7c3aed' }} />
+                  Recent Activity
+                </h2>
+                <span className="text-[11px] font-medium" style={{ color: '#a8a29e' }}>
+                  {activityQuery.data.length} item{activityQuery.data.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              <div>
+                {activityQuery.data.slice(0, 10).map((activity, i) => (
+                  <button
+                    key={activity.id}
+                    onClick={() => navigate(activity.href)}
+                    className="w-full flex items-start gap-4 p-4 text-left transition-all duration-200 hover:bg-[#fafaf9]"
+                    style={{
+                      borderBottom: i < Math.min(activityQuery.data.length, 10) - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
+                      style={{
+                        backgroundColor:
+                          activity.type === 'task' ? '#3b82f6' :
+                          activity.type === 'site_report' ? '#059669' :
+                          activity.type === 'approval' ? '#7c3aed' :
+                          activity.type === 'expense' ? '#d97706' :
+                          activity.type === 'handover' ? '#0891b2' :
+                          '#dc2626',
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: '#1c1917' }}>
+                        {activity.title}
+                      </div>
+                      <div className="text-xs mt-0.5 truncate" style={{ color: '#a8a29e' }}>
+                        {activity.subtitle}
+                      </div>
+                    </div>
+                    <span
+                      className="text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 mt-0.5"
+                      style={{
+                        backgroundColor:
+                          activity.severity === 'overdue' ? '#fef2f2' :
+                          activity.severity === 'recent' ? '#fffbeb' :
+                          '#f5f5f4',
+                        color:
+                          activity.severity === 'overdue' ? '#dc2626' :
+                          activity.severity === 'recent' ? '#d97706' :
+                          '#a8a29e',
+                      }}
+                    >
+                      {activity.type.replace('_', ' ')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.section>
+        )}
       </main>
 
       {/* Resolve dialog */}

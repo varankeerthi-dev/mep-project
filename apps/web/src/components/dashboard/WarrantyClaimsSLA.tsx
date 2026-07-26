@@ -1,5 +1,5 @@
 import { ShieldAlert, Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
-import { colors, shadows, radii } from '../../design-system';
+import { colors, shadows, radii, typography } from '../../design-system';
 
 interface Claim {
   id: string;
@@ -24,10 +24,10 @@ interface WarrantyClaimsSLAProps {
 
 export function WarrantyClaimsSLA({ claimsLoading, claimsStats, onNavigate }: WarrantyClaimsSLAProps) {
   return (
-    <div style={{ background: 'white', borderRadius: radii.md, padding: '24px', border: `1px solid ${colors.gray[200]}`, boxShadow: shadows.sm }}>
+    <div style={{ background: 'white', borderRadius: radii.md, padding: '24px', border: `1px solid ${colors.gray[200]}`, boxShadow: shadows.card }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <ShieldAlert size={20} style={{ color: claimsStats.claims.some(c => c.slaStatus === 'overdue') ? colors.error.DEFAULT : colors.info.DEFAULT }} />
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: colors.gray[900], margin: 0 }}>Warranty Claims SLA</h2>
+        <h2 style={{ fontSize: typography.sizes['2xl'].size, fontWeight: 700, color: colors.gray[900], margin: 0 }}>Warranty Claims SLA</h2>
       </div>
       <p style={{ fontSize: '14px', color: colors.gray[500], margin: '0 0 20px 0' }}>
         Active notifications and response-time tracking for vendor replacement claims.

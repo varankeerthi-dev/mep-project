@@ -1,5 +1,5 @@
 import { RefreshCw, Plus, Building2 } from 'lucide-react';
-import { colors, shadows, radii, transitions } from '../../design-system';
+import { colors, shadows, radii, transitions, typography } from '../../design-system';
 
 interface DashboardHeaderProps {
   isRefreshing: boolean;
@@ -20,7 +20,7 @@ export function DashboardHeader({ isRefreshing, onRefresh, onNavigate }: Dashboa
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '20px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, color: colors.gray[900], margin: 0, letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: colors.gray[900], margin: 0, letterSpacing: '-0.02em', fontFamily: typography.fontFamily.sans }}>
               Dashboard
             </h1>
             <p style={{ fontSize: '14px', color: colors.gray[500], margin: '4px 0 0', fontWeight: 500 }}>

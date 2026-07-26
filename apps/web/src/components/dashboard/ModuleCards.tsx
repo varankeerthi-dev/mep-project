@@ -1,5 +1,5 @@
 import { Building2, Wrench, FileText, ArrowRight } from 'lucide-react';
-import { colors, radii } from '../../design-system';
+import { colors, radii, shadows, typography } from '../../design-system';
 
 interface ModuleCardsProps {
   onNavigate?: (path: string) => void;
@@ -7,8 +7,8 @@ interface ModuleCardsProps {
 
 export function ModuleCards({ onNavigate }: ModuleCardsProps) {
   return (
-    <div style={{ background: 'white', borderRadius: radii.md, padding: '24px', border: `1px solid ${colors.gray[200]}`, boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 700, color: colors.gray[900], margin: '0 0 8px 0' }}>MEP Project Management Suite</h2>
+    <div style={{ background: 'white', borderRadius: radii.md, padding: '24px', border: `1px solid ${colors.gray[200]}`, boxShadow: shadows.card }}>
+      <h2 style={{ fontSize: typography.sizes['2xl'].size, fontWeight: 700, color: colors.gray[900], margin: '0 0 8px 0' }}>MEP Project Management Suite</h2>
       <p style={{ fontSize: '14px', color: colors.gray[500], margin: '0 0 20px 0' }}>Select a module below to manage field operations, visual layouts, and administrative reviews.</p>
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

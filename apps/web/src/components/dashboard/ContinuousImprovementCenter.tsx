@@ -6,7 +6,7 @@ import {
   Lock,
   ExternalLink,
 } from 'lucide-react';
-import { colors, radii } from '../../design-system';
+import { colors, radii, typography } from '../../design-system';
 
 interface Insight {
   id: string;
@@ -89,7 +89,7 @@ export function ContinuousImprovementCenter({
             <TrendingDown size={24} />
           </div>
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: colors.gray[900], margin: 0 }}>Continuous Improvement Center</h2>
+            <h2 style={{ fontSize: typography.sizes['2xl'].size, fontWeight: 700, color: colors.gray[900], margin: 0 }}>Continuous Improvement Center</h2>
             <p style={{ fontSize: '14px', color: colors.gray[500], margin: '4px 0 0 0' }}>Operational learning, repeated issue tracking, and cross-project action items</p>
           </div>
         </div>
@@ -122,35 +122,35 @@ export function ContinuousImprovementCenter({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
         <div style={{ borderLeft: '4px solid #ef4444', padding: '16px', background: '#fafafa', borderRadius: radii.DEFAULT, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '11px', color: colors.gray[500], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Open Opportunities</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: colors.gray[900] }}>
+          <span style={{ fontSize: typography.sizes.stat.size, fontWeight: 800, color: colors.gray[900] }}>
             {insightsLoading ? '...' : openOpportunitiesCount}
           </span>
         </div>
 
         <div style={{ borderLeft: '4px solid #f59e0b', padding: '16px', background: '#fafafa', borderRadius: radii.DEFAULT, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '11px', color: colors.gray[500], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Critical Coordination</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#f59e0b' }}>
+          <span style={{ fontSize: typography.sizes.stat.size, fontWeight: 800, color: '#f59e0b' }}>
             {insightsLoading ? '...' : criticalCoordinationCount}
           </span>
         </div>
 
         <div style={{ borderLeft: '4px solid #10b981', padding: '16px', background: '#fafafa', borderRadius: radii.DEFAULT, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '11px', color: colors.gray[500], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Best Practices Logged</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#10b981' }}>
+          <span style={{ fontSize: typography.sizes.stat.size, fontWeight: 800, color: '#10b981' }}>
             {insightsLoading ? '...' : bestPracticesCount}
           </span>
         </div>
 
         <div style={{ borderLeft: '4px solid #6366f1', padding: '16px', background: '#fafafa', borderRadius: radii.DEFAULT, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '11px', color: colors.gray[500], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cost Savings Identified</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#6366f1' }}>
+          <span style={{ fontSize: typography.sizes.stat.size, fontWeight: 800, color: '#6366f1' }}>
             {insightsLoading ? '...' : isPrivileged ? `₹${costSavingsSum.toLocaleString('en-IN')}` : '🔒 Restricted'}
           </span>
         </div>
 
         <div style={{ borderLeft: '4px solid #3b82f6', padding: '16px', background: '#fafafa', borderRadius: radii.DEFAULT, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '11px', color: colors.gray[500], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resolved This Month</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>
+          <span style={{ fontSize: typography.sizes.stat.size, fontWeight: 800, color: '#3b82f6' }}>
             {insightsLoading ? '...' : resolvedThisMonthCount}
           </span>
         </div>

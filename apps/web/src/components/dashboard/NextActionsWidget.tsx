@@ -18,7 +18,7 @@ import {
   Target,
 } from 'lucide-react';
 import type { NextActionItem } from '../../hooks/useNextActions';
-import { colors, shadows, radii } from '../../design-system';
+import { colors, shadows, radii, typography } from '../../design-system';
 
 const SOURCE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   communication: { label: 'Comm Log', color: '#1d4ed8', bg: '#eff6ff', icon: MessageSquare },
@@ -109,7 +109,7 @@ export function NextActionsWidget({
             <Bell size={22} />
           </div>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: colors.gray[900], margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ fontSize: typography.sizes['2xl'].size, fontWeight: 700, color: colors.gray[900], margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               Next Actions & Follow-ups
               {overdueCount > 0 && (
                 <span style={{
