@@ -8,11 +8,12 @@ import { useGanttData, type TaskGroup, type ProjectTask, type ProjectMilestone }
 import { Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
-  'Not Started': 'var(--color-slate-400)',
-  'In Progress': 'var(--color-blue-500)',
-  'Possible Delay': 'var(--color-amber-500)',
-  'On Hold': 'var(--color-orange-500)',
-  'Completed': 'var(--color-emerald-500)',
+  'not_started': 'var(--color-slate-400)',
+  'in_progress': 'var(--color-blue-500)',
+  'under_review': 'var(--color-amber-500)',
+  'on_hold': 'var(--color-orange-500)',
+  'completed': 'var(--color-emerald-500)',
+  'cancelled': 'var(--color-red-400)',
 };
 
 const MILESTONE_COLORS: Record<string, string> = {
@@ -58,7 +59,7 @@ function buildResources(
       title: group.name,
       children: groupTasks.map((task) => ({
         id: `task-${task.id}`,
-        title: task.name,
+        title: task.title,
       })),
     });
   });
@@ -70,7 +71,7 @@ function buildResources(
       title: 'Tasks',
       children: ungroupedTasks.map((task) => ({
         id: `task-${task.id}`,
-        title: task.name,
+        title: task.title,
       })),
     });
   }
@@ -119,7 +120,7 @@ function buildEvents(
     const end = toDateOrNull(group.due_date);
     if (start && end) {
       const groupTasks = tasks.filter((t) => t.task_group_id === group.id);
-      const completedCount = groupTasks.filter((t) => t.status === 'Completed').length;
+      const completedCount = groupTasks.filter((t) => t.status === 'completed').length;
       const progress = groupTasks.length > 0 ? Math.round((completedCount / groupTasks.length) * 100) : 0;
 
       events.push({
@@ -142,7 +143,7 @@ function buildEvents(
     if (start && end) {
       events.push({
         id: `task-bar-${task.id}`,
-        title: task.name,
+        title: task.title,
         start,
         end: addDays(end, 1),
         allDay: true,
@@ -204,9 +205,9 @@ export default function ProjectGantt({ projectId, projectName }: ProjectGanttPro
   const stats = useMemo(() => {
     if (!data) return { total: 0, completed: 0, inProgress: 0, delayed: 0 };
     const total = data.tasks.length;
-    const completed = data.tasks.filter((t) => t.status === 'Completed').length;
-    const inProgress = data.tasks.filter((t) => t.status === 'In Progress').length;
-    const delayed = data.tasks.filter((t) => t.status === 'Possible Delay').length;
+    const completed = data.tasks.filter((t) => t.status === 'completed').length;
+    const inProgress = data.tasks.filter((t) => t.status === 'in_progress').length;
+    const delayed = data.tasks.filter((t) => t.status === 'on_hold' || t.status === 'under_review').length;
     return { total, completed, inProgress, delayed };
   }, [data]);
 

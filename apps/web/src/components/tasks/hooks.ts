@@ -3,6 +3,7 @@
 // ============================================
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import type {
   Task,
   TaskGroup,
@@ -723,5 +724,190 @@ export function useTeamMembers(orgId: string | undefined) {
       }));
     },
     enabled: !!orgId,
+  });
+}
+
+// ============================================
+// REORDER TASKS (Phase 1 — Feature #15)
+// ============================================
+
+export function useReorderTasks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (updates: { id: string; task_no: number; task_group_id?: string }[]) => {
+      const promises = updates.map(({ id, ...data }) =>
+        supabase.from('tasks').update(data).eq('id', id)
+      );
+      const results = await Promise.all(promises);
+      const error = results.find((r) => r.error);
+      if (error) throw error.error;
+      return updates;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+    },
+  });
+}
+
+// ============================================
+// BULK ASSIGN TASKS (Phase 1 — Feature #18)
+// ============================================
+
+export type TimeHealth = 'on-track' | 'warning' | 'over-budget' | 'no-estimate';
+
+export function getTimeHealth(estimated: number | null | undefined, actual: number | null | undefined): TimeHealth {
+  if (!estimated || !actual) return 'no-estimate';
+  const ratio = actual / estimated;
+  if (ratio < 0.8) return 'on-track';
+  if (ratio <= 1.0) return 'warning';
+  return 'over-budget';
+}
+
+export function useBulkAssignTasks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskIds, assigneeId }: { taskIds: string[]; assigneeId: string }) => {
+      const { data: tasks, error: fetchError } = await supabase
+        .from('tasks')
+        .select('id, assignee_ids')
+        .in('id', taskIds);
+
+      if (fetchError) throw fetchError;
+
+      const promises = (tasks || []).map((task) => {
+        const current: string[] = task.assignee_ids || [];
+        if (current.includes(assigneeId)) return Promise.resolve();
+        return supabase
+          .from('tasks')
+          .update({ assignee_ids: [...current, assigneeId] })
+          .eq('id', task.id);
+      });
+
+      const results = await Promise.all(promises);
+      const error = results.find((r) => r.error);
+      if (error) throw error.error;
+      return taskIds;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+    },
+  });
+}
+
+export function useBulkUnassignTasks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskIds, assigneeId }: { taskIds: string[]; assigneeId: string }) => {
+      const { data: tasks, error: fetchError } = await supabase
+        .from('tasks')
+        .select('id, assignee_ids')
+        .in('id', taskIds);
+
+      if (fetchError) throw fetchError;
+
+      const promises = (tasks || []).map((task) => {
+        const current: string[] = task.assignee_ids || [];
+        const updated = current.filter((id) => id !== assigneeId);
+        return supabase
+          .from('tasks')
+          .update({ assignee_ids: updated })
+          .eq('id', task.id);
+      });
+
+      const results = await Promise.all(promises);
+      const error = results.find((r) => r.error);
+      if (error) throw error.error;
+      return taskIds;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+    },
+  });
+}
+
+// ============================================
+// ACTIVE TIMER (Phase 1 — Feature #19)
+// ============================================
+
+export function useActiveTimer(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['active-timer', userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_time_logs')
+        .select('*, tasks!inner(id, title, project_id)')
+        .eq('user_id', userId!)
+        .is('end_time', null)
+        .order('start_time', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as (TaskTimeLog & { tasks: { id: string; title: string; project_id: string } }) | null;
+    },
+    enabled: !!userId,
+    refetchInterval: 1000,
+  });
+}
+
+export function useStartTimer(orgId: string) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      // Stop any existing active timer first
+      const { data: active } = await supabase
+        .from('task_time_logs')
+        .select('id')
+        .eq('user_id', user!.id)
+        .is('end_time', null);
+
+      if (active?.length) {
+        await supabase
+          .from('task_time_logs')
+          .update({ end_time: new Date().toISOString() })
+          .in('id', active.map((a) => a.id));
+      }
+
+      // Start new timer
+      const { data, error } = await supabase
+        .from('task_time_logs')
+        .insert({
+          task_id: taskId,
+          user_id: user!.id,
+          organisation_id: orgId,
+          start_time: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as TaskTimeLog;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['active-timer'] });
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+    },
+  });
+}
+
+export function useStopTimer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (logId: string) => {
+      const { data, error } = await supabase
+        .from('task_time_logs')
+        .update({ end_time: new Date().toISOString() })
+        .eq('id', logId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as TaskTimeLog;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['active-timer'] });
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+    },
   });
 }
