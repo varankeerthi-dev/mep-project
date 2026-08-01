@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, ArrowUpDown, Trash2, Columns, List, Sigma } from 'lucide-react';
 import { SearchableItemSelect } from '../../components/SearchableItemSelect';
 import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
+import { UnitDropdownSelect } from '../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../utils/formatters';
 import type { LineItem } from '../pages/ProformaEditorPage';
 
@@ -522,12 +523,11 @@ export function ProformaItemsTable({
                     {/* Unit */}
                     {(templateSettings?.column_settings?.optional?.unit !== false) && (
                       <td>
-                        <input
-                          type="text"
-                          className="cell-input text-center"
+                        <UnitDropdownSelect
                           value={item.unit ?? ''}
-                          onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                          placeholder="Unit"
+                          materialId={item.item_id || ''}
+                          materials={materials}
+                          onChange={(val) => handleItemChange(index, 'unit', val)}
                         />
                       </td>
                     )}

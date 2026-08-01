@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SearchableItemSelect } from '../../../components/SearchableItemSelect';
 import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell';
+import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
 import { ArrowUpDown } from 'lucide-react';
@@ -663,12 +664,11 @@ export function ErectionItemsSection({
                     />
                   </td>
                   <td className="col-unit">
-                    <input
-                      type="text"
-                      className="cell-input text-center"
+                    <UnitDropdownSelect
                       value={item.uom || ''}
-                      onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
-                      style={{ fontSize: '11px', color: '#64748b' }}
+                      materialId={item.item_id}
+                      materials={materials}
+                      onChange={(val) => updateItem(item.id, 'uom', val)}
                     />
                   </td>
                   <td className="col-rate">

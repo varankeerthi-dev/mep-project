@@ -159,6 +159,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const issueIdParam = searchParams.get('issue_id');
+  const subIdParam = searchParams.get('subcontractor_id');
 
   const [formData, setFormData] = useState<WorkOrderFormData>({
     work_order_no: '',
@@ -378,6 +379,12 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   };
 
   useEffect(() => {
+    if (subIdParam && subcontractors.length > 0 && !formData.subcontractor_id && !editId) {
+      handleSubcontractorChange(subIdParam);
+    }
+  }, [subIdParam, subcontractors, editId]);
+
+  useEffect(() => {
     if (!editId && organisation?.id && !formData.work_order_no) {
       const generateWONumber = async () => {
         const { data } = await supabase
@@ -534,7 +541,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
         try {
           const subName = selectedSubcontractor?.company_name || 'Subcontractor';
           const proj = projects.find((p: any) => p.id === formData.project_id);
-          const projName = proj?.project_name || proj?.name || 'Project';
+          const projName = proj?.project_name || 'Project';
           const approvalResult = await ApprovalIntegration.createWorkOrderApproval(workOrderId, subName, projName, formData.total_amount, 'NORMAL');
           if (approvalResult.success) {
             toast.success('Work order saved and submitted for approval.');

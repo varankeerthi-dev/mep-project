@@ -1,12 +1,9 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   Search, 
-  Calendar, 
-  Filter, 
-  MoreVertical, 
   Package, 
   Layers, 
   ArrowUpRight, 
@@ -14,11 +11,13 @@ import {
   TrendingUp, 
   Loader2, 
   FileText,
-  Plus,
-  ShoppingCart,
   X,
-  Eye
+  Eye,
+  Calendar as CalendarIcon,
+  ChevronDown
 } from 'lucide-react';
+import { Table, ColumnDef, RowAction } from '../../components/table';
+import { RangeCalendar } from '../../components/ui';
 
 type InventoryReportProps = {
   onNavigate: (path: string) => void;
@@ -54,24 +53,32 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [monthlyFilter, setMonthlyFilter] = useState('current-month');
-  
-  // Action menu dropdown state
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Side drawer state
-  const [drawerItemId, setDrawerItemId] = useState<string | null>(null);
+  // Popover calendar states
+  const [showCalPopover, setShowCalPopover] = useState(false);
+  const calPopoverRef = useRef<HTMLDivElement>(null);
 
-  // Close menu on click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setActiveMenuId(null);
+      if (calPopoverRef.current && !calPopoverRef.current.contains(e.target as Node)) {
+        setShowCalPopover(false);
       }
     };
-    document.addEventListener('mousedown', handler);
+    if (showCalPopover) document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [showCalPopover]);
+
+  const dateRangeLabel = useMemo(() => {
+    if (!startDate) return 'Select date range';
+    const startFmt = new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (!endDate) return `${startFmt} - ...`;
+    const endFmt = new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${startFmt} - ${endFmt}`;
+  }, [startDate, endDate]);
+  
+  // Side drawer state
+  const [drawerItemId, setDrawerItemId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   // ─── MONTH FILTER HANDLER ─────────────────────────────────────────
   const handleMonthlyFilterChange = (value: string) => {
@@ -145,9 +152,9 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
         supabase.from('production_schedules').select('*, production_schedule_items(*)').eq('organisation_id', organisation.id).in('status', ['draft', 'planned', 'in_progress']),
         supabase.from('bom_headers').select('*, bom_items(*)').eq('organisation_id', organisation.id),
         supabase.from('material_inward').select('id, inward_date').eq('organisation_id', organisation.id).gte('inward_date', startDate).lte('inward_date', endDate),
-        supabase.from('material_inward_items').select('*').eq('organisation_id', organisation.id),
+        supabase.from('material_inward_items').select('*, material_inward!inner(organisation_id)').eq('material_inward.organisation_id', organisation.id),
         supabase.from('material_outward').select('id, outward_date').eq('organisation_id', organisation.id).gte('outward_date', startDate).lte('outward_date', endDate),
-        supabase.from('material_outward_items').select('*').eq('organisation_id', organisation.id)
+        supabase.from('material_outward_items').select('*, material_outward!inner(organisation_id)').eq('material_outward.organisation_id', organisation.id)
       ]);
 
       if (materialsRes.error) throw materialsRes.error;
@@ -556,6 +563,145 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
     transition: 'all 0.15s'
   };
 
+  const FILTER_OPTIONS = [
+    { id: 'raw', label: 'Raw Materials Report' },
+    { id: 'fg', label: 'Finished Goods Report' },
+  ];
+
+  const filterPanel = (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+      {/* Month Preset Selector */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Month Preset</span>
+        <select
+          value={monthlyFilter}
+          onChange={(e) => handleMonthlyFilterChange(e.target.value)}
+          style={{
+            padding: '4px 10px',
+            fontSize: '13px',
+            border: '1px solid #E5E7EB',
+            borderRadius: '6px',
+            backgroundColor: '#FFFFFF',
+            color: '#374151',
+            outline: 'none',
+            minWidth: '150px',
+            height: '32px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <option value="current-month">This Month</option>
+          <option value="last-month">Last Month</option>
+          <option value="last-3-months">Last 3 Months</option>
+          <option value="last-6-months">Last 6 Months</option>
+          <option value="financial-year">This FY (Apr - Now)</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+
+      {/* Date Range Popover */}
+      <div ref={calPopoverRef} style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Custom Date Range</span>
+        <button
+          onClick={() => setShowCalPopover(!showCalPopover)}
+          style={{
+            height: '32px',
+            paddingInline: '10px',
+            borderRadius: '6px',
+            border: '1px solid #E5E7EB',
+            backgroundColor: showCalPopover ? '#F9FAFB' : '#FFFFFF',
+            color: '#374151',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 500,
+            outline: 'none',
+            boxSizing: 'border-box',
+            transition: 'all 150ms ease',
+          }}
+          className="col-customizer-trigger"
+        >
+          <CalendarIcon size={14} style={{ color: '#6B7280' }} />
+          <span>{dateRangeLabel}</span>
+          <ChevronDown size={14} style={{ color: '#9CA3AF' }} />
+        </button>
+
+        {showCalPopover && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: '100%',
+              marginTop: '6px',
+              zIndex: 100,
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+              borderRadius: '12px',
+              border: '1px solid #EAEAEA',
+              animation: 'colDropIn 150ms ease',
+            }}
+          >
+            <RangeCalendar
+              value={{
+                startDate: startDate ? new Date(startDate) : null,
+                endDate: endDate ? new Date(endDate) : null,
+              }}
+              onChange={(range) => {
+                if (range.startDate) {
+                  setStartDate(range.startDate.toISOString().split('T')[0]);
+                } else {
+                  setStartDate('');
+                }
+                if (range.endDate) {
+                  setEndDate(range.endDate.toISOString().split('T')[0]);
+                } else {
+                  setEndDate('');
+                }
+                setMonthlyFilter('custom');
+                setPage(1);
+                if (range.startDate && range.endDate) {
+                  setShowCalPopover(false);
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Clear/Reset Button */}
+      {(startDate !== defaultStartDate || endDate !== defaultEndDate) && (
+        <button
+          onClick={() => {
+            setStartDate(defaultStartDate);
+            setEndDate(defaultEndDate);
+            setMonthlyFilter('current-month');
+            setPage(1);
+          }}
+          style={{
+            alignSelf: 'flex-end',
+            height: '32px',
+            paddingInline: '12px',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: '#DC2626',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '6px',
+            transition: 'background-color 150ms ease',
+          }}
+          className="col-show-all-btn"
+        >
+          Reset Dates
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
       
@@ -563,338 +709,147 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Manufacturing Inventory Report</h1>
-          <span style={{ fontSize: '11px', color: '#9ca3af' }}>Track material stock requirements, inward receipts, and consumptions</span>
+          <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+            Track material stock requirements, inward receipts, and consumptions · <span className="font-semibold text-indigo-600">Period: {new Date(startDate).toLocaleDateString('en-GB')} to {new Date(endDate).toLocaleDateString('en-GB')}</span>
+          </span>
+        </div>
+        <div>
+          <button
+            onClick={() => onNavigate?.('/manufacturing/inventory/wip-valuation')}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #d1d5db',
+              color: '#374151',
+              background: '#fff',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer'
+            }}
+          >
+            WIP Valuation Report
+          </button>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {/* Filters Card */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-            
-            {/* Search filter */}
-            <div style={{ position: 'relative', minWidth: '260px' }}>
-              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', display: 'flex', alignItems: 'center' }}>
-                <Search size={14} />
-              </span>
-              <input
-                type="text"
-                placeholder="Search items by name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ ...inputStyle, width: '100%', paddingLeft: '32px' }}
-              />
-            </div>
-
-            {/* Date range & Month filters */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              
-              {/* Quick Monthly selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Month:</span>
-                <select
-                  value={monthlyFilter}
-                  onChange={(e) => handleMonthlyFilterChange(e.target.value)}
-                  style={{ ...inputStyle, width: '130px' }}
-                >
-                  <option value="current-month">This Month</option>
-                  <option value="last-month">Last Month</option>
-                  <option value="last-3-months">Last 3 Months</option>
-                  <option value="last-6-months">Last 6 Months</option>
-                  <option value="financial-year">This FY (Apr - Now)</option>
-                </select>
-              </div>
-
-              {/* Start Date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>From:</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => { setStartDate(e.target.value); setMonthlyFilter('custom'); }}
-                  style={inputStyle}
-                />
-              </div>
-
-              {/* End Date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>To:</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => { setEndDate(e.target.value); setMonthlyFilter('custom'); }}
-                  style={inputStyle}
-                />
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Sub-Tabs Selector */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', marginBottom: '16px' }}>
-          <button 
-            style={activeTab === 'raw' ? activeTabStyle : inactiveTabStyle}
-            onClick={() => { setActiveTab('raw'); setActiveMenuId(null); }}
-          >
-            Raw Materials Report
-          </button>
-          <button 
-            style={activeTab === 'fg' ? activeTabStyle : inactiveTabStyle}
-            onClick={() => { setActiveTab('fg'); setActiveMenuId(null); }}
-          >
-            Finished Goods Report
-          </button>
-        </div>
-
-        {/* Results Card */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          
-          {/* Table Header Section */}
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {activeTab === 'raw' ? <Layers size={16} style={{ color: '#185FA5' }} /> : <Package size={16} style={{ color: '#185FA5' }} />}
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
-                {activeTab === 'raw' ? 'Raw Materials Inventory' : 'Finished Goods Stock'} ({processedReport.length} items)
-              </span>
-            </div>
-            <div style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>
-              * Qty movement calculated from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item Name</th>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Current Stock</th>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Production Qty (Active)</th>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Inward (Period)</th>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Outward (Period)</th>
-                  <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Net Change</th>
-                  <th style={{ padding: '12px 24px', width: '48px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td colSpan={7} style={{ padding: '16px 24px' }}>
-                        <div style={{ height: '16px', background: '#f3f4f6', borderRadius: '4px', width: '100%' }} className="animate-pulse" />
-                      </td>
-                    </tr>
-                  ))
-                ) : processedReport.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '48px 24px', textAlign: 'center', fontSize: '13px', color: '#6b7280' }}>
-                      No inventory records found matching filters.
-                    </td>
-                  </tr>
-                ) : (
-                  processedReport.map((item) => {
-                    const shortStock = item.currentStock < item.productionQty;
-                    return (
-                      <tr
-                        key={item.id}
-                        style={{ borderBottom: '1px solid #f3f4f6', transition: 'background-color 0.15s' }}
-                        className="group hover:bg-zinc-50/80"
-                      >
-                        <td style={{ padding: '14px 24px', fontSize: '12px', fontWeight: 600, color: '#111827' }}>
-                          <div>{item.name}</div>
-                          <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 400 }}>Unit: {item.unit}</span>
-                        </td>
-                        <td style={{ padding: '14px 24px', fontSize: '12px', fontWeight: 600, color: '#111827', textAlign: 'right' }}>
-                          <span style={{ color: shortStock && activeTab === 'raw' ? '#b91c1c' : '#111827' }}>
-                            {item.currentStock} {item.unit}
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 24px', fontSize: '12px', color: '#374151', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                            <span style={{ fontWeight: item.productionQty > 0 ? 600 : 400, color: item.productionQty > 0 ? '#185FA5' : '#6b7280' }}>
-                              {item.productionQty.toFixed(1).replace('.0', '')} {item.unit}
-                            </span>
-                            <button
-                              onClick={() => setDrawerItemId(item.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                padding: '3px 8px',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '4px',
-                                background: '#fff',
-                                color: '#185FA5',
-                                fontSize: '10px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                height: '22px',
-                                flexShrink: 0
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.background = '#f3f4f6';
-                                e.currentTarget.style.borderColor = '#185FA5';
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.background = '#fff';
-                                e.currentTarget.style.borderColor = '#d1d5db';
-                              }}
-                            >
-                              <Eye size={10} /> Details
-                            </button>
-                          </div>
-                        </td>
-                        <td style={{ padding: '14px 24px', fontSize: '12px', color: '#047857', textAlign: 'right' }}>
-                          {item.inwardQty > 0 ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                              <ArrowDownLeft size={12} /> {item.inwardQty}
-                            </div>
-                          ) : '-'}
-                        </td>
-                        <td style={{ padding: '14px 24px', fontSize: '12px', color: '#b91c1c', textAlign: 'right' }}>
-                          {item.outwardQty > 0 ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                              <ArrowUpRight size={12} /> {item.outwardQty}
-                            </div>
-                          ) : '-'}
-                        </td>
-                        <td style={{ padding: '14px 24px', fontSize: '12px', textAlign: 'right' }}>
-                          {item.netChange !== 0 ? (
-                            <span style={{ fontWeight: 600, color: item.netChange > 0 ? '#047857' : '#b91c1c' }}>
-                              {item.netChange > 0 ? `+${item.netChange}` : item.netChange}
-                            </span>
-                          ) : '0'}
-                        </td>
-                        <td style={{ padding: '14px 24px', textAlign: 'right', position: 'relative' }}>
-                          <button
-                            onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                            style={{
-                              height: '28px',
-                              width: '28px',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '4px',
-                              background: '#fff',
-                              color: '#6b7280',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.background = '#fff'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-                          
-                          {/* Dropdown Menu */}
-                          {activeMenuId === item.id && (
-                            <div 
-                              ref={menuRef}
-                              style={{
-                                position: 'absolute',
-                                right: '24px',
-                                top: '42px',
-                                background: '#fff',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
-                                zIndex: 50,
-                                minWidth: '160px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                padding: '4px 0'
-                              }}
-                            >
-                              {activeTab === 'raw' ? (
-                                <button
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    const qty = Math.max(0, item.productionQty - item.currentStock);
-                                    onNavigate(`/purchase/orders?mode=create&material_id=${item.id}&qty=${qty}`);
-                                  }}
-                                  style={{
-                                    padding: '8px 12px',
-                                    fontSize: '11px',
-                                    color: '#374151',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    width: '100%'
-                                  }}
-                                  onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                  <ShoppingCart size={12} /> Create Purchase Order
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      onNavigate(`/manufacturing/production/create`);
-                                    }}
-                                    style={{
-                                      padding: '8px 12px',
-                                      fontSize: '11px',
-                                      color: '#374151',
-                                      background: 'transparent',
-                                      border: 'none',
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      width: '100%'
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                                  >
-                                    <FileText size={12} /> Record Production Entry
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      onNavigate(`/manufacturing/job-cards/create`);
-                                    }}
-                                    style={{
-                                      padding: '8px 12px',
-                                      fontSize: '11px',
-                                      color: '#374151',
-                                      background: 'transparent',
-                                      border: 'none',
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      width: '100%'
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                                  >
-                                    <Plus size={12} /> Create Job Card
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div style={{ padding: '24px', maxWidth: '1280px', margin: '0 auto' }}>
+        <Table<typeof processedReport[number]>
+          data={processedReport.slice((page - 1) * 12, page * 12)}
+          columns={[
+            {
+              header: 'Item Name',
+              id: 'name',
+              type: 'text',
+              cell: ({ row }) => (
+                <div>
+                  <div className="font-semibold text-zinc-900">{row.name}</div>
+                  <span className="text-[10px] text-zinc-400 font-normal">Unit: {row.unit}</span>
+                </div>
+              ),
+            },
+            {
+              header: 'Current Stock',
+              id: 'currentStock',
+              type: 'number',
+              align: 'right',
+              cell: ({ row }) => {
+                const shortStock = row.currentStock < row.productionQty;
+                return (
+                  <span className="font-semibold tabular-nums" style={{ color: shortStock && activeTab === 'raw' ? '#b91c1c' : '#111827' }}>
+                    {row.currentStock} {row.unit}
+                  </span>
+                );
+              },
+            },
+            {
+              header: 'Production Qty (Active)',
+              id: 'productionQty',
+              type: 'number',
+              align: 'right',
+              cell: ({ row }) => (
+                <div className="flex items-center justify-end gap-2">
+                  <span className="tabular-nums" style={{ fontWeight: row.productionQty > 0 ? 600 : 400, color: row.productionQty > 0 ? '#185FA5' : '#6b7280' }}>
+                    {row.productionQty.toFixed(1).replace('.0', '')} {row.unit}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDrawerItemId(row.id); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '3px 8px',
+                      border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', color: '#185FA5',
+                      fontSize: '10px', fontWeight: 600, cursor: 'pointer', height: '22px', flexShrink: 0
+                    }}
+                  >
+                    <Eye size={10} /> Details
+                  </button>
+                </div>
+              ),
+            },
+            {
+              header: 'Inward (Period)',
+              id: 'inwardQty',
+              type: 'number',
+              align: 'right',
+              cell: ({ row }) => row.inwardQty > 0 ? (
+                <span className="inline-flex items-center gap-1 text-emerald-700 tabular-nums">
+                  <ArrowDownLeft size={12} /> {row.inwardQty}
+                </span>
+              ) : <span className="text-zinc-400">-</span>,
+            },
+            {
+              header: 'Outward (Period)',
+              id: 'outwardQty',
+              type: 'number',
+              align: 'right',
+              cell: ({ row }) => row.outwardQty > 0 ? (
+                <span className="inline-flex items-center gap-1 text-red-700 tabular-nums">
+                  <ArrowUpRight size={12} /> {row.outwardQty}
+                </span>
+              ) : <span className="text-zinc-400">-</span>,
+            },
+            {
+              header: 'Net Change',
+              id: 'netChange',
+              type: 'number',
+              align: 'right',
+              cell: ({ row }) => row.netChange !== 0 ? (
+                <span className="font-semibold tabular-nums" style={{ color: row.netChange > 0 ? '#047857' : '#b91c1c' }}>
+                  {row.netChange > 0 ? `+${row.netChange}` : row.netChange}
+                </span>
+              ) : <span>0</span>,
+            },
+          ]}
+          loading={isLoading}
+          page={page}
+          pageSize={12}
+          totalRows={processedReport.length}
+          pagination
+          searchable
+          onSearch={(val) => { setSearch(val); setPage(1); }}
+          filterOptions={FILTER_OPTIONS}
+          selectedFilterId={activeTab}
+          onFilterSelect={(id) => { setActiveTab(id as any); setPage(1); }}
+          filterPanel={filterPanel}
+          onPageChange={setPage}
+          rowActions={(row) => {
+            const actions: RowAction[] = [];
+            if (activeTab === 'raw') {
+              actions.push({
+                label: 'Create Purchase Order', onClick: () => {
+                  const qty = Math.max(0, row.productionQty - row.currentStock);
+                  onNavigate(`/purchase/orders?mode=create&material_id=${row.id}&qty=${qty}`);
+                }
+              });
+            } else {
+              actions.push({ label: 'Record Production Entry', onClick: () => onNavigate('/manufacturing/production/create') });
+              actions.push({ label: 'Create Job Card', onClick: () => onNavigate('/manufacturing/job-cards/create') });
+            }
+            return actions;
+          }}
+          emptyTitle="No inventory records found"
+          emptySubtitle="No inventory records found matching filters."
+        />
       </div>
 
       {/* Side Drawer */}

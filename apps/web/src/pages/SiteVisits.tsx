@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
-import { Button, IconButton } from '../components/ui/button';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select } from '../components/ui/select';
@@ -1066,6 +1066,9 @@ export function SiteVisits() {
       organisation_id: organisation.id,
       created_by: user?.id,
       follow_up_date: formData.follow_up_date || null,
+      client_id: formData.client_id || null,
+      project_id: formData.project_id || null,
+      project_manager_id: formData.project_manager_id || null,
     };
 
     if (selectedVisit) {

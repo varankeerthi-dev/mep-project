@@ -600,6 +600,8 @@ export function InvoiceItemsEditor({
       </div>
 
       {/* Table - Quotation Style */}
+      {/* DndContext renders a div (accessibility HiddenText) — must live OUTSIDE the <table> to keep valid HTML nesting */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
@@ -842,8 +844,7 @@ export function InvoiceItemsEditor({
               <th style={{ padding: '6px 4px', width: '32px' }} />
             </tr>
           </thead>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
               <tbody>
                 {fields.map((field, index) => {
                   const item = items[index] ?? createEmptyItem();
@@ -1567,8 +1568,7 @@ export function InvoiceItemsEditor({
               );
             })}
               </tbody>
-            </SortableContext>
-          </DndContext>
+          </SortableContext>
           <tfoot>
             <tr style={{ background: '#fafafa', borderTop: '1px solid #e5e5e5' }}>
               <td colSpan={5} style={{ padding: '8px 4px', fontWeight: 600, fontSize: '11px', color: '#171717' }}>
@@ -1592,6 +1592,7 @@ export function InvoiceItemsEditor({
           </tfoot>
         </table>
       </div>
+      </DndContext>
 
       {mode === 'lot' && (
         <div style={{ padding: '6px 12px', fontSize: '11px', color: '#737373', background: '#fafafa', borderTop: '1px solid #e5e5e5' }}>

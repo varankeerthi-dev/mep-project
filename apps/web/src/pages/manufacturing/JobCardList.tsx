@@ -1,8 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../supabase';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Trash2, AlertCircle, Loader2, Plus, Search } from 'lucide-react';
+import { Trash2, Loader2, Plus } from 'lucide-react';
+import {
+  useJobCardsListQuery,
+  useDeleteJobCardMutation
+} from '../../features/manufacturing';
+import { Table, ColumnDef, RowAction } from '../../components/table';
+import { JobCard } from '../../features/manufacturing/model/types';
 
 type JobCardListProps = {
   onNavigate: (path: string) => void;
@@ -10,85 +14,109 @@ type JobCardListProps = {
 
 const PAGE_SIZE = 10;
 
+const FILTER_OPTIONS = [
+  { id: 'all', label: 'All Status' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'issued', label: 'Issued' },
+  { id: 'in_progress', label: 'In Progress' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'cancelled', label: 'Cancelled' },
+];
+
 export default function JobCardList({ onNavigate }: JobCardListProps) {
   const { organisation } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
 
-  const deleteJobCard = useMutation({
-    mutationFn: async (id: string) => {
-      await supabase.from('job_card_materials').delete().eq('job_card_id', id);
-      const { error } = await supabase.from('job_cards').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job-cards'] });
-      setDeleteConfirmId(null);
-    }
+  const deleteJobCard = useDeleteJobCardMutation(() => {
+    setDeleteConfirmId(null);
   });
 
-  // Close menu on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && !(e.target as HTMLElement).closest('.menu-trigger')) {
-        setOpenMenuId(null);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  const filters = statusFilter === 'all' ? undefined : [statusFilter];
+  const { data: rawJobCards, isLoading } = useJobCardsListQuery(organisation?.id, filters);
 
-  const { data: jobCards, isLoading } = useQuery({
-    queryKey: ['job-cards', organisation?.id, statusFilter, search],
-    queryFn: async () => {
-      if (!organisation?.id) return [];
-      let query = supabase
-        .from('job_cards')
-        .select('*')
-        .eq('organisation_id', organisation.id);
-      if (statusFilter !== 'all') query = query.eq('status', statusFilter);
-      if (search) query = query.or(`job_card_no.ilike.%${search}%,product_name.ilike.%${search}%`);
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organisation?.id
-  });
+  const jobCards = rawJobCards ? rawJobCards.filter(jc => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return jc.job_card_no.toLowerCase().includes(q) || jc.product_name.toLowerCase().includes(q);
+  }) : [];
 
-  const totalPages = jobCards ? Math.ceil(jobCards.length / PAGE_SIZE) : 1;
   const pagedData = jobCards?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
 
-  const statusColors: Record<string, string> = {
-    draft: 'bg-zinc-50 text-zinc-700 border-zinc-200',
-    issued: 'bg-blue-50 text-blue-700 border-blue-200',
-    in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
-    completed: 'bg-green-50 text-green-700 border-green-200',
-    cancelled: 'bg-rose-50 text-rose-700 border-rose-200'
-  };
+  const columns: ColumnDef<JobCard>[] = [
+    {
+      header: 'Job Card No',
+      accessorKey: 'job_card_no',
+      id: 'job_card_no',
+      align: 'left',
+      cell: ({ row }) => (
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+          {row.job_card_no}
+        </span>
+      ),
+    },
+    {
+      header: 'Product',
+      accessorKey: 'product_name',
+      id: 'product_name',
+      align: 'left',
+    },
+    {
+      header: 'Planned Qty',
+      id: 'planned_qty',
+      align: 'left',
+      cell: ({ row }) => (
+        <span style={{ fontSize: '13px', color: '#374151' }}>
+          {row.planned_qty} <span className="text-zinc-400">{row.output_unit}</span>
+        </span>
+      ),
+    },
+    {
+      header: 'Status',
+      id: 'status',
+      align: 'left',
+      type: 'status',
+      statusType: (row) => {
+        if (row.status === 'completed') return 'success';
+        if (row.status === 'issued' || row.status === 'in_progress') return 'warning';
+        if (row.status === 'cancelled') return 'danger';
+        return 'neutral';
+      },
+    },
+    {
+      header: 'Created Date',
+      id: 'created_at',
+      align: 'left',
+      cell: ({ row }) => (
+        <span style={{ fontSize: '13px', color: '#4b5563' }}>
+          {row.created_at ? new Date(row.created_at).toLocaleDateString() : '—'}
+        </span>
+      ),
+    },
+  ];
 
-  const inputStyle: React.CSSProperties = {
-    padding: '4px 12px',
-    fontSize: '12px',
-    height: '32px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    background: '#fff',
-    color: '#111827',
-    outline: 'none',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-    width: '100%'
-  };
+  const getRowActions = (row: JobCard): RowAction[] => [
+    {
+      label: 'View Details',
+      onClick: () => onNavigate(`/manufacturing/job-cards/${row.id}`),
+    },
+    {
+      label: 'Edit Job Card',
+      onClick: () => onNavigate(`/manufacturing/job-cards/edit?id=${row.id}`),
+    },
+    {
+      label: 'Delete Job Card',
+      onClick: () => setDeleteConfirmId(row.id!),
+      variant: 'danger',
+    },
+  ];
 
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
       {/* Header Bar */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }} className="flex justify-between">
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Job Cards</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Track material issuance and production</span>
@@ -117,245 +145,28 @@ export default function JobCardList({ onNavigate }: JobCardListProps) {
       </div>
 
       {/* Main Content Area */}
-      <div style={{ padding: '24px', maxWidth: '1200px' }}>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-          
-          {/* Filters Bar */}
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
-              <input
-                type="text"
-                placeholder="Search job cards by number or product name..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                style={{ ...inputStyle, paddingLeft: '30px' }}
-              />
-            </div>
-            <div style={{ width: '160px' }}>
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                style={inputStyle}
-              >
-                <option value="all">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="issued">Issued</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="overflow-x-auto">
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                  <th style={{ padding: '10px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Job Card No</th>
-                  <th style={{ padding: '10px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Product</th>
-                  <th style={{ padding: '10px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>Planned Qty</th>
-                  <th style={{ padding: '10px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'center' }}>Status</th>
-                  <th style={{ padding: '10px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>Created Date</th>
-                  <th style={{ padding: '10px 24px', fontSize: '11px', fontWeight: 600, color: '#4b5563', width: '50px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td colSpan={6} style={{ padding: '16px 24px' }}>
-                        <div className="h-4 bg-zinc-150 rounded animate-pulse" />
-                      </td>
-                    </tr>
-                  ))
-                ) : pagedData.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '32px 24px', textAlign: 'center', fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>
-                      No job cards found. Create your first job card to get started.
-                    </td>
-                  </tr>
-                ) : (
-                  pagedData.map((jc) => (
-                    <tr
-                      key={jc.id}
-                      style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }}
-                      onClick={() => onNavigate(`/manufacturing/job-cards/${jc.id}`)}
-                      onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <td style={{ padding: '12px 24px', fontSize: '12px', fontWeight: 600, color: '#111827' }}>{jc.job_card_no}</td>
-                      <td style={{ padding: '12px 24px', fontSize: '12px', color: '#374151' }}>{jc.product_name}</td>
-                      <td style={{ padding: '12px 24px', fontSize: '12px', color: '#374151', textAlign: 'right' }}>{jc.planned_qty} {jc.output_unit}</td>
-                      <td style={{ padding: '12px 24px', textAlign: 'center' }}>
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full border ${statusColors[jc.status] || 'bg-zinc-100 text-zinc-600'}`}>
-                          {jc.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 24px', fontSize: '12px', color: '#6b7280' }}>
-                        {new Date(jc.created_at).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: '12px 24px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => {
-                            const rect = (e.target as HTMLElement).closest('button')!.getBoundingClientRect();
-                            setMenuPosition({ top: rect.bottom + 4, right: document.documentElement.clientWidth - rect.right });
-                            setOpenMenuId(openMenuId === jc.id ? null : jc.id);
-                          }}
-                          className="menu-trigger h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <circle cx="10" cy="4" r="1.5" />
-                            <circle cx="10" cy="10" r="1.5" />
-                            <circle cx="10" cy="16" r="1.5" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Footer */}
-          {jobCards && jobCards.length > 0 && (
-            <div style={{ padding: '12px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, jobCards.length)} of {jobCards.length} job card{jobCards.length !== 1 ? 's' : ''}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  style={{
-                    padding: '4px 10px',
-                    background: '#fff',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    cursor: page === 1 ? 'not-allowed' : 'pointer',
-                    opacity: page === 1 ? 0.5 : 1,
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { if (page !== 1) e.currentTarget.style.background = '#f3f4f6'; }}
-                  onMouseLeave={e => { if (page !== 1) e.currentTarget.style.background = '#fff'; }}
-                >
-                  Prev
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      border: 'none',
-                      background: p === page ? '#185FA5' : 'transparent',
-                      color: p === page ? '#fff' : '#374151',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={e => { if (p !== page) e.currentTarget.style.background = '#f3f4f6'; }}
-                    onMouseLeave={e => { if (p !== page) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  style={{
-                    padding: '4px 10px',
-                    background: '#fff',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    cursor: page === totalPages ? 'not-allowed' : 'pointer',
-                    opacity: page === totalPages ? 0.5 : 1,
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { if (page !== totalPages) e.currentTarget.style.background = '#f3f4f6'; }}
-                  onMouseLeave={e => { if (page !== totalPages) e.currentTarget.style.background = '#fff'; }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+      <div style={{ padding: '24px', maxWidth: '1280px', margin: '0 auto' }}>
+        <Table<JobCard>
+          data={pagedData}
+          columns={columns}
+          loading={isLoading}
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalRows={jobCards.length}
+          searchable
+          pagination
+          onPageChange={setPage}
+          onSearch={(val) => { setSearch(val); setPage(1); }}
+          filterOptions={FILTER_OPTIONS}
+          selectedFilterId={statusFilter}
+          onFilterSelect={(id) => { setStatusFilter(id); setPage(1); }}
+          rowActions={getRowActions}
+          onRowClick={(row) => onNavigate(`/manufacturing/job-cards/${row.id}`)}
+          onView={(row) => onNavigate(`/manufacturing/job-cards/${row.id}`)}
+          emptyTitle="No job cards found"
+          emptySubtitle="Create your first job card to get started."
+        />
       </div>
-
-      {/* Floating Action Menu dropdown */}
-      {openMenuId && menuPosition && (() => {
-        const jc = jobCards?.find(c => c.id === openMenuId);
-        if (!jc) return null;
-        return (
-          <div ref={menuRef}
-            style={{ position: 'fixed', top: menuPosition.top, right: menuPosition.right, zIndex: 9999, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '4px', width: '180px', display: 'flex', flexDirection: 'column', gap: '2px' }}
-          >
-            <button
-              onClick={() => { setOpenMenuId(null); onNavigate(`/manufacturing/job-cards/${jc.id}`); }}
-              style={{ padding: '6px 12px', background: 'transparent', border: 'none', textAlign: 'left', fontSize: '12px', color: '#374151', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#111827'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151'; }}
-            >
-              View Details
-            </button>
-            {jc.status === 'draft' && (
-              <button
-                onClick={() => { setOpenMenuId(null); onNavigate(`/manufacturing/job-cards/${jc.id}`); }}
-                style={{ padding: '6px 12px', background: 'transparent', border: 'none', textAlign: 'left', fontSize: '12px', color: '#374151', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#111827'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151'; }}
-              >
-                Issue Materials
-              </button>
-            )}
-            {jc.status === 'issued' && (
-              <button
-                onClick={() => { setOpenMenuId(null); onNavigate(`/manufacturing/production/create?jobCard=${jc.id}`); }}
-                style={{ padding: '6px 12px', background: 'transparent', border: 'none', textAlign: 'left', fontSize: '12px', color: '#374151', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#111827'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151'; }}
-              >
-                Record Production
-              </button>
-            )}
-            {jc.status === 'draft' && (
-              <button
-                onClick={() => { setOpenMenuId(null); onNavigate(`/manufacturing/job-cards/create?bom=${jc.bom_id}`); }}
-                style={{ padding: '6px 12px', background: 'transparent', border: 'none', textAlign: 'left', fontSize: '12px', color: '#374151', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#111827'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151'; }}
-              >
-                Create Similar
-              </button>
-            )}
-            <button
-                onClick={() => { 
-                  if (jc.status !== 'archived') {
-                    setOpenMenuId(null); setDeleteConfirmId(jc.id);
-                  }
-                }}
-                title={jc.status === 'archived' ? 'Cannot delete archived job cards' : ''}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderTop: '1px solid #f3f4f6', marginTop: '4px', paddingTop: '8px', background: 'transparent', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', textAlign: 'left', fontSize: '12px', color: jc.status !== 'archived' ? '#3f3f46' : '#cbd5e1', cursor: jc.status !== 'archived' ? 'pointer' : 'not-allowed', borderRadius: '0 0 6px 6px', transition: 'all 0.15s', width: '100%', opacity: jc.status !== 'archived' ? 1 : 0.45 }}
-                onMouseEnter={e => { if (jc.status !== 'archived') { e.currentTarget.style.background = '#fafafa'; e.currentTarget.style.color = '#18181b'; } }}
-                onMouseLeave={e => { if (jc.status !== 'archived') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#3f3f46'; } }}
-              >
-                <Trash2 size={13} /> Delete Job Card
-              </button>
-          </div>
-        );
-      })()}
 
       {/* Confirmation Modal */}
       {deleteConfirmId && (

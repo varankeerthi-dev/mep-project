@@ -13,7 +13,8 @@ const defaultFormData = {
   sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
   uses_variant: false, track_inventory: false, discount_category_id: null,
   dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
-  item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false
+  item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false,
+  custom_attributes: [] as any[]
 };
 
 export function useMaterialForm() {
@@ -27,6 +28,7 @@ export function useMaterialForm() {
   const [clientMappings, setClientMappings] = useState<any[]>([]);
   const [clientPricing, setClientPricing] = useState<any[]>([]);
   const [pricingHistory, setPricingHistory] = useState<any[]>([]);
+  const [customAttributes, setCustomAttributes] = useState<any[]>([]);
   const [materialSavePending, setMaterialSavePending] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
 
@@ -40,6 +42,7 @@ export function useMaterialForm() {
     setClientMappings([]);
     setClientPricing([]);
     setPricingHistory([]);
+    setCustomAttributes([]);
   }, []);
 
   const loadVendorMappings = useCallback(async (itemId: string) => {
@@ -141,6 +144,28 @@ export function useMaterialForm() {
       setVariantPricing(data || []);
     } catch { setVariantPricing([]); }
 
+    // Load custom attributes
+    try {
+      const { data: attrs } = await supabase.from('material_custom_attributes').select('*').eq('material_id', material.id).order('sort_order');
+      if (attrs && attrs.length > 0) {
+        setCustomAttributes(attrs);
+      } else {
+        // Auto-migrate legacy columns
+        const legacyAttrs: any[] = [];
+        if (material.size) legacyAttrs.push({ attribute_name: 'Size', attribute_value: material.size, attribute_unit: '', sort_order: 0 });
+        if (material.pressure_class) legacyAttrs.push({ attribute_name: 'Pressure Class', attribute_value: material.pressure_class, attribute_unit: '', sort_order: legacyAttrs.length });
+        if (material.make) legacyAttrs.push({ attribute_name: 'Make', attribute_value: material.make, attribute_unit: '', sort_order: legacyAttrs.length });
+        if (material.material) legacyAttrs.push({ attribute_name: 'Material', attribute_value: material.material, attribute_unit: '', sort_order: legacyAttrs.length });
+        if (material.end_connection) legacyAttrs.push({ attribute_name: 'End Connection', attribute_value: material.end_connection, attribute_unit: '', sort_order: legacyAttrs.length });
+        if (material.dimension) legacyAttrs.push({ attribute_name: 'Dimension', attribute_value: material.dimension, attribute_unit: material.dimension_unit || '', sort_order: legacyAttrs.length });
+        if (material.weight) legacyAttrs.push({ attribute_name: 'Weight', attribute_value: material.weight.toString(), attribute_unit: material.weight_unit || '', sort_order: legacyAttrs.length });
+        setCustomAttributes(legacyAttrs);
+      }
+    } catch (err) {
+      console.error('Error loading custom attributes:', err);
+      setCustomAttributes([]);
+    }
+
     loadVendorMappings(material.id);
     loadClientMappings(material.id);
     loadClientPricing(material.id);
@@ -153,8 +178,10 @@ export function useMaterialForm() {
     refreshMaterials: () => Promise<void>;
     loadItemTransactions: (id: string) => Promise<void>;
     selectedMaterialId: string | null;
+    /** Optional callback invoked right after a successful save (e.g. navigate back) */
+    onSaved?: () => void;
   }) => {
-    const { organisationId, warehouses, updateMaterialsCache, refreshMaterials, loadItemTransactions, selectedMaterialId } = config;
+    const { organisationId, warehouses, updateMaterialsCache, refreshMaterials, loadItemTransactions, selectedMaterialId, onSaved } = config;
     e?.preventDefault?.();
     if (materialSavePending) return;
     setMaterialSavePending(true);
@@ -324,6 +351,23 @@ export function useMaterialForm() {
         if (pricingError) throw pricingError;
       }
 
+      // Save custom attributes
+      await supabase.from('material_custom_attributes').delete().eq('material_id', itemId);
+      const attrsToInsert = customAttributes
+        .filter(a => a.attribute_name && a.attribute_value)
+        .map((a, idx) => ({
+          material_id: itemId,
+          attribute_name: a.attribute_name,
+          attribute_value: a.attribute_value,
+          attribute_unit: a.attribute_unit || null,
+          sort_order: idx,
+          organisation_id: organisationId,
+        }));
+      if (attrsToInsert.length > 0) {
+        const { error: attrsError } = await supabase.from('material_custom_attributes').insert(attrsToInsert);
+        if (attrsError) throw attrsError;
+      }
+
       // Audit logging
       const changeLog = isEditing ? buildItemChangeLog(originalMaterial, materialData) : ['Item created'];
       const auditEntry = {
@@ -357,6 +401,7 @@ export function useMaterialForm() {
         await loadItemTransactions(itemId);
       }
       resetForm();
+      onSaved?.();
     } catch (err: any) {
       alert('Error saving: ' + (err?.message || String(err)));
     } finally {
@@ -374,6 +419,7 @@ export function useMaterialForm() {
     clientMappings, setClientMappings,
     clientPricing, setClientPricing,
     pricingHistory, setPricingHistory,
+    customAttributes, setCustomAttributes,
     materialSavePending, saveNotice, setSaveNotice,
     resetForm, editMaterial, handleSubmit,
     loadVendorMappings, loadClientMappings, loadClientPricing, loadPricingHistory,

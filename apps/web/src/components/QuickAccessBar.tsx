@@ -173,7 +173,7 @@ export default function QuickAccessBar({
         {/* New Material */}
         <button
           className="quick-tool-btn"
-          onClick={() => navigate('/store/materials?add=true')}
+          onClick={() => navigate('/store/materials/items/new')}
           title="New Material"
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}

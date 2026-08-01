@@ -1,5 +1,5 @@
-// Capy-Inspired Design System
-// Minimal, clean, modern UI with soft accents and smooth interactions
+// DenialDesk-Inspired Design System
+// Clean, modern dashboard UI with subtle shadows and clear hierarchy
 
 export const colors = {
   // Primary palette
@@ -15,20 +15,20 @@ export const colors = {
     800: '#1e40af',
     900: '#1e3a8a',
   },
-  // Neutral grays - soft and warm
+  // Neutral grays
   gray: {
-    50: '#fafafa',
-    100: '#f4f4f5',
-    200: '#e4e4e7',
-    300: '#d4d4d8',
-    400: '#a1a1aa',
-    500: '#71717a',
-    600: '#52525b',
-    700: '#3f3f46',
-    800: '#27272a',
-    900: '#18181b',
+    50: '#f8fafc',
+    100: '#f1f5f9',
+    200: '#e8ecf1',
+    300: '#d5dbe3',
+    400: '#94a3b8',
+    500: '#64748b',
+    600: '#475569',
+    700: '#334155',
+    800: '#1e293b',
+    900: '#0f172a',
   },
-  // Semantic colors - soft variants
+  // Semantic colors
   success: {
     light: '#dcfce7',
     DEFAULT: '#22c55e',
@@ -61,7 +61,7 @@ export const colors = {
     open: { bg: '#fef3c7', text: '#b45309', dot: '#f59e0b' },
     in_progress: { bg: '#dbeafe', text: '#1e40af', dot: '#3b82f6' },
     resolved: { bg: '#dcfce7', text: '#166534', dot: '#22c55e' },
-    closed: { bg: '#f4f4f5', text: '#71717a', dot: '#a1a1aa' },
+    closed: { bg: '#f1f5f9', text: '#64748b', dot: '#94a3b8' },
   },
 };
 
@@ -73,16 +73,16 @@ export const shadows = {
   xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
   inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
   none: 'none',
-  card: '0 1px 3px rgba(0,0,0,0.06)',
-  elevated: '0 4px 12px rgba(0,0,0,0.08)',
+  card: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)',
+  elevated: '0 4px 12px rgba(0,0,0,0.06)',
 };
 
 export const radii = {
   sm: '6px',
-  DEFAULT: '10px',
-  md: '12px',
-  lg: '16px',
-  xl: '20px',
+  DEFAULT: '8px',
+  md: '10px',
+  lg: '12px',
+  xl: '16px',
   full: '9999px',
 };
 
@@ -116,7 +116,8 @@ export const typography = {
     xl: { size: '18px', lineHeight: '28px' },
     '2xl': { size: '20px', lineHeight: '28px' },
     '3xl': { size: '24px', lineHeight: '32px' },
-    stat: { size: '28px', lineHeight: '32px' },
+    '4xl': { size: '30px', lineHeight: '36px' },
+    stat: { size: '32px', lineHeight: '36px' },
     hero: { size: '36px', lineHeight: '40px' },
   },
   weights: {

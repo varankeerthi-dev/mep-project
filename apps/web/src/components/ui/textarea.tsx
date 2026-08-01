@@ -1,31 +1,18 @@
-import type { TextareaHTMLAttributes } from 'react'
-import { cn } from '../../lib/utils'
+import * as React from "react"
 
-interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string
-  error?: string
-}
+import { cn } from "@/lib/utils"
 
-export function Textarea({
-  className,
-  label,
-  error,
-  ...props
-}: TextareaProps) {
+function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
-    <div style={{ width: '100%' }}>
-      {label && (
-        <label className="block text-sm font-medium text-zinc-700 mb-1.5">{label}</label>
+    <textarea
+      data-slot="textarea"
+      className={cn(
+        "flex field-sizing-content min-h-16 w-full resize-none rounded-2xl border border-transparent bg-input/50 px-3 py-3 text-base transition-[color,box-shadow,background-color] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
       )}
-      <textarea
-        className={cn(
-          'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500',
-          error && 'border-red-400 focus:ring-red-500',
-          className
-        )}
-        {...props}
-      />
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
+      {...props}
+    />
   )
 }
+
+export { Textarea }

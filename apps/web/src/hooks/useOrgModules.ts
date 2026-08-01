@@ -13,7 +13,7 @@ const ALL_MODULE_IDS = MODULE_REGISTRY.map((m) => m.id);
 export function useOrgModules() {
   const { organisation } = useAuth();
   const orgId = organisation?.id;
-  const manufacturingEnabled = Boolean((organisation as any)?.manufacturing_enabled);
+  const manufacturingEnabled = true;
 
   return useQuery<OrgModuleState[]>({
     queryKey: ['org-modules', orgId],
@@ -49,7 +49,7 @@ export function useOrgModules() {
 
 export function useIsModuleEnabled(moduleId: string) {
   const { organisation } = useAuth();
-  const manufacturingEnabled = Boolean((organisation as any)?.manufacturing_enabled);
+  const manufacturingEnabled = true;
   const { data: modules } = useOrgModules();
   if (!modules) return true; // Default to enabled while loading
   const mod = modules.find((m) => m.moduleId === moduleId);

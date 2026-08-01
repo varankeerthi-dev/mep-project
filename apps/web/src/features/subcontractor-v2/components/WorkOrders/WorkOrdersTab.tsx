@@ -1,10 +1,13 @@
 import { AppTable } from '../../../../components/ui/AppTable';
+import { Plus } from 'lucide-react';
 
 interface WorkOrdersTabProps {
   workOrders: any[];
+  subcontractorId?: string;
+  onNavigate?: (path: string) => void;
 }
 
-export function WorkOrdersTab({ workOrders }: WorkOrdersTabProps) {
+export function WorkOrdersTab({ workOrders, subcontractorId, onNavigate }: WorkOrdersTabProps) {
   return (
     <div style={{
       background: '#fff',
@@ -12,6 +15,37 @@ export function WorkOrdersTab({ workOrders }: WorkOrdersTabProps) {
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
       padding: '8px',
     }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 16px',
+        borderBottom: '1px solid #f1f5f9',
+        marginBottom: '8px'
+      }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', margin: 0 }}>Work Orders</h3>
+        {onNavigate && subcontractorId && (
+          <button
+            onClick={() => onNavigate(`/subcontractors-v2/workorders/create?subcontractor_id=${subcontractorId}`)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: '#0f172a',
+              color: '#fff',
+              border: 'none',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Plus size={14} />
+            New Work Order
+          </button>
+        )}
+      </div>
       <AppTable
         data={workOrders}
         columns={[

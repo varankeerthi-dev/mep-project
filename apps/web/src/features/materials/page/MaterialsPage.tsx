@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getMaterialsTabFromSearch } from '../shared/constants';
-import { TabButton } from '../shared/TabButton';
+import { SubTabsNav } from '../../../components/ui/SubTabsNav';
 import { ItemsTab } from './ItemsTab';
 import { ServiceTab } from '../service/ServiceTab';
 import { CategoryTab } from '../settings/CategoryTab';
@@ -26,23 +26,29 @@ export default function MaterialsPage() {
     navigate(`/store/materials?tab=${tab}`);
   };
 
+  const tabs = [
+    { id: 'items', label: 'Items', path: '/store/materials?tab=items' },
+    { id: 'service', label: 'Service', path: '/store/materials?tab=service' },
+    { id: 'category', label: 'Category', path: '/store/materials?tab=category' },
+    { id: 'unit', label: 'Unit', path: '/store/materials?tab=unit' },
+    { id: 'warehouses', label: 'Warehouses', path: '/store/materials?tab=warehouses' },
+    { id: 'variants', label: 'Variants', path: '/store/materials?tab=variants' },
+    { id: 'discount-categories', label: 'Discount Categories', path: '/store/materials?tab=discount-categories' },
+    { id: 'inward', label: 'Material Inward', path: '/store/materials?tab=inward' },
+    { id: 'outward', label: 'Material Outward', path: '/store/materials?tab=outward' },
+    { id: 'stock-transfer', label: 'Stock Transfer', path: '/store/materials?tab=stock-transfer' },
+    { id: 'stock-balance', label: 'Stock Balance', path: '/store/materials?tab=stock-balance' },
+    { id: 'stock-check', label: 'Stock Check', path: '/store/materials?tab=stock-check' },
+    { id: 'stock-adjust', label: 'Stock Adjustment', path: '/store/materials?tab=stock-adjust' }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="bg-[#F3F1F1] rounded-[26px] p-[6px] gap-x-[10px] gap-y-4 inline-flex flex-wrap">
-        <TabButton active={activeTab === 'items'} onClick={() => changeTab('items')}>Items</TabButton>
-        <TabButton active={activeTab === 'service'} onClick={() => changeTab('service')}>Service</TabButton>
-        <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>
-        <TabButton active={activeTab === 'unit'} onClick={() => changeTab('unit')}>Unit</TabButton>
-        <TabButton active={activeTab === 'warehouses'} onClick={() => changeTab('warehouses')}>Warehouses</TabButton>
-        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Variants</TabButton>
-        <TabButton active={activeTab === 'discount-categories'} onClick={() => changeTab('discount-categories')}>Discount Categories</TabButton>
-        <TabButton active={activeTab === 'inward'} onClick={() => changeTab('inward')}>Material Inward</TabButton>
-        <TabButton active={activeTab === 'outward'} onClick={() => changeTab('outward')}>Material Outward</TabButton>
-        <TabButton active={activeTab === 'stock-transfer'} onClick={() => changeTab('stock-transfer')}>Stock Transfer</TabButton>
-        <TabButton active={activeTab === 'stock-balance'} onClick={() => changeTab('stock-balance')}>Stock Balance</TabButton>
-        <TabButton active={activeTab === 'stock-check'} onClick={() => changeTab('stock-check')}>Stock Check</TabButton>
-        <TabButton active={activeTab === 'stock-adjust'} onClick={() => changeTab('stock-adjust')}>Stock Adjustment</TabButton>
-      </div>
+      <SubTabsNav
+        tabs={tabs}
+        activeTabId={activeTab}
+        onTabChange={(tab) => changeTab(tab.id)}
+      />
 
       {activeTab === 'items' && <ItemsTab />}
       {activeTab === 'service' && <ServiceTab />}

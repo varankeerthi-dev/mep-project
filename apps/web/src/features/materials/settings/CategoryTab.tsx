@@ -1,6 +1,10 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../supabase';
+import { Table, ColumnDef } from '../../../components/table';
+import type { RowAction } from '../../../components/table';
+import { Button } from '../../../components/ui/button';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 
 export function CategoryTab() {
   const [categories, setCategories] = useState([]);
@@ -8,6 +12,14 @@ export function CategoryTab() {
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Row selection states
+  const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+  
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [formData, setFormData] = useState({ category_name: '', description: '', is_active: true });
 
@@ -45,45 +57,172 @@ export function CategoryTab() {
   const resetForm = () => { setShowForm(false); setEditingCategory(null); setFormData({ category_name: '', description: '', is_active: true }); };
 
   const editCategory = (cat) => { setEditingCategory(cat); setFormData({ category_name: cat.category_name, description: cat.description || '', is_active: cat.is_active !== false }); setShowForm(true); };
-  const deleteCategory = async (id) => { if (confirm('Delete this category?')) { await supabase.from('item_categories').delete().eq('id', id); loadCategories(); }};
+  
+  const deleteCategory = async (id) => { 
+    if (confirm('Delete this category?')) { 
+      await supabase.from('item_categories').delete().eq('id', id); 
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      loadCategories(); 
+    }
+  };
 
-  const filteredCategories = categories.filter(c => c.category_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const handleBulkDelete = async (rows: any[]) => {
+    if (confirm(`Delete ${rows.length} selected categories?`)) {
+      const ids = rows.map(r => r.id);
+      try {
+        const { error } = await supabase.from('item_categories').delete().in('id', ids);
+        if (error) throw error;
+        setSelectedIds(new Set());
+        loadCategories();
+      } catch (err) {
+        alert('Error performing bulk delete: ' + err.message);
+      }
+    }
+  };
+
+  // Filter & Search Logic
+  const filteredCategories = useMemo(() => {
+    return categories.filter(c => {
+      const matchesSearch = c.category_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = 
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && c.is_active !== false) ||
+        (statusFilter === 'inactive' && c.is_active === false);
+      return matchesSearch && matchesStatus;
+    });
+  }, [categories, searchTerm, statusFilter]);
+
+  // Paginated Data
+  const pagedCategories = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredCategories.slice(start, start + pageSize);
+  }, [filteredCategories, page, pageSize]);
+
+  // Selection handlers
+  const handleRowSelect = (row: any, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(row.id);
+      else next.delete(row.id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(pagedCategories.map((r) => r.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const columns: ColumnDef<any>[] = [
+    {
+      header: 'Category Name',
+      accessorKey: 'category_name',
+      id: 'category_name',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="font-semibold text-zinc-900">{row.category_name}</span>
+      )
+    },
+    {
+      header: 'Description',
+      accessorKey: 'description',
+      id: 'description',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => row.description || <span className="text-zinc-400">—</span>
+    },
+    {
+      header: 'Status',
+      accessorKey: 'is_active',
+      id: 'is_active',
+      type: 'status',
+      align: 'center',
+      statusType: (row) => row.is_active ? 'success' : 'neutral',
+      cell: ({ row }) => row.is_active ? 'Active' : 'Inactive'
+    }
+  ];
+
+  const getRowActions = (row: any): RowAction[] => {
+    return [
+      { 
+        label: 'Edit category', 
+        icon: <Pencil size={14} />, 
+        onClick: () => editCategory(row) 
+      },
+      { 
+        label: 'Delete category', 
+        icon: <Trash2 size={14} />, 
+        variant: 'danger', 
+        onClick: () => deleteCategory(row.id) 
+      }
+    ];
+  };
+
+  const bulkActions = [
+    {
+      label: 'Delete',
+      icon: <Trash2 size={14} />,
+      variant: 'danger' as const,
+      onClick: (rows: any[]) => handleBulkDelete(rows),
+    }
+  ];
+
+  const filterOptions = [
+    { id: 'all', label: 'All' },
+    { id: 'active', label: 'Active' },
+    { id: 'inactive', label: 'Inactive' }
+  ];
 
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="overflow-x-auto w-full">
-        <table className="w-full" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif' }}>
-          <thead>
-            <tr>
-              <th className="h-10 px-2 text-left align-middle text-sm font-medium text-black">Category Name</th>
-              <th className="h-10 px-2 text-left align-middle text-sm font-medium text-black">Description</th>
-              <th className="h-10 px-2 text-center align-middle text-sm font-medium text-black">Active</th>
-              <th className="h-10 px-2 text-right align-middle text-sm font-medium text-black min-w-[120px]">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredCategories.map((c, i) => (
-              <tr key={c.id} className={`${i < filteredCategories.length - 1 ? 'border-b border-[#E5E5E5]' : ''} hover:bg-[#F5F5F5] transition-colors`} style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
-                <td className="p-2 align-middle whitespace-nowrap text-sm font-medium text-black">{c.category_name}</td>
-                <td className="p-2 align-middle whitespace-nowrap text-sm text-black">{c.description || '-'}</td>
-                <td className="p-2 text-center align-middle">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                    {c.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="p-2 text-right align-middle">
-                  <div className="flex items-center justify-end gap-3">
-                    <button onClick={() => editCategory(c)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
-                    <button onClick={() => deleteCategory(c.id)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Delete</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900 m-0">Item Categories</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Manage material classification groups and filters</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowForm(true)} className="gap-1 bg-zinc-900 text-white hover:bg-zinc-800 h-8 text-xs font-semibold">
+            <Plus size={14} /> Add Category
+          </Button>
+        </div>
       </div>
+
+      <div className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.01)] overflow-hidden">
+        <Table<any>
+          data={pagedCategories}
+          columns={columns}
+          loading={loading}
+          page={page}
+          pageSize={pageSize}
+          totalRows={filteredCategories.length}
+          searchable={true}
+          selectable={true}
+          sortable={true}
+          pagination={true}
+          onPageChange={setPage}
+          onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+          onSearch={(val) => { setSearchTerm(val); setPage(1); }}
+          filterOptions={filterOptions}
+          selectedFilterId={statusFilter}
+          onFilterSelect={(id) => { setStatusFilter(id); setPage(1); }}
+          selectedRowIds={selectedIds}
+          onRowSelectChange={handleRowSelect}
+          onSelectAllChange={handleSelectAll}
+          rowActions={getRowActions}
+          bulkActions={bulkActions}
+          emptyTitle="No categories found"
+          emptySubtitle="Try adjusting your filters or search query."
+        />
+      </div>
+
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', padding: 0 }}>

@@ -182,3 +182,36 @@ export interface BillingSummary {
   total_difference: number;
   entries: BillingCalculationResult[];
 }
+
+// ============================================
+// CONTEXT MODIFIER
+// ============================================
+export interface ContextModifier {
+  id: string;
+  organisation_id: string | null;
+  name: string;
+  modifier_type: ModifierType;
+  multiplier: number;
+  is_percentage: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateContextModifierInput {
+  organisation_id: string;
+  name: string;
+  modifier_type: ModifierType;
+  multiplier: number;
+  is_percentage: boolean;
+}
+
+export interface UpdateContextModifierInput {
+  id: string;
+  name?: string;
+  modifier_type?: ModifierType;
+  multiplier?: number;
+  is_percentage?: boolean;
+  is_active?: boolean;
+}
+

@@ -1,4 +1,4 @@
-import { ShieldAlert, Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
 import { colors, shadows, radii, typography } from '../../design-system';
 
 interface Claim {
@@ -22,152 +22,119 @@ interface WarrantyClaimsSLAProps {
   onNavigate?: (path: string) => void;
 }
 
+function getCountdownColor(days: number | null): { bg: string; text: string; dot: string } {
+  if (days === null) return { bg: colors.gray[100], text: colors.gray[500], dot: colors.gray[400] };
+  if (days < 0) return { bg: colors.error.light, text: colors.error.dark, dot: colors.error.DEFAULT };
+  if (days <= 3) return { bg: colors.error.light, text: colors.error.dark, dot: colors.error.DEFAULT };
+  if (days <= 7) return { bg: colors.warning.light, text: colors.warning.dark, dot: colors.warning.DEFAULT };
+  return { bg: colors.success.light, text: colors.success.dark, dot: colors.success.DEFAULT };
+}
+
 export function WarrantyClaimsSLA({ claimsLoading, claimsStats, onNavigate }: WarrantyClaimsSLAProps) {
+  const topClaims = claimsStats.claims.slice(0, 5);
+
   return (
-    <div style={{ background: 'white', borderRadius: radii.md, padding: '24px', border: `1px solid ${colors.gray[200]}`, boxShadow: shadows.card }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <ShieldAlert size={20} style={{ color: claimsStats.claims.some(c => c.slaStatus === 'overdue') ? colors.error.DEFAULT : colors.info.DEFAULT }} />
-        <h2 style={{ fontSize: typography.sizes['2xl'].size, fontWeight: 700, color: colors.gray[900], margin: 0 }}>Warranty Claims SLA</h2>
+    <div>
+      {/* Section Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <h2 style={{
+          fontSize: typography.sizes['2xl'].size,
+          fontWeight: 700,
+          color: colors.gray[900],
+          margin: 0,
+        }}>
+          Upcoming deadlines
+        </h2>
       </div>
-      <p style={{ fontSize: '14px', color: colors.gray[500], margin: '0 0 20px 0' }}>
-        Active notifications and response-time tracking for vendor replacement claims.
-      </p>
 
       {claimsLoading ? (
-        <div style={{ textAlign: 'center', padding: '24px', color: colors.gray[400], fontSize: '14px' }}>
-          Loading active claims...
+        <div style={{ textAlign: 'center', padding: '32px', color: colors.gray[400], fontSize: '14px' }}>
+          Loading deadlines...
         </div>
-      ) : claimsStats.claims.length === 0 ? (
+      ) : topClaims.length === 0 ? (
         <div style={{
-          padding: '32px 16px',
+          padding: '32px',
           textAlign: 'center',
-          borderRadius: radii.md,
-          border: `2px dashed ${colors.gray[200]}`,
-          background: '#fafafa',
+          borderRadius: radii.lg,
+          border: `1px dashed ${colors.gray[200]}`,
+          background: 'white',
           color: colors.gray[500],
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px'
         }}>
-          <CheckCircle2 size={32} style={{ color: colors.success.DEFAULT }} />
-          <div style={{ fontSize: '15px', fontWeight: 600 }}>All Claims Cleared</div>
-          <div style={{ fontSize: '13px', color: colors.gray[400] }}>No active warranty claims pending vendor resolution.</div>
+          <CheckCircle2 size={32} style={{ color: colors.success.DEFAULT, marginBottom: '8px' }} />
+          <div style={{ fontSize: '15px', fontWeight: 600, color: colors.gray[700] }}>No deadlines</div>
+          <div style={{ fontSize: '13px', color: colors.gray[400], marginTop: '4px' }}>All claims cleared.</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
-          {claimsStats.claims.map((claim: Claim) => {
-            let cardBorder = `1px solid ${colors.gray[200]}`;
-            let leftStripColor = colors.gray[300];
-            let badgeBg = colors.gray[100];
-            let badgeText = colors.gray[700];
-            let BadgeIcon = Calendar;
-            let label = 'Active';
-
-            if (claim.slaStatus === 'overdue') {
-              cardBorder = `1px solid #fec5c5`;
-              leftStripColor = colors.error.DEFAULT;
-              badgeBg = colors.error.light;
-              badgeText = colors.error.dark;
-              BadgeIcon = AlertTriangle;
-              label = `Overdue by ${Math.abs(claim.daysRemaining!)}d`;
-            } else if (claim.slaStatus === 'critical') {
-              cardBorder = `1px solid #fef3c7`;
-              leftStripColor = colors.warning.DEFAULT;
-              badgeBg = colors.warning.light;
-              badgeText = colors.warning.dark;
-              BadgeIcon = Clock;
-              label = `${claim.daysRemaining} days left`;
-            } else if (claim.daysRemaining !== null) {
-              leftStripColor = colors.primary[500];
-              badgeBg = colors.primary[100];
-              badgeText = colors.primary[700];
-              BadgeIcon = Calendar;
-              label = `${claim.daysRemaining} days left`;
-            } else {
-              label = 'Awaiting SLA';
-            }
-
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {topClaims.map((claim: Claim) => {
+            const countdown = getCountdownColor(claim.daysRemaining);
             return (
-              <div 
+              <div
                 key={claim.id}
                 onClick={() => onNavigate?.('/projects')}
                 style={{
                   background: 'white',
-                  borderRadius: radii.DEFAULT,
-                  border: cardBorder,
-                  boxShadow: shadows.sm,
-                  padding: '14px 16px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  paddingLeft: '22px',
+                  borderRadius: radii.lg,
+                  border: `1px solid ${colors.gray[200]}`,
+                  padding: '10px 14px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.15s',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
+                  alignItems: 'center',
+                  gap: '12px',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = shadows.DEFAULT;
+                  e.currentTarget.style.boxShadow = shadows.elevated;
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = shadows.sm;
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                {/* Status Left Strip */}
+                {/* Avatar */}
                 <div style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: '5px',
-                  background: leftStripColor
-                }} />
-
-                {/* Card Header Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: colors.gray[900], whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {claim.equipment?.equipment_name || 'Equipment Claim'}
-                    </h4>
-                    <div style={{ fontSize: '12px', color: colors.gray[500], marginTop: '2px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      Project: {claim.equipment?.project?.project_name || 'MEP Project'}
-                    </div>
-                  </div>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '3px 8px',
-                    borderRadius: '9999px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    background: badgeBg,
-                    color: badgeText,
-                    whiteSpace: 'nowrap'
-                  }}>
-                    <BadgeIcon size={12} />
-                    {label}
-                  </span>
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: radii.md,
+                  background: colors.primary[50],
+                  color: colors.primary[600],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}>
+                  {claim.vendor_name?.charAt(0) || 'V'}
                 </div>
 
-                {/* Claim Sub-details */}
-                <div style={{ fontSize: '12px', color: colors.gray[500], display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${colors.gray[100]}`, paddingTop: '6px' }}>
-                  <div>
-                    Vendor: <span style={{ fontWeight: 600, color: colors.gray[700] }}>{claim.vendor_name}</span>
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{                     fontSize: '13px', fontWeight: 600, color: colors.gray[900], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {claim.equipment?.equipment_name || 'Equipment Claim'}
                   </div>
-                  <div>
-                    Status: <span style={{
-                      fontWeight: 700,
-                      color: claim.status === 'Resolved' ? colors.success.dark :
-                             claim.status === 'Pending Response' ? colors.warning.dark :
-                             claim.status === 'Draft' ? colors.gray[700] : colors.error.dark
-                    }}>{claim.status}</span>
+                  <div style={{ fontSize: '11px', color: colors.gray[500], marginTop: '1px' }}>
+                    {claim.equipment?.project?.project_name || 'MEP Project'}
                   </div>
                 </div>
 
+                {/* Countdown badge */}
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 10px',
+                  borderRadius: radii.full,
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  background: countdown.bg,
+                  color: countdown.text,
+                  flexShrink: 0,
+                }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: countdown.dot }} />
+                  {claim.daysRemaining !== null ? (
+                    claim.daysRemaining < 0 ? `${Math.abs(claim.daysRemaining)}d overdue` : `${claim.daysRemaining}d left`
+                  ) : 'No SLA'}
+                </span>
               </div>
             );
           })}

@@ -19,7 +19,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ type, label, className
   };
 
   return (
-    <span className={`inline-block font-mono text-[10px] font-semibold px-[7px] py-[2px] rounded-[20px] whitespace-nowrap ${colorClassMap[type]} ${className}`}>
+    <span className={`inline-block text-[11px] font-semibold px-[10px] h-[22px] flex items-center rounded-[999px] whitespace-nowrap ${colorClassMap[type]} ${className}`}>
       {label}
     </span>
   );

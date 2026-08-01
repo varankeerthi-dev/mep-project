@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { Select } from '../../../../components/ui/select';
+import { EditorSection } from './EditorSection';
+import { inputFieldSm, selectFieldSm, addLink } from './formStyles';
 import type { VariantPricingRow } from '../../model/aggregates';
 
 interface VariantPricingSectionProps {
+  number?: number;
   variantPricing: VariantPricingRow[];
   variants: { id: string; variant_name: string }[];
   usesVariant: boolean;
@@ -16,6 +18,7 @@ interface VariantPricingSectionProps {
 }
 
 export function VariantPricingSection({
+  number,
   variantPricing,
   variants,
   usesVariant,
@@ -34,88 +37,93 @@ export function VariantPricingSection({
   }, [collapsed]);
 
   return (
-    <div ref={sectionRef} className="rounded-lg shadow-[0px_0px_0px_1px_oklch(0_0_0_/_0.06),0px_1px_2px_-1px_oklch(0_0_0_/_0.06),0px_2px_4px_0px_oklch(0_0_0_/_0.04)] bg-purple-50 p-4 space-y-4">
-      <div
-        className="flex items-center justify-between gap-3 cursor-pointer select-none"
-        onClick={() => setCollapsed(!collapsed)}
+    <div ref={sectionRef}>
+      <EditorSection
+        number={number}
+        title="Variant Pricing"
+        description="Set different prices for different discount categories."
+        hint="Leave blank to use default prices"
+        expanded={!collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
       >
-        <h4 className="text-sm font-semibold text-zinc-700">Variant Pricing</h4>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-zinc-400">Leave blank to use default prices</span>
-          {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
-        </div>
-      </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <Checkbox
+            checked={usesVariant}
+            onCheckedChange={(checked) => onToggleVariant(checked)}
+          />
+          <span className="text-[#111827]">Enable Discount Category / Variant Pricing</span>
+        </label>
 
-      {!collapsed && (<>
-
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <Checkbox
-          checked={usesVariant}
-          onCheckedChange={(checked) => onToggleVariant(checked)}
-        />
-        <span className="text-zinc-700">Enable Discount Category / Variant Pricing</span>
-      </label>
-
-      {usesVariant && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">Set different prices for different discount categories</span>
-            <button
-              onClick={onAddRow}
-              className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Row
-            </button>
-          </div>
-
-          {variantPricing.map((row) => (
-            <div key={row.id} className="flex items-center gap-2 bg-zinc-50 rounded-md p-2">
-              <Select
-                value={row.company_variant_id}
-                onValueChange={(v) => onRowChange(row.id, 'company_variant_id', v)}
-                className="flex-1 h-8 text-xs"
-                options={[
-                  {value: '', label: 'Select category'},
-                  ...variants.map(v => ({value: v.id, label: v.variant_name}))
-                ]}
-              />
-              <Input
-                value={row.make}
-                onChange={(e) => onRowChange(row.id, 'make', e.target.value)}
-                placeholder="Make/Brand"
-                className="h-8 text-xs w-28"
-              />
-              <Input
-                value={row.sale_price}
-                onChange={(e) => onRowChange(row.id, 'sale_price', e.target.value)}
-                placeholder="Sale Price"
-                type="number"
-                step="0.01"
-                className="h-8 text-xs w-24"
-              />
-              <Input
-                value={row.purchase_price}
-                onChange={(e) => onRowChange(row.id, 'purchase_price', e.target.value)}
-                placeholder="Purchase Price"
-                type="number"
-                step="0.01"
-                className="h-8 text-xs w-24"
-              />
+        {usesVariant && (
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#6B7280]">Set different prices for different discount categories</span>
               <button
-                onClick={() => onRemoveRow(row.id)}
-                className="p-1.5 rounded-md hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors relative after:absolute after:inset-[-8px]"
+                onClick={onAddRow}
+                className={addLink}
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Plus size={14} /> Add Row
               </button>
             </div>
-          ))}
 
-          {variantPricing.length === 0 && (
-            <p className="text-xs text-zinc-400 italic">No pricing rows. Click "Add Row" to add one.</p>
-          )}
-        </div>
-      )}
-      </>)}
+            {variantPricing.map((row) => (
+              <div key={row.id} className="flex items-center gap-2 rounded-xl p-2.5">
+                <div className="relative w-40 shrink-0">
+                  <select
+                    className={selectFieldSm}
+                    value={row.company_variant_id}
+                    onChange={(e) => onRowChange(row.id, 'company_variant_id', e.target.value)}
+                  >
+                    <option value="">Select category</option>
+                    {variants.map(v => (
+                      <option key={v.id} value={v.id}>{v.variant_name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+                </div>
+                <Input
+                  value={row.make}
+                  onChange={(e) => onRowChange(row.id, 'make', e.target.value)}
+                  placeholder="Make/Brand"
+                  className={inputFieldSm + ' w-32'}
+                />
+                <div className="relative w-40 shrink-0">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">₹</span>
+                  <Input
+                    value={row.sale_price}
+                    onChange={(e) => onRowChange(row.id, 'sale_price', e.target.value)}
+                    placeholder="Sale Price"
+                    type="number"
+                    step="0.01"
+                    className={inputFieldSm + ' pl-9'}
+                  />
+                </div>
+                <div className="relative w-40 shrink-0">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">₹</span>
+                  <Input
+                    value={row.purchase_price}
+                    onChange={(e) => onRowChange(row.id, 'purchase_price', e.target.value)}
+                    placeholder="Purchase Price"
+                    type="number"
+                    step="0.01"
+                    className={inputFieldSm + ' pl-9'}
+                  />
+                </div>
+                <button
+                  onClick={() => onRemoveRow(row.id)}
+                  className="ml-2 rounded-lg p-1.5 text-[#6B7280] transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+
+            {variantPricing.length === 0 && (
+              <p className="text-xs italic text-[#6B7280]">No pricing rows. Click "Add Row" to add one.</p>
+            )}
+          </div>
+        )}
+      </EditorSection>
     </div>
   );
 }

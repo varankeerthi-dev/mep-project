@@ -439,6 +439,8 @@ export function ProformaItemsEditor({
 
       {/* Table */}
       <div style={{ overflowX: 'auto' }}>
+        {/* DndContext renders a div (accessibility HiddenText) — must live OUTSIDE the <table> to keep valid HTML nesting */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: '#fafafa', borderBottom: '2px solid #e5e5e5' }}>
@@ -611,8 +613,7 @@ export function ProformaItemsEditor({
               <th style={{ padding: '6px 4px', width: '32px' }} />
             </tr>
           </thead>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
               <tbody>
                 {fields.map((field, index) => {
                   const item = items[index] ?? createEmptyProformaItem();
@@ -896,9 +897,9 @@ export function ProformaItemsEditor({
                   );
                 })}
               </tbody>
-            </SortableContext>
-          </DndContext>
+          </SortableContext>
         </table>
+        </DndContext>
       </div>
       {error && (
         <div style={{ padding: '8px 12px', color: '#dc2626', fontSize: '11px', background: '#fef2f2' }}>

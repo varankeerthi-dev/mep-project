@@ -11,16 +11,16 @@ interface ProgressBarProps {
 export const ProgressBar: React.FC<ProgressBarProps> = ({ 
   progress, 
   colorClass = 'bg-[var(--brand)]', 
-  trackClass = 'bg-[var(--surface-alt)]',
-  heightClass = 'h-[5px]',
+  trackClass = 'bg-[#E2E8F0]',
+  heightClass = 'h-[6px]',
   className = '' 
 }) => {
   const safeProgress = Math.max(0, Math.min(100, progress));
   
   return (
-    <div className={`w-full rounded-[4px] overflow-hidden ${trackClass} ${heightClass} ${className}`}>
+    <div className={`w-full rounded-[999px] overflow-hidden ${trackClass} ${heightClass} ${className}`}>
       <div 
-        className={`h-full ${colorClass}`} 
+        className={`h-full transition-[width] duration-300 ease ${colorClass}`} 
         style={{ width: `${safeProgress}%` }}
       />
     </div>

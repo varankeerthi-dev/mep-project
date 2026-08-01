@@ -354,7 +354,7 @@ export default function ProjectOverview() {
   return (
     <motion.div
       className="min-h-screen"
-      style={{ backgroundColor: '#f6f5f2' }}
+      style={{ backgroundColor: '#f8f9fc' }}
       initial="hidden"
       animate="show"
       variants={container}
@@ -363,7 +363,7 @@ export default function ProjectOverview() {
         className="border-b bg-white sticky top-0 z-10"
         style={{ borderColor: 'rgba(0,0,0,0.05)' }}
       >
-        <div className="max-w-[1440px] mx-auto p-6 flex items-center justify-between">
+        <div className="max-w-[1440px] mx-auto p-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -372,17 +372,17 @@ export default function ProjectOverview() {
               <Squares2X2Icon className="w-5 h-5" style={{ color: '#0d7c6b' }} />
             </div>
             <div>
-              <h1 className="text-lg font-medium tracking-tight" style={{ color: '#1c1917' }}>
+              <h1 className="text-lg font-medium tracking-tight" style={{ color: '#111827' }}>
                 CEO Dashboard
               </h1>
-              <p className="text-xs mt-0.5" style={{ color: '#78716c' }}>
+              <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>
                 Cross-project signals &mdash; what needs attention, where things stand
               </p>
             </div>
           </div>
           <div
             className="flex items-center gap-1 p-0.5 rounded-lg"
-            style={{ backgroundColor: '#f0efeb' }}
+            style={{ backgroundColor: '#f3f4f6' }}
           >
             {(Object.keys(DATE_WINDOW_LABEL) as DateWindow[]).map((w) => (
               <button
@@ -392,10 +392,10 @@ export default function ProjectOverview() {
                   'px-3.5 py-1.5 text-xs font-medium rounded-md transition-all duration-300',
                   window === w
                     ? 'bg-white shadow-sm'
-                    : 'hover:text-[#1c1917]',
+                    : 'hover:text-[#111827]',
                 )}
                 style={{
-                  color: window === w ? '#1c1917' : '#a8a29e',
+                  color: window === w ? '#111827' : '#6b7280',
                   boxShadow: window === w ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
                   transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 }}
@@ -407,7 +407,7 @@ export default function ProjectOverview() {
         </div>
       </header>
 
-      <main className="max-w-[1440px] mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-[1440px] mx-auto px-5 py-6 space-y-6">
         {/* Budget Alerts (Feature #24) */}
         {budgetAlertsQuery.data && budgetAlertsQuery.data.length > 0 && (
           <motion.section variants={item}>
@@ -432,12 +432,12 @@ export default function ProjectOverview() {
                   }} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold" style={{ color: '#1c1917' }}>
+                  <h3 className="text-sm font-semibold" style={{ color: '#111827' }}>
                     Budget Alert{budgetAlertsQuery.data.length > 1 ? `s (${budgetAlertsQuery.data.length})` : ''}
                   </h3>
                   <div className="mt-1 space-y-0.5">
                     {budgetAlertsQuery.data.slice(0, 3).map((alert) => (
-                      <p key={alert.projectId} className="text-xs" style={{ color: '#57534e' }}>
+                      <p key={alert.projectId} className="text-xs" style={{ color: '#4b5563' }}>
                         {alert.message} — ₹{alert.spentAmount.toLocaleString('en-IN')} of ₹{alert.budgetAmount.toLocaleString('en-IN')}
                       </p>
                     ))}
@@ -464,69 +464,73 @@ export default function ProjectOverview() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Attention Feed */}
           <motion.div variants={item}>
-            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
-              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1c1917' }}>
+            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+              <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#111827' }}>
                   <ExclamationTriangleIcon className="w-4 h-4" style={{ color: '#d97706' }} />
                   Needs Attention
                 </h2>
-                <span className="text-[11px] font-medium" style={{ color: '#a8a29e' }}>
+                <span className="text-[11px] font-medium" style={{ color: '#6b7280' }}>
                   {attentionFeed.length} item{attentionFeed.length === 1 ? '' : 's'}
                 </span>
               </div>
 
               {isLoading ? (
-                <div className="py-12 text-center">
-                  <div className="text-xs" style={{ color: '#a8a29e' }}>Loading signals&hellip;</div>
+                <div className="py-10 text-center">
+                  <div className="text-xs" style={{ color: '#6b7280' }}>Loading signals&hellip;</div>
                 </div>
               ) : attentionFeed.length === 0 ? (
-                <div className="py-12 text-center">
+                <div className="py-10 text-center">
                   <CheckCircleIcon className="w-8 h-8 mx-auto mb-2" style={{ color: '#a7f3d0' }} />
-                  <h3 className="text-sm font-medium" style={{ color: '#44403c' }}>All clear</h3>
-                  <p className="text-xs mt-1" style={{ color: '#a8a29e' }}>
+                  <h3 className="text-sm font-medium" style={{ color: '#374151' }}>All clear</h3>
+                  <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
                     No overdue handovers, pending approvals, or rejected reports.
                   </p>
                 </div>
               ) : (
-                <div>
-                  {attentionFeed.map((item, i) => (
+                <div className="p-4 flex flex-col gap-1.5">
+                  {attentionFeed.map((feedItem) => (
                     <button
-                      key={item.id}
-                      onClick={() => navigate(item.href)}
-                      className="w-full flex items-start gap-4 p-6 text-left transition-all duration-200 hover:bg-[#fafaf9] group"
-                      style={{
-                        borderBottom: i < attentionFeed.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                      }}
+                      key={feedItem.id}
+                      onClick={() => navigate(feedItem.href)}
+                      className="w-full flex items-start gap-3 p-3.5 rounded-lg text-left transition-all duration-200 hover:bg-[#f9fafb] group"
                     >
                       <span
-                        className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
+                        className="w-2 h-2 rounded-full mt-[6px] shrink-0 ring-2 ring-opacity-10"
                         style={{
                           backgroundColor:
-                            item.kind === 'overdue_handover' || item.kind === 'overdue_stoppage'
+                            feedItem.kind === 'overdue_handover' || feedItem.kind === 'overdue_stoppage'
                               ? '#dc2626'
-                              : item.kind === 'rejected_report'
+                              : feedItem.kind === 'rejected_report'
                               ? '#d97706'
                               : '#7c3aed',
+                          boxShadow: `0 0 0 2px ${
+                            feedItem.kind === 'overdue_handover' || feedItem.kind === 'overdue_stoppage'
+                              ? 'rgba(220,38,38,0.12)'
+                              : feedItem.kind === 'rejected_report'
+                              ? 'rgba(217,119,6,0.12)'
+                              : 'rgba(124,58,237,0.12)'
+                          }`,
                         }}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate" style={{ color: '#1c1917' }}>
-                          {item.title}
+                        <div className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>
+                          {feedItem.title}
                         </div>
-                        <div className="text-xs mt-0.5 truncate" style={{ color: '#a8a29e' }}>
-                          {item.subtitle}
+                        <div className="text-xs mt-1 truncate" style={{ color: '#6b7280' }}>
+                          {feedItem.subtitle}
                         </div>
                       </div>
                       <span
-                        className="text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 mt-0.5"
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5 whitespace-nowrap"
                         style={{
                           backgroundColor:
-                            item.ageTone === 'overdue' ? '#fef2f2' : item.ageTone === 'recent' ? '#fffbeb' : '#f5f5f4',
+                            feedItem.ageTone === 'overdue' ? '#fef2f2' : feedItem.ageTone === 'recent' ? '#fffbeb' : '#f3f4f6',
                           color:
-                            item.ageTone === 'overdue' ? '#dc2626' : item.ageTone === 'recent' ? '#d97706' : '#a8a29e',
+                            feedItem.ageTone === 'overdue' ? '#dc2626' : feedItem.ageTone === 'recent' ? '#d97706' : '#6b7280',
                         }}
                       >
-                        {item.ageLabel}
+                        {feedItem.ageLabel}
                       </span>
                     </button>
                   ))}
@@ -537,13 +541,13 @@ export default function ProjectOverview() {
 
           {/* Open Stoppages */}
           <motion.div variants={item} id="work-stoppages-section">
-            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
-              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1c1917' }}>
+            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+              <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#111827' }}>
                   <PauseCircleIcon className="w-4 h-4" style={{ color: '#dc2626' }} />
                   Open Work Stoppages
                 </h2>
-                <span className="text-[11px] font-medium" style={{ color: '#a8a29e' }}>
+                <span className="text-[11px] font-medium" style={{ color: '#6b7280' }}>
                   {openStoppages.length} open
                   {overdueStoppages.length > 0 ? ` \u2022 ${overdueStoppages.length} overdue` : ''}
                   {unknownDateStoppages.length > 0 ? ` \u2022 ${unknownDateStoppages.length} no date` : ''}
@@ -551,18 +555,18 @@ export default function ProjectOverview() {
               </div>
 
               {openStoppagesQuery.isLoading ? (
-                <div className="py-12 text-center">
-                  <div className="text-xs" style={{ color: '#a8a29e' }}>Loading stoppages&hellip;</div>
+                <div className="py-10 text-center">
+                  <div className="text-xs" style={{ color: '#6b7280' }}>Loading stoppages&hellip;</div>
                 </div>
               ) : openStoppages.length === 0 ? (
-                <div className="py-12 text-center">
+                <div className="py-10 text-center">
                   <CheckCircleIcon className="w-8 h-8 mx-auto mb-2" style={{ color: '#a7f3d0' }} />
-                  <h3 className="text-sm font-medium" style={{ color: '#44403c' }}>No open stoppages</h3>
-                  <p className="text-xs mt-1" style={{ color: '#a8a29e' }}>All work is unblocked right now.</p>
+                  <h3 className="text-sm font-medium" style={{ color: '#374151' }}>No open stoppages</h3>
+                  <p className="text-xs mt-1" style={{ color: '#6b7280' }}>All work is unblocked right now.</p>
                 </div>
               ) : (
-                <div>
-                  {openStoppages.slice(0, 8).map((s, i) => {
+                <div className="p-2 flex flex-col gap-1.5">
+                  {openStoppages.slice(0, 8).map((s) => {
                     const report = Array.isArray(s.report) ? s.report[0] : s.report;
                     const proj = report ? projectById.get(report.project_id) : undefined;
                     const projectName = proj?.project_name || proj?.name || '\u2014';
@@ -573,20 +577,20 @@ export default function ProjectOverview() {
                     return (
                       <div
                         key={s.id}
-                        className="flex items-start gap-4 p-6 transition-all duration-200 hover:bg-[#fafaf9]"
-                        style={{
-                          borderBottom: i < Math.min(openStoppages.length, 8) - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                        }}
+                        className="flex items-start gap-3 p-3.5 rounded-lg transition-all duration-200 hover:bg-[#f9fafb]"
                       >
                         <div
-                          className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
+                          className="w-2 h-2 rounded-full mt-[6px] shrink-0"
                           style={{
                             backgroundColor: isOverdue ? '#dc2626' : isPastPlanned ? '#ea580c' : '#d97706',
+                            boxShadow: `0 0 0 2px ${
+                              isOverdue ? 'rgba(220,38,38,0.12)' : isPastPlanned ? 'rgba(234,88,12,0.12)' : 'rgba(217,119,6,0.12)'
+                            }`,
                           }}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium truncate" style={{ color: '#1c1917' }}>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>
                               {projectName}
                             </span>
                             <span
@@ -600,7 +604,7 @@ export default function ProjectOverview() {
                             </span>
                             <span
                               className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: '#f0efeb', color: '#78716c' }}
+                              style={{ backgroundColor: '#f3f4f6', color: '#6b7280' }}
                             >
                               {labelForBlockingParty(s.blocking_party)}
                             </span>
@@ -638,13 +642,13 @@ export default function ProjectOverview() {
                             )}
                           </div>
                           {(s.affected_work || s.reason_detail) && (
-                            <div className="text-xs mt-0.5 line-clamp-2" style={{ color: '#57534e' }}>
+                            <div className="text-xs mt-1 line-clamp-2" style={{ color: '#4b5563' }}>
                               <span className="font-medium">{s.affected_work}</span>
                               {s.affected_work && s.reason_detail ? ' \u2014 ' : ''}
                               {s.reason_detail}
                             </div>
                           )}
-                          <div className="text-[11px] mt-1" style={{ color: '#a8a29e' }}>
+                          <div className="text-[11px] mt-1" style={{ color: '#6b7280' }}>
                             Logged on report {report ? formatDate(report.report_date) : '\u2014'}
                             {s.expected_resolution_date && (
                               <> &middot; expected restart {formatDate(s.expected_resolution_date)}</>
@@ -661,8 +665,8 @@ export default function ProjectOverview() {
                               display: 'flex',
                               alignItems: 'center',
                               gap: '4px',
-                              padding: '6px 12px',
-                              border: '1px solid #d1d5db',
+                              padding: '5px 10px',
+                              border: '1px solid #e5e7eb',
                               background: '#fff',
                               color: '#374151',
                               borderRadius: '6px',
@@ -672,12 +676,12 @@ export default function ProjectOverview() {
                               transition: 'all 0.15s',
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#f3f4f6';
-                              e.currentTarget.style.borderColor = '#9ca3af';
+                              e.currentTarget.style.background = '#f9fafb';
+                              e.currentTarget.style.borderColor = '#d1d5db';
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = '#fff';
-                              e.currentTarget.style.borderColor = '#d1d5db';
+                              e.currentTarget.style.borderColor = '#e5e7eb';
                             }}
                           >
                             <CheckCircleIcon className="w-3.5 h-3.5" style={{ color: '#185FA5' }} />
@@ -693,21 +697,23 @@ export default function ProjectOverview() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              padding: '6px',
-                              border: '1px solid #d1d5db',
+                              padding: '5px',
+                              border: '1px solid #e5e7eb',
                               background: '#fff',
-                              color: '#000000',
+                              color: '#6b7280',
                               borderRadius: '6px',
                               cursor: 'pointer',
                               transition: 'all 0.15s',
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#f3f4f6';
-                              e.currentTarget.style.borderColor = '#9ca3af';
+                              e.currentTarget.style.background = '#f9fafb';
+                              e.currentTarget.style.borderColor = '#d1d5db';
+                              e.currentTarget.style.color = '#dc2626';
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = '#fff';
-                              e.currentTarget.style.borderColor = '#d1d5db';
+                              e.currentTarget.style.borderColor = '#e5e7eb';
+                              e.currentTarget.style.color = '#6b7280';
                             }}
                             title="Delete stoppage"
                           >
@@ -718,7 +724,7 @@ export default function ProjectOverview() {
                     );
                   })}
                   {openStoppages.length > 8 && (
-                    <div className="p-6 text-center text-[11px]" style={{ backgroundColor: '#fafaf9', color: '#a8a29e' }}>
+                    <div className="p-4 text-center text-[11px]" style={{ backgroundColor: '#fafaf9', color: '#6b7280' }}>
                       + {openStoppages.length - 8} more open stoppage{openStoppages.length - 8 === 1 ? '' : 's'}
                     </div>
                   )}
@@ -730,10 +736,9 @@ export default function ProjectOverview() {
 
         {/* Projects grid */}
         <motion.section variants={item}>
-          <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
-<div style={{ height: '12px' }} />
-            <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-              <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1c1917' }}>
+          <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+            <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+              <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#111827' }}>
                 <UserGroupIcon className="w-4 h-4" style={{ color: '#0d7c6b' }} />
                 Projects
               </h2>
@@ -748,18 +753,18 @@ export default function ProjectOverview() {
             </div>
 
             {projectsQuery.isLoading ? (
-              <div className="py-16 text-center">
-                <div className="text-xs" style={{ color: '#a8a29e' }}>Loading projects&hellip;</div>
+              <div className="py-12 text-center">
+                <div className="text-xs" style={{ color: '#6b7280' }}>Loading projects&hellip;</div>
               </div>
             ) : projects.length === 0 ? (
-              <div className="py-16 text-center">
+              <div className="py-12 text-center">
                 <Squares2X2Icon className="w-8 h-8 mx-auto mb-2" style={{ color: '#d6d3d1' }} />
-                <h3 className="text-sm font-medium" style={{ color: '#44403c' }}>No projects yet</h3>
-                <p className="text-xs mt-1" style={{ color: '#a8a29e' }}>Create a project to start tracking signals.</p>
+                <h3 className="text-sm font-medium" style={{ color: '#374151' }}>No projects yet</h3>
+                <p className="text-xs mt-1" style={{ color: '#6b7280' }}>Create a project to start tracking signals.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {projects.map((p, i) => (
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {projects.map((p) => (
                   <ProjectCard
                     key={p.id}
                     project={p}
@@ -767,7 +772,6 @@ export default function ProjectOverview() {
                     openHandoverCount={openHandovers.filter((h) => h.project_id === p.id).length}
                     openStoppageCount={stoppagesByProject.get(p.id) ?? 0}
                     onClick={() => navigate(`/projects/edit?id=${p.id}`)}
-                    className={i < projects.length - 1 ? 'border-r border-b border-[rgba(0,0,0,0.04)]' : 'border-b border-[rgba(0,0,0,0.04)]'}
                   />
                 ))}
               </div>
@@ -778,29 +782,26 @@ export default function ProjectOverview() {
         {/* Recent Activity Feed (Feature #5) */}
         {activityQuery.data && activityQuery.data.length > 0 && (
           <motion.section variants={item}>
-            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03)' }}>
-              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#1c1917' }}>
+            <div className="bg-white rounded-xl" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)' }}>
+              <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#111827' }}>
                   <BellAlertIcon className="w-4 h-4" style={{ color: '#7c3aed' }} />
                   Recent Activity
                 </h2>
-                <span className="text-[11px] font-medium" style={{ color: '#a8a29e' }}>
+                <span className="text-[11px] font-medium" style={{ color: '#6b7280' }}>
                   {activityQuery.data.length} item{activityQuery.data.length === 1 ? '' : 's'}
                 </span>
               </div>
 
-              <div>
-                {activityQuery.data.slice(0, 10).map((activity, i) => (
+              <div className="p-2 flex flex-col gap-1.5">
+                {activityQuery.data.slice(0, 10).map((activity) => (
                   <button
                     key={activity.id}
                     onClick={() => navigate(activity.href)}
-                    className="w-full flex items-start gap-4 p-4 text-left transition-all duration-200 hover:bg-[#fafaf9]"
-                    style={{
-                      borderBottom: i < Math.min(activityQuery.data.length, 10) - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                    }}
+                    className="w-full flex items-start gap-3 p-3.5 rounded-lg text-left transition-all duration-200 hover:bg-[#f9fafb]"
                   >
                     <span
-                      className="w-1.5 h-1.5 rounded-full mt-[7px] shrink-0"
+                      className="w-2 h-2 rounded-full mt-[6px] shrink-0"
                       style={{
                         backgroundColor:
                           activity.type === 'task' ? '#3b82f6' :
@@ -809,27 +810,35 @@ export default function ProjectOverview() {
                           activity.type === 'expense' ? '#d97706' :
                           activity.type === 'handover' ? '#0891b2' :
                           '#dc2626',
+                        boxShadow: `0 0 0 2px ${
+                          activity.type === 'task' ? 'rgba(59,130,246,0.12)' :
+                          activity.type === 'site_report' ? 'rgba(5,150,105,0.12)' :
+                          activity.type === 'approval' ? 'rgba(124,58,237,0.12)' :
+                          activity.type === 'expense' ? 'rgba(217,119,6,0.12)' :
+                          activity.type === 'handover' ? 'rgba(8,145,178,0.12)' :
+                          'rgba(220,38,38,0.12)'
+                        }`,
                       }}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate" style={{ color: '#1c1917' }}>
+                      <div className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>
                         {activity.title}
                       </div>
-                      <div className="text-xs mt-0.5 truncate" style={{ color: '#a8a29e' }}>
+                      <div className="text-xs mt-1 truncate" style={{ color: '#6b7280' }}>
                         {activity.subtitle}
                       </div>
                     </div>
                     <span
-                      className="text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 mt-0.5"
+                      className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0 mt-0.5 whitespace-nowrap"
                       style={{
                         backgroundColor:
                           activity.severity === 'overdue' ? '#fef2f2' :
                           activity.severity === 'recent' ? '#fffbeb' :
-                          '#f5f5f4',
+                          '#f3f4f6',
                         color:
                           activity.severity === 'overdue' ? '#dc2626' :
                           activity.severity === 'recent' ? '#d97706' :
-                          '#a8a29e',
+                          '#6b7280',
                       }}
                     >
                       {activity.type.replace('_', ' ')}
@@ -864,13 +873,13 @@ export default function ProjectOverview() {
                     return proj?.project_name || proj?.name || '\u2014';
                   })()}
                 </div>
-                <div style={{ color: '#57534e' }}>
+                <div style={{ color: '#4b5563' }}>
                   <span className="font-medium">{resolving.affected_work || '\u2014'}</span>
                   {resolving.affected_work && resolving.reason_detail ? ' \u2014 ' : ''}
                   {resolving.reason_detail}
                 </div>
                 {resolving.expected_resolution_date && (
-                  <div className="mt-1" style={{ color: '#a8a29e' }}>
+                  <div className="mt-1" style={{ color: '#6b7280' }}>
                     Expected restart: {formatDate(resolving.expected_resolution_date)}
                   </div>
                 )}
@@ -884,7 +893,7 @@ export default function ProjectOverview() {
                 )}
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#57534e' }}>
+                <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#4b5563' }}>
                   Actual restart date <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <Input
@@ -895,7 +904,7 @@ export default function ProjectOverview() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#57534e' }}>
+                <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#4b5563' }}>
                   Resolution notes
                 </label>
                 <Textarea
@@ -939,14 +948,12 @@ function ProjectCard({
   openHandoverCount,
   openStoppageCount,
   onClick,
-  className,
 }: {
   project: ProjectRow;
   reportCount: number;
   openHandoverCount: number;
   openStoppageCount: number;
   onClick: () => void;
-  className?: string;
 }) {
   const displayName = project.project_name || project.name;
   const completion = project.completion_percentage ?? 0;
@@ -955,7 +962,7 @@ function ProjectCard({
     project.status === 'Active'
       ? '#059669'
       : project.status === 'Closed' || project.status === 'Financially Closed'
-      ? '#a8a29e'
+      ? '#6b7280'
       : '#0d7c6b';
 
   const statusBg =
@@ -987,21 +994,21 @@ function ProjectCard({
   return (
     <button
       onClick={onClick}
-      className={cn(
-        'p-6 text-left transition-all duration-200 hover:bg-[#fafaf9] group',
-        className,
-      )}
+      className="p-4 text-left rounded-xl transition-all duration-200 hover:bg-[#fafaf9] group cursor-pointer"
       style={{
+        background: '#ffffff',
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
         transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate" style={{ color: '#1c1917' }}>
+          <div className="text-sm font-semibold truncate" style={{ color: '#111827' }}>
             {displayName}
           </div>
           {project.client_name && (
-            <div className="text-xs truncate mt-0.5" style={{ color: '#a8a29e' }}>
+            <div className="text-xs truncate mt-0.5" style={{ color: '#6b7280' }}>
               {project.client_name}
             </div>
           )}
@@ -1016,14 +1023,14 @@ function ProjectCard({
 
       <div className="mt-3.5">
         <div className="flex items-center justify-between text-xs mb-1.5">
-          <span style={{ color: '#a8a29e' }}>Completion</span>
-          <span className="font-medium" style={{ color: '#57534e', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ color: '#6b7280' }}>Completion</span>
+          <span className="font-medium" style={{ color: '#4b5563', fontVariantNumeric: 'tabular-nums' }}>
             {Math.round(completion)}%
           </span>
         </div>
         <div
           className="h-1.5 rounded-full overflow-hidden"
-          style={{ backgroundColor: '#f0efeb' }}
+          style={{ backgroundColor: '#f3f4f6' }}
         >
           <div
             className="h-full rounded-full transition-all duration-500"
@@ -1038,17 +1045,17 @@ function ProjectCard({
 
       <div className="mt-3.5 grid grid-cols-3 gap-2 text-xs">
         <div className="rounded-lg px-2.5 py-1.5" style={{ backgroundColor: '#fafaf9' }}>
-          <div style={{ color: '#a8a29e' }}>Reports</div>
-          <div className="font-semibold" style={{ color: '#1c1917', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ color: '#6b7280' }}>Reports</div>
+          <div className="font-semibold" style={{ color: '#111827', fontVariantNumeric: 'tabular-nums' }}>
             {reportCount}
           </div>
         </div>
         <div className="rounded-lg px-2.5 py-1.5" style={{ backgroundColor: '#fafaf9' }}>
-          <div style={{ color: '#a8a29e' }}>Handovers</div>
+          <div style={{ color: '#6b7280' }}>Handovers</div>
           <div
             className="font-semibold"
             style={{
-              color: openHandoverCount > 0 ? '#d97706' : '#1c1917',
+              color: openHandoverCount > 0 ? '#d97706' : '#111827',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -1056,11 +1063,11 @@ function ProjectCard({
           </div>
         </div>
         <div className="rounded-lg px-2.5 py-1.5" style={{ backgroundColor: '#fafaf9' }}>
-          <div style={{ color: '#a8a29e' }}>Stoppages</div>
+          <div style={{ color: '#6b7280' }}>Stoppages</div>
           <div
             className="font-semibold"
             style={{
-              color: openStoppageCount > 0 ? '#dc2626' : '#1c1917',
+              color: openStoppageCount > 0 ? '#dc2626' : '#111827',
               fontVariantNumeric: 'tabular-nums',
             }}
           >

@@ -1,58 +1,63 @@
 /* operations-theme.css
-   Import once — e.g. at the top of Operations.tsx: import './operations-theme.css';
-   Fixes: missing design tokens, missing fonts, missing pulse keyframe, missing thin-scrollbar.
+   Operations Command Center — per OPERATION_ui.md spec
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-
 .operations-theme {
-  --bg: #F2F4F6;
+  --bg: #f8fafc;
   --surface: #FFFFFF;
-  --surface-alt: #EAEEF1;
-  --ink: #121A23;
-  --ink-soft: #5B6B78;
-  --ink-faint: #8B99A5;
-  --border: #DEE4E8;
+  --surface-alt: #f1f5f9;
+  --ink: #0f172a;
+  --ink-soft: #64748b;
+  --ink-faint: #94a3b8;
+  --border: #EEF2F6;
 
-  --brand: #0E7C6B;
-  --brand-dark: #0A5D50;
-  --brand-soft: #E1F1EE;
+  --brand: #2563eb;
+  --brand-dark: #1d4ed8;
+  --brand-soft: #dbeafe;
 
-  --alert: #C1442D;
-  --alert-soft: #FBE8E4;
+  --alert: #ef4444;
+  --alert-soft: #fee2e2;
 
-  --warn: #B9791A;
-  --warn-soft: #FAEFDC;
+  --warn: #f59e0b;
+  --warn-soft: #fef3c7;
 
-  --info: #2F6FED;
-  --info-soft: #E7EFFE;
+  --info: #3b82f6;
+  --info-soft: #dbeafe;
 
-  --radius: 10px;
-  --shadow: 0 1px 2px rgba(18,26,35,0.04), 0 1px 8px rgba(18,26,35,0.03);
+  --purple: #7C3AED;
+  --purple-soft: #ede9fe;
+
+  --success: #22c55e;
+  --success-soft: #dcfce7;
+
+  --radius-sm: 12px;
+  --radius-lg: 16px;
+  --shadow: 0 2px 6px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.05);
+  --shadow-hover: 0 12px 36px rgba(15,23,42,.08);
 }
 
-/* font-display isn't a default Tailwind utility — this makes the class you're
-   already using in the components actually work, without touching tailwind.config */
 .operations-theme .font-display {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Uncut Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .operations-theme.font-sans,
 .operations-theme .font-sans {
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: 'Uncut Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .operations-theme .font-mono {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Uncut Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* pulse keyframe used by LiveNowZone's animate-[operations-pulse_...] arbitrary class */
-@keyframes operations-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.4; transform: scale(0.7); }
-}
-
-/* thin scrollbar for the Needs Attention horizontal scroller */
 .operations-theme .scrollbar-thin::-webkit-scrollbar { height: 6px; }
 .operations-theme .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #C7D0D7;
+  background: #c7d0d7;
   border-radius: 4px;
+}
+
+/* Dashboard-style card hover */
+.ops-card {
+  transition: box-shadow 220ms ease, transform 220ms ease;
+}
+.ops-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }

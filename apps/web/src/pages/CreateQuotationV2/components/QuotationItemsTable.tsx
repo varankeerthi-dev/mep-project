@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SearchableItemSelect } from '../../../components/SearchableItemSelect';
 import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell';
+import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
 import { ArrowUpDown } from 'lucide-react';
@@ -628,11 +629,11 @@ export function QuotationItemsTable({
                     />
                   </td>
                   <td style={{ ...cell, padding: '0', width: '45px' }}>
-                    <input
-                      type="text"
-                      style={{ ...cellInput, textAlign: 'center', color: '#64748b' }}
+                    <UnitDropdownSelect
                       value={item.uom || ''}
-                      onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
+                      materialId={item.item_id}
+                      materials={materials}
+                      onChange={(val) => updateItem(item.id, 'uom', val)}
                     />
                   </td>
                   <td style={{ ...cell, padding: '0', width: '75px' }}>

@@ -1,154 +1,80 @@
-import React, { forwardRef } from 'react';
-import { cn } from '../../lib/utils';
+import * as React from "react"
+import { Input as InputPrimitive } from "@base-ui/react/input"
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  hint?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <InputPrimitive
+      type={type}
+      data-slot="input"
+      className={cn(
+        "h-9 w-full min-w-0 rounded-3xl border border-transparent bg-input/50 px-3 py-1 text-base transition-[color,box-shadow,background-color] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, leftIcon, rightIcon, className, style, ...props }, ref) => {
-    return (
-      <div className="w-full font-[Inter]">
-        {label && (
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">
-            {label}
-          </label>
-        )}
-        <div className="relative">
-          {leftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 flex items-center pointer-events-none">
-              {leftIcon}
-            </div>
-          )}
-          <input
-            ref={ref}
-            className={cn(
-              "w-full px-3 py-2 text-sm text-zinc-900 bg-white border rounded-md outline-none transition-all duration-200 font-[Inter]",
-              "placeholder:text-zinc-400",
-              "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-              error 
-                ? "border-red-500 focus:border-red-500 focus:ring-red-100" 
-                : "border-zinc-300 hover:border-zinc-400",
-              leftIcon && "pl-10",
-              rightIcon && "pr-10",
-              className
-            )}
-            style={style}
-            {...props}
-          />
-          {rightIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 flex items-center pointer-events-none">
-              {rightIcon}
-            </div>
-          )}
-        </div>
-        {error && (
-          <p className="text-xs text-red-500 mt-1.5">{error}</p>
-        )}
-        {hint && !error && (
-          <p className="text-xs text-zinc-500 mt-1.5">{hint}</p>
-        )}
-      </div>
-    );
-  }
-);
-
-Input.displayName = 'Input';
-
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
-  error?: string;
-  options: { value: string; label: string }[];
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-zinc-500">
+      {children}
+    </label>
+  )
 }
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className, style, ...props }, ref) => {
-    return (
-      <div className="w-full font-[Inter]">
-        {label && (
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">
-            {label}
-          </label>
+function Select({
+  label,
+  options = [],
+  className,
+  ...props
+}: {
+  label?: string
+  options?: Array<{ value: string; label: string }>
+} & React.ComponentProps<"select">) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <FieldLabel>{label}</FieldLabel>}
+      <select
+        data-slot="select"
+        className={cn(
+          "h-9 w-full min-w-0 cursor-pointer rounded-3xl border border-transparent bg-input/50 px-3 py-1 text-base transition-[color,box-shadow,background-color] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          className
         )}
-        <select
-          ref={ref}
-          className={cn(
-            "w-full px-3 py-2 text-sm text-zinc-900 bg-white border rounded-md outline-none transition-all duration-200 font-[Inter]",
-            "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-            error 
-              ? "border-red-500 focus:border-red-500 focus:ring-red-100" 
-              : "border-zinc-300 hover:border-zinc-400",
-            "cursor-pointer",
-            className
-          )}
-          style={{ 
-            appearance: 'none',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23718196' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 10px center',
-            paddingRight: '36px',
-            ...style 
-          }}
-          {...props}
-        >
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        {error && (
-          <p className="text-xs text-red-500 mt-1.5">{error}</p>
-        )}
-      </div>
-    );
-  }
-);
-
-Select.displayName = 'Select';
-
-interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
-  error?: string;
-  hint?: string;
+        {...props}
+      >
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
 }
 
-export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
-  ({ label, error, hint, className, style, ...props }, ref) => {
-    return (
-      <div className="w-full font-[Inter]">
-        {label && (
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">
-            {label}
-          </label>
+function TextArea({
+  label,
+  className,
+  ...props
+}: {
+  label?: string
+} & React.ComponentProps<"textarea">) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <FieldLabel>{label}</FieldLabel>}
+      <textarea
+        data-slot="textarea"
+        className={cn(
+          "min-h-16 w-full resize-none rounded-2xl border border-transparent bg-input/50 px-3 py-2 text-base transition-[color,box-shadow,background-color] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+          className
         )}
-        <textarea
-          ref={ref}
-          className={cn(
-            "w-full px-3 py-2 text-sm text-zinc-900 bg-white border rounded-md outline-none transition-all duration-200 font-[Inter]",
-            "placeholder:text-zinc-400 resize-y min-h-[80px]",
-            "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-            error 
-              ? "border-red-500 focus:border-red-500 focus:ring-red-100" 
-              : "border-zinc-300 hover:border-zinc-400",
-            className
-          )}
-          style={style}
-          {...props}
-        />
-        {error && (
-          <p className="text-xs text-red-500 mt-1.5">{error}</p>
-        )}
-        {hint && !error && (
-          <p className="text-xs text-zinc-500 mt-1.5">{hint}</p>
-        )}
-      </div>
-    );
-  }
-);
+        {...props}
+      />
+    </div>
+  )
+}
 
-TextArea.displayName = 'TextArea';
+export { Input, Select, TextArea }

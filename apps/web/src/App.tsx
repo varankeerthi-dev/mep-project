@@ -6,20 +6,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import Sidebar from './components/Sidebar';
-import QuickAccessBar from './components/QuickAccessBar';
 import { PermissionGuard } from './rbac';
 import { supabase, getUserOrganisations, createOrganization, signOut, sendVerificationEmail } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
-import LandingPage from './pages/LandingPage';
-import ProjectTasks from './pages/ProjectTasks'
-import EmployeeTab from './pages/hr/EmployeeTab'
-import AttendancePlanning from './pages/hr/AttendancePlanning'
-import AttendanceEntry from './pages/hr/AttendanceEntry'
-import { SalarySlipDashboard } from './pages/hr/salary-slip/SalarySlipDashboard'
 import { Toaster } from './lib/logger';
-import ToolsManagement from './pages/ToolsManagement';
-import { DynamicTableDemo } from './components/ui/DynamicTableDemo';
 import { AuthContext, useAuth, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
 
 
@@ -34,6 +24,14 @@ const DynamicAgentation = lazy(() => {
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
 ): LazyExoticComponent<ComponentType<any>> => lazy(factory);
+
+// Memoised lazy-module loader: the import() only fires the first time a
+// derived lazyAny component is actually rendered; subsequent calls return
+// the same in-flight / resolved promise from the module cache.
+function memoLazyModule<T>(loader: () => Promise<T>): () => Promise<T> {
+  let cached: Promise<T> | null = null;
+  return () => (cached ??= loader());
+}
 
 // --- SKELETON LOADING COMPONENT ---
 const PageSkeleton = () => (
@@ -61,6 +59,16 @@ const PageSkeleton = () => (
 );
 
 // Lazy load all pages
+const LandingPage      = lazyAny(() => import('./pages/LandingPage'));
+
+const Sidebar         = lazyAny(() => import('./components/Sidebar'));
+const QuickAccessBar  = lazyAny(() => import('./components/QuickAccessBar'));
+const EmployeeTab      = lazyAny(() => import('./pages/hr/EmployeeTab'));
+const AttendancePlanning = lazyAny(() => import('./pages/hr/AttendancePlanning'));
+const AttendanceEntry  = lazyAny(() => import('./pages/hr/AttendanceEntry'));
+const SalarySlipDashboard = lazyAny(() => import('./pages/hr/salary-slip/SalarySlipDashboard').then(m => ({ default: m.SalarySlipDashboard })));
+const ToolsManagement  = lazyAny(() => import('./pages/ToolsManagement'));
+const DynamicTableDemo = lazyAny(() => import('./components/ui/DynamicTableDemo').then(m => ({ default: m.DynamicTableDemo })));
 const CreateDC = lazyAny(() => import('./pages/CreateDC'));
 const CreateNonBillableDC = lazyAny(() => import('./pages/CreateNonBillableDC'));
 const DCList = lazyAny(() => import('./pages/DCList'));
@@ -69,6 +77,7 @@ const DateWiseConsolidation = lazyAny(() => import('./pages/DateWiseConsolidatio
 const MaterialWiseConsolidation = lazyAny(() => import('./pages/MaterialWiseConsolidation'));
 const DCConsolidation = lazyAny(() => import('./pages/DCConsolidation').then(m => ({ default: m.default })));
 const MaterialsList = lazyAny(() => import('./features/materials/page/MaterialsPage'));
+const ItemEditorPage = lazyAny(() => import('./features/materials/page/ItemEditorPage'));
 const StockTransfer = lazyAny(() => import('./pages/StockTransfer'));
 const TransactionNumberSeries = lazyAny(() => import('./pages/TransactionNumberSeries'));
 const CreatePO = lazyAny(() => import('./pages/CreatePO'));
@@ -83,11 +92,11 @@ const LedgerDashboard = lazyAny(() => import('./ledger/LedgerDashboard'));
 const FollowUpCentre = lazyAny(() => import('./pages/FollowUpCentre'));
 const ProjectList = lazyAny(() => import('./pages/ProjectList'));
 const CreateProject = lazyAny(() => import('./pages/CreateProject'));
-const AuthModule = import('./pages/Auth');
-const Login = lazyAny(() => AuthModule.then(m => ({ default: m.Login })));
-const Signup = lazyAny(() => AuthModule.then(m => ({ default: m.Signup })));
-const AuthCallback = lazyAny(() => AuthModule.then(m => ({ default: m.AuthCallback })));
-const SelectOrganisation = lazyAny(() => AuthModule.then(m => ({ default: m.SelectOrganisation })));
+const _authModule        = memoLazyModule(() => import('./pages/Auth'));
+const Login              = lazyAny(() => _authModule().then(m => ({ default: m.Login })));
+const Signup             = lazyAny(() => _authModule().then(m => ({ default: m.Signup })));
+const AuthCallback       = lazyAny(() => _authModule().then(m => ({ default: m.AuthCallback })));
+const SelectOrganisation = lazyAny(() => _authModule().then(m => ({ default: m.SelectOrganisation })));
 const RequestAccessPage = lazyAny(() => import('./pages/RequestAccess'));
 const AccessControlPage = lazyAny(() => import('./pages/AccessControl'));
 const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })));
@@ -105,8 +114,8 @@ const ReturnViewPage = lazyAny(() => import('./pages/ReturnViewPage'));
 const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
 const QuickQuoteSettings = lazyAny(() => import('./pages/QuickQuoteSettings'));
-import { TermsConditionsDashboard } from './pages/TermsConditionsDirect';
-import { TermsConditionsSettings } from './pages/TermsConditionsSettingsRefactored';
+const TermsConditionsDashboard = lazyAny(() => import('./pages/TermsConditionsDirect').then(m => ({ default: m.TermsConditionsDashboard })));
+const TermsConditionsSettings  = lazyAny(() => import('./pages/TermsConditionsSettingsRefactored').then(m => ({ default: m.TermsConditionsSettings })));
 const QuickStockCheckList = lazyAny(() => import('./pages/QuickStockCheckList'));
 const QuickStockCheck = lazyAny(() => import('./pages/QuickStockCheck'));
 const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
@@ -130,7 +139,9 @@ const ProjectScheduleBaselineControl = lazyAny(() => import('./pages/ProjectSche
 
 // Lazy load internally moved pages
 const Dashboard = lazyAny(() => import('./pages/Dashboard'));
+const DashboardDemo = lazyAny(() => import('./pages/DashboardDemo'));
 const Operations = lazyAny(() => import('./pages/operations/Operations'));
+const OperationsV2 = lazyAny(() => import('./pages/operations/OperationsV2'));
 const DailyUpdates = lazyAny(() => import('./pages/DailyUpdates'));
 const TodoList = lazyAny(() => import('./pages/TodoList'));
 const RemindMe = lazyAny(() => import('./pages/RemindMe'));
@@ -150,28 +161,28 @@ const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ defau
 const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
 const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
 const ManagerAlerts = lazyAny(() => import('./pages/ManagerAlerts'));
-const Subcontractors = import('./pages/Subcontractors');
-const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDashboard })));
-const CreateSubcontractor = lazyAny(() => Subcontractors.then(m => ({ default: m.CreateSubcontractor })));
-const SubcontractorView = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorView })));
-const SubcontractorEdit = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorEdit })));
-const ManpowerAttendance = lazyAny(() => import('./pages/ManpowerAttendance').then(m => ({ default: m.ManpowerAttendance })));
+const _subcontractors        = memoLazyModule(() => import('./pages/Subcontractors'));
+const SubcontractorDashboard = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDashboard })));
+const CreateSubcontractor    = lazyAny(() => _subcontractors().then(m => ({ default: m.CreateSubcontractor })));
+const SubcontractorView      = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorView })));
+const SubcontractorEdit      = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorEdit })));
+const ManpowerAttendance     = lazyAny(() => import('./pages/ManpowerAttendance').then(m => ({ default: m.ManpowerAttendance })));
 const ManpowerAttendanceList = lazyAny(() => import('./pages/ManpowerAttendanceList').then(m => ({ default: m.ManpowerAttendanceList })));
-const SubcontractorWorkOrders = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
+const SubcontractorWorkOrders     = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
 const SubcontractorWorkOrderCreate = lazyAny(() => import('./pages/SubcontractorWorkOrderCreate'));
-const WorkOrderDetailView = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
+const WorkOrderDetailView    = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
 const MeasurementSheetWrapper = lazyAny(() => import('./pages/MeasurementSheetWrapper').then(m => ({ default: m.MeasurementSheetWrapper })));
-const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDailyLogs })));
-const SubcontractorPayments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorPayments })));
-const SubcontractorInvoices = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorInvoices })));
-const SubcontractorDocuments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDocuments })));
+const SubcontractorDailyLogs = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDailyLogs })));
+const SubcontractorPayments  = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorPayments })));
+const SubcontractorInvoices  = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorInvoices })));
+const SubcontractorDocuments = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDocuments })));
 const SubcontractorsPage = lazyAny(() => import('./features/subcontractor-v2/pages/SubcontractorsPage'));
 
-const Reports = import('./pages/Reports');
-const StockBalance = lazyAny(() => Reports.then(m => ({ default: m.StockBalance })));
-const StockReport = lazyAny(() => Reports.then(m => ({ default: m.StockReport })));
-const PurchaseReport = lazyAny(() => Reports.then(m => ({ default: m.PurchaseReport })));
-const SalesReport = lazyAny(() => Reports.then(m => ({ default: m.SalesReport })));
+const _reports       = memoLazyModule(() => import('./pages/Reports'));
+const StockBalance   = lazyAny(() => _reports().then(m => ({ default: m.StockBalance })));
+const StockReport    = lazyAny(() => _reports().then(m => ({ default: m.StockReport })));
+const PurchaseReport = lazyAny(() => _reports().then(m => ({ default: m.PurchaseReport })));
+const SalesReport    = lazyAny(() => _reports().then(m => ({ default: m.SalesReport })));
 const ReportsDashboard = lazyAny(() => import('./pages/reports/ReportsDashboard'));
 const FinancialReports = lazyAny(() => import('./pages/reports/FinancialReports'));
 const ProjectReports = lazyAny(() => import('./pages/reports/ProjectReports'));
@@ -179,9 +190,9 @@ const InventoryReports = lazyAny(() => import('./pages/reports/InventoryReports'
 const ComplianceReports = lazyAny(() => import('./pages/reports/ComplianceReports'));
 const InvoiceReports = lazyAny(() => import('./pages/reports/InvoiceReports'));
 const ProfitReport = lazyAny(() => import('./pages/reports/ProfitReport'));
-const ProjectManagementInternal = import('./pages/ProjectManagementInternal');
-const SiteMaterials = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.SiteMaterials })));
-const ToolsList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
+const _projectMgmtInternal = memoLazyModule(() => import('./pages/ProjectManagementInternal'));
+const SiteMaterials        = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.SiteMaterials })));
+const ToolsList            = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.ToolsList })));
 const LeadsModule = lazyAny(() => import('./modules/Leads/LeadsModule'));
 const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
 const AdvanceExpenseModule = lazyAny(() => import('./modules/AdvanceExpense/AdvanceExpenseModule'));
@@ -190,17 +201,20 @@ const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNote
 const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
+const TableDemo = lazyAny(() => import('./pages/TableDemo'));
+const CustomTableDemo = lazyAny(() => import('./pages/CustomTableDemo'));
 
 // Manufacturing
-import ManufacturingShell from './pages/manufacturing/ManufacturingShell';
-const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
-const IssueAllList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueAllList })));
-const IssueDashboard = lazyAny(() => import('./issues/pages/IssueDashboard').then(m => ({ default: m.IssueDashboard })));
-const IssueListPage = lazyAny(() => import('./issues/pages/IssueListPage').then(m => ({ default: m.IssueListPage })));
+const ManufacturingShellV0 = lazyAny(() => import('./pages/manufacturing-v0/ManufacturingShell'));
+const ManufacturingShellV2 = lazyAny(() => import('./pages/manufacturing/ManufacturingShell'));
+const IssueList       = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.IssueList })));
+const IssueAllList    = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.IssueAllList })));
+const IssueDashboard  = lazyAny(() => import('./issues/pages/IssueDashboard').then(m => ({ default: m.IssueDashboard })));
+const IssueListPage   = lazyAny(() => import('./issues/pages/IssueListPage').then(m => ({ default: m.IssueListPage })));
 const IssueDetailPage = lazyAny(() => import('./issues/pages/IssueDetailPage').then(m => ({ default: m.IssueDetailPage })));
 const IssueCreateModal = lazyAny(() => import('./issues/pages/IssueCreateModal').then(m => ({ default: m.IssueCreateModal })));
-const ClientComm = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ClientComm })));
-const Documents = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
+const ClientComm = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.ClientComm })));
+const Documents  = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.Documents })));
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
 const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
@@ -381,17 +395,40 @@ export default function App() {
   const renderedPage = useMemo(() => {
     const pathKey = (currentPath || '/').split('?')[0];
 
+    // ── Unauthenticated shell ─────────────────────────────────────────────────
+    // Only auth-related pages are rendered before login. Nothing else loads its
+    // chunk. Any unknown path while logged-out falls through to Login so the
+    // user is not left with a blank screen.
+    if (!user) {
+      if (pathKey === '/') return <Suspense fallback={null}><LandingPage /></Suspense>;
+      switch (pathKey) {
+        case '/login':               return <Suspense fallback={null}><Login onLogin={() => navigate('/')} /></Suspense>;
+        case '/signup':              return <Suspense fallback={null}><Signup /></Suspense>;
+        case '/auth/callback':       return <Suspense fallback={null}><AuthCallback /></Suspense>;
+        case '/select-organisation': return <Suspense fallback={null}><SelectOrganisation organisations={organisations} onSelect={handleSelectOrganisation} onCreateNew={handleCreateOrganisation} /></Suspense>;
+        case '/request-access':      return <Suspense fallback={null}><RequestAccessPage /></Suspense>;
+        default:                     return <Suspense fallback={null}><Login onLogin={() => navigate('/')} /></Suspense>;
+      }
+    }
+
+    // ── Authenticated shell ───────────────────────────────────────────────────
+    // Only reached after user is confirmed. Lazy chunks only load on demand.
     switch (pathKey) {
       case '/terms-conditions': return <TermsConditionsDashboard />;
       case '/pricing-demo': return <PricingTableOneDemo />;
-      case '/': 
-        return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
-      case '/login': 
-        return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => navigate('/')} />;
-      case '/dashboard': 
+      case '/table-demo': return <TableDemo />;
+      case '/custom-table-demo': return <CustomTableDemo />;
+      case '/':
         return <Dashboard onNavigate={navigate} />;
+      case '/login':
+      case '/dashboard':
+        return <Dashboard onNavigate={navigate} />;
+      case '/dashboard-demo':
+        return <DashboardDemo />;
       case '/operations':
         return <Operations />;
+      case '/operations-v2':
+        return <OperationsV2 />;
       case '/projects': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><Projects /></PermissionGuard>;
       case '/projects-v2': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><ProjectsV2 /></PermissionGuard>;
       case '/tools': return <ToolsManagement />;
@@ -485,7 +522,7 @@ export default function App() {
       case '/estimation/tenders/edit': return <PermissionGuard permission="estimation.tender.update" fallback={<div className="p-6">Access Denied</div>}><TenderFormPage /></PermissionGuard>;
       case '/estimation/tenders/detail': return <PermissionGuard permission="estimation.tender.read" fallback={<div className="p-6">Access Denied</div>}><TenderDetailPage /></PermissionGuard>;
       case '/estimation/resources': return <PermissionGuard permission="estimation.resources.read" fallback={<div className="p-6">Access Denied</div>}><ResourceCatalogPage /></PermissionGuard>;
-      // Manufacturing
+      // Manufacturing — V2 (refactored) module is now the default at /manufacturing
       case '/manufacturing':
       case '/manufacturing/inventory':
       case '/manufacturing/boms':
@@ -498,10 +535,40 @@ export default function App() {
       case '/manufacturing/job-cards/create':
       case '/manufacturing/production':
       case '/manufacturing/production/create':
+      case '/manufacturing/dispatch':
+      case '/manufacturing/plans':
+      case '/manufacturing/plans/create':
+      case '/manufacturing/work-centers':
+      case '/manufacturing/stores':
+      case '/manufacturing/stores/grn/create':
+      case '/manufacturing/qc':
+      case '/manufacturing/qc/create':
+      case '/manufacturing/qc/parameters':
+      case '/manufacturing/qc/ipqc':
+      case '/manufacturing/qc/ipqc/checkpoints':
+      case '/manufacturing/inventory/wip-valuation':
       case '/manufacturing/custom-units':
       case '/manufacturing/custom-fields':
       case '/manufacturing/activity-log':
-        return <ManufacturingShell />;
+        return <ManufacturingShellV2 />;
+      // Original Manufacturing module (v0) — preserved, not in the sidebar
+      case '/manufacturing-v0':
+      case '/manufacturing-v0/inventory':
+      case '/manufacturing-v0/inventory/wip-valuation':
+      case '/manufacturing-v0/boms':
+      case '/manufacturing-v0/boms/create':
+      case '/manufacturing-v0/boms/edit':
+      case '/manufacturing-v0/schedules':
+      case '/manufacturing-v0/schedules/create':
+      case '/manufacturing-v0/schedules/edit':
+      case '/manufacturing-v0/job-cards':
+      case '/manufacturing-v0/job-cards/create':
+      case '/manufacturing-v0/production':
+      case '/manufacturing-v0/production/create':
+      case '/manufacturing-v0/custom-units':
+      case '/manufacturing-v0/custom-fields':
+      case '/manufacturing-v0/activity-log':
+        return <ManufacturingShellV0 />;
       case '/documents': return <Documents />;
       case '/issue': return <IssueDashboard />;
       case '/issues': return <IssueListPage />;
@@ -522,6 +589,7 @@ export default function App() {
       // Inventory
       case '/procurement': return <ProcurementList />;
       case '/procurement/detail': return <ProcurementDetail />;
+      case '/store/materials/items/new': return <ItemEditorPage />;
       case '/store/materials': return <MaterialsList />;
       case '/store/inward': return <MaterialInward />;
       case '/store/outward': return <MaterialOutward />;
@@ -561,7 +629,7 @@ export default function App() {
       case '/returns/edit': return <ReturnEditorPage />;
       case '/returns/view': return <ReturnViewPage />;
       // Settings
-      case '/table-demo': return <DynamicTableDemo />;
+      case '/dynamic-table-demo': return <DynamicTableDemo />;
       case '/help': return <HelpPage onNavigate={navigate} />;
 
       case '/settings': return <SettingsPage />;
@@ -626,8 +694,24 @@ export default function App() {
           }
           return <WorkOrderDetailView workOrderId={id} onNavigate={navigate} />;
         }
-        if (pathKey.startsWith('/manufacturing/job-cards/')) {
-          return <ManufacturingShell />;
+        // Redirect legacy /manufacturing-v2 deep links to the clean /manufacturing paths
+        if (pathKey === '/manufacturing-v2' || pathKey.startsWith('/manufacturing-v2/')) {
+          return <Navigate to={currentPath.replace('/manufacturing-v2', '/manufacturing')} replace />;
+        }
+        // Original Manufacturing module (v0) — job card deep links
+        if (pathKey.startsWith('/manufacturing-v0/job-cards/')) {
+          return <ManufacturingShellV0 />;
+        }
+        // V2 Manufacturing module deep links
+        if (
+          pathKey.startsWith('/manufacturing/job-cards/') ||
+          pathKey.startsWith('/manufacturing/dispatch/') ||
+          pathKey.startsWith('/manufacturing/plans/') ||
+          pathKey.startsWith('/manufacturing/inventory/') ||
+          pathKey.startsWith('/manufacturing/qc/') ||
+          pathKey.startsWith('/manufacturing/stores/')
+        ) {
+          return <ManufacturingShellV2 />;
         }
         if (pathKey.startsWith('/meetings/') && pathKey.includes('/minutes')) {
           const meetingId = pathKey.split('/meetings/')[1].split('/minutes')[0];
@@ -1021,15 +1105,17 @@ export default function App() {
     <AuthContext.Provider value={authContextValue}>
       <div className="app-container">
 
-        <QuickAccessBar
-          onNewQuote={handleNewQuote}
-          onNewDC={handleNewDC}
-          onHelp={handleHelp}
-          onLogout={handleLogout}
-          onMenuToggle={() => setMobileSidebarOpen(prev => !prev)}
-          organisation={organisation}
-          sidebarCollapsed={sidebarCollapsed}
-        />
+        <Suspense fallback={null}>
+          <QuickAccessBar
+            onNewQuote={handleNewQuote}
+            onNewDC={handleNewDC}
+            onHelp={handleHelp}
+            onLogout={handleLogout}
+            onMenuToggle={() => setMobileSidebarOpen(prev => !prev)}
+            organisation={organisation}
+            sidebarCollapsed={sidebarCollapsed}
+          />
+        </Suspense>
                  
         {/* Mobile backdrop - closes sidebar when clicked */}
         <div 
@@ -1038,7 +1124,9 @@ export default function App() {
           aria-hidden="true"
         />
         
-        <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
+        <Suspense fallback={null}>
+          <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
+        </Suspense>
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           {user && (!user.email_confirmed_at && !(user as any).confirmed_at) && (
             <div style={{

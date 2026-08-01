@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { SubTabsNav } from '../../components/ui/SubTabsNav';
 
 import ManufacturingDashboard from './ManufacturingDashboard';
 import InventoryReport from './InventoryReport';
@@ -16,6 +17,26 @@ import CustomUnits from './CustomUnits';
 import CustomFields from './CustomFields';
 import ActivityLog from './ActivityLog';
 
+// New gap feature components
+import DispatchList from './dispatch/DispatchList';
+import DispatchCreate from './dispatch/DispatchCreate';
+import DispatchDetail from './dispatch/DispatchDetail';
+import StoresDashboard from './stores/StoresDashboard';
+import RequisitionDetail from './stores/RequisitionDetail';
+import GRNCreate from './stores/GRNCreate';
+import GRNDetail from './stores/GRNDetail';
+import QCInspectionList from './qc/QCInspectionList';
+import QCInspectionCreate from './qc/QCInspectionCreate';
+import QCInspectionDetail from './qc/QCInspectionDetail';
+import QCParameters from './qc/QCParameters';
+import ProductionPlanList from './plans/ProductionPlanList';
+import ProductionPlanCreate from './plans/ProductionPlanCreate';
+import ProductionPlanDetail from './plans/ProductionPlanDetail';
+import WorkCenterList from './work-centers/WorkCenterList';
+import IPQCDashboard from './qc/IPQCDashboard';
+import IPQCCheckpointConfig from './qc/IPQCCheckpointConfig';
+import WIPValuationReport from './inventory/WIPValuationReport';
+
 type Tab = {
   id: string;
   label: string;
@@ -30,6 +51,10 @@ const TABS: Tab[] = [
   { id: 'schedules', label: 'Schedules', path: '/manufacturing/schedules', matchPrefix: '/manufacturing/schedules' },
   { id: 'job-cards', label: 'Job Cards', path: '/manufacturing/job-cards', matchPrefix: '/manufacturing/job-cards' },
   { id: 'production', label: 'Production', path: '/manufacturing/production', matchPrefix: '/manufacturing/production' },
+  { id: 'plans', label: 'Planning (MRP)', path: '/manufacturing/plans', matchPrefix: '/manufacturing/plans' },
+  { id: 'dispatch', label: 'Dispatch', path: '/manufacturing/dispatch', matchPrefix: '/manufacturing/dispatch' },
+  { id: 'stores', label: 'Stores Console', path: '/manufacturing/stores', matchPrefix: '/manufacturing/stores' },
+  { id: 'qc', label: 'QC Inspections', path: '/manufacturing/qc', matchPrefix: '/manufacturing/qc' },
   { id: 'activity', label: 'Activity Log', path: '/manufacturing/activity-log', matchPrefix: '/manufacturing/activity-log' },
   { id: 'settings', label: 'Settings', path: '/manufacturing/custom-units', matchPrefix: '/manufacturing/custom-units' },
 ];
@@ -77,42 +102,30 @@ export default function ManufacturingShell() {
     navigate(path);
   }, [navigate]);
 
+  const navigateV2 = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-[#f8f9fb] font-['Inter']">
-      <div className="sticky top-0 z-40 bg-white border-b border-zinc-200 shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center gap-3 px-6 overflow-x-auto">
-          {TABS.map(tab => {
-            const isActive = tab.id === activeTab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabClick(tab.path)}
-                className={cx(
-                  'relative px-3 py-1 text-base font-medium whitespace-nowrap transition-all duration-150 rounded-md',
-                  isActive
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100'
-                )}
-                type="button"
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <div className="w-full max-w-[1200px] mx-auto px-4 pt-3">
+        <SubTabsNav tabs={TABS} activeTabId={activeTab.id} />
 
       <Panel active={activeTab.id === 'dashboard' || (!activeTab && pathKey === '/manufacturing')}>
-        <ManufacturingDashboard onNavigate={navigate} />
+        <ManufacturingDashboard onNavigate={navigateV2} />
       </Panel>
 
       <Panel active={activeTab.id === 'inventory'}>
-        <InventoryReport onNavigate={navigate} />
+        {pathKey === '/manufacturing/inventory/wip-valuation' ? (
+          <WIPValuationReport />
+        ) : (
+          <InventoryReport onNavigate={navigateV2} />
+        )}
       </Panel>
 
       <Panel active={activeTab.id === 'boms'}>
         {pathKey === '/manufacturing/boms' ? (
-          <BOMList onNavigate={navigate} />
+          <BOMList onNavigate={navigateV2} />
         ) : (
           <BOMEditor
             onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['boms'] }); navigate('/manufacturing/boms'); }}
@@ -123,7 +136,7 @@ export default function ManufacturingShell() {
 
       <Panel active={activeTab.id === 'schedules'}>
         {pathKey === '/manufacturing/schedules' ? (
-          <ProductionScheduleList onNavigate={navigate} />
+          <ProductionScheduleList onNavigate={navigateV2} />
         ) : (
           <ProductionScheduleEditor
             onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['production-schedules'] }); navigate('/manufacturing/schedules'); }}
@@ -134,32 +147,113 @@ export default function ManufacturingShell() {
 
       <Panel active={activeTab.id === 'job-cards'}>
         {pathKey === '/manufacturing/job-cards' ? (
-          <JobCardList onNavigate={navigate} />
+          <JobCardList onNavigate={navigateV2} />
         ) : pathKey === '/manufacturing/job-cards/create' ? (
           <JobCardCreate
             onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['job-cards'] }); navigate('/manufacturing/job-cards'); }}
             onCancel={() => navigate('/manufacturing/job-cards')}
           />
         ) : (
-          <JobCardDetail jobCardId={pathKey.split('/manufacturing/job-cards/')[1]} onNavigate={navigate} />
+          <JobCardDetail jobCardId={pathKey.split('/manufacturing/job-cards/')[1]} onNavigate={navigateV2} />
         )}
       </Panel>
 
       <Panel active={activeTab.id === 'production'}>
-        <ProductionEntryForm onNavigate={navigate} />
+        <ProductionEntryForm onNavigate={navigateV2} />
+      </Panel>
+
+      <Panel active={activeTab.id === 'plans'}>
+        {pathKey === '/manufacturing/plans' ? (
+          <ProductionPlanList onNavigate={navigateV2} />
+        ) : pathKey === '/manufacturing/plans/create' ? (
+          <ProductionPlanCreate
+            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['production-plans'] }); navigate('/manufacturing/plans'); }}
+            onCancel={() => navigate('/manufacturing/plans')}
+          />
+        ) : pathKey === '/manufacturing/work-centers' ? (
+          <WorkCenterList
+            onCancel={() => navigate('/manufacturing/plans')}
+          />
+        ) : (
+          <ProductionPlanDetail
+            planId={pathKey.split('/manufacturing/plans/')[1]}
+            onCancel={() => navigate('/manufacturing/plans')}
+          />
+        )}
+      </Panel>
+
+      <Panel active={activeTab.id === 'dispatch'}>
+        {pathKey === '/manufacturing/dispatch' ? (
+          <DispatchList onNavigate={navigateV2} />
+        ) : pathKey === '/manufacturing/dispatch/create' ? (
+          <DispatchCreate
+            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['dispatch-orders'] }); navigate('/manufacturing/dispatch'); }}
+            onCancel={() => navigate('/manufacturing/dispatch')}
+          />
+        ) : (
+          <DispatchDetail dispatchOrderId={pathKey.split('/manufacturing/dispatch/')[1]} onNavigate={navigateV2} />
+        )}
+      </Panel>
+
+      <Panel active={activeTab.id === 'stores'}>
+        {pathKey === '/manufacturing/stores' ? (
+          <StoresDashboard onNavigate={navigateV2} />
+        ) : pathKey === '/manufacturing/stores/grn/create' ? (
+          <GRNCreate
+            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['goods-receipt-notes'] }); navigate('/manufacturing/stores'); }}
+            onCancel={() => navigate('/manufacturing/stores')}
+          />
+        ) : pathKey.startsWith('/manufacturing/stores/grn/') ? (
+          <GRNDetail
+            grnId={pathKey.split('/manufacturing/stores/grn/')[1]}
+            onCancel={() => navigate('/manufacturing/stores')}
+          />
+        ) : (
+          <RequisitionDetail
+            requisitionId={pathKey.split('/manufacturing/stores/requisitions/')[1]}
+            onCancel={() => navigate('/manufacturing/stores')}
+          />
+        )}
+      </Panel>
+
+      <Panel active={activeTab.id === 'qc'}>
+        {pathKey === '/manufacturing/qc' ? (
+          <QCInspectionList onNavigate={navigateV2} />
+        ) : pathKey === '/manufacturing/qc/create' ? (
+          <QCInspectionCreate
+            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['qc-inspections'] }); navigate('/manufacturing/qc'); }}
+            onCancel={() => navigate('/manufacturing/qc')}
+          />
+        ) : pathKey === '/manufacturing/qc/parameters' ? (
+          <QCParameters
+            onCancel={() => navigate('/manufacturing/qc')}
+          />
+        ) : pathKey === '/manufacturing/qc/ipqc' ? (
+          <IPQCDashboard onNavigate={navigateV2} />
+        ) : pathKey === '/manufacturing/qc/ipqc/checkpoints' ? (
+          <IPQCCheckpointConfig
+            onCancel={() => navigate('/manufacturing/qc/ipqc')}
+          />
+        ) : (
+          <QCInspectionDetail
+            inspectionId={pathKey.split('/manufacturing/qc/')[1]}
+            onCancel={() => navigate('/manufacturing/qc')}
+          />
+        )}
       </Panel>
 
       <Panel active={activeTab.id === 'activity'}>
-        <ActivityLog onNavigate={navigate} />
+        <ActivityLog onNavigate={navigateV2} />
       </Panel>
 
       <Panel active={activeTab.id === 'settings'}>
         {pathKey === '/manufacturing/custom-units' ? (
-          <CustomUnits onNavigate={navigate} />
+          <CustomUnits onNavigate={navigateV2} />
         ) : (
-          <CustomFields onNavigate={navigate} />
+          <CustomFields onNavigate={navigateV2} />
         )}
       </Panel>
+      </div>
     </div>
   );
 }

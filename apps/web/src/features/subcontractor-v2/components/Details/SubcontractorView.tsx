@@ -243,7 +243,13 @@ export function SubcontractorView({ onNavigate }: SubcontractorViewProps) {
         <div>
           {activeTab === 'details' && <OverviewTab subcontractor={sub} />}
 
-          {activeTab === 'workorders' && <WorkOrdersTab workOrders={workOrders} />}
+          {activeTab === 'workorders' && (
+            <WorkOrdersTab 
+              workOrders={workOrders} 
+              subcontractorId={sub.id} 
+              onNavigate={onNavigate} 
+            />
+          )}
 
           {activeTab === 'attendance' && <AttendanceTab attendance={attendance} />}
 

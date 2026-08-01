@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/Card';
-import { Input, Select } from '../components/ui/input';
+import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Package, TrendingUp, DollarSign, Download, BarChart3, Filter } from 'lucide-react';
 

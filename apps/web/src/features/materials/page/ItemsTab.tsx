@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useReactTable, getCoreRowModel } from '@tanstack/react-table';
 import { supabase } from '../../../supabase';
@@ -26,10 +27,11 @@ import { ITEM_TABLE_COLUMNS, MANDATORY_ITEM_COLUMNS, DEFAULT_PAGE_SIZE, COLUMNS_
 import { MAIN_CATEGORIES } from '../shared/constants';
 
 export function ItemsTab() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const orgId = organisation?.id ?? null;
-  const manufacturingEnabled = Boolean((organisation as any)?.manufacturing_enabled);
+  const manufacturingEnabled = true;
 
   // ─── Data ────────────────────────────────────────────────────
   const { data: pageData, isLoading, refetch } = useMaterialsPageData(orgId);
@@ -49,6 +51,18 @@ export function ItemsTab() {
     queryFn: async () => {
       if (!orgId) return [];
       const { data, error } = await supabase.from('purchase_vendors').select('id, company_name, organisation_id').eq('organisation_id', orgId).eq('status', 'Active');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
+
+  // Attribute definitions (for custom attributes dropdown)
+  const { data: attributeDefinitions = [] } = useQuery({
+    queryKey: ['attribute-definitions', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase.from('attribute_definitions').select('*').eq('organisation_id', orgId).order('label');
       if (error) throw error;
       return data || [];
     },
@@ -158,7 +172,10 @@ export function ItemsTab() {
   const table = useReactTable({ data: paginatedMaterials, columns, getCoreRowModel: getCoreRowModel() });
 
   // ─── Handlers ────────────────────────────────────────────────
-  const openForm = useCallback(() => { form.resetForm(); form.setShowForm(true); }, [form]);
+  const openForm = useCallback(() => {
+    // Add Item now opens as a dedicated page (with breadcrumb) instead of a modal
+    navigate('/store/materials/items/new');
+  }, [navigate]);
   const handleFormSubmit = useCallback((e: any) => {
     form.handleSubmit(e, { organisationId: orgId, warehouses, updateMaterialsCache, refreshMaterials, loadItemTransactions: transactions.loadItemTransactions, selectedMaterialId });
   }, [form, orgId, warehouses, updateMaterialsCache, refreshMaterials, transactions, selectedMaterialId]);
@@ -399,6 +416,9 @@ export function ItemsTab() {
         materialSavePending={form.materialSavePending}
         saveNotice={form.saveNotice}
         showTechnical={showTechnical}
+        customAttributes={form.customAttributes}
+        attributeDefinitions={attributeDefinitions}
+        onCustomAttributesChange={form.setCustomAttributes}
         onUsesVariantChange={handleUsesVariantChange}
         onAddVariantRow={handleAddVariantRow}
         onRemoveVariantRow={(id) => form.setVariantPricing((prev: any[]) => prev.filter((p: any) => p.id !== id))}
@@ -419,6 +439,9 @@ export function ItemsTab() {
         discountCategories={discountCategories}
         onClassificationChange={handleClassificationChange}
         onSubmit={handleFormSubmit}
+        onCategoryCreated={() => refetch()}
+        unitOptions={units}
+        onUnitCreated={() => refetch()}
       />
 
       {/* Details Dialog */}

@@ -4,57 +4,69 @@ import { useNeedsAttention } from '../api/useOperationsQueries';
 import { LinkOut } from './shared/LinkOut';
 import { formatCurrency } from '../utils';
 
+const emptyMessages = [
+  'All done bro! ✨',
+  'Chill mode activated 😎',
+  'Smooth sailin\' ahead 🏄',
+  'Zero drama zone 🙌',
+];
+
 export const NeedsAttentionZone: React.FC = () => {
   const { data: items, isLoading } = useNeedsAttention();
+  const emptyMsg = emptyMessages[Math.floor(Math.random() * emptyMessages.length)];
 
   return (
-    <section className="mb-[36px]">
-      <div className="flex items-baseline justify-between mb-[14px]">
+    <section>
+      <div className="flex items-baseline justify-between mb-5">
         <div className="flex items-center gap-[10px]">
-          <h2 className="font-display text-[15px] font-semibold tracking-[0.3px] uppercase text-[var(--ink)]">
+          <h2 className="font-display text-[18px]" style={{ fontWeight: 650, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
             Needs Attention
           </h2>
-          <span className="font-mono text-[12px] text-[var(--ink-faint)] bg-[var(--surface-alt)] px-2 py-[2px] rounded-[20px]">
+          <span className="text-[12px] text-[var(--ink-faint)] bg-[var(--surface-alt)] px-2 py-[2px] rounded-[999px]">
             {items?.length || 0}
           </span>
         </div>
       </div>
 
-      <div className="flex gap-[12px] overflow-x-auto pb-[6px] scrollbar-thin">
+      <div className="flex gap-5 overflow-x-auto pb-[6px] scrollbar-thin">
         {isLoading ? (
-          <div className="flex gap-[12px]">
-            <div className="flex-none w-[264px] h-[140px] bg-[var(--surface-alt)] animate-pulse rounded-[var(--radius)]"></div>
-            <div className="flex-none w-[264px] h-[140px] bg-[var(--surface-alt)] animate-pulse rounded-[var(--radius)]"></div>
-            <div className="flex-none w-[264px] h-[140px] bg-[var(--surface-alt)] animate-pulse rounded-[var(--radius)]"></div>
+          <div className="flex gap-5">
+            <div className="flex-none w-[320px] h-[180px] bg-[var(--surface-alt)] animate-pulse rounded-[var(--radius-lg)]"></div>
+            <div className="flex-none w-[320px] h-[180px] bg-[var(--surface-alt)] animate-pulse rounded-[var(--radius-lg)]"></div>
           </div>
         ) : items?.length === 0 ? (
-          <div className="text-[14px] text-[var(--ink-soft)]">No immediate items need attention.</div>
+          <div className="flex items-center justify-center w-full h-[120px] bg-[var(--surface)] rounded-[var(--radius-lg)] border border-[var(--border)] ops-card">
+            <span className="text-[15px] font-medium text-[var(--ink-soft)]">{emptyMsg}</span>
+          </div>
         ) : (
           items?.map(item => (
             <div 
               key={item.id} 
-              className="flex-none w-[264px] bg-[var(--surface)] rounded-[var(--radius)] border border-[var(--border)] p-[14px_16px] shadow-[var(--shadow)]"
+              className="flex-none w-[320px] h-[180px] bg-[var(--surface)] rounded-[var(--radius-lg)] border border-[var(--border)] p-5 ops-card flex flex-col"
             >
-              <div 
-                className={`font-mono text-[10px] font-semibold tracking-[0.5px] uppercase mb-[6px] flex items-center gap-[5px] ${
+              <div className="flex items-center gap-2 mb-2">
+                {item.type === 'alert'
+                  ? <AlertCircle size={18} className="text-[var(--alert)] shrink-0" />
+                  : <AlertTriangle size={18} className="text-[var(--warn)] shrink-0" />
+                }
+                <span className={`text-[10px] font-semibold tracking-[0.5px] uppercase ${
                   item.type === 'alert' ? 'text-[var(--alert)]' : 'text-[var(--warn)]'
-                }`}
-              >
-                {item.type === 'alert' ? <AlertCircle size={12} /> : <AlertTriangle size={12} />}
-                {item.tagLabel}
+                }`}>
+                  {item.tagLabel}
+                </span>
               </div>
-              <h3 className="text-[13.5px] font-semibold mb-[4px] leading-[1.3] text-[var(--ink)]">
+              <h3 className="text-[15px] font-semibold mb-1 leading-[1.3] text-[var(--ink)]">
                 {item.title}
               </h3>
-              <p className="text-[12px] text-[var(--ink-soft)] mb-[10px]">
+              <p className="text-[13px] font-medium text-[var(--ink-soft)] mb-auto">
                 {item.context}
               </p>
               
-              <div className="flex items-center justify-between">
-                <div className="font-mono font-semibold text-[13px] text-[var(--ink)]">
+              <div className="flex items-center justify-between mt-auto pt-2">
+                <div className="font-semibold text-[14px] text-[var(--ink)]">
                   {formatCurrency(item.amount)}
                 </div>
-                <div className={`text-[11px] font-medium ${item.type === 'alert' ? 'text-[var(--alert)]' : 'text-[var(--warn)]'}`}>
+                <div className={`text-[12px] font-medium ${item.type === 'alert' ? 'text-[var(--alert)]' : 'text-[var(--warn)]'}`}>
                   {item.days} {item.days === 1 ? 'day' : 'days'}
                 </div>
                 <LinkOut to={item.link} label="View" />

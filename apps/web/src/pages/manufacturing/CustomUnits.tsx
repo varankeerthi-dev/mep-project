@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { Table, ColumnDef, RowAction } from '../../components/table';
 
 type CustomUnitsProps = {
   onNavigate: (path: string) => void;
@@ -20,7 +21,85 @@ type CustomUnit = {
 };
 
 const UNIT_TYPES = ['length', 'weight', 'count', 'area', 'volume', 'custom'];
-const PAGE_SIZE = 10;
+
+const typeColors: Record<string, { bg: string; text: string }> = {
+  length: { bg: 'bg-blue-50', text: 'text-blue-700' },
+  weight: { bg: 'bg-green-50', text: 'text-green-700' },
+  count: { bg: 'bg-purple-50', text: 'text-purple-700' },
+  area: { bg: 'bg-orange-50', text: 'text-orange-700' },
+  volume: { bg: 'bg-cyan-50', text: 'text-cyan-700' },
+  custom: { bg: 'bg-zinc-50', text: 'text-zinc-600' },
+};
+
+const columns: ColumnDef<CustomUnit>[] = [
+  {
+    header: 'Unit Name',
+    accessorKey: 'unit_name',
+    id: 'unit_name',
+    type: 'text',
+    cell: ({ row }) => (
+      <span className="font-medium text-zinc-900">{row.unit_name}</span>
+    ),
+  },
+  {
+    header: 'Symbol',
+    accessorKey: 'unit_symbol',
+    id: 'unit_symbol',
+    type: 'text',
+    cell: ({ row }) => (
+      <span className="font-mono text-zinc-700">{row.unit_symbol}</span>
+    ),
+  },
+  {
+    header: 'Type',
+    id: 'unit_type',
+    type: 'status',
+    statusType: (row) => {
+      const map: Record<string, 'blue' | 'success' | 'warning' | 'neutral'> = {
+        length: 'blue', weight: 'success', count: 'warning',
+        area: 'warning', volume: 'blue', custom: 'neutral'
+      };
+      return map[row.unit_type] || 'neutral';
+    },
+    cell: ({ row }) => {
+      const colors = typeColors[row.unit_type] || typeColors.custom;
+      return (
+        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${colors.bg} ${colors.text}`}>
+          {row.unit_type}
+        </span>
+      );
+    },
+  },
+  {
+    header: 'Base Unit',
+    accessorKey: 'base_unit',
+    id: 'base_unit',
+    type: 'text',
+    cell: ({ row }) => (
+      <span className="text-zinc-700">{row.base_unit || '-'}</span>
+    ),
+  },
+  {
+    header: 'Conversion',
+    accessorKey: 'conversion_to_base',
+    id: 'conversion_to_base',
+    type: 'number',
+    cell: ({ row }) => (
+      <span className="text-zinc-700">{row.conversion_to_base ?? '-'}</span>
+    ),
+  },
+  {
+    header: 'Source',
+    id: 'source',
+    type: 'status',
+    statusType: (row) => (row.is_predefined ? 'neutral' : 'success'),
+    cell: ({ row }) => (
+      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${row.is_predefined ? 'bg-zinc-100 text-zinc-500' : 'bg-green-50 text-green-700'}`}>
+        {row.is_predefined ? 'System' : 'Custom'}
+      </span>
+    ),
+  },
+];
 
 export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
   const { organisation } = useAuth();
@@ -28,9 +107,6 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editUnit, setEditUnit] = useState<CustomUnit | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const [formData, setFormData] = useState({
     unit_name: '',
     unit_symbol: '',
@@ -38,14 +114,6 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
     conversion_to_base: '',
     base_unit: ''
   });
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const { data: units, isLoading } = useQuery({
     queryKey: ['custom-units', organisation?.id],
@@ -63,8 +131,7 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
     enabled: !!organisation?.id
   });
 
-  const totalPages = units ? Math.ceil(units.length / PAGE_SIZE) : 1;
-  const pagedData = units?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
+  const pagedData = units?.slice((page - 1) * 12, page * 12) || [];
 
   const saveUnit = useMutation({
     mutationFn: async () => {
@@ -81,15 +148,10 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
       };
 
       if (editUnit) {
-        const { error } = await supabase
-          .from('custom_units')
-          .update(payload)
-          .eq('id', editUnit.id);
+        const { error } = await supabase.from('custom_units').update(payload).eq('id', editUnit.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('custom_units')
-          .insert(payload);
+        const { error } = await supabase.from('custom_units').insert(payload);
         if (error) throw error;
       }
     },
@@ -119,16 +181,14 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
       base_unit: unit.base_unit || ''
     });
     setShowForm(true);
-    setOpenMenuId(null);
   };
 
-  const typeColors: Record<string, string> = {
-    length: 'bg-blue-100 text-blue-700',
-    weight: 'bg-green-100 text-green-700',
-    count: 'bg-purple-100 text-purple-700',
-    area: 'bg-orange-100 text-orange-700',
-    volume: 'bg-cyan-100 text-cyan-700',
-    custom: 'bg-zinc-100 text-zinc-600'
+  const getRowActions = (row: CustomUnit): RowAction[] => {
+    if (row.is_predefined) return [];
+    return [
+      { label: 'Edit', onClick: () => openEdit(row) },
+      { label: 'Delete', variant: 'danger', onClick: () => deleteUnit.mutate(row.id) },
+    ];
   };
 
   return (
@@ -147,101 +207,19 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-lg">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-200">
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Unit Name</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Symbol</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Type</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Base Unit</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Conversion</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-500">Source</th>
-                <th className="text-right px-6 py-4 text-sm font-medium text-zinc-500 w-12"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b border-zinc-100">
-                    <td colSpan={7} className="px-6 py-4">
-                      <div className="h-4 bg-zinc-100 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              ) : pagedData.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
-                    No custom units found. Add your first unit to get started.
-                  </td>
-                </tr>
-              ) : (
-                pagedData.map((unit) => (
-                  <tr key={unit.id} className="border-b border-zinc-100 hover:bg-zinc-50">
-                    <td className="px-6 py-4 font-medium text-zinc-900">{unit.unit_name}</td>
-                    <td className="px-6 py-4 text-zinc-700 font-mono">{unit.unit_symbol}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${typeColors[unit.unit_type] || 'bg-zinc-100 text-zinc-600'}`}>
-                        {unit.unit_type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-zinc-700">{unit.base_unit || '-'}</td>
-                    <td className="px-6 py-4 text-zinc-700">{unit.conversion_to_base ?? '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${unit.is_predefined ? 'bg-zinc-100 text-zinc-500' : 'bg-green-100 text-green-700'}`}>
-                        {unit.is_predefined ? 'System' : 'Custom'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {!unit.is_predefined && (
-                        <div className="relative inline-block" ref={openMenuId === unit.id ? menuRef : undefined}>
-                          <button
-                            onClick={() => setOpenMenuId(openMenuId === unit.id ? null : unit.id)}
-                            className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <circle cx="10" cy="4" r="1.5" />
-                              <circle cx="10" cy="10" r="1.5" />
-                              <circle cx="10" cy="16" r="1.5" />
-                            </svg>
-                          </button>
-                          {openMenuId === unit.id && (
-                            <div className="absolute right-0 mt-1 w-40 bg-white border border-zinc-200 rounded-lg shadow-lg z-10 py-1">
-                              <button onClick={() => openEdit(unit)} className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">
-                                Edit
-                              </button>
-                              <button onClick={() => { deleteUnit.mutate(unit.id); setOpenMenuId(null); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {units && units.length > 0 && (
-          <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-between">
-            <span className="text-sm text-zinc-500">
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, units.length)} of {units.length} unit{units.length !== 1 ? 's' : ''}
-            </span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="h-8 px-3 border border-zinc-200 rounded text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)}
-                  className={`h-8 w-8 rounded text-sm font-medium ${p === page ? 'bg-blue-600 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>{p}</button>
-              ))}
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="h-8 px-3 border border-zinc-200 rounded text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
-            </div>
-          </div>
-        )}
+        <Table<CustomUnit>
+          data={pagedData}
+          columns={columns}
+          loading={isLoading}
+          page={page}
+          pageSize={12}
+          totalRows={units?.length || 0}
+          pagination
+          onPageChange={setPage}
+          rowActions={getRowActions}
+          emptyTitle="No custom units found"
+          emptySubtitle="Add your first unit to get started."
+        />
       </div>
 
       {showForm && (

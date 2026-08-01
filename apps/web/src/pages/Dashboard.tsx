@@ -4,17 +4,15 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useProjects } from '../hooks/useProjects';
 import { useNextActions } from '../hooks/useNextActions';
-import { colors, shadows, transitions } from '../design-system';
+import { colors } from '../design-system';
 import {
   DashboardHeader,
   StatsRow,
   NextActionsWidget,
-  ModuleCards,
   WarrantyClaimsSLA,
   ContinuousImprovementCenter,
 } from '../components/dashboard';
 
-// Dashboard query keys for React Query caching
 export const DASHBOARD_QUERY_KEYS = {
   todaySites: (date: string) => ['dashboard-today-sites', date] as const,
   approvals: () => ['dashboard-approvals'] as const,
@@ -59,10 +57,6 @@ export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQue
     if (key) queryClient.invalidateQueries({ queryKey: key });
   });
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN DASHBOARD COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { user, organisation, organisations } = useAuth();
@@ -128,7 +122,6 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
     };
   }, [warrantyClaims]);
 
-  // Continuous Improvement Center Queries
   const { data: insights = [], isLoading: insightsLoading, refetch: refetchInsights } = useQuery({
     queryKey: ['dashboard-project-insights', organisation?.id],
     queryFn: async () => {
@@ -161,10 +154,6 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
     return currentMember?.role || '';
   }, [organisations, organisation]);
 
-  const isPrivileged = useMemo(() => {
-    return ['Project Manager', 'Admin'].includes(userRole);
-  }, [userRole]);
-
   const isManagerOrAdminOrCEO = useMemo(() => {
     return ['Project Manager', 'Admin', 'CEO'].includes(userRole) || 
       userRole.toLowerCase().includes('ceo') || 
@@ -174,56 +163,16 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
 
   const filteredInsights = useMemo(() => {
     return insights.filter((item: any) => {
-      if (item.visibility === 'Leadership') {
-        return userRole === 'Admin';
-      }
-      if (item.visibility === 'Managers') {
-        return ['Project Manager', 'Admin'].includes(userRole);
-      }
+      if (item.visibility === 'Leadership') return userRole === 'Admin';
+      if (item.visibility === 'Managers') return ['Project Manager', 'Admin'].includes(userRole);
       return true;
     });
   }, [insights, userRole]);
 
-  const openOpportunitiesCount = useMemo(() => {
-    return filteredInsights.filter((i: any) => i.status !== 'Closed' && i.category === 'Improvement Opportunity').length;
-  }, [filteredInsights]);
-
-  const criticalCoordinationCount = useMemo(() => {
-    return filteredInsights.filter((i: any) => i.status !== 'Closed' && i.category === 'Coordination Issue' && i.impact_level === 'Critical').length;
-  }, [filteredInsights]);
-
-  const bestPracticesCount = useMemo(() => {
-    return filteredInsights.filter((i: any) => i.category === 'Best Practice').length;
-  }, [filteredInsights]);
-
-  const costSavingsSum = useMemo(() => {
-    return filteredInsights
-      .filter((i: any) => i.category === 'Cost Saving Idea')
-      .reduce((sum: number, i: any) => sum + (parseFloat(i.estimated_loss_amount) || 0), 0);
-  }, [filteredInsights]);
-
-  const resolvedThisMonthCount = useMemo(() => {
-    return filteredInsights.filter((i: any) => {
-      if (i.status !== 'Closed' || !i.resolved_at) return false;
-      const resDate = new Date(i.resolved_at);
-      const now = new Date();
-      return resDate.getMonth() === now.getMonth() && resDate.getFullYear() === now.getFullYear();
-    }).length;
-  }, [filteredInsights]);
-
-  const topRepeatedIssues = useMemo(() => {
-    return filteredInsights
-      .filter((i: any) => i.is_repeat_issue)
-      .sort((a, b) => (b.repeat_issue_count || 0) - (a.repeat_issue_count || 0))
-      .slice(0, 5);
-  }, [filteredInsights]);
-
   const topRootCauses = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredInsights.forEach((i: any) => {
-      if (i.root_cause) {
-        counts[i.root_cause] = (counts[i.root_cause] || 0) + 1;
-      }
+      if (i.root_cause) counts[i.root_cause] = (counts[i.root_cause] || 0) + 1;
     });
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
@@ -231,48 +180,18 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
       .slice(0, 5);
   }, [filteredInsights]);
 
-  const lossByImpactType = useMemo(() => {
-    const totals: Record<string, number> = {
-      'Cost': 0,
-      'Time': 0,
-      'Quality': 0,
-      'Safety': 0,
-      'Customer Satisfaction': 0
-    };
-    filteredInsights.forEach((i: any) => {
-      if (i.impact_type && i.estimated_loss_amount) {
-        totals[i.impact_type] = (totals[i.impact_type] || 0) + parseFloat(i.estimated_loss_amount);
-      }
-    });
-    return Object.entries(totals)
-      .map(([name, amount]) => ({ name, amount }))
-      .filter(item => item.amount > 0)
-      .sort((a, b) => b.amount - a.amount);
-  }, [filteredInsights]);
-
-  const openActionItems = useMemo(() => {
-    return filteredInsights.filter((i: any) => i.status !== 'Closed').slice(0, 10);
-  }, [filteredInsights]);
-
   const projectMap = useMemo(() => {
     const map = new Map<string, string>();
-    projects.forEach((p: any) => {
-      map.set(p.id, p.project_name || p.name || 'Unnamed Project');
-    });
+    projects.forEach((p: any) => map.set(p.id, p.project_name || p.name || 'Unnamed Project'));
     return map;
   }, [projects]);
 
   const userMap = useMemo(() => {
     const map = new Map<string, string>();
-    users.forEach((u: any) => {
-      map.set(u.user_id, u.full_name || 'Unassigned');
-    });
+    users.forEach((u: any) => map.set(u.user_id, u.full_name || 'Unassigned'));
     return map;
   }, [users]);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // UNIFIED NEXT ACTIONS HOOK
-  // ═══════════════════════════════════════════════════════════════════════════
   const {
     nextActions,
     nextActionsHistory,
@@ -295,70 +214,65 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
     setTimeout(() => setIsRefreshing(false), 500);
   }, [queryClient, refetchClaims, refetchInsights, refetchNextActions]);
 
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
+
   return (
     <div style={{ minHeight: '100vh', background: colors.gray[50] }}>
-      <DashboardHeader isRefreshing={isRefreshing} onRefresh={handleRefresh} onNavigate={onNavigate} />
-
-      {/* Main Content */}
-      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <style>{`
+        @keyframes staggerFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px 40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
-        {/* Stats Summary Grid */}
-        <StatsRow
-          projectsLoading={projectsLoading}
-          projectsCount={projects.length}
-          claimsLoading={claimsLoading}
-          claimsStats={claimsStats}
-        />
-
-        {/* Next Actions & Follow-ups Widget */}
-        <NextActionsWidget
-          nextActions={nextActions}
-          nextActionsHistory={nextActionsHistory}
-          isLoading={nextActionsLoading}
-          overdueCount={overdueCount}
-          acknowledge={acknowledge}
-          isAcknowledging={isAcknowledging}
-          resolve={resolve}
-          isResolving={isResolving}
-          onNavigate={onNavigate}
-          userMap={userMap}
-        />
-
-        {/* 2-Column Section */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '32px', alignItems: 'start' }}>
-          
-          {/* Left Column: Module Cards */}
-          <ModuleCards onNavigate={onNavigate} />
-
-          {/* Right Column: Warranty Claims SLA */}
-          <WarrantyClaimsSLA
-            claimsLoading={claimsLoading}
-            claimsStats={claimsStats}
+        {/* Greeting + Alert Badges + Actions — 0ms */}
+        <div style={{ animation: 'staggerFadeIn 0.35s ease 0ms both' }}>
+          <DashboardHeader
+            userName={userName}
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefresh}
             onNavigate={onNavigate}
           />
-
         </div>
 
-        {/* Continuous Improvement Center (role-gated) */}
-        {isManagerOrAdminOrCEO && (
+        {/* Stat Cards Row — 80ms */}
+        <div style={{ animation: 'staggerFadeIn 0.35s ease 80ms both' }}>
+          <StatsRow
+            projectsLoading={projectsLoading}
+            projectsCount={projects.length}
+            claimsLoading={claimsLoading}
+            claimsStats={claimsStats}
+          />
+        </div>
+
+        {/* Work Items Grid — 160ms */}
+        <div style={{ animation: 'staggerFadeIn 0.35s ease 160ms both' }}>
+          <NextActionsWidget
+            nextActions={nextActions}
+            nextActionsHistory={nextActionsHistory}
+            isLoading={nextActionsLoading}
+            overdueCount={overdueCount}
+            acknowledge={acknowledge}
+            isAcknowledging={isAcknowledging}
+            resolve={resolve}
+            isResolving={isResolving}
+            onNavigate={onNavigate}
+            userMap={userMap}
+          />
+        </div>
+
+        {/* Bottom 3-Column: Activity, Deadlines, Root Causes — 240ms */}
+        <div style={{ animation: 'staggerFadeIn 0.35s ease 240ms both' }}>
           <ContinuousImprovementCenter
             insightsLoading={insightsLoading}
-            openOpportunitiesCount={openOpportunitiesCount}
-            criticalCoordinationCount={criticalCoordinationCount}
-            bestPracticesCount={bestPracticesCount}
-            costSavingsSum={costSavingsSum}
-            resolvedThisMonthCount={resolvedThisMonthCount}
-            topRepeatedIssues={topRepeatedIssues}
             topRootCauses={topRootCauses}
             filteredInsightsCount={filteredInsights.filter((i: any) => i.root_cause).length}
-            lossByImpactType={lossByImpactType}
-            isPrivileged={isPrivileged}
-            openActionItems={openActionItems}
-            projectMap={projectMap}
+            nextActionsHistory={nextActionsHistory}
             userMap={userMap}
-            onNavigate={onNavigate}
+            projectMap={projectMap}
           />
-        )}
+        </div>
 
       </div>
     </div>

@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import {
+  useBomsForJobCardQuery,
+  useBomItemsQuery,
+  useCreateJobCardMutation
+} from '../../features/manufacturing';
 
 type JobCardCreateProps = {
   onSuccess: () => void;
@@ -22,80 +27,57 @@ type MaterialItem = {
 
 export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProps) {
   const { organisation, user } = useAuth();
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const preselectedBomId = searchParams.get('bom');
+  const sourceBomId = searchParams.get('bom');
 
   const [formData, setFormData] = useState({
-    bom_id: preselectedBomId || '',
+    bom_id: '',
     product_name: '',
-    planned_qty: 0,
+    planned_qty: 1,
     output_unit: 'nos',
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     remarks: ''
   });
 
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
-  const [bomSearchText, setBomSearchText] = useState('');
-  const [isBomDropdownOpen, setIsBomDropdownOpen] = useState(false);
   const [materialSearchText, setMaterialSearchText] = useState<Record<number, string>>({});
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
+  const [bomSearchText, setBomSearchText] = useState('');
+  const [isBomDropdownOpen, setIsBomDropdownOpen] = useState(false);
 
-  // Click-Outside handler for dropdowns
+  // Queries using custom hooks
+  const { data: boms } = useBomsForJobCardQuery(organisation?.id);
+  const { data: bomItems } = useBomItemsQuery(formData.bom_id);
+
+  // Auto select source BOM if query parameter is present
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.bom-dropdown-container')) {
-        setIsBomDropdownOpen(false);
+    if (sourceBomId && boms?.length) {
+      const selected = boms.find(b => b.id === sourceBomId);
+      if (selected) {
+        setFormData(prev => ({
+          ...prev,
+          bom_id: selected.id,
+          product_name: selected.product_name,
+          output_unit: selected.output_unit
+        }));
       }
-      if (!target.closest('.material-dropdown-container')) {
-        setOpenDropdownIndex(-1);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    }
+  }, [sourceBomId, boms]);
 
-  const { data: boms } = useQuery({
-    queryKey: ['boms-for-job-card', organisation?.id],
-    queryFn: async () => {
-      if (!organisation?.id) return [];
-      const { data, error } = await supabase
-        .from('bom_headers')
-        .select('*')
-        .eq('organisation_id', organisation.id)
-        .eq('is_active', true)
-        .order('product_name');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organisation?.id
-  });
-
-  const { data: bomItems } = useQuery({
-    queryKey: ['bom-items', formData.bom_id],
-    queryFn: async () => {
-      if (!formData.bom_id) return [];
-      const { data, error } = await supabase
-        .from('bom_items')
-        .select('*, materials(name, unit)')
-        .eq('bom_id', formData.bom_id);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!formData.bom_id
-  });
-
+  // Derive raw materials when BOM items or planned quantity changes
   useEffect(() => {
-    if (bomItems && formData.planned_qty > 0) {
+    if (formData.bom_id && bomItems) {
       const selectedBom = boms?.find(b => b.id === formData.bom_id);
       if (selectedBom) {
-        const scalingFactor = formData.planned_qty / selectedBom.output_qty;
+        const baseOutput = selectedBom.output_qty || 1;
+        const scalingFactor = formData.planned_qty / baseOutput;
+
         setMaterials(bomItems.map((item: any) => ({
           material_id: item.material_id,
           material_name: item.materials?.name || '',
           required_qty: item.required_qty,
-          unit: item.unit || item.materials?.unit || 'kg',
+          unit: item.unit || 'kg',
           wastage_pct: item.wastage_pct || 5,
           planned_qty: Math.ceil(item.required_qty * scalingFactor * (1 + (item.wastage_pct || 5) / 100) * 100) / 100,
           is_additional: false
@@ -118,72 +100,22 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
     }
   };
 
-  const generateJobCardNo = async () => {
-    try {
-      const { data, error } = await supabase.rpc('generate_job_card_no', { org_id: organisation?.id });
-      if (error || !data) throw error;
-      return data as string;
-    } catch {
-      const { data } = await supabase
-        .from('job_cards')
-        .select('job_card_no')
-        .eq('organisation_id', organisation?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const last = data?.job_card_no;
-      const next = last ? parseInt(last.replace('JC-', '')) + 1 : 1;
-      return `JC-${String(next).padStart(4, '0')}`;
-    }
+  const saveJobCard = useCreateJobCardMutation(onSuccess);
+
+  const handleSave = () => {
+    if (!organisation?.id || !user?.id) return;
+    const jcPayload = {
+      bom_id: formData.bom_id,
+      product_name: formData.product_name,
+      planned_qty: formData.planned_qty,
+      output_unit: formData.output_unit,
+      priority: formData.priority,
+      remarks: formData.remarks,
+      issued_by: user.id,
+      organisation_id: organisation.id
+    };
+    saveJobCard.mutate({ jobCard: jcPayload, materials });
   };
-
-  const saveJobCard = useMutation({
-    mutationFn: async () => {
-      if (!organisation?.id || !user?.id) throw new Error('Not authenticated');
-
-      const jobCardNo = await generateJobCardNo();
-
-      const { data: jobCard, error: jcError } = await supabase
-        .from('job_cards')
-        .insert({
-          job_card_no: jobCardNo,
-          bom_id: formData.bom_id,
-          product_name: formData.product_name,
-          planned_qty: formData.planned_qty,
-          output_unit: formData.output_unit,
-          priority: formData.priority,
-          remarks: formData.remarks,
-          status: 'draft',
-          issued_by: user.id,
-          organisation_id: organisation.id
-        })
-        .select()
-        .single();
-      if (jcError) throw jcError;
-
-      const materialsToInsert = materials.map(mat => ({
-        job_card_id: jobCard.id,
-        material_id: mat.material_id,
-        planned_qty: mat.planned_qty,
-        unit: mat.unit,
-        is_additional: mat.is_additional,
-        status: 'reserved'
-      }));
-
-      if (materialsToInsert.length > 0) {
-        const { error: matError } = await supabase
-          .from('job_card_materials')
-          .insert(materialsToInsert);
-        if (matError) throw matError;
-      }
-
-      return jobCard;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job-cards'] });
-      onSuccess();
-    }
-  });
 
   const addMaterial = () => {
     setMaterials([...materials, {
@@ -199,7 +131,6 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
 
   const removeMaterial = (index: number) => {
     setMaterials(materials.filter((_, i) => i !== index));
-    // clean up row search text
     const nextSearchText = { ...materialSearchText };
     delete nextSearchText[index];
     setMaterialSearchText(nextSearchText);
@@ -211,6 +142,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
     setMaterials(newMaterials);
   };
 
+  // Fetch materials for additional rows
   const { data: allMaterials } = useQuery({
     queryKey: ['materials-for-additional', organisation?.id],
     queryFn: async () => {
@@ -247,7 +179,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
       {/* Header Bar */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyBetween: 'space-between', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyBetween: 'space-between', position: 'sticky', top: 0, zIndex: 40 }} className="flex justify-between">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
@@ -264,7 +196,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
             onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
             onMouseDown={e => { e.currentTarget.style.background = '#e5e7eb'; }}
             onMouseUp={e => { e.currentTarget.style.background = '#f3f4f6'; }}>Cancel</button>
-          <button onClick={() => saveJobCard.mutate()} disabled={!formData.bom_id || !formData.planned_qty || saveJobCard.isPending}
+          <button onClick={handleSave} disabled={!formData.bom_id || !formData.planned_qty || saveJobCard.isPending}
             style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: saveJobCard.isPending || (!formData.bom_id || !formData.planned_qty) ? 'not-allowed' : 'pointer', opacity: saveJobCard.isPending || (!formData.bom_id || !formData.planned_qty) ? 0.6 : 1, transition: 'all 0.15s' }}
             onMouseEnter={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
             onMouseLeave={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
@@ -360,7 +292,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
 
             {/* Card 2: Materials List */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="flex justify-between">
                 <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Materials to Issue</h2>
                 <button type="button" onClick={addMaterial}
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#000000', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
@@ -378,7 +310,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
                       <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>BOM Qty</th>
                       <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>Wastage %</th>
                       <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', textAlign: 'right' }}>Planned Outward Qty</th>
-                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', w: '50px' }}></th>
+                      <th style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#4b5563', width: '50px' }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -498,22 +430,22 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             {/* Sidebar Summary Card */}
-            <div style={{ background: '#white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px' }}>
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px' }}>
               <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: '0 0 16px 0', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px' }}>Summary</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }} className="flex justify-between">
                   <span style={{ color: '#6b7280' }}>Product:</span>
                   <span style={{ fontWeight: 600, color: '#1f2937' }}>{formData.product_name || '—'}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }} className="flex justify-between">
                   <span style={{ color: '#6b7280' }}>Planned Qty:</span>
                   <span style={{ fontWeight: 600, color: '#1f2937' }}>{formData.planned_qty ? `${formData.planned_qty} ${formData.output_unit}` : '—'}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }} className="flex justify-between">
                   <span style={{ color: '#6b7280' }}>Priority:</span>
                   <span style={{ fontWeight: 600, color: '#1f2937', textTransform: 'capitalize' }}>{formData.priority}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }} className="flex justify-between">
                   <span style={{ color: '#6b7280' }}>Materials Count:</span>
                   <span style={{ fontWeight: 600, color: '#1f2937' }}>{materials.length} items</span>
                 </div>

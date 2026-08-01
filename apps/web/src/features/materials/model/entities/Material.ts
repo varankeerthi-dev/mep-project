@@ -36,6 +36,28 @@ export interface Material {
   // Joined relations (optional, populated by queries)
   material_units?: MaterialUnit[];
   discount_category?: { id: string; name: string; default_discount_percent: number };
+  custom_attributes?: MaterialCustomAttribute[];
+}
+
+/** A reusable attribute definition scoped to an organisation */
+export interface AttributeDefinition {
+  id: string;
+  organisation_id: string;
+  name: string;
+  default_unit: string;
+  known_units: string[];
+  created_at?: string;
+}
+
+/** A custom attribute value attached to a specific material */
+export interface MaterialCustomAttribute {
+  id?: string;
+  material_id?: string;
+  organisation_id?: string;
+  attribute_name: string;
+  attribute_value: string;
+  attribute_unit: string;
+  sort_order: number;
 }
 
 /** Alternative unit definition for a material */

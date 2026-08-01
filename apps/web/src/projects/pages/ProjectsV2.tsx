@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users, CheckSquare } from 'lucide-react';
+import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users, CheckSquare, LayoutGrid } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../App';
@@ -13,6 +13,7 @@ import MaterialUsageTracker from '../../pages/MaterialUsageTracker';
 import MaterialConsumptionReport from '../../pages/MaterialConsumptionReport';
 import { getMeetings } from '../../meetings/api/meetings';
 import ProjectTaskListView from '../../components/tasks/ProjectTaskListView';
+import ProjectGantt from '../../components/ProjectGantt';
 
 const ProjectList = React.lazy(() => import('./ProjectListV2'));
 const CreateProject = React.lazy(() => import('./CreateProjectV2'));
@@ -22,6 +23,7 @@ const SiteMaterials = React.lazy(() => import('../../pages/ProjectManagementInte
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, component: null },
+  { id: 'timeline', label: 'Timeline', icon: LayoutGrid, component: null },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
 ];
 
@@ -182,12 +184,130 @@ export default function ProjectsV2() {
               projectName="All Tasks"
             />
           </div>
+        ) : activeTab === 'timeline' ? (
+          <TimelineTab organisationId={organisationId} />
         ) : (
           <Suspense fallback={<div className="flex h-64 items-center justify-center text-zinc-400">Loading projects...</div>}>
             <ProjectList />
           </Suspense>
         )}
       </div>
+    </div>
+  );
+}
+
+function TimelineTab({ organisationId }: { organisationId: string }) {
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectName, setSelectedProjectName] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: ['projects-gantt', organisationId],
+    queryFn: async () => {
+      if (!organisationId) return [];
+      const { data } = await supabase
+        .from('projects')
+        .select('id, project_name, name, status, start_date, expected_end_date')
+        .eq('organisation_id', organisationId)
+        .order('project_name');
+      return data || [];
+    },
+    enabled: !!organisationId,
+  });
+
+  const filteredProjects = projects.filter(p =>
+    !searchTerm || (p.project_name || p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (selectedProjectId) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+          <button
+            onClick={() => { setSelectedProjectId(null); setSelectedProjectName(''); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px',
+              background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px',
+              fontSize: '13px', cursor: 'pointer', color: '#374151'
+            }}
+          >
+            <ArrowLeft size={14} />
+            Back to Projects
+          </button>
+          <h2 style={{ fontSize: '18px', fontWeight: 600 }}>{selectedProjectName}</h2>
+        </div>
+        <ProjectGantt projectId={selectedProjectId} projectName={selectedProjectName} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '4px' }}>Project Timeline</h2>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Select a project to view its Gantt chart with milestones and tasks.</p>
+      </div>
+
+      <input
+        type="text"
+        placeholder="Search projects..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{
+          width: '100%', maxWidth: '400px', padding: '10px 12px',
+          border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', marginBottom: '16px'
+        }}
+      />
+
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>Loading projects...</div>
+      ) : filteredProjects.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+          <Calendar size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+          <p>No projects found.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+          {filteredProjects.map(project => {
+            const displayName = project.project_name || project.name || 'Unnamed';
+            const startDate = project.start_date ? new Date(project.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+            const endDate = project.expected_end_date ? new Date(project.expected_end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+            const statusColor = project.status === 'Active' ? '#059669' : project.status === 'Closed' ? '#6b7280' : '#1d4ed8';
+
+            return (
+              <button
+                key={project.id}
+                onClick={() => { setSelectedProjectId(project.id); setSelectedProjectName(displayName); }}
+                style={{
+                  padding: '20px', background: '#fff', border: '1px solid #e5e7eb',
+                  borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
+                  transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: '12px'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1d4ed8'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(29,78,216,0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{displayName}</h3>
+                  <span style={{
+                    fontSize: '11px', fontWeight: 500, padding: '2px 8px', borderRadius: '12px',
+                    backgroundColor: `${statusColor}15`, color: statusColor
+                  }}>
+                    {project.status || 'Active'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#6b7280' }}>
+                  <span>Start: {startDate}</span>
+                  <span>End: {endDate}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#1d4ed8', fontWeight: 500 }}>
+                  <LayoutGrid size={14} />
+                  View Timeline
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

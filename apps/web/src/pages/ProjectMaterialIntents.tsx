@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { createPurchaseRequisition } from '../purchase-requisitions/api';
-import { Input, Select, TextArea } from '../components/ui/input';
+import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';

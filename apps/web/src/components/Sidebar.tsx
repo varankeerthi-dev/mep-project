@@ -75,34 +75,16 @@ const menuData: MenuSection[] = [
     section: '',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' },
+      { id: 'dashboard-demo', label: 'Dashboard Demo', path: '/dashboard-demo' },
       { id: 'operations', label: 'Operations', path: '/operations' },
-      { id: 'projects-overview', label: 'CEO Dashboard', path: '/projects-overview' }
-    ]
-  },
-  {
-    section: 'Work',
-    items: [
-      { id: 'projects', label: 'Projects', path: '/projects' },
-      { id: 'approvals', label: 'Approvals', path: '/approvals' },
-      { id: 'todo', label: 'To do', path: '/todo' },
-      { id: 'follow-up', label: 'Follow-up', path: '/follow-up' },
-      { id: 'client-communication', label: 'Communication log', path: '/client-communication' },
-      { id: 'manager-alerts', label: 'Manager alerts', path: '/manager-alerts' },
+      { id: 'projects-overview', label: 'CEO Dashboard', path: '/projects-overview' },
       { id: 'client-lookup', label: 'Quick Lookup', path: '/client-lookup' }
     ]
   },
   {
-    section: 'Client and field',
+    section: 'Projects',
     items: [
-      {
-        id: 'clients',
-        label: 'Clients',
-        submenu: [
-          { id: 'clients-list', label: 'Client list', path: '/clients' },
-          { id: 'client-po-list', label: 'Purchase orders', path: '/client-po' },
-          { id: 'client-meetings', label: 'Meetings', path: '/meetings' }
-        ]
-      },
+      { id: 'projects', label: 'Projects', path: '/projects' },
       { id: 'site-visit', label: 'Site visit', path: '/site-visits' },
       {
         id: 'site-report',
@@ -121,6 +103,29 @@ const menuData: MenuSection[] = [
         ]
       },
       { id: 'site-expenses', label: 'Site expenses', path: '/site-expenses' },
+    ]
+  },
+  {
+    section: 'Work',
+    items: [
+      { id: 'approvals', label: 'Approvals', path: '/approvals' },
+      { id: 'todo', label: 'To do', path: '/todo' },
+      { id: 'manager-alerts', label: 'Manager alerts', path: '/manager-alerts' }
+    ]
+  },
+  {
+    section: 'Client and field',
+    items: [
+      {
+        id: 'clients',
+        label: 'Clients',
+        submenu: [
+          { id: 'clients-list', label: 'Client list', path: '/clients' },
+          { id: 'client-po-list', label: 'Purchase orders', path: '/client-po' },
+          { id: 'client-meetings', label: 'Meetings', path: '/meetings' },
+          { id: 'ledger', label: 'Ledger', path: '/ledger' }
+        ]
+      },
       {
         id: 'subcontractor',
         label: 'Sub-contractor',
@@ -134,6 +139,21 @@ const menuData: MenuSection[] = [
           { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
           { id: 'subcontractor-payment-queue', label: 'Payment queue', path: '/subcontractors/payments' },
           { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' }
+        ]
+      }
+    ]
+  },
+  {
+    section: 'CRM',
+    items: [
+      { id: 'follow-up', label: 'Follow-up', path: '/follow-up' },
+      { id: 'client-communication', label: 'Communication log', path: '/client-communication' },
+      {
+        id: 'leads',
+        label: 'Leads',
+        submenu: [
+          { id: 'leads-list', label: 'List view', path: '/leads' },
+          { id: 'leads-kanban', label: 'Kanban', path: '/leads/kanban' }
         ]
       }
     ]
@@ -155,16 +175,8 @@ const menuData: MenuSection[] = [
     ]
   },
   {
-    section: 'Commerce',
+    section: 'Sales',
     items: [
-      {
-        id: 'leads',
-        label: 'Leads',
-        submenu: [
-          { id: 'leads-list', label: 'List view', path: '/leads' },
-          { id: 'leads-kanban', label: 'Kanban', path: '/leads/kanban' }
-        ]
-      },
       {
         id: 'partner-allocation',
         label: 'Partner Allocation',
@@ -202,7 +214,6 @@ const menuData: MenuSection[] = [
           { id: 'credit-note-list', label: 'Credit notes', path: '/credit-notes' }
         ]
       },
-      { id: 'ledger', label: 'Ledger', path: '/ledger' },
       {
         id: 'dc',
         label: 'Delivery challan',
@@ -330,7 +341,10 @@ const menuData: MenuSection[] = [
           { id: 'settings-organisation', label: 'Organisation', path: '/settings/organisation' },
           { id: 'settings-access', label: 'Access control', path: '/settings/access-control' },
           { id: 'settings-discounts', label: 'Discount settings', path: '/settings/discounts' },
-          { id: 'settings-tools', label: 'Tools settings', path: '/tools-settings' }
+          { id: 'settings-tools', label: 'Tools settings', path: '/tools-settings' },
+          { id: 'settings-table-demo', label: 'Table Demo', path: '/table-demo' },
+          { id: 'settings-dynamic-table-demo', label: 'Dynamic Table Demo', path: '/dynamic-table-demo' },
+          { id: 'settings-custom-table-demo', label: 'Custom Table Demo', path: '/custom-table-demo' }
         ]
       }
     ]

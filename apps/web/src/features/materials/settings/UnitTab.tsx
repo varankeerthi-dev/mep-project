@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { useUnits } from '../../../hooks/useUnits';
@@ -8,6 +8,9 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Modal } from '../../../components/ui/Modal';
 import { Checkbox } from '../../../components/ui/checkbox';
+import { Table, ColumnDef } from '../../../Custometable';
+import type { RowAction } from '../../../Custometable';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 
 export function UnitTab() {
   const { data: units = [], isLoading: loading } = useUnits();
@@ -16,6 +19,12 @@ export function UnitTab() {
   const [showForm, setShowForm] = useState(false);
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Selection & Pagination states
+  const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [formData, setFormData] = useState({ unit_name: '', unit_code: '', description: '', is_active: true });
 
@@ -45,9 +54,29 @@ export function UnitTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['units', organisation?.id] });
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     },
     onError: (err: any) => {
       alert('Error deleting unit: ' + err.message);
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const ids = rows.map(r => r.id);
+      const { error } = await supabase.from('item_units').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['units', organisation?.id] });
+      setSelectedIds(new Set());
+    },
+    onError: (err: any) => {
+      alert('Error performing bulk delete: ' + err.message);
     }
   });
 
@@ -61,8 +90,123 @@ export function UnitTab() {
 
   const editUnit = (unit: any) => { setEditingUnit(unit); setFormData({ unit_name: unit.unit_name, unit_code: unit.unit_code, description: unit.description || '', is_active: unit.is_active !== false }); setShowForm(true); };
   const deleteUnit = (id: string) => { if (confirm('Delete this unit?')) { deleteMutation.mutate(id); }};
+  
+  const handleBulkDelete = (rows: any[]) => {
+    if (confirm(`Delete ${rows.length} selected units?`)) {
+      bulkDeleteMutation.mutate(rows);
+    }
+  };
 
-  const filteredUnits = units.filter((u: any) => u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filter & Search Logic
+  const filteredUnits = useMemo(() => {
+    return units.filter((u: any) => {
+      const matchesSearch = 
+        u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = 
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && u.is_active !== false) ||
+        (statusFilter === 'inactive' && u.is_active === false);
+      return matchesSearch && matchesStatus;
+    });
+  }, [units, searchTerm, statusFilter]);
+
+  // Paginated Data
+  const pagedUnits = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredUnits.slice(start, start + pageSize);
+  }, [filteredUnits, page, pageSize]);
+
+  // Selection handlers
+  const handleRowSelect = (row: any, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(row.id);
+      else next.delete(row.id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(pagedUnits.map((r) => r.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const columns: ColumnDef<any>[] = [
+    {
+      header: 'Unit Name',
+      accessorKey: 'unit_name',
+      id: 'unit_name',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="font-semibold text-zinc-900">{row.unit_name}</span>
+      )
+    },
+    {
+      header: 'Unit Code',
+      accessorKey: 'unit_code',
+      id: 'unit_code',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200/50 uppercase tracking-wide">
+          {row.unit_code}
+        </span>
+      )
+    },
+    {
+      header: 'Description',
+      accessorKey: 'description',
+      id: 'description',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => row.description || <span className="text-zinc-400">—</span>
+    },
+    {
+      header: 'Status',
+      accessorKey: 'is_active',
+      id: 'is_active',
+      type: 'status',
+      align: 'center',
+      statusType: (row) => row.is_active ? 'success' : 'neutral',
+      cell: ({ row }) => row.is_active ? 'Active' : 'Inactive'
+    }
+  ];
+
+  const getRowActions = (row: any): RowAction[] => {
+    return [
+      { 
+        label: 'Edit unit', 
+        icon: <Pencil size={14} />, 
+        onClick: () => editUnit(row) 
+      },
+      { 
+        label: 'Delete unit', 
+        icon: <Trash2 size={14} />, 
+        variant: 'danger', 
+        onClick: () => deleteUnit(row.id) 
+      }
+    ];
+  };
+
+  const bulkActions = [
+    {
+      label: 'Delete',
+      icon: <Trash2 size={14} />,
+      variant: 'danger' as const,
+      onClick: (rows: any[]) => handleBulkDelete(rows),
+    }
+  ];
+
+  const filterOptions = [
+    { id: 'all', label: 'All' },
+    { id: 'active', label: 'Active' },
+    { id: 'inactive', label: 'Inactive' }
+  ];
 
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
   const labelColStyle = { minWidth: '80px', maxWidth: '80px', fontWeight: 600, fontSize: '11px', color: '#374151' };
@@ -76,44 +220,47 @@ export function UnitTab() {
   );
 
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Units</h1><Button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</Button></div>
-      <div className="card" style={{ marginBottom: '16px' }}><Input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50 sticky top-0 z-10">
-              <tr>
-                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit Name</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Description</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="[&_tr:last-child]:border-0">
-              {filteredUnits.map((u: any) => (
-                <tr key={u.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{u.unit_name}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{u.unit_code}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{u.description || '-'}</td>
-                  <td className="px-3 py-3 text-center align-middle">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                      {u.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="pr-3 py-3 text-right align-middle">
-                    <div className="flex items-center justify-end gap-[15px]">
-                      <Button size="sm" variant="outline" onClick={() => editUnit(u)} className="text-xs">Edit</Button>
-                      <Button size="sm" variant="outline" onClick={() => deleteUnit(u.id)} className="text-xs">Delete</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900 m-0">Measurement Units</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Manage base material unit of measurements</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowForm(true)} className="gap-1 bg-zinc-900 text-white hover:bg-zinc-800 h-8 text-xs font-semibold">
+            <Plus size={14} /> Add Unit
+          </Button>
         </div>
       </div>
+
+      <div className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.01)] overflow-hidden">
+        <Table<any>
+          data={pagedUnits}
+          columns={columns}
+          loading={loading}
+          page={page}
+          pageSize={pageSize}
+          totalRows={filteredUnits.length}
+          searchable={true}
+          selectable={true}
+          sortable={true}
+          pagination={true}
+          onPageChange={setPage}
+          onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+          onSearch={(val) => { setSearchTerm(val); setPage(1); }}
+          filterOptions={filterOptions}
+          selectedFilterId={statusFilter}
+          onFilterSelect={(id) => { setStatusFilter(id); setPage(1); }}
+          selectedRowIds={selectedIds}
+          onRowSelectChange={handleRowSelect}
+          onSelectAllChange={handleSelectAll}
+          rowActions={getRowActions}
+          bulkActions={bulkActions}
+          emptyTitle="No units found"
+          emptySubtitle="Try adjusting your filters or search query."
+        />
+      </div>
+
       <Modal 
         isOpen={showForm} 
         onClose={resetForm} 

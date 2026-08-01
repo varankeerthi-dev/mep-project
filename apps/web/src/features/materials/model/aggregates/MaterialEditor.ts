@@ -3,6 +3,7 @@
  * and transient data used during create/edit/duplicate flows.
  * These are NOT persisted directly; they are mapped to/from Material entities.
  */
+import type { MaterialCustomAttribute } from '../entities/Material';
 export interface MaterialEditorFormData {
   item_code: string;
   item_name: string;
@@ -34,6 +35,7 @@ export interface MaterialEditorFormData {
   allow_sales: boolean;
   show_in_bom: boolean;
   is_manufactured: boolean;
+  custom_attributes: MaterialCustomAttribute[];
 }
 
 export function createDefaultFormData(): MaterialEditorFormData {
@@ -68,6 +70,7 @@ export function createDefaultFormData(): MaterialEditorFormData {
     allow_sales: true,
     show_in_bom: true,
     is_manufactured: false,
+    custom_attributes: [],
   };
 }
 

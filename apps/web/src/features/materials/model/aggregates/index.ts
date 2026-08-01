@@ -4,6 +4,7 @@ export type { VariantPricingRow, ClientPricingRow } from './MaterialPricing';
 export type { WarehouseStockEntry, WarehouseStockMap, WarehouseStockRow } from './WarehouseStock';
 export type { VendorMappingRow } from './VendorMapping';
 export type { ClientMappingRow } from './ClientMapping';
+export type { AttributeDefinition, MaterialCustomAttribute } from '../entities/Material';
 export type {
   ItemTransactions,
   AdjustmentRow,

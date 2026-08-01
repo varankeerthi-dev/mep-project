@@ -1,82 +1,259 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { useVariants } from '../../../hooks/useVariants';
+import { useAuth } from '../../../contexts/AuthContext';
 import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Checkbox } from '../../../components/ui/checkbox';
+import { Table, ColumnDef } from '../../../components/table';
+import type { RowAction } from '../../../components/table';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 
 export function VariantsTab() {
   const { data: variants = [], isLoading: loading } = useVariants();
+  const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Selection & Pagination states
+  const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [formData, setFormData] = useState({ variant_name: '', is_active: true });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (editingVariant) {
-      await supabase.from('company_variants').update({ ...formData, updated_at: new Date().toISOString() }).eq('id', editingVariant.id);
-    } else {
-      await supabase.from('company_variants').insert(formData);
+  const saveMutation = useMutation({
+    mutationFn: async (dataToSave: any) => {
+      if (editingVariant) {
+        const { error } = await supabase.from('company_variants').update({ ...dataToSave, updated_at: new Date().toISOString() }).eq('id', editingVariant.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('company_variants').insert({ ...dataToSave, organisation_id: organisation?.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['variants', organisation?.id] });
+      resetForm();
+    },
+    onError: (err: any) => {
+      alert('Error saving variant category: ' + err.message);
     }
-    resetForm();
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('company_variants').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['variants', organisation?.id] });
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    },
+    onError: (err: any) => {
+      alert('Error deleting variant category: ' + err.message);
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const ids = rows.map(r => r.id);
+      const { error } = await supabase.from('company_variants').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['variants', organisation?.id] });
+      setSelectedIds(new Set());
+    },
+    onError: (err: any) => {
+      alert('Error performing bulk delete: ' + err.message);
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveMutation.mutate(formData);
   };
 
   const resetForm = () => { setShowForm(false); setEditingVariant(null); setFormData({ variant_name: '', is_active: true }); };
 
   const editVariant = (v) => { setEditingVariant(v); setFormData({ variant_name: v.variant_name, is_active: v.is_active !== false }); setShowForm(true); };
-  const deleteVariant = async (id) => { if (confirm('Delete this category? This may affect existing pricing.')) { await supabase.from('company_variants').delete().eq('id', id); }};
+  const deleteVariant = (id) => { if (confirm('Delete this category? This may affect existing pricing.')) { deleteMutation.mutate(id); }};
 
-  const filteredVariants = variants.filter(v => v.variant_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const handleBulkDelete = (rows: any[]) => {
+    if (confirm(`Delete ${rows.length} selected categories?`)) {
+      bulkDeleteMutation.mutate(rows);
+    }
+  };
+
+  // Filter & Search Logic
+  const filteredVariants = useMemo(() => {
+    return variants.filter(v => {
+      const matchesSearch = v.variant_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = 
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && v.is_active !== false) ||
+        (statusFilter === 'inactive' && v.is_active === false);
+      return matchesSearch && matchesStatus;
+    });
+  }, [variants, searchTerm, statusFilter]);
+
+  // Paginated Data
+  const pagedVariants = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredVariants.slice(start, start + pageSize);
+  }, [filteredVariants, page, pageSize]);
+
+  // Selection handlers
+  const handleRowSelect = (row: any, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(row.id);
+      else next.delete(row.id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(pagedVariants.map((r) => r.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const columns: ColumnDef<any>[] = [
+    {
+      header: 'Category Name',
+      accessorKey: 'variant_name',
+      id: 'variant_name',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="font-semibold text-zinc-900">{row.variant_name}</span>
+      )
+    },
+    {
+      header: 'Created',
+      accessorKey: 'created_at',
+      id: 'created_at',
+      type: 'date',
+      align: 'left',
+      cell: ({ row }) => row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'
+    },
+    {
+      header: 'Status',
+      accessorKey: 'is_active',
+      id: 'is_active',
+      type: 'status',
+      align: 'center',
+      statusType: (row) => row.is_active ? 'success' : 'neutral',
+      cell: ({ row }) => row.is_active ? 'Active' : 'Inactive'
+    }
+  ];
+
+  const getRowActions = (row: any): RowAction[] => {
+    return [
+      { 
+        label: 'Edit category', 
+        icon: <Pencil size={14} />, 
+        onClick: () => editVariant(row) 
+      },
+      { 
+        label: 'Delete category', 
+        icon: <Trash2 size={14} />, 
+        variant: 'danger', 
+        onClick: () => deleteVariant(row.id) 
+      }
+    ];
+  };
+
+  const bulkActions = [
+    {
+      label: 'Delete',
+      icon: <Trash2 size={14} />,
+      variant: 'danger' as const,
+      onClick: (rows: any[]) => handleBulkDelete(rows),
+    }
+  ];
+
+  const filterOptions = [
+    { id: 'all', label: 'All' },
+    { id: 'active', label: 'Active' },
+    { id: 'inactive', label: 'Inactive' }
+  ];
 
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Discount Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <p style={{ color: '#666', marginBottom: '10px' }}>Discount Categories group your items for tiered pricing (e.g., Pipe, Hardware, Electrical). Each item can have different sale/purchase prices per category, and quotations can apply category-specific discounts.</p>
-        <input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
-      </div>
-      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50 sticky top-0 z-10">
-              <tr>
-                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Category Name</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Created</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="[&_tr:last-child]:border-0">
-              {filteredVariants.map(v => (
-                <tr key={v.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: v.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{v.variant_name}</td>
-                  <td className="px-3 py-3 text-center align-middle">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${v.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                      {v.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
-                  <td className="pr-3 py-3 text-right align-middle">
-                    <div className="flex items-center justify-end gap-[15px]">
-                      <Button size="sm" variant="outline" onClick={() => editVariant(v)} className="text-xs">Edit</Button>
-                      <Button size="sm" variant="outline" onClick={() => deleteVariant(v.id)} className="text-xs">Delete</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-lg font-bold text-zinc-900 m-0">Discount Categories</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Discount Categories group your items for tiered pricing (e.g., Pipe, Hardware, Electrical).</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowForm(true)} className="gap-1 bg-zinc-900 text-white hover:bg-zinc-800 h-8 text-xs font-semibold">
+            <Plus size={14} /> Add Category
+          </Button>
         </div>
       </div>
+
+      <div className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.01)] overflow-hidden">
+        <Table<any>
+          data={pagedVariants}
+          columns={columns}
+          loading={loading}
+          page={page}
+          pageSize={pageSize}
+          totalRows={filteredVariants.length}
+          searchable={true}
+          selectable={true}
+          sortable={true}
+          pagination={true}
+          onPageChange={setPage}
+          onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+          onSearch={(val) => { setSearchTerm(val); setPage(1); }}
+          filterOptions={filterOptions}
+          selectedFilterId={statusFilter}
+          onFilterSelect={(id) => { setStatusFilter(id); setPage(1); }}
+          selectedRowIds={selectedIds}
+          onRowSelectChange={handleRowSelect}
+          onSelectAllChange={handleSelectAll}
+          rowActions={getRowActions}
+          bulkActions={bulkActions}
+          emptyTitle="No categories found"
+          emptySubtitle="Try adjusting your filters or search query."
+        />
+      </div>
+
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingVariant ? 'Edit Category' : 'Add Category'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group"><label className="form-label">Category Name *</label><input type="text" className="form-input" value={formData.variant_name} onChange={e => setFormData({...formData, variant_name: e.target.value})} placeholder="e.g., Retail, Wholesale, Export" required /></div>
-              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
-              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingVariant ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 className="text-sm font-semibold text-zinc-900 m-0">{editingVariant ? 'Edit Category' : 'Add Category'}</h2>
+              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-zinc-600">Category Name *</label>
+                <Input type="text" value={formData.variant_name} onChange={e => setFormData({...formData, variant_name: e.target.value})} placeholder="e.g., Retail, Wholesale, Export" required className="h-8 text-xs" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="is_active" checked={formData.is_active} onCheckedChange={(checked: boolean) => setFormData({...formData, is_active: checked})} />
+                <label htmlFor="is_active" className="text-xs text-zinc-700 cursor-pointer select-none">Active</label>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                <Button type="submit" disabled={saveMutation.isPending} className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs h-8 px-4 font-semibold">{editingVariant ? 'Update' : 'Save'}</Button>
+                <Button type="button" variant="outline" className="text-xs h-8 px-4" onClick={resetForm}>Cancel</Button>
+              </div>
             </form>
           </div>
         </div>

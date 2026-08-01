@@ -1,49 +1,30 @@
-import React from 'react';
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
 
-type SwitchProps = React.InputHTMLAttributes<HTMLInputElement> & {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-};
+import { cn } from "@/lib/utils"
 
-export const Switch = ({ checked, onCheckedChange, className, ...props }: SwitchProps) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={!!checked}
-    onClick={() => onCheckedChange?.(!checked)}
-    style={{
-      borderRadius: '9999px',
-      width: '44px',
-      height: '24px',
-      padding: '2px',
-      display: 'inline-flex',
-      alignItems: 'center',
-      cursor: 'pointer',
-      border: 'none',
-      background: checked ? '#09090b' : '#e4e4e7',
-      transition: 'background-color 0.2s ease',
-      boxSizing: 'border-box'
-    }}
-    className={className}
-  >
-    <span
-      style={{
-        borderRadius: '50%',
-        width: '20px',
-        height: '20px',
-        background: '#ffffff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        transform: checked ? 'translateX(20px)' : 'translateX(0px)',
-        transition: 'transform 0.2s ease',
-        display: 'inline-block'
-      }}
-    />
-    <input
-      type="checkbox"
-      className="sr-only"
-      checked={checked}
-      onChange={(event) => onCheckedChange?.(event.target.checked)}
+function Switch({
+  className,
+  size = "default",
+  ...props
+}: SwitchPrimitive.Root.Props & {
+  size?: "sm" | "default"
+}) {
+  return (
+    <SwitchPrimitive.Root
+      data-slot="switch"
+      data-size={size}
+      className={cn(
+        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border-2 transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-[size=default]:h-5 data-[size=default]:w-11 data-[size=sm]:h-4 data-[size=sm]:w-7 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-unchecked:border-transparent data-unchecked:bg-input/90 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        className
+      )}
       {...props}
-    />
-  </button>
-);
+    >
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className="pointer-events-none block rounded-full bg-background shadow-sm ring-0 transition-transform not-dark:bg-clip-padding group-data-[size=default]/switch:h-4 group-data-[size=default]/switch:w-6 group-data-[size=sm]/switch:h-3 group-data-[size=sm]/switch:w-4 data-checked:translate-x-[calc(100%-8px)] dark:data-checked:bg-primary-foreground data-unchecked:translate-x-0 dark:data-unchecked:bg-foreground"
+      />
+    </SwitchPrimitive.Root>
+  )
+}
+
+export { Switch }
