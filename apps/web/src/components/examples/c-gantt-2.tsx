@@ -10,7 +10,7 @@ import type {
 import { GanttView } from "@/components/reui/gantt/gantt-view"
 import { addDays, startOfDay, startOfWeek } from "date-fns"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/Card"
 
 /** Two-level white-label task tree; bars attach to leaf rows by id. */
 const INITIAL_RESOURCES: GanttResource[] = [

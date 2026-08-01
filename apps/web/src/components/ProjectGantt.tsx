@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Gantt } from '@/components/reui/gantt/gantt';
 import { GanttNav } from '@/components/reui/gantt/gantt-nav';
 import { GanttView } from '@/components/reui/gantt/gantt-view';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/Card';
 import type { GanttEvent, GanttResource } from '@/components/reui/gantt/gantt-types';
 import { useGanttData, type TaskGroup, type ProjectTask, type ProjectMilestone } from '@/hooks/useGanttData';
 import { Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
