@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/designer/CapacityProfilesDialog.tsx
 // Capacity Profile management (G9 — PRD §5.17 / TAD §4.4 "Configure Capacity").
 // Create / edit / delete reusable named capacity definitions, and apply one

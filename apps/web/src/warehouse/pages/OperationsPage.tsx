@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { PageSkeleton } from '../../components/ui/skeleton';
 // src/warehouse/pages/OperationsPage.tsx
 // Phase 4 — Warehouse Operations (PRD §9.10–§9.25 Stock Movement Engine).

@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/designer/WarehousePreview.tsx
 // Live 2D preview for the Warehouse Designer. Renders the draft hierarchy
 // visually: floors → zones (coloured areas) → layouts (labeled blocks) →

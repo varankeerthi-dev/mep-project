@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/viewer/BinInventory.tsx
 // Phase 3 — Item ↔ Bin Mapping inside the property panel. Shows the items
 // currently stored in a bin and lets the operator add / adjust / remove

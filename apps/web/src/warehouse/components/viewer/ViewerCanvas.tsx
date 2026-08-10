@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/viewer/ViewerCanvas.tsx
 // The interactive 2D floor-plan canvas for the Warehouse Viewer.
 // Renders the positioned model from viewer/geometry.ts. Pure SVG —

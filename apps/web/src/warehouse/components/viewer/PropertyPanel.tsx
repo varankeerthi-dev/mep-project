@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/viewer/PropertyPanel.tsx
 // Selection detail panel (PRD Phase 2 "Property Panel"). Shows capacity
 // per PRD §6.8 (Current / Maximum / Remaining / Occupancy %) plus

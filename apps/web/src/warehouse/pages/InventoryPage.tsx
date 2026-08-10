@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { PageSkeleton } from '../../components/ui/skeleton';
 // src/warehouse/pages/InventoryPage.tsx
 // Phase 3 — Inventory Location Management (PRD: Inventory Location

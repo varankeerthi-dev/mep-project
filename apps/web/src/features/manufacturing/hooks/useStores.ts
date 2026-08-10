@@ -3,7 +3,7 @@ import * as P from '../persistence';
 import * as R from '../repository';
 import { MaterialRequisition, MaterialRequisitionItem, GoodsReceiptNote, GRNItem } from '../model/types';
 import { toast } from '../../../lib/logger';
-import * as PR from '../repository/procurement';
+import * as PR from '../repository/procurement/procurementRepository';
 
 // =========================================================================
 // Material Requisition Hooks

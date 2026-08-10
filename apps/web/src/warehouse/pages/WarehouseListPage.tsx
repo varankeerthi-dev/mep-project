@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { PageSkeleton } from '../../components/ui/skeleton';
 // src/warehouse/pages/WarehouseListPage.tsx
 // Warehouse master list — the entry point for the module. Lists all

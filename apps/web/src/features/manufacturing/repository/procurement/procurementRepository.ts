@@ -1,6 +1,6 @@
-import * as P from '../persistence';
-import { supabase } from '../../../supabase';
-import { MaterialRequisition, MaterialRequisitionItem, GoodsReceiptNote, GRNItem } from '../model/types';
+import * as P from '../../persistence';
+import { supabase } from '@/lib/supabase';
+import { MaterialRequisition, MaterialRequisitionItem, GoodsReceiptNote, GRNItem } from '../../model/types';
 
 export async function generateNextRequisitionNumber(orgId: string): Promise<string> {
   const { data, error } = await supabase

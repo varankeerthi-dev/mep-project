@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { PageSkeleton } from '../../components/ui/skeleton';
 // src/warehouse/pages/WarehouseDashboardPage.tsx
 // Phase 5 — Dashboard & Operations Workspace (PRD §2.4–2.10, TAD §2.15 + §3.16).

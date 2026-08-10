@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 // src/warehouse/pages/WarehouseViewerPage.tsx
 // Phase 2 — Warehouse Viewer. A read-only 2D floor plan of a saved
 // warehouse with visual navigation (PRD Phase 2): tree, mini map,

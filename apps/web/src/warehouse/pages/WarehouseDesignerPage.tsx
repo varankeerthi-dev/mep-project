@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 // src/warehouse/pages/WarehouseDesignerPage.tsx
 // Warehouse Designer (PRD §5). Split screen: configuration wizard (left)
 // + live 2D preview (right). Workflow mirrors PRD §5.4:

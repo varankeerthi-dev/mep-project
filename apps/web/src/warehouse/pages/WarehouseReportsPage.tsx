@@ -6,7 +6,7 @@ import {
 import { useDashboard } from '../hooks/useWarehouseData';
 import type { DashboardViewModel } from '../dashboard';
 import { rowsToCsv, type CsvValue } from '../reports';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { PageSkeleton } from '../../components/ui/skeleton';
 
 type ReportKey = 'overview' | 'utilization' | 'movements' | 'velocity' | 'dead-stock';

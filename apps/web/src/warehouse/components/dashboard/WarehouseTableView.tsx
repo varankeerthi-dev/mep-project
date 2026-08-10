@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/dashboard/WarehouseTableView.tsx
 // PRD §2.6 — Table View, the second Dashboard sub-tab. Multiple datasets in
 // sortable, filterable tables (bins, movements, transfers, dispatches, pick

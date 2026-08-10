@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/viewer/WarehouseTree.tsx
 // Warehouse hierarchy navigator (PRD Phase 2 "Warehouse Tree").
 // Floors → zones → racks. Clicking a node selects it and (via the page)

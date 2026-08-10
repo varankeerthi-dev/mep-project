@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button';
+import { Button } from '../../../components/ui/button';
 // src/warehouse/components/designer/VersionHistoryDialog.tsx
 // Layout version history (G10 — TAD §4.9). Lists every archived layout
 // version for the warehouse (immutable history), newest first, with its

@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 // src/warehouse/components/GlobalSearchBar.tsx
 // PRD §2.8 — Universal Quick Search. A module-level search bar on every
 // warehouse screen: matches bins (name/zone/role), stocked items and zones,

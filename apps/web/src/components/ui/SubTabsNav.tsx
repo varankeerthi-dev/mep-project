@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from './Button';
+import { Button } from './button';
 
 export interface SubTabItem {
   id: string;

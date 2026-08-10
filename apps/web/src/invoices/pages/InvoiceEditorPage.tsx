@@ -27,7 +27,7 @@ import QuotationLineItemsSelector from '../components/QuotationLineItemsSelector
 import ProformaLineItemsSelector from '../components/ProformaLineItemsSelector';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
-import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from './ui-utils';
+import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from '../ui-utils';
 import { useWarehouses } from '@/hooks/useWarehouses';
 import { useVariants } from '@/hooks/useVariants';
 import {
