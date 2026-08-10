@@ -5,6 +5,7 @@ import { Checkbox } from '../../../../components/ui/checkbox';
 import { EditorSection } from './EditorSection';
 import { inputFieldSm, selectFieldSm, addLink } from './formStyles';
 import type { VariantPricingRow } from '../../model/aggregates';
+import { Button } from '@/components/ui/button';
 
 interface VariantPricingSectionProps {
   number?: number;
@@ -15,6 +16,7 @@ interface VariantPricingSectionProps {
   onAddRow: () => void;
   onRemoveRow: (id: number | string) => void;
   onRowChange: (id: number | string, field: string, value: string) => void;
+  subtitle?: string;
 }
 
 export function VariantPricingSection({
@@ -26,6 +28,7 @@ export function VariantPricingSection({
   onAddRow,
   onRemoveRow,
   onRowChange,
+  subtitle,
 }: VariantPricingSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -41,7 +44,7 @@ export function VariantPricingSection({
       <EditorSection
         number={number}
         title="Variant Pricing"
-        description="Set different prices for different discount categories."
+        description={subtitle || "Set different prices for different discount categories."}
         hint="Leave blank to use default prices"
         expanded={!collapsed}
         onToggle={() => setCollapsed(!collapsed)}
@@ -58,12 +61,9 @@ export function VariantPricingSection({
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#6B7280]">Set different prices for different discount categories</span>
-              <button
-                onClick={onAddRow}
-                className={addLink}
-              >
+              <Button variant="default" size="default" onClick={onAddRow} className={addLink} >
                 <Plus size={14} /> Add Row
-              </button>
+              </Button>
             </div>
 
             {variantPricing.map((row) => (
@@ -109,12 +109,11 @@ export function VariantPricingSection({
                     className={inputFieldSm + ' pl-9'}
                   />
                 </div>
-                <button
-                  onClick={() => onRemoveRow(row.id)}
+                <Button variant="default" size="default" onClick={() => onRemoveRow(row.id)}
                   className="ml-2 rounded-lg p-1.5 text-[#6B7280] transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
             ))}
 

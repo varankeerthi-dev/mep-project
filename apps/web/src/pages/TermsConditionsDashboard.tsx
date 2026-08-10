@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Settings, Plus, Edit, Eye, Download, Search, Filter } from 'lucide-react';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 interface TermsTemplate {
   id: string;
@@ -33,6 +34,7 @@ interface QuotationTerms {
 
 export const TermsConditionsDashboard: React.FC = () => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [templates, setTemplates] = useState<TermsTemplate[]>([]);
   const [recentQuotations, setRecentQuotations] = useState<QuotationTerms[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,7 +239,7 @@ export const TermsConditionsDashboard: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-zinc-500">
-                        {new Date(template.created_at).toLocaleDateString()}
+                        {formatDate(template.created_at)}
                       </p>
                     </div>
                   </div>
@@ -289,7 +291,7 @@ export const TermsConditionsDashboard: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-zinc-500">
-                        {new Date(qt.created_at).toLocaleDateString()}
+                        {formatDate(qt.created_at)}
                       </p>
                     </div>
                   </div>
@@ -343,8 +345,8 @@ export const TermsConditionsDashboard: React.FC = () => {
                 </div>
 
                 <div className="text-sm text-zinc-500">
-                  <p>Created: {new Date(template.created_at).toLocaleDateString()}</p>
-                  <p>Updated: {new Date(template.updated_at).toLocaleDateString()}</p>
+                  <p>Created: {formatDate(template.created_at)}</p>
+                  <p>Updated: {formatDate(template.updated_at)}</p>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-zinc-200 flex items-center gap-2">
@@ -440,7 +442,7 @@ export const TermsConditionsDashboard: React.FC = () => {
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                      {new Date(qt.created_at).toLocaleDateString()}
+                      {formatDate(qt.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">

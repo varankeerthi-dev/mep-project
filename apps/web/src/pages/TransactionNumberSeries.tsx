@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 
 const DOCUMENT_TYPES = [
   { id: 'invoice', label: 'Invoice' },
@@ -105,9 +106,9 @@ export default function TransactionNumberSeries() {
             />
             <span style={{ fontWeight: 500 }}>Prevent Duplicate Numbers</span>
           </label>
-          <button className="btn btn-primary" onClick={() => { setEditingSeries(null); setShowModal(true); }}>
+          <Button onClick={() => { setEditingSeries(null); setShowModal(true); }}>
             + New Series
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -169,14 +170,15 @@ export default function TransactionNumberSeries() {
                       )}
                     </td>
                     <td>
-                      <button 
-                        className="btn btn-sm btn-secondary" 
+                      <Button 
+                        variant="secondary"
+                        size="sm"
                         onClick={() => { setEditingSeries(s); setShowModal(true); }}
                         disabled={s.has_transactions}
                         title={s.has_transactions ? 'Cannot edit - transactions exist' : 'Edit'}
                       >
                         Edit
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -458,8 +460,8 @@ function SeriesModal({ series, onClose, onSave, generatePreview, organisationId 
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{series ? 'Update' : 'Create'} Series</button>
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button type="submit">{series ? 'Update' : 'Create'} Series</Button>
           </div>
         </form>
       </div>

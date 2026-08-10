@@ -57,13 +57,13 @@ export function Drawer({
       {/* Drawer Panel */}
       <div
         className={cn(
-          'relative bg-white border-l border-zinc-200 shadow-2xl flex flex-col h-full max-w-full animate-in slide-in-from-right duration-300',
+          'relative bg-white border-l border-zinc-200 shadow-2xl flex flex-col h-full max-w-full animate-in slide-in-from-right duration-300 drawer-panel',
           sizes[size]
         )}
       >
         {/* Header */}
         {!hideHeader && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+          <div className="flex items-center justify-between px-6 py-6 border-b border-zinc-200 shrink-0">
             <h2 className="text-lg font-semibold text-zinc-900">
               {title}
             </h2>
@@ -81,13 +81,15 @@ export function Drawer({
         )}
 
         {/* Body */}
-        <div className={cn("flex-1 overflow-auto", hideHeader ? "" : "p-6")}>
+        <div
+          className={cn("flex-1 overflow-auto", hideHeader ? "" : "p-6")}
+        >
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-200 shrink-0 bg-zinc-50/50">
+          <div className="flex items-center justify-end gap-3 px-6 py-6 border-t border-zinc-200 shrink-0 bg-zinc-50/50">
             {footer}
           </div>
         )}

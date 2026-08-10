@@ -13,6 +13,7 @@ import { selectField, primaryButton, secondaryButton } from './formStyles';
 import { Boxes, Layers, Wrench, ShoppingCart, Check, ChevronLeft, Save, FileText } from 'lucide-react';
 import { Switch } from '../../../../components/ui/switch';
 import type { MaterialEditorFormData, VariantPricingRow, WarehouseStockMap, VendorMappingRow, ClientMappingRow, ClientPricingRow } from '../../model/aggregates';
+import { variantStockCombos } from '../../model/aggregates';
 import type { Warehouse, Vendor as VendorType, Client, MaterialCustomAttribute, AttributeDefinition } from '../../model/entities';
 import { CLASSIFICATION_OPTIONS } from '../../model/aggregates';
 
@@ -146,10 +147,7 @@ export function ItemEditorDialog({
             const Icon = CLASS_ICONS[opt.value] || Boxes;
             const colors = CLASS_COLORS[opt.value] || { icon: '#6B7280', bg: '#F3F4F6' };
             return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onClassificationChange(opt.value)}
+              <Button variant="default" size="sm" key={opt.value} type="button" onClick={() => onClassificationChange(opt.value)}
                 className={`group relative flex h-[100px] items-center gap-4 p-8 text-left transition-all duration-180 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/40 focus-visible:ring-offset-1 classification-card ${
                   isSelected
                     ? 'border-2 border-[#6366F1] bg-[#EEF2FF]'
@@ -184,7 +182,7 @@ export function ItemEditorDialog({
                     <Check className="h-3 w-3 text-white" strokeWidth={3} />
                   )}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -211,8 +209,12 @@ export function ItemEditorDialog({
         />
       </div>
 
-      {/* Row: 4. Discount Category + 5. Commercial / Pricing — two-column */}
+      {/* Row: 5. Commercial / Pricing + 4. Discount Category — two-column */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <CommercialSection
+          formData={formData}
+          onChange={handleChange}
+        />
         <EditorSection color="blue" title="Discount Category" description="Choose a discount category for this item (used in quotations).">
           <div className="space-y-2">
             <label className="text-[13px] font-semibold text-[#374151]">Discount Category</label>
@@ -230,37 +232,35 @@ export function ItemEditorDialog({
             </div>
           </div>
         </EditorSection>
-        <CommercialSection
-          formData={formData}
-          onChange={handleChange}
+      </div>
+
+      {/* Row: 8. Variant Pricing + Inventory — two-column */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <VariantPricingSection
+          number={8}
+          variantPricing={variantPricing}
+          variants={variants}
+          usesVariant={formData.uses_variant}
+          onToggleVariant={onUsesVariantChange}
+          onAddRow={onAddVariantRow}
+          onRemoveRow={onRemoveVariantRow}
+          onRowChange={onVariantRowChange}
+          subtitle="Map this item to preferred vendors and set vendor-specific rates."
+        />
+        <InventorySection
+          color="teal"
+          trackInventory={formData.track_inventory}
+          warehouseStock={warehouseStock}
+          warehouses={warehouses}
+          usesVariant={formData.uses_variant}
+          stockCombos={variantStockCombos(variantPricing)}
+          variantNameById={Object.fromEntries(variants.map(v => [v.id, v.variant_name]))}
+          onToggleInventory={onToggleInventory}
+          onStockChange={onStockChange}
         />
       </div>
 
-      {/* Inventory — full width */}
-      <InventorySection
-        color="teal"
-        trackInventory={formData.track_inventory}
-        warehouseStock={warehouseStock}
-        warehouses={warehouses}
-        usesVariant={formData.uses_variant}
-        variantNames={variantPricing.map(p => p.company_variant_id).filter(Boolean)}
-        onToggleInventory={onToggleInventory}
-        onStockChange={onStockChange}
-      />
-
-      {/* 8. Variant Pricing — collapsed */}
-      <VariantPricingSection
-        number={8}
-        variantPricing={variantPricing}
-        variants={variants}
-        usesVariant={formData.uses_variant}
-        onToggleVariant={onUsesVariantChange}
-        onAddRow={onAddVariantRow}
-        onRemoveRow={onRemoveVariantRow}
-        onRowChange={onVariantRowChange}
-      />
-
-      {/* 9. Purchase & Vendor Mapping — collapsed */}
+      {/* 9. Purchase & Vendor Mapping */}
       <VendorSection
         number={9}
         vendorMappings={vendorMappings}
@@ -322,11 +322,11 @@ export function ItemEditorDialog({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <nav aria-label="Breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#9ca3af' }}>
-              <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: '13px', padding: 0, fontFamily: 'inherit' }}>Store</button>
+              <Button variant="default" size="sm" type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: '13px', padding: 0, fontFamily: 'inherit' }}>Store</Button>
               <span>/</span>
-              <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: '13px', padding: 0, fontFamily: 'inherit' }}>Materials</button>
+              <Button variant="default" size="sm" type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: '13px', padding: 0, fontFamily: 'inherit' }}>Materials</Button>
               <span>/</span>
-              <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: '13px', padding: 0, fontFamily: 'inherit' }}>Items</button>
+              <Button variant="default" size="sm" type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: '13px', padding: 0, fontFamily: 'inherit' }}>Items</Button>
               <span>/</span>
               <span style={{ color: '#111827', fontWeight: 600 }}>{editingMaterial ? 'Edit Item' : 'Add New Material'}</span>
             </nav>
@@ -336,15 +336,10 @@ export function ItemEditorDialog({
               <Button type="button" variant="outline" className={secondaryButton} onClick={onClose} disabled={materialSavePending}>
                 Cancel
               </Button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={materialSavePending}
-                className={secondaryButton}
-              >
+              <Button variant="default" size="sm" type="button" onClick={handleSubmit} disabled={materialSavePending} className={secondaryButton} >
                 <FileText className="h-4 w-4" />
                 Save Draft
-              </button>
+              </Button>
               <Button type="button" variant="default" className={primaryButton} onClick={handleSubmit} disabled={materialSavePending}>
                 <Save className="h-4 w-4" />
                 {saveLabel}
@@ -384,9 +379,9 @@ export function ItemEditorDialog({
             <div>
               <div className="modal-title">{editingMaterial ? 'Edit Item' : 'Add New Material'}</div>
             </div>
-            <button type="button" onClick={onClose} className="item-modal-close" aria-label="Close">
+            <Button variant="default" size="icon-xs" type="button" onClick={onClose} aria-label="Close">
               {'\u00D7'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -395,9 +390,9 @@ export function ItemEditorDialog({
         </div>
 
         <div style={{ position: 'sticky', bottom: 0, zIndex: 10, display: 'flex', gap: '12px', padding: '16px 24px', borderTop: '1px solid #E5E7EB', background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(12px)', flexShrink: 0 }}>
-          <button type="button" className={secondaryButton} style={{ flex: 1 }} onClick={onClose} disabled={materialSavePending}>
+          <Button variant="default" size="sm" type="button" className={secondaryButton} style={{ flex: 1 }} onClick={onClose} disabled={materialSavePending}>
             Cancel
-          </button>
+          </Button>
           <Button type="button" variant="default" className={primaryButton} style={{ flex: 1 }} onClick={handleSubmit} disabled={materialSavePending}>
             {saveLabel}
           </Button>

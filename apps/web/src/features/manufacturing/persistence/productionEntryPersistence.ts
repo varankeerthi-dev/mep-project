@@ -1,13 +1,10 @@
 import { supabase } from '../../../supabase';
 import { ProductionEntry, ProductionEntryItem, ActivityLog } from '../model/types';
 
-export async function fetchProductionEntries(jobCardId?: string, orgId?: string) {
-  let query = supabase.from('production_entries').select('*, production_entry_items(*)');
+export async function fetchProductionEntries(jobCardId?: string, orgId: string) {
+  let query = supabase.from('production_entries').select('*, production_entry_items(*)').eq('organisation_id', orgId);
   if (jobCardId) {
     query = query.eq('job_card_id', jobCardId);
-  }
-  if (orgId) {
-    query = query.eq('organisation_id', orgId);
   }
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;

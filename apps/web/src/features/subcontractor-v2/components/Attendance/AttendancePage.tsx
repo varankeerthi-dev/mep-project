@@ -3,6 +3,7 @@
 // ============================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button } from '../../../../components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../../App';
 import { supabase } from '../../../../supabase';
@@ -629,8 +630,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={() => onNavigate?.('/subcontractors-v2')}
+          <Button variant="default" size="sm" onClick={() => onNavigate?.('/subcontractors-v2')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -647,7 +647,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           >
             <X size={16} />
             Close
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -665,9 +665,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           { id: 'add' as const, label: 'Add Attendance', icon: Plus },
           { id: 'records' as const, label: 'Attendance Records', icon: Calendar },
         ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
+          <Button variant="default" size="sm" key={tab.id} onClick={() => setActiveSubTab(tab.id)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -686,7 +684,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           >
             <tab.icon size={16} />
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -793,8 +791,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
             {showForm ? (
-              <button
-                onClick={() => setShowForm(false)}
+              <Button variant="default" size="sm" onClick={() => setShowForm(false)}
                 style={{
                   width: '36px',
                   height: '36px',
@@ -811,15 +808,14 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                 title="Close form"
               >
                 <X size={16} />
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 onClick={() => setShowForm(true)}
-                className="btn-primary"
-                style={{ width: '100%' }}
+                className="w-full"
               >
                 Add Attendance
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -889,8 +885,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                   Labour Categories
                 </h3>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={() => setShowCategoryManager(!showCategoryManager)}
+                  <Button variant="default" size="sm" onClick={() => setShowCategoryManager(!showCategoryManager)}
                     style={{
                       padding: '6px 12px',
                       borderRadius: '6px',
@@ -903,26 +898,11 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                     }}
                   >
                     Manage
-                  </button>
-                  <button
-                    onClick={addAttendanceEntry}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      background: '#f1f5f9',
-                      color: '#0f172a',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
+                  </Button>
+                  <Button variant="default" size="sm" onClick={addAttendanceEntry} >
                     <Plus size={14} />
                     Add Row
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -946,13 +926,12 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                         fontSize: '12px',
                       }}>
                         <span>{lc.name} (₹{lc.base_rate}/{lc.unit})</span>
-                        <button
-                          onClick={() => handleDeleteCategory(lc.id)}
+                        <Button variant="default" size="sm" onClick={() => handleDeleteCategory(lc.id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: '2px', fontSize: '14px', lineHeight: 1 }}
                           title="Delete category"
                         >
                           ×
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -994,16 +973,9 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                       <option value="hour">Hour</option>
                       <option value="piece">Piece</option>
                     </select>
-                    <button
-                      onClick={handleAddCategory}
-                      style={{
-                        padding: '6px 14px', borderRadius: '6px',
-                        background: '#0f172a', color: '#fff', border: 'none',
-                        cursor: 'pointer', fontSize: '12px', fontWeight: '500',
-                      }}
-                    >
+                    <Button variant="default" size="sm" onClick={handleAddCategory} >
                       Add
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1141,8 +1113,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                       {entry.adjusted_rate.toFixed(2)}
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeAttendanceEntry(index)}
+                  <Button variant="default" size="sm" onClick={() => removeAttendanceEntry(index)}
                     style={{
                       padding: '6px',
                       background: 'transparent',
@@ -1153,7 +1124,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                     }}
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -1204,8 +1175,7 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => {
+              <Button variant="default" size="sm" onClick={() => {
                   setAttendanceEntries([defaultEntry(), defaultEntry()]);
                   setSelectedClient('');
                   setSupervisor('');
@@ -1224,15 +1194,14 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                 }}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSave}
                 disabled={attendanceEntries.length === 0 || createAttendance.isPending}
-                className="btn-primary"
-                style={{ padding: '12px' }}
+                className="w-full"
               >
                 {createAttendance.isPending ? 'Saving...' : 'Save Attendance'}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -1385,10 +1354,10 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
                 </div>
               </div>
               <div className="filter-actions">
-                <button className="download-btn" onClick={downloadPDF}>
+                <Button variant="default" size="sm" onClick={downloadPDF}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   Download PDF
-                </button>
+                </Button>
               </div>
             </div>
           </div>

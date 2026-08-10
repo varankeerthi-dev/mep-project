@@ -123,7 +123,8 @@ export async function createProductionPlanAggregate(
   plan: Omit<ProductionPlan, 'id' | 'plan_no' | 'created_at' | 'updated_at'>,
   items: Omit<ProductionPlanItem, 'id' | 'plan_id' | 'created_at'>[],
   orgId: string,
-  userId: string
+  userId: string,
+  userName: string
 ) {
   const planNo = await generateNextPlanNumber(orgId);
   const createdPlan = await P.insertProductionPlan({
@@ -153,7 +154,7 @@ export async function createProductionPlanAggregate(
       items_count: createdItems.length
     },
     user_id: userId,
-    user_name: 'Plant Manager',
+    user_name: userName,
     organisation_id: orgId
   });
 

@@ -7,6 +7,7 @@ import { OrganisationInfoData } from '../types';
 import { toast } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 export interface OrganisationTabProps {
   onDirtyChange: (isDirty: boolean) => void;
@@ -84,18 +85,12 @@ export const OrganisationTab: React.FC<OrganisationTabProps> = ({
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between text-xs text-amber-900">
           <span>We found unsaved changes from your previous session.</span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={restoreDraft}
-              className="px-2.5 py-1 bg-amber-600 text-white rounded font-medium hover:bg-amber-700 transition-colors"
-            >
+            <Button variant="warning" size="default" onClick={restoreDraft} >
               Restore Draft
-            </button>
-            <button
-              onClick={dismissDraft}
-              className="px-2.5 py-1 bg-zinc-200 text-zinc-700 rounded font-medium hover:bg-zinc-300 transition-colors"
-            >
+            </Button>
+            <Button variant="secondary" size="default" onClick={dismissDraft} >
               Discard
-            </button>
+            </Button>
           </div>
         </div>
       )}

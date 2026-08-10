@@ -1,4 +1,5 @@
 import { useProjectClosureChecklist, useUpdateChecklistGate, type ClosureChecklist } from '../../hooks/useProjectClosureChecklist';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   pending: { bg: '#fef3c7', color: '#d97706', label: 'Pending' },
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ClosureChecklistPanel({ projectId }: Props) {
+  const { formatDate } = useAppDateFormat();
   const { data: checklist, isLoading } = useProjectClosureChecklist(projectId);
   const updateMutation = useUpdateChecklistGate();
 
@@ -67,7 +69,7 @@ export function ClosureChecklistPanel({ projectId }: Props) {
               </select>
               {item.verified_at && (
                 <span className="text-[10px] text-zinc-300 shrink-0">
-                  {new Date(item.verified_at).toLocaleDateString()}
+                  {formatDate(item.verified_at)}
                 </span>
               )}
             </div>

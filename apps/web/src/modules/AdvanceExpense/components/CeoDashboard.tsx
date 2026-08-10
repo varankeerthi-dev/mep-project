@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useAdvanceExpenses, useAeKpis } from '../hooks/useAdvanceExpense';
 import { KpiCards } from './KpiCards';
 import type { AdvanceExpense } from '../types';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 const TABLE_HEADER: React.CSSProperties = {
   padding: '8px 12px', fontSize: '11px', fontWeight: 600, color: '#71717a',
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export const CeoDashboard: React.FC<Props> = ({ onView }) => {
+  const { formatDate } = useAppDateFormat();
   const { organisation } = useAuth();
   const orgId = organisation?.id;
 
@@ -124,7 +126,7 @@ export const CeoDashboard: React.FC<Props> = ({ onView }) => {
                   <td style={CELL}>{g.manager}</td>
                   <td style={{ ...CELL, textAlign: 'right' }}>{g.count}</td>
                   <td style={{ ...CELL, textAlign: 'right', fontWeight: 600 }}>₹{g.total.toLocaleString('en-IN')}</td>
-                  <td style={CELL}>{new Date(g.oldest).toLocaleDateString()}</td>
+                  <td style={CELL}>{formatDate(g.oldest)}</td>
                 </tr>
               ))}
               {groupedByManager.length === 0 && (
@@ -160,7 +162,7 @@ export const CeoDashboard: React.FC<Props> = ({ onView }) => {
                 <td style={{ ...CELL, textAlign: 'right', fontWeight: 600 }}>
                   ₹{Number(r.amount).toLocaleString('en-IN')}
                 </td>
-                <td style={CELL}>{new Date(r.created_at).toLocaleDateString()}</td>
+                <td style={CELL}>{formatDate(r.created_at)}</td>
               </tr>
             ))}
             {pendingRecords.length === 0 && (

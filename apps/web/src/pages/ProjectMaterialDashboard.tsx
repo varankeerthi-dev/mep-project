@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Package, TrendingUp, DollarSign, Download, BarChart3, Filter } from 'lucide-react';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 interface MaterialIntent {
   id: string;
@@ -61,6 +62,7 @@ interface ProjectProps {
 
 export default function ProjectMaterialDashboard({ projectId, organisationId, projectName, isAdmin = false }: ProjectProps) {
   const [activeView, setActiveView] = useState<'summary' | 'supply' | 'usage'>('summary');
+  const { formatDate } = useAppDateFormat();
 
   const { data: intents = [] } = useQuery({
     queryKey: ['materialIntents', projectId],
@@ -196,7 +198,7 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
   const usageData = useMemo(() => {
     // daily_material_usage has: usage_date, item_name, variant_name, quantity_used, unit, activity, remarks
     return logs.map(log => ({
-      date: new Date(log.usage_date || log.created_at).toLocaleDateString(),
+      date: formatDate(log.usage_date || log.created_at),
       item_name: log.item_name,
       variant_name: log.variant_name,
       type: 'Usage' as const,
@@ -205,7 +207,7 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
       supplier: '-',
       dc_number: log.activity || '-',
     }));
-  }, [logs]);
+  }, [logs, formatDate]);
 
   const exportToExcel = async () => {
     const XLSX = await import('xlsx');

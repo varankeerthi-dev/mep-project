@@ -703,7 +703,7 @@ export default function LedgerDashboard() {
                     {!showLedger && (
                       <Button
                         size="sm"
-                        variant="primary"
+                        variant="default"
                         onClick={() => setShowLedger(true)}
                         leftIcon={<Filter size={14} />}
                       >

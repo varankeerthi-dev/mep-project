@@ -17,12 +17,14 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { toast } from 'sonner';
 import type { LocalMinutesItem, MeetingAttendee } from '../types';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 export const MeetingMinutesEditor = memo(function MeetingMinutesEditor({ meetingId }: { meetingId?: string }) {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const id = meetingId || params.id;
   const { user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   
   // Data
   const { data: meeting, isLoading: isLoadingMeeting } = useMeeting(id || '');
@@ -294,7 +296,7 @@ export const MeetingMinutesEditor = memo(function MeetingMinutesEditor({ meeting
             <FileText size={16} className="text-green-600" />
             <p className="text-sm text-green-800">
               These minutes were finalized on{' '}
-              {new Date(meeting.minutes_created_at).toLocaleDateString()} and cannot be edited.
+              {formatDate(meeting.minutes_created_at)} and cannot be edited.
             </p>
           </div>
         )}

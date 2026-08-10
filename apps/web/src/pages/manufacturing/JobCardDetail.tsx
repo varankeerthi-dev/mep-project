@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, RefreshCw, Loader2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, RefreshCw, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import {
   useJobCardDetailQuery,
   useJobCardMaterialsQuery,
@@ -10,6 +11,7 @@ import {
   useIssueMaterialsMutation,
   useReturnMaterialsMutation
 } from '../../features/manufacturing';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 type JobCardDetailProps = {
   jobCardId: string;
@@ -39,6 +41,7 @@ type JobMaterial = {
 
 export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailProps) {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
   const [issueError, setIssueError] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
     return map;
   }, [stockByMaterial]);
 
-  const { data: productionEntries } = useProductionEntriesQuery(jobCardId);
+  const { data: productionEntries } = useProductionEntriesQuery(jobCardId, organisation?.id);
   const { data: warehouses } = useWarehousesQuery(organisation?.id);
 
   const whIds = useMemo(() => {
@@ -186,90 +189,30 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyBetween: 'space-between', position: 'sticky', top: 0, zIndex: 40 }} className="flex justify-between">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={() => onNavigate('/manufacturing/job-cards')} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-            <ArrowLeft size={14} /> Back
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('/manufacturing/job-cards')} leftIcon={<ArrowLeft size={14} />} className="text-gray-500">
+            Back
+          </Button>
           <div style={{ width: '1px', height: '20px', background: '#e5e7eb' }} />
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Job Card Details</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>{jobCard.job_card_no}</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {jobCard.status === 'draft' && (
-            <button
-              onClick={handleIssueClick}
-              disabled={issueMaterials.isPending}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                background: '#185FA5',
-                border: '1px solid #185FA5',
-                color: '#fff',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: issueMaterials.isPending ? 'not-allowed' : 'pointer',
-                opacity: issueMaterials.isPending ? 0.7 : 1,
-                transition: 'all 0.15s'
-              }}
-              onMouseEnter={e => { if (!issueMaterials.isPending) e.currentTarget.style.background = '#0C447C'; }}
-              onMouseLeave={e => { if (!issueMaterials.isPending) e.currentTarget.style.background = '#185FA5'; }}
-            >
-              {issueMaterials.isPending && <Loader2 size={13} className="animate-spin" />}
+            <Button onClick={handleIssueClick} disabled={issueMaterials.isPending} loading={issueMaterials.isPending} loadingText="Issuing...">
               Issue Materials
-            </button>
+            </Button>
           )}
 
           {jobCard.status === 'issued' && (
-            <button
-              onClick={() => onNavigate(`/manufacturing/production/create?jobCard=${jobCard.id}`)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                background: '#185FA5',
-                border: '1px solid #185FA5',
-                color: '#fff',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; }}
-            >
+            <Button onClick={() => onNavigate(`/manufacturing/production/create?jobCard=${jobCard.id}`)}>
               Record Production
-            </button>
+            </Button>
           )}
 
           {(jobCard.status === 'issued' || jobCard.status === 'in_progress') && (
-            <button
-              onClick={() => setShowReturnModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                background: '#fff',
-                border: '1px solid #d1d5db',
-                color: '#374151',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-            >
-              <RotateCcw size={13} />
+            <Button variant="secondary" onClick={() => setShowReturnModal(true)} leftIcon={<RotateCcw size={13} />}>
               Return Materials
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -416,7 +359,7 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
                       <td style={{ padding: '10px 12px', color: '#374151' }}>{pe.operator_name || '—'}</td>
                       <td style={{ padding: '10px 12px', color: '#374151' }}>{pe.machine_name || '—'}</td>
                       <td style={{ padding: '10px 12px', color: '#6b7280' }}>
-                        {pe.created_at ? new Date(pe.created_at).toLocaleDateString() : '—'}
+                        {pe.created_at ? formatDate(pe.created_at) : '—'}
                       </td>
                     </tr>
                   ))
@@ -474,16 +417,10 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
             </div>
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <button onClick={() => setShowReturnModal(false)} disabled={returnMaterials.isPending}
-                style={{ height: '36px', padding: '0 16px', border: '1px solid #e4e4e7', background: '#fff', color: '#52525b', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { if (!returnMaterials.isPending) e.currentTarget.style.background = '#fafafa'; }}>
-                Cancel
-              </button>
-              <button onClick={handleReturnConfirm} disabled={returnMaterials.isPending}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', border: 'none', background: '#185FA5', color: '#fff', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: returnMaterials.isPending ? 'not-allowed' : 'pointer', opacity: returnMaterials.isPending ? 0.6 : 1, transition: 'all 0.15s' }}
-                onMouseEnter={e => { if (!returnMaterials.isPending) e.currentTarget.style.background = '#0c447c'; }}>
-                {returnMaterials.isPending ? 'Saving...' : 'Return Materials'}
-              </button>
+              <Button variant="secondary" onClick={() => setShowReturnModal(false)} disabled={returnMaterials.isPending}>Cancel</Button>
+              <Button onClick={handleReturnConfirm} disabled={returnMaterials.isPending} loading={returnMaterials.isPending} loadingText="Saving...">
+                Return Materials
+              </Button>
             </div>
           </div>
         </div>

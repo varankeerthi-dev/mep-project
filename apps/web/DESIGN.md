@@ -200,64 +200,36 @@ When multiple dropdowns exist in a table (e.g., BOM rows), use:
 
 # Buttons
 
-The button system has three intent levels: **primary**, **secondary**, and **destructive**. All buttons share the same core geometry; only color tokens differ.
+All buttons MUST use the shared component `src/components/ui/button.tsx` (`<Button>`). Do not hand-roll button styles or colors anywhere. The component is token-driven and renders the single, app-wide button language.
 
-## Core tokens (shared by every button)
+Usage:
 
-| Token | Value |
-|---|---|
-| Padding (vertical / horizontal) | `6px` / `12px` (header) — `7px 16px` (modal) |
-| Border | `1px solid <intent-border>` |
-| Border-radius | `6px` (header) — `8px / rounded-lg` (modal) |
-| Font size / weight | `12px` / `500` (header) — `12px` / `600` (modal primary) |
-| Cursor | `pointer` — `not-allowed` when disabled |
-| Disabled opacity | `0.6` |
-| Transition | `all 0.15s` |
-| Layout | `display: 'flex', alignItems: 'center', gap: '4px'` |
+  import { Button } from '@/components/ui/button';
+  <Button variant="default">Save</Button>       // Primary - brand blue #185FA5
+  <Button variant="secondary">Cancel</Button>   // Supporting
+  <Button variant="destructive">Delete</Button>  // Danger
+  <Button variant="success">Approve</Button>     // Positive
+  <Button variant="ghost">More</Button>          // Inline / toolbar
+  <Button size="sm|default|lg|icon" />
+  <Button loading loadingText="Saving">Save</Button>
 
-## Primary (Save / Confirm)
+Variants (intent levels):
 
-Used for the main action in a screen or modal.
+| Variant | Use | Color |
+| `default` | Primary action | brand blue `#185FA5` (hover `#0C447C`) |
+| `secondary` | Supporting action | white / zinc border |
+| `outline` | Utility action | white / zinc border |
+| `ghost` | Inline / toolbar | transparent |
+| `destructive` | Danger | red |
+| `success` | Positive | emerald |
+| `warning` | Attention | amber |
 
-```tsx
-{
-  padding: '6px 14px',
-  background: '#185FA5',      // brand blue
-  border: '1px solid #185FA5',
-  color: '#fff',
-}
-onMouseEnter: background → '#0C447C', borderColor → '#0C447C'
-onMouseLeave: revert
-```
+The primary color is defined by the `--primary` CSS token (set to `#185FA5` in `src/index.css`). Changing it there updates every primary button across the app.
 
-## Paper 2.0 Button Pattern
+Deprecated patterns (DO NOT USE):
 
-Used in header action bars and breadcrumb views (`Requisitions.tsx`, `PurchaseModule.tsx`).
-
-```tsx
-// Neutral / Outline Button (Cancel, Discard)
-<button className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-8">
-  <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
-    Cancel
-  </span>
-</button>
-
-// Outline Action Button with Icon (Save as Draft, Export)
-<button className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-8">
-  <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
-    Save as Draft
-  </span>
-  <Save className="w-4 h-4 text-[#0A0A0A] flex-shrink-0" />
-</button>
-
-// Primary Dark Button (Submit Requisition, Save & Proceed)
-<button className="[font-synthesis:none] items-center flex justify-center px-3.5 py-1.5 rounded-lg gap-1.5 bg-[#0A0A0A] [border-width:0.8px] border-solid border-[#0A0A0A] hover:bg-[#262626] transition-colors cursor-pointer antialiased h-8 shadow-xs">
-  <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-white">
-    Submit Requisition
-  </span>
-  <Send className="w-4 h-4 text-white flex-shrink-0" />
-</button>
-```
+- Paper 2.0 inline buttons (`bg-[#0A0A0A]`, `bg-white border-[#E5E5E5]` hand-rolled classes) - replaced by `<Button variant="default|secondary">`.
+- Hardcoded inline `style={{ background: '#185FA5' }}` buttons - replaced by `<Button variant="default">`.
 
 ---
 

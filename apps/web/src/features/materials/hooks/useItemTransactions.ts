@@ -36,7 +36,7 @@ export function useItemTransactions() {
         challanItemRows,
         auditDbRows,
       ] = await Promise.all([
-        runQuery('item_stock', supabase.from('item_stock').select('id, item_id, company_variant_id, warehouse_id, current_stock, low_stock_level, updated_at').eq('item_id', itemId)),
+        runQuery('item_stock', supabase.from('item_stock').select('id, item_id, company_variant_id, make, warehouse_id, current_stock, low_stock_level, updated_at').eq('item_id', itemId)),
         runQuery('warehouses', supabase.from('warehouses').select('id, warehouse_name, name, warehouse_code')),
         runQuery('company_variants', supabase.from('company_variants').select('id, variant_name')),
         runQuery('material_inward_items', supabase.from('material_inward_items').select('id, inward_id, material_id, quantity, unit, rate, amount, created_at').eq('material_id', itemId).order('created_at', { ascending: false })),
@@ -80,14 +80,17 @@ export function useItemTransactions() {
 
       // Normalize warehouse rows
       const normalizedWarehouseRows = warehouseStockRows
-        .map((row: any) => ({
-          id: row.id,
-          warehouse: warehouseMap[row.warehouse_id] || 'Unassigned',
-          variant: variantMap[row.company_variant_id] || 'Default',
-          current_stock: parseFloat(row.current_stock) || 0,
-          low_stock_level: parseFloat(row.low_stock_level) || 0,
-          updated_at: row.updated_at,
-        }))
+        .map((row: any) => {
+          const variantName = variantMap[row.company_variant_id] || 'Default';
+          return {
+            id: row.id,
+            warehouse: warehouseMap[row.warehouse_id] || 'Unassigned',
+            variant: row.make ? `${variantName} — ${row.make}` : variantName,
+            current_stock: parseFloat(row.current_stock) || 0,
+            low_stock_level: parseFloat(row.low_stock_level) || 0,
+            updated_at: row.updated_at,
+          };
+        })
         .sort((a: any, b: any) => a.warehouse.localeCompare(b.warehouse));
 
       // Normalize adjustments

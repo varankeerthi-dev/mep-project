@@ -179,7 +179,7 @@ export default function EnhancedLogin() {
                 <Button
                   onClick={handleLogin}
                   disabled={loading}
-                  variant="primary"
+                  variant="default"
                   className="flex-1"
                 >
                   {loading ? 'Logging in...' : 'Login'}

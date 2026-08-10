@@ -11,6 +11,7 @@ import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-ut
 import { useAuth } from '../../App';
 import { ArcRateBadge, StandardRateBadge } from '@/components/ArcPricingToggle';
 import { getArcRateFromMap } from '@/lib/arc-pricing';
+import { Button } from '@/components/ui/button';
 
 type InvoiceItemsEditorProps = {
   fields: FieldArrayWithId<InvoiceEditorFormValues, 'items', 'id'>[];
@@ -576,9 +577,7 @@ export function InvoiceItemsEditor({
           Line Items
         </span>
         {mode !== 'lot' && (
-          <button
-            type="button"
-            onClick={() => append(createEmptyItem())}
+          <Button variant="default" size="default" type="button" onClick={() => append(createEmptyItem())}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -595,7 +594,7 @@ export function InvoiceItemsEditor({
           >
             <Plus size={12} />
             Add
-          </button>
+          </Button>
         )}
       </div>
 
@@ -1543,9 +1542,7 @@ export function InvoiceItemsEditor({
                   </td>
                   <td style={{ padding: '4px' }}>
                     {mode !== 'lot' && fields.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
+                      <Button variant="default" size="default" type="button" onClick={() => remove(index)}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1561,7 +1558,7 @@ export function InvoiceItemsEditor({
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         <X size={14} />
-                      </button>
+                      </Button>
                     ) : null}
                   </td>
                 </SortableRow>

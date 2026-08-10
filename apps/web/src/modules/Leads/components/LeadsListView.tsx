@@ -5,6 +5,7 @@ import type { Lead, LeadStatus } from '../../../types/leads';
 import { LeadDetailDrawer } from './LeadDetailDrawer';
 import { LeadCreateForm } from './LeadCreateForm';
 import { Plus, Search, Filter, ChevronDown } from 'lucide-react';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 const STATUS_COLORS: Record<string, string> = {
   'Attempted to Contact': '#F59E0B',
@@ -23,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export const LeadsListView: React.FC = () => {
+  const { formatDate } = useAppDateFormat();
   const { data: leads = [], isLoading } = useLeads();
   const { data: statuses = [] } = useLeadStatuses();
   const { data: industries = [] } = useLeadIndustries();
@@ -230,7 +232,7 @@ export const LeadsListView: React.FC = () => {
                   </td>
                   <td style={{ padding: '10px 12px', fontSize: '12px', color: '#6b7280' }}>{lead.owner_name || 'Unassigned'}</td>
                   <td style={{ padding: '10px 12px', fontSize: '11px', color: '#9ca3af' }}>
-                    {new Date(lead.created_at).toLocaleDateString()}
+                    {formatDate(lead.created_at)}
                   </td>
                 </tr>
               ))}

@@ -3,6 +3,7 @@ import { SearchableItemSelect } from '../../../components/SearchableItemSelect';
 import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell';
 import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
+import { Button } from '../../../components/ui/button';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
 import { ArrowUpDown } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -364,7 +365,7 @@ export function ErectionItemsSection({
                           value={item.description}
                           onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                         />
-                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)} style={{ flexShrink: 0, marginLeft: 8 }}>×</button>
+                        <button type="button" className="btn-delete-v2" onClick={() => removeItem(item.id)} style={{ flexShrink: 0, marginLeft: 8 }}>×</button>
                       </div>
                     </td>
                   </tr>
@@ -404,7 +405,7 @@ export function ErectionItemsSection({
                         <span className="text-right font-bold" style={{ color: '#b45309', whiteSpace: 'nowrap', minWidth: '100px', textAlign: 'right' }}>
                           {formatCurrency(groupAmount)}
                         </span>
-                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        <button type="button" className="btn-delete-v2" onClick={() => removeItem(item.id)}>×</button>
                       </div>
                     </td>
                   </tr>
@@ -419,7 +420,7 @@ export function ErectionItemsSection({
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropOnRow(e, item.id)}
                   onFocus={(e) => {
-                    if ((e.target as HTMLElement).closest('.btn-delete')) return;
+                    if ((e.target as HTMLElement).closest('.btn-delete-v2')) return;
                     if (index === items.length - 1) {
                       addEmptyItemRow();
                     }
@@ -514,7 +515,7 @@ export function ErectionItemsSection({
                       {hoveredItemId === item.id && item.item_id && (
                         <button
                           type="button"
-                          className="btn-x-hover"
+                          className="btn-x-hover-v2"
                           style={{
                             position: 'absolute',
                             top: '2px',
@@ -742,7 +743,7 @@ export function ErectionItemsSection({
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', position: 'relative' }}>
                       <button
                         type="button"
-                        className="btn-move-to"
+                        className="btn-move-to-v2"
                         onClick={() => openMoveToDialog(item.id, itemCountBefore + 1, 'erection')}
                         style={{
                           padding: '2px 6px',
@@ -847,7 +848,7 @@ export function ErectionItemsSection({
 
                       <button 
                         type="button" 
-                        className="btn-delete" 
+                        className="btn-delete-v2" 
                         onClick={() => removeItem(item.id)}
                         style={{ 
                           padding: '2px 6px', 

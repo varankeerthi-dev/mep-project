@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import { supabase } from '../../../supabase';
 import {
   useQCParametersQuery,
@@ -152,7 +153,8 @@ export default function QCInspectionCreate({ onCancel, onSuccess }: QCInspection
       },
       results: resultsPayload,
       orgId: organisation?.id || '',
-      userId: user?.id || ''
+      userId: user?.id || '',
+      userName: user?.name || user?.email || 'Unknown'
     }, {
       onSuccess: () => {
         onSuccess();
@@ -166,12 +168,9 @@ export default function QCInspectionCreate({ onCancel, onSuccess }: QCInspection
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Record QC Inspection</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Select production entry run and log inspection counts</span>
@@ -358,33 +357,16 @@ export default function QCInspectionCreate({ onCancel, onSuccess }: QCInspection
 
             {/* Action buttons */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-              <button
-                type="button"
-                onClick={onCancel}
-                style={{ padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-              <button
+              <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+              <Button
                 type="submit"
                 disabled={createInspection.isPending}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 16px',
-                  background: '#185FA5',
-                  border: '1px solid #185FA5',
-                  color: '#fff',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: createInspection.isPending ? 'not-allowed' : 'pointer',
-                  opacity: createInspection.isPending ? 0.7 : 1
-                }}
+                loading={createInspection.isPending}
+                loadingText="Saving..."
+                leftIcon={<Save size={14} />}
               >
-                <Save size={14} /> {createInspection.isPending ? 'Saving...' : 'Confirm QC Result'}
-              </button>
+                Confirm QC Result
+              </Button>
             </div>
           </>
         )}

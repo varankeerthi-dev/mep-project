@@ -54,6 +54,7 @@ import {
   ShoppingCart,
   Wrench,
 } from 'lucide-react';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
@@ -565,6 +566,7 @@ const styles = `
 `;
 
 export function IssueDetailPage() {
+  const { formatDate } = useAppDateFormat();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -963,7 +965,7 @@ export function IssueDetailPage() {
                               Site Visit by {report.engineer_name || 'Engineer'}
                             </div>
                             <div className="idp-timeline-meta" style={{ marginBottom: '0.5rem' }}>
-                              {report.report_date ? new Date(report.report_date).toLocaleDateString() : 'Unknown date'}
+                              {report.report_date ? formatDate(report.report_date) : 'Unknown date'}
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                               <span className="idp-badge" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: '0.6875rem' }}>
@@ -1034,7 +1036,7 @@ export function IssueDetailPage() {
                               Purchase Order: {po.po_number || 'Draft'}
                             </div>
                             <div className="idp-timeline-meta" style={{ marginBottom: '0.5rem' }}>
-                              Vendor: {(po.vendor as any)?.vendor_name || 'Unknown'} • {po.po_date ? new Date(po.po_date).toLocaleDateString() : 'No date'}
+                              Vendor: {(po.vendor as any)?.vendor_name || 'Unknown'} • {po.po_date ? formatDate(po.po_date) : 'No date'}
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                               <span className="idp-badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontSize: '0.6875rem' }}>
@@ -1056,7 +1058,7 @@ export function IssueDetailPage() {
                               Work Order: {wo.work_order_no || 'Draft'}
                             </div>
                             <div className="idp-timeline-meta" style={{ marginBottom: '0.5rem' }}>
-                              Subcontractor: {(wo.subcontractor as any)?.name || 'Unknown'} • {wo.issue_date ? new Date(wo.issue_date).toLocaleDateString() : 'No date'}
+                              Subcontractor: {(wo.subcontractor as any)?.name || 'Unknown'} • {wo.issue_date ? formatDate(wo.issue_date) : 'No date'}
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                               <span className="idp-badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontSize: '0.6875rem' }}>

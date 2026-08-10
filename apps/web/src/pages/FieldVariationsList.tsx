@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../App';
 import { AlertCircle, CheckCircle, Clock, ShieldAlert, Plus, UserCheck, FileText } from 'lucide-react';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 interface FieldVariationIntent {
   id: string;
@@ -20,6 +21,7 @@ interface FieldVariationIntent {
 
 export const FieldVariationsList: React.FC = () => {
   const { user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [intents, setIntents] = useState<FieldVariationIntent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export const FieldVariationsList: React.FC = () => {
                 {intents.map((intent) => (
                   <tr key={intent.id} className="hover:bg-gray-50/80 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="font-medium">{new Date(intent.created_at).toLocaleDateString()}</div>
+                      <div className="font-medium">{formatDate(intent.created_at)}</div>
                       <div className="text-xs text-gray-500">{intent.site_engineer_name || 'Site Eng'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

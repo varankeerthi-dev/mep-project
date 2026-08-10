@@ -14,6 +14,8 @@ import MaterialConsumptionReport from '../../pages/MaterialConsumptionReport';
 import { getMeetings } from '../../meetings/api/meetings';
 import ProjectTaskListView from '../../components/tasks/ProjectTaskListView';
 import ProjectGantt from '../../components/ProjectGantt';
+import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/ui/skeleton';
 
 const ProjectList = React.lazy(() => import('./ProjectListV2'));
 const CreateProject = React.lazy(() => import('./CreateProjectV2'));
@@ -109,9 +111,7 @@ export default function ProjectsV2() {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
+              <Button variant="default" size="sm" key={tab.id} onClick={() => handleTabChange(tab.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
                   borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
@@ -120,7 +120,7 @@ export default function ProjectsV2() {
               >
                 <Icon size={18} />
                 {tab.label}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -136,9 +136,7 @@ export default function ProjectsV2() {
                   const Icon = subtab.icon;
                   const isActive = materialSubTab === subtab.id;
                   return (
-                    <button
-                      key={subtab.id}
-                      onClick={() => handleMaterialSubTabChange(subtab.id)}
+                    <Button variant="default" size="sm" key={subtab.id} onClick={() => handleMaterialSubTabChange(subtab.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
                         borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
@@ -147,7 +145,7 @@ export default function ProjectsV2() {
                     >
                       <Icon size={18} />
                       {subtab.label}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -223,8 +221,7 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
     return (
       <div style={{ padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-          <button
-            onClick={() => { setSelectedProjectId(null); setSelectedProjectName(''); }}
+          <Button variant="default" size="sm" onClick={() => { setSelectedProjectId(null); setSelectedProjectName(''); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px',
               background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px',
@@ -233,7 +230,7 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
           >
             <ArrowLeft size={14} />
             Back to Projects
-          </button>
+          </Button>
           <h2 style={{ fontSize: '18px', fontWeight: 600 }}>{selectedProjectName}</h2>
         </div>
         <ProjectGantt projectId={selectedProjectId} projectName={selectedProjectName} />
@@ -260,7 +257,7 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
       />
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>Loading projects...</div>
+        <PageSkeleton variant="list" rows={6} />
       ) : filteredProjects.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
           <Calendar size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
@@ -275,9 +272,7 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
             const statusColor = project.status === 'Active' ? '#059669' : project.status === 'Closed' ? '#6b7280' : '#1d4ed8';
 
             return (
-              <button
-                key={project.id}
-                onClick={() => { setSelectedProjectId(project.id); setSelectedProjectName(displayName); }}
+              <Button variant="default" size="sm" key={project.id} onClick={() => { setSelectedProjectId(project.id); setSelectedProjectName(displayName); }}
                 style={{
                   padding: '20px', background: '#fff', border: '1px solid #e5e7eb',
                   borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
@@ -303,7 +298,7 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
                   <LayoutGrid size={14} />
                   View Timeline
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -386,16 +381,14 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button onClick={onBack} style={{ padding: '16px 12px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer' }}>
+          <Button variant="ghost" size="icon-xs" onClick={onBack}>
             <ArrowLeft size={18} />
-          </button>
+          </Button>
           <div style={{ display: 'flex', gap: '4px' }}>
             {MATERIAL_TAB_DEFS.map(tab => {
               const isActive = activeSubTab === tab.id;
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveSubTab(tab.id)}
+                <Button variant="default" size="sm" key={tab.id} onClick={() => setActiveSubTab(tab.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
                     borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
@@ -404,7 +397,7 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
                 >
                   <tab.Icon />
                   {tab.label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -453,34 +446,21 @@ function ProjectMeetings({ projectId, organisationId, projectName }: { projectId
           <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '4px' }}>Project Meetings</h2>
           <p style={{ color: '#6b7280', fontSize: '14px' }}>{projectName}</p>
         </div>
-        <button
-          onClick={handleCreateMeeting}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px',
-            background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '6px',
-            fontSize: '14px', fontWeight: 500, cursor: 'pointer'
-          }}
-        >
+        <Button variant="default" size="sm" onClick={handleCreateMeeting} >
           <Plus size={16} />
           New Meeting
-        </button>
+        </Button>
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>Loading...</div>
+        <PageSkeleton variant="list" rows={4} />
       ) : meetings.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
           <Users size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
           <p style={{ marginBottom: '16px' }}>No meetings scheduled for this project yet.</p>
-          <button
-            onClick={handleCreateMeeting}
-            style={{
-              padding: '10px 16px', background: '#1d4ed8', color: '#fff',
-              border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer'
-            }}
-          >
+          <Button variant="default" size="sm" onClick={handleCreateMeeting} >
             Create First Meeting
-          </button>
+          </Button>
         </div>
       ) : (
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
@@ -509,8 +489,7 @@ function ProjectMeetings({ projectId, organisationId, projectName }: { projectId
                   <td style={{ padding: '12px 16px', fontSize: '14px', color: '#374151', textTransform: 'capitalize' }}>{meeting.meeting_type}</td>
                   <td style={{ padding: '12px 16px' }}>{getStatusBadge(meeting.status, meeting.minutes_status)}</td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    <button
-                      onClick={() => handleViewMinutes(meeting.id)}
+                    <Button variant="default" size="sm" onClick={() => handleViewMinutes(meeting.id)}
                       style={{
                         padding: '6px 12px', background: '#f3f4f6', color: '#374151',
                         border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '13px',
@@ -518,7 +497,7 @@ function ProjectMeetings({ projectId, organisationId, projectName }: { projectId
                       }}
                     >
                       View Minutes
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

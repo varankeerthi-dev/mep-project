@@ -3,6 +3,7 @@ import { SearchableItemSelect } from '../../../components/SearchableItemSelect';
 import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell';
 import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
+import { Button } from '../../../components/ui/button';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
 import { ArrowUpDown } from 'lucide-react';
 
@@ -431,7 +432,7 @@ export function QuotationItemsTable({
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropOnRow(e, item.id)}
                   onFocus={(e) => {
-                    if ((e.target as HTMLElement).closest('.btn-delete')) return;
+                    if ((e.target as HTMLElement).closest('.btn-delete-v2')) return;
                     if (index === items.length - 1) {
                       addEmptyItemRow();
                     }

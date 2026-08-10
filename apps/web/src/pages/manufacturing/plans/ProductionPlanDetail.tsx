@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Play, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '../../../components/ui/button';
 import { fetchStockByMaterials, fetchWarehouses } from '../../../features/manufacturing/persistence';
 import {
   useProductionPlanDetailQuery,
@@ -199,12 +200,9 @@ export default function ProductionPlanDetail({ planId, onCancel }: ProductionPla
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Plan {plan.plan_no}</h1>
@@ -225,25 +223,9 @@ export default function ProductionPlanDetail({ planId, onCancel }: ProductionPla
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6', paddingBottom: '10px', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#111827', margin: 0 }}>Required Product Quantities</h3>
               {selectedItemIds.size > 0 && (
-                <button
-                  onClick={handleBatchSchedule}
-                  disabled={convertMutation.isPending}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    background: '#185FA5',
-                    border: 'none',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Play size={12} /> {convertMutation.isPending ? 'Scheduling...' : `Schedule selected (${selectedItemIds.size})`}
-                </button>
+                <Button size="xs" onClick={handleBatchSchedule} disabled={convertMutation.isPending} loading={convertMutation.isPending} loadingText="Scheduling..." leftIcon={<Play size={12} />}>
+                  {`Schedule selected (${selectedItemIds.size})`}
+                </Button>
               )}
             </div>
 

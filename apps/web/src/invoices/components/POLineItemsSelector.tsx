@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Check, AlertCircle, AlertTriangle } from 'lucide-react';
 import OverbillingReasonPanel, { type OverbillingReasonData } from './OverbillingReasonPanel';
+import { Button } from '@/components/ui/button';
 
 interface POLineItem {
   id: string;
@@ -203,23 +204,9 @@ export default function POLineItemsSelector({
               Select PO Line Items
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-          >
+          <Button variant="default" size="default" onClick={onClose} >
             <X size={16} />
-          </button>
+          </Button>
         </div>
 
         {/* PO Info */}
@@ -524,33 +511,10 @@ export default function POLineItemsSelector({
             display: 'flex',
             gap: '12px'
           }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                backgroundColor: 'white',
-                color: '#374151',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}
-            >
+            <Button variant="default" size="default" onClick={onClose} >
               Cancel
-            </button>
-            <button
-              onClick={handleApply}
-              disabled={selectedItems.size === 0}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                backgroundColor: selectedItems.size > 0 ? '#059669' : '#d1d5db',
+            </Button>
+            <Button variant="default" size="default" onClick={handleApply} disabled={selectedItems.size === 0} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: 'none', borderRadius: '6px', backgroundColor: selectedItems.size > 0 ? '#059669' : '#d1d5db',
                 color: selectedItems.size > 0 ? 'white' : '#9ca3af',
                 fontSize: '14px',
                 fontWeight: 500,
@@ -560,7 +524,7 @@ export default function POLineItemsSelector({
             >
               <Check size={16} />
               Apply Selected Items
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -9,3 +9,4 @@ export {
   GhostButton,
   ImportButton,
 } from './DocumentActionBar';
+export { SummaryFooter } from './SummaryFooter';

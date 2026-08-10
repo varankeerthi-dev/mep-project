@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manufacturing — Machine Board & Tooling Master Motion Simulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(255, 255, 255, 0.04);
+      --bg-card-hover: rgba(255, 255, 255, 0.08);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --border-glass-accent: rgba(99, 102, 241, 0.3);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      
+      --running-green: #10b981;
+      --running-glow: rgba(16, 185, 129, 0.3);
+      --idle-slate: #64748b;
+      --down-red: #f43f5e;
+      --down-glow: rgba(244, 63, 94, 0.4);
+      --setup-amber: #f59e0b;
+      --indigo-brand: #6366f1;
+      --indigo-glow: rgba(99, 102, 241, 0.4);
+
+      --card-padding-left: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+    }
+
+    /* Top Navigation Header */
+    header {
+      padding: 20px 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-glass);
+      background: rgba(9, 13, 22, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .title-group h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border-glass);
+      background: var(--bg-card);
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border-color: transparent;
+      box-shadow: 0 4px 14px var(--indigo-glow);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      box-shadow: 0 6px 20px var(--indigo-glow);
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #fca5a5;
+    }
+    .btn-danger:hover {
+      background: rgba(244, 63, 94, 0.35);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1300px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 28px;
+    }
+
+    /* Stage Steps Indicator Bar */
+    .steps-bar {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step-card.active {
+      border-color: var(--indigo-brand);
+      background: rgba(99, 102, 241, 0.1);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .step-card.active::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--indigo-brand);
+      animation: progressLine 4s linear infinite;
+    }
+
+    @keyframes progressLine {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+
+    .step-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--indigo-brand);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* Left Workshop Floor Grid */
+    .shopfloor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--running-green);
+      box-shadow: 0 0 10px var(--running-green);
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    /* Machine Card Design with 12px Left Padding Rule */
+    .machine-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      position: relative;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    /* Enforced 12px Left Padding on Card Body */
+    .card-body-left-pad {
+      padding-top: 16px;
+      padding-right: 16px;
+      padding-bottom: 16px;
+      padding-left: var(--card-padding-left) !important;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .machine-card.running {
+      border-color: rgba(16, 185, 129, 0.4);
+      box-shadow: 0 0 24px var(--running-glow);
+    }
+
+    .machine-card.breakdown {
+      border-color: rgba(244, 63, 94, 0.5);
+      box-shadow: 0 0 28px var(--down-glow);
+      animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .machine-name {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .machine-spec {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .badge-running {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-idle {
+      background: rgba(100, 116, 139, 0.2);
+      color: #cbd5e1;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    .badge-down {
+      background: rgba(244, 63, 94, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      animation: pulseAlert 1.2s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Tooling sub-box inside Card Body */
+    .tooling-info-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tooling-title {
+      font-weight: 600;
+      color: #818cf8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .tooling-meta {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    /* Active Job Progress Box */
+    .job-progress-box {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .progress-bar-track {
+      height: 6px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #10b981);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    .card-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* Right Simulation & Interactive Control Panel */
+    .sidebar-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-glass);
+      padding-bottom: 10px;
+      color: #f1f5f9;
+    }
+
+    /* Glassmorphic Entry Container Styling Demo (entryform.md) */
+    .entry-container-demo {
+      padding: 12px !important;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      border-radius: 8px;
+      border: 1px solid hsla(210, 10%, 85%, 0.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .entry-container-demo:hover {
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.15);
+    }
+
+    .entry-label-demo {
+      font-size: 12px;
+      font-weight: 500;
+      color: #cbd5e1;
+      text-align: left;
+    }
+
+    .entry-input-demo {
+      width: 100%;
+      height: 40px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 0 12px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .entry-input-demo:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Live Animated Log Stream */
+    .log-stream {
+      background: #05070e;
+      border: 1px solid var(--border-glass);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-entry {
+      color: #94a3b8;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .log-entry.success { color: #34d399; }
+    .log-entry.warn { color: #fbbf24; }
+    .log-entry.danger { color: #fca5a5; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Animated Drawer Modal Simulation */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .drawer-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer-content {
+      width: 420px;
+      height: 100%;
+      background: #0f172a;
+      border-left: 1px solid var(--border-glass);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .drawer-overlay.open .drawer-content {
+      transform: translateX(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="logo-badge">
+      <div class="logo-icon">M</div>
+      <div class="title-group">
+        <h1>Machine Board & Tooling Master</h1>
+        <p>Interactive Motion Architecture Simulation</p>
+      </div>
+    </div>
+    <div class="playback-controls">
+      <button className="btn" id="btn-toggle-auto" onclick="toggleAutoPlay()">
+        <span>▶</span> <span id="auto-text">Auto-Play Tour</span>
+      </button>
+      <button className="btn btn-primary" onclick="triggerShotProduction()">
+        ⚡ Record +500 Shots
+      </button>
+      <button className="btn btn-danger" onclick="toggleBreakdown()">
+        ⚠️ Toggle Downtime
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Stage Step Selector -->
+    <div class="steps-bar">
+      <div class="step-card active" id="step-1" onclick="setStage(1)">
+        <div class="step-num">Stage 01</div>
+        <div class="step-title">Machine Board Grid</div>
+      </div>
+      <div class="step-card" id="step-2" onclick="setStage(2)">
+        <div class="step-num">Stage 02</div>
+        <div class="step-title">Adaptive Plan Drawer</div>
+      </div>
+      <div class="step-card" id="step-3" onclick="setStage(3)">
+        <div class="step-num">Stage 03</div>
+        <div class="step-title">Computed Shot Counter</div>
+      </div>
+      <div class="step-card" id="step-4" onclick="setStage(4)">
+        <div class="step-num">Stage 04</div>
+        <div class="step-title">Glassmorphic Styling</div>
+      </div>
+    </div>
+
+    <!-- Left Shopfloor View -->
+    <div>
+      <div class="shopfloor-header">
+        <div class="section-title">
+          <span class="live-dot"></span> Live Shopfloor Work Centers (250T – 450T)
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted);">
+          Shift: Morning (06:00 – 14:00)
+        </span>
+      </div>
+
+      <div class="cards-grid">
+        <!-- Machine 01 Card -->
+        <div class="machine-card running" id="card-im01">
+          <!-- Card Body with 12px Left Padding Rule -->
+          <div class="card-body-left-pad">
+            <div class="card-header">
+              <div>
+                <div class="machine-name">IM-01 · Arburg 420C</div>
+                <div class="machine-spec">250T Injection Moulding</div>
+              </div>
+              <span class="status-badge badge-running" id="badge-im01">RUNNING</span>
+            </div>
+
+            <!-- Tooling sub box -->
+            <div class="tooling-info-box">
+              <div class="tooling-title">
+                <span>🔧 Cover Plate Mould</span>
+                <span>4 Cavities</span>
+              </div>
+              <div class="tooling-meta">
+                Cycle: 18.5s · Resin: PP Homopolymer
+              </div>
+            </div>
+
+            <!-- Active Job Card box -->
+            <div class="job-progress-box">
+              <div style="display:flex; justify-between; font-weight:600;">
+                <span>📦 Cover Plate XY-123</span>
+                <span style="font-family:monospace; color:#818cf8;">JC-8472</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progress-im01" style="width: 65%;"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);">
+                <span>Shots: <b id="shots-im01" style="color:#fff;">3,250</b> / 5,000</span>
+                <span>Est: ~1.4 hrs remaining</span>
+              </div>
+            </div>
+
+            <!-- Shot counter PM status -->
+            <div style="display:flex; justify-content:space-between; font-size:11px;" id="pm-box-im01">
+              <span style="color:var(--text-muted);">Shots Since PM:</span>
+              <span style="font-weight:600; color:#34d399;" id="pm-shots-text">14,635 / 50,000</span>
+            </div>
+
+            <div class="card-actions">
+              <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="openDowntimeModal()">Breakdown Log</button>
+              <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="openAdaptiveDrawer()">Plan Machine</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Machine 02 Card -->
+        <div class="machine-card" id="card-im02">
+          <div class="card-body-left-pad">
+            <div class="card-header">
+              <div>
+                <div class="machine-name">IM-02 · Windsor 180</div>
+                <div class="machine-spec">180T Injection Moulding</div>
+              </div>
+              <span class="status-badge badge-idle">IDLE</span>
+            </div>
+
+            <div class="tooling-info-box">
+              <div class="tooling-title" style="color: var(--text-muted);">
+                <span>No Tooling Mounted</span>
+              </div>
+              <div class="tooling-meta">Ready for job allocation</div>
+            </div>
+
+            <div style="padding: 16px; border: 1px dashed var(--border-glass); border-radius: 10px; text-align: center; font-size: 11px; color: var(--text-muted);">
+              Available for immediate planning
+            </div>
+
+            <div class="card-actions">
+              <button class="btn" style="padding:4px 10px; font-size:11px;">Breakdown Log</button>
+              <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="openAdaptiveDrawer(false)">Plan Machine</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side Control & Live Simulation Explanation -->
+    <div class="sidebar-panel">
+      
+      <!-- Stage Explanation Box -->
+      <div class="panel-card">
+        <h3 id="stage-heading">Stage 01: Machine Board Status Monitoring</h3>
+        <p id="stage-desc" style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+          Real-time grid showing machine operational states. Downtime logs dynamically override card displays with red alert highlights while maintaining job card state integrity.
+        </p>
+      </div>
+
+      <!-- Glassmorphic Entry Container Demo (entryform.md) -->
+      <div class="panel-card">
+        <h3>Entry Container (entryform.md Spec)</h3>
+        <div class="entry-container-demo">
+          <label class="entry-label-demo">Planned Production Qty (nos)</label>
+          <input type="number" class="entry-input-demo" value="2000" id="demo-qty" oninput="recalcDemoShots()">
+          <span style="font-size:10px; color:#94a3b8;">
+            Auto-calculated shots: <b id="demo-calculated-shots" style="color:#818cf8;">500 shots</b> (2,000 ÷ 4 cavities)
+          </span>
+        </div>
+      </div>
+
+      <!-- Live Event Stream Log -->
+      <div class="panel-card">
+        <h3>Live Event & SQL Query Stream</h3>
+        <div class="log-stream" id="log-stream">
+          <div class="log-entry success">[SYSTEM] Machine Board mounted & listening...</div>
+          <div class="log-entry">[SQL] SELECT * FROM work_centers WHERE organisation_id = 'org_01'</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Adaptive Plan Drawer Simulation -->
+  <div class="drawer-overlay" id="drawer-overlay">
+    <div class="drawer-content">
+      <div>
+        <div style="display:flex; justify-between; align-items:center; border-bottom:1px solid var(--border-glass); padding-bottom:12px; margin-bottom:16px;">
+          <div>
+            <span style="font-size:10px; font-weight:700; color:var(--indigo-brand); text-transform:uppercase;">Adaptive Flow</span>
+            <h2 style="font-size:16px; font-weight:700;">Plan IM-01 (250T)</h2>
+          </div>
+          <button class="btn" onclick="closeDrawer()">✕</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:10px; border-radius:8px; font-size:11px;" id="drawer-tooling-banner">
+            ✅ <b>Cover Plate Mould</b> (4 Cavities) is pre-mounted on machine.
+          </div>
+
+          <div class="entry-container-demo">
+            <label class="entry-label-demo">Select Product / BOM</label>
+            <select class="entry-input-demo" style="background:#0f172a;">
+              <option>Cover Plate XY-123 (BOM-004)</option>
+              <option>Handle AB-456 (BOM-009)</option>
+            </select>
+          </div>
+
+          <div class="entry-container-demo">
+            <label class="entry-label-demo">Running Cavities</label>
+            <input type="number" class="entry-input-demo" value="4">
+          </div>
+
+          <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); padding:10px; border-radius:8px; font-size:11px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-between;"><span>Estimated Shots:</span><b>500 shots</b></div>
+            <div style="display:flex; justify-between;"><span>Cycle Time:</span><b>18.5s</b></div>
+            <div style="display:flex; justify-between; font-weight:700; color:#818cf8; pt-1; border-top:1px solid rgba(255,255,255,0.1);">
+              <span>Est. Duration:</span><span>~2.6 Hours</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="confirmPlan()">
+        Confirm & Generate Job Card
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let currentStage = 1;
+    let autoPlayInterval = null;
+    let currentShots = 3250;
+    let totalShotsPM = 14635;
+    let isDown = false;
+
+    function addLog(msg, type = '') {
+      const stream = document.getElementById('log-stream');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      stream.prepend(entry);
+    }
+
+    function setStage(stage) {
+      currentStage = stage;
+      document.querySelectorAll('.step-card').forEach((el, idx) => {
+        el.classList.toggle('active', idx + 1 === stage);
+      });
+
+      const heading = document.getElementById('stage-heading');
+      const desc = document.getElementById('stage-desc');
+
+      if (stage === 1) {
+        heading.innerText = 'Stage 01: Machine Board Status Monitoring';
+        desc.innerText = 'Real-time shopfloor visibility showing Running 🟢, Idle ⚪, and Breakdown 🔴 states. Downtime logs dynamically override display state.';
+        addLog('SELECT work_centers, current_tooling_id, active_job_card FROM machine_board;');
+      } else if (stage === 2) {
+        heading.innerText = 'Stage 02: Adaptive "Plan This Machine" Drawer';
+        desc.innerText = 'Pre-fills mounted tooling automatically if present. If idle, guides product-first selection and filters compatible toolings.';
+        openAdaptiveDrawer(true);
+        addLog('Triggered Adaptive Plan Drawer flow.');
+      } else if (stage === 3) {
+        heading.innerText = 'Stage 03: Live Computed Shot Counter';
+        desc.innerText = 'No stored DB counter columns. Computed dynamically: SUM(actual_shots) FROM production_entries. Auto-triggers PM alert when limit exceeded.';
+        triggerShotProduction();
+      } else if (stage === 4) {
+        heading.innerText = 'Stage 04: Glassmorphic Container & 12px Card Padding';
+        desc.innerText = 'Enforces 12px left padding on card body content container and glassmorphic inputs (rgba(255,255,255,0.15) backdrop-blur 8px).';
+        addLog('Applied card-body-left-pad and EntryContainer styles.');
+      }
+    }
+
+    function toggleAutoPlay() {
+      const text = document.getElementById('auto-text');
+      if (autoPlayInterval) {
+        clearInterval(autoPlayInterval);
+        autoPlayInterval = null;
+        text.innerText = 'Auto-Play Tour';
+        addLog('Paused auto-play tour.');
+      } else {
+        text.innerText = 'Pause Tour';
+        autoPlayInterval = setInterval(() => {
+          let next = (currentStage % 4) + 1;
+          setStage(next);
+        }, 4000);
+        addLog('Started auto-play tour.');
+      }
+    }
+
+    function triggerShotProduction() {
+      currentShots += 500;
+      totalShotsPM += 500;
+      if (currentShots > 5000) currentShots = 5000;
+
+      const pct = Math.round((currentShots / 5000) * 100);
+      document.getElementById('progress-im01').style.width = `${pct}%`;
+      document.getElementById('shots-im01').innerText = currentShots.toLocaleString();
+      document.getElementById('pm-shots-text').innerText = `${totalShotsPM.toLocaleString()} / 50,000`;
+
+      addLog(`INSERT INTO production_entries (actual_shots: 500) -> Computed total: ${totalShotsPM.toLocaleString()} shots`, 'success');
+      
+      if (totalShotsPM >= 50000) {
+        addLog('⚠️ PM Alert: Tooling has reached 50,000 shots!', 'warn');
+      }
+    }
+
+    function toggleBreakdown() {
+      isDown = !isDown;
+      const card = document.getElementById('card-im01');
+      const badge = document.getElementById('badge-im01');
+
+      if (isDown) {
+        card.className = 'machine-card breakdown';
+        badge.className = 'status-badge badge-down';
+        badge.innerText = 'BREAKDOWN / DOWN';
+        addLog('INSERT INTO machine_downtime (category: breakdown) -> Machine state overridden to BREAKDOWN', 'danger');
+      } else {
+        card.className = 'machine-card running';
+        badge.className = 'status-badge badge-running';
+        badge.innerText = 'RUNNING';
+        addLog('UPDATE machine_downtime (downtime_end: now()) -> Restored to RUNNING state', 'success');
+      }
+    }
+
+    function openAdaptiveDrawer(isMounted = true) {
+      const overlay = document.getElementById('drawer-overlay');
+      const banner = document.getElementById('drawer-tooling-banner');
+      if (isMounted) {
+        banner.innerHTML = '✅ <b>Cover Plate Mould</b> (4 Cavities) is pre-mounted on machine.';
+      } else {
+        banner.innerHTML = 'ℹ️ Machine is idle. Please select Product / BOM first.';
+      }
+      overlay.classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawer-overlay').classList.remove('open');
+    }
+
+    function confirmPlan() {
+      closeDrawer();
+      addLog('INSERT INTO job_cards (tooling_id, running_cavities: 4, planned_shots: 500) -> Job Created', 'success');
+    }
+
+    function openDowntimeModal() {
+      toggleBreakdown();
+    }
+
+    function recalcDemoShots() {
+      const qty = Number(document.getElementById('demo-qty').value) || 0;
+      const shots = Math.ceil(qty / 4);
+      document.getElementById('demo-calculated-shots').innerText = `${shots.toLocaleString()} shots`;
+    }
+  </script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import { CN_TYPE_LABELS } from '../../credit-notes/schemas';
 import type { CreditNote } from '../../credit-notes/types';
 import { useAuth } from '../../App';
 import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
+import { Button } from '@/components/ui/button';
 
 const PAGE_SIZE = 25;
 
@@ -206,7 +207,7 @@ export function CreditNoteListPage() {
       <div className="cnl-page">
         <div style={{ textAlign: 'center', padding: '48px', color: '#dc2626' }}>
           Error loading credit notes: {(error as Error).message}
-          <button onClick={() => refetch()} style={{ marginLeft: '12px', padding: '6px 12px' }}>Retry</button>
+          <Button variant="default" size="sm" onClick={() => refetch()} style={{ marginLeft: '12px', padding: '6px 12px' }}>Retry</Button>
         </div>
       </div>
     );
@@ -216,10 +217,10 @@ export function CreditNoteListPage() {
     <div className="cnl-page">
       <div className="cnl-header">
         <h1 className="cnl-title">Credit Notes</h1>
-        <button className="cnl-btn-primary" onClick={() => navigate('/credit-notes/create')}>
+        <Button variant="default" size="sm" onClick={() => navigate('/credit-notes/create')}>
           <Plus size={16} />
           New Credit Note
-        </button>
+        </Button>
       </div>
 
       <div className="cnl-toolbar">
@@ -232,9 +233,9 @@ export function CreditNoteListPage() {
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           />
           {search && (
-            <button onClick={() => { setSearch(''); setCurrentPage(1); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#a3a3a3' }}>
+            <Button variant="default" size="sm" onClick={() => { setSearch(''); setCurrentPage(1); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#a3a3a3' }}>
               <X size={14} />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -256,10 +257,10 @@ export function CreditNoteListPage() {
         <input className="cnl-date-input" type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }} />
 
         {hasActiveFilters && (
-          <button className="cnl-btn-reset" onClick={resetFilters}>
+          <Button variant="default" size="sm" onClick={resetFilters}>
             <X size={12} />
             Reset
-          </button>
+          </Button>
         )}
       </div>
 
@@ -307,22 +308,19 @@ export function CreditNoteListPage() {
                       <td><CNStatusBadge status={cn.approval_status} /></td>
                       <td>
                         <div className="cnl-actions-cell" onClick={(e) => { e.stopPropagation(); }}>
-                          <button className="cnl-action-btn" title="Preview" onClick={(e) => { e.stopPropagation(); handlePreview(cn as CreditNote); }}>
+                          <Button variant="default" size="icon-xs" title="Preview" onClick={(e) => { e.stopPropagation(); handlePreview(cn as CreditNote); }}>
                             <Eye size={15} />
-                          </button>
-                          <button className="cnl-action-btn" title="Edit" onClick={() => navigate(`/credit-notes/edit?id=${cn.id}`)}>
+                          </Button>
+                          <Button variant="default" size="sm" title="Edit" onClick={() => navigate(`/credit-notes/edit?id=${cn.id}`)}>
                             <Pencil size={15} />
-                          </button>
-                          <button
-                            className="cnl-action-btn delete"
-                            title="Delete"
-                            onClick={(e) => {
+                          </Button>
+                          <Button variant="default" size="icon-xs" title="Delete" onClick={(e) => {
                               e.stopPropagation();
                               setDeleteConfirmId(cn.id);
                             }}
                           >
                             <Trash2 size={15} />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -337,25 +335,22 @@ export function CreditNoteListPage() {
                   Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredNotes.length)} of {filteredNotes.length}
                 </div>
                 <div className="cnl-pagination-buttons">
-                  <button className="cnl-page-btn" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <Button variant="default" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
                     <ChevronLeft size={14} />
-                  </button>
+                  </Button>
                   {pageNumbers.map((pn, idx) =>
                     pn === '...' ? (
                       <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#a3a3a3' }}>…</span>
                     ) : (
-                      <button
-                        key={pn}
-                        className={`cnl-page-btn ${pn === currentPage ? 'active' : ''}`}
-                        onClick={() => setCurrentPage(pn)}
+                      <Button variant="default" size="sm" key={pn} className={`cnl-page-btn ${pn === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(pn)}
                       >
                         {pn}
-                      </button>
+                      </Button>
                     )
                   )}
-                  <button className="cnl-page-btn" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  <Button variant="default" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
                     <ChevronRight size={14} />
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -371,18 +366,16 @@ export function CreditNoteListPage() {
               Are you sure you want to delete this credit note? This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setDeleteConfirmId(null)}
+              <Button variant="default" size="sm" onClick={() => setDeleteConfirmId(null)}
                 style={{ padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '13px', cursor: 'pointer' }}
               >
                 Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirmId)}
+              </Button>
+              <Button variant="default" size="sm" onClick={() => handleDelete(deleteConfirmId)}
                 style={{ padding: '8px 16px', border: 'none', borderRadius: '6px', background: '#dc2626', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -403,8 +396,7 @@ export function CreditNoteListPage() {
                 <span style={{ fontWeight: 600, fontSize: '14px' }}>{previewCN.cn_number} — {previewCN.client?.name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  onClick={() => {
+                <Button variant="default" size="sm" onClick={() => {
                     const items = previewCN.items.map(item => ({
                       description: item.description, hsn: item.hsn_code ?? '—', qty: item.quantity, rate: item.rate, amount: item.total_amount,
                     }));
@@ -423,10 +415,10 @@ export function CreditNoteListPage() {
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: 'pointer' }}
                 >
                   <Download size={14} /> Download
-                </button>
-                <button onClick={closePreview} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
+                </Button>
+                <Button variant="ghost" size="icon-xs" onClick={closePreview}>
                   <XCircle size={20} />
-                </button>
+                </Button>
               </div>
             </div>
             <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Save, RotateCcw, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface SettingsGlobalSaveBarProps {
   hasChanges: boolean;
@@ -34,29 +35,11 @@ export const SettingsGlobalSaveBar: React.FC<SettingsGlobalSaveBarProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onDiscard}
-            disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
-            style={{ fontSize: '12px' }}
-          >
+          <Button variant="secondary" size="xs" type="button" onClick={onDiscard} disabled={isSaving} >
             <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
             Discard Changes
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className="flex items-center gap-1.5 text-white rounded-md font-medium shadow-xs transition-all cursor-pointer disabled:opacity-50"
-            style={{
-              backgroundColor: '#185FA5',
-              padding: '6px 14px',
-              fontSize: '12px',
-              fontWeight: 500,
-              borderRadius: '6px',
-            }}
-            onMouseOver={(e) =>
+          </Button>
+          <Button variant="default" size="default" type="button" onClick={onSave} disabled={isSaving} style={{ backgroundColor: '#185FA5', padding: '6px 14px', fontSize: '12px', fontWeight: 500, borderRadius: '6px', }} onMouseOver={(e) =>
               (e.currentTarget.style.backgroundColor = '#0C447C')
             }
             onMouseOut={(e) =>
@@ -65,7 +48,7 @@ export const SettingsGlobalSaveBar: React.FC<SettingsGlobalSaveBarProps> = ({
           >
             <Save className="w-3.5 h-3.5 text-white" />
             {isSaving ? 'Saving Changes...' : 'Save Changes'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

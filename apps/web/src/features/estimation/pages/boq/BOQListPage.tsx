@@ -5,10 +5,13 @@ import { PermissionGuard } from '../../../../rbac';
 import { useBOQs, useDeleteBOQ } from '../../hooks/useBOQ';
 import type { BOQFilterParams } from '../../api/boq';
 import { BOQ_STATUSES } from '../../constants';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { MoreHorizontal, Plus, Search, FileText, Trash2, Edit } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function BOQListPage() {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -103,24 +106,22 @@ export default function BOQListPage() {
                       {boq.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-500">{boq.date ? new Date(boq.date).toLocaleDateString() : '-'}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-500">{boq.date ? formatDate(boq.date) : '-'}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
                       <PermissionGuard permission="estimation.boq.update">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/estimation/boq/edit?id=${boq.id}`); }}
+                        <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/estimation/boq/edit?id=${boq.id}`); }}
                           className="p-1.5 hover:bg-zinc-100 rounded text-zinc-400 hover:text-zinc-600"
                         >
                           <Edit className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </PermissionGuard>
                       <PermissionGuard permission="estimation.boq.delete">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (confirm('Delete this BOQ?')) deleteBOQ.mutate(boq.id!); }}
+                        <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); if (confirm('Delete this BOQ?')) deleteBOQ.mutate(boq.id!); }}
                           className="p-1.5 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </PermissionGuard>
                     </div>
                   </td>

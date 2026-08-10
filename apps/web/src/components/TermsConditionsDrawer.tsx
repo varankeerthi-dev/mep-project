@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface TermsSection {
   id: string;
@@ -328,25 +329,11 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
           }}>
             Terms & Conditions
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '4px',
-              border: 'none',
-              background: 'transparent',
-              color: '#525252',
-              cursor: 'pointer',
-              borderRadius: '4px',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+          <Button variant="ghost" size="sm" type="button" onClick={onClose} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
             <X size={20} />
-          </button>
+          </Button>
         </div>
 
         <div style={{ padding: '20px' }}>
@@ -449,8 +436,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </div>
-                            <button
-                              onClick={(e) => {
+                            <Button variant="default" size="sm" onClick={(e) => {
                                 e.stopPropagation();
                                 addItem(section.id);
                               }}
@@ -472,7 +458,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
                             >
                               <Plus size={10} />
                               Add Item
-                            </button>
+                            </Button>
                           </div>
                         </div>
                         {expandedSections.has(section.id) && (
@@ -510,8 +496,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
                                       color: '#171717',
                                     }}
                                   />
-                                  <button
-                                    onClick={() => removeItem(section.id, item.id)}
+                                  <Button variant="default" size="sm" onClick={() => removeItem(section.id, item.id)}
                                     style={{
                                       padding: '4px',
                                       border: 'none',
@@ -525,7 +510,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                   >
                                     <Trash2 size={12} />
-                                  </button>
+                                  </Button>
                                 </div>
                               ))}
                             </div>
@@ -547,48 +532,16 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
             paddingTop: '12px',
             borderTop: '1px solid #e5e5e5',
           }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                background: '#fff',
-                color: '#525252',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+            <Button variant="outline" size="sm" type="button" onClick={onClose} style={{ flex: 1, padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff', color: '#525252', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', }} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={saveTermsToQuotation}
-              disabled={saving || !selectedTemplate}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                border: 'none',
-                borderRadius: '4px',
-                background: saving || !selectedTemplate ? '#a3a3a3' : '#171717',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: saving || !selectedTemplate ? 'not-allowed' : 'pointer',
-                opacity: saving || !selectedTemplate ? 0.6 : 1,
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => !saving && selectedTemplate && (e.currentTarget.style.background = '#262626')}
+            </Button>
+            <Button variant="default" size="sm" type="button" onClick={saveTermsToQuotation} disabled={saving || !selectedTemplate} style={{ flex: 1, padding: '8px 12px', border: 'none', borderRadius: '4px', background: saving || !selectedTemplate ? '#a3a3a3' : '#171717', color: '#fff', fontSize: '12px', fontWeight: 500, cursor: saving || !selectedTemplate ? 'not-allowed' : 'pointer', opacity: saving || !selectedTemplate ? 0.6 : 1, transition: 'all 0.15s', }} onMouseEnter={(e) => !saving && selectedTemplate && (e.currentTarget.style.background = '#262626')}
               onMouseLeave={(e) => e.currentTarget.style.background = '#171717'}
             >
               {saving ? 'Saving...' : 'Apply to Quotation'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

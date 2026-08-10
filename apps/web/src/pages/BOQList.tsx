@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchBOQList, deleteBOQ } from '../api';
 import { AppTable } from '../components/ui/AppTable';
+import { Button } from '../components/ui/button';
 
 export default function BOQList() {
   const navigate = useNavigate();
@@ -79,12 +80,12 @@ export default function BOQList() {
       accessorKey: 'actions',
       cell: ({ row }) => (
         <div className="flex gap-2">
-          <button className="btn btn-secondary" onClick={() => navigate(`/boq/create?editId=${row.original.id}`)}>
+          <Button variant="secondary" onClick={() => navigate(`/boq/create?editId=${row.original.id}`)}>
             Edit
-          </button>
-          <button className="btn btn-danger" onClick={() => handleDelete(row.original.id)}>
+          </Button>
+          <Button variant="destructive" onClick={() => handleDelete(row.original.id)}>
             Delete
-          </button>
+          </Button>
         </div>
       ),
       size: 120
@@ -98,9 +99,9 @@ export default function BOQList() {
           <h1 className="page-title" style={{ marginBottom: '4px' }}>BOQ</h1>
           <div className="page-subtitle">All BOQ list with BOQ No & Revision No</div>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/boq/create')}>
+        <Button onClick={() => navigate('/boq/create')}>
           Create BOQ
-        </button>
+        </Button>
       </div>
 
       <div className="card" style={{ padding: '12px' }}>

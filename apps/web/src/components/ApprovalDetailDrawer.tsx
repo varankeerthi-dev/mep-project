@@ -169,7 +169,7 @@ export const ApprovalDetailDrawer: React.FC<ApprovalDetailDrawerProps> = ({
               </Button>
             )}
             {onApprove && (
-              <Button variant="primary" onClick={() => onApprove(approval.id)} className="flex-1 h-10 text-sm font-semibold gap-2">
+              <Button variant="default" onClick={() => onApprove(approval.id)} className="flex-1 h-10 text-sm font-semibold gap-2">
                 <CheckCircle2 className="w-4 h-4" />
                 Approve
               </Button>

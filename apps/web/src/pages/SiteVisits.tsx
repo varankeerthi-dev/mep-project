@@ -50,7 +50,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Card } from '../components/ui/Card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Table as ShadcnTable, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Table, type ColumnDef, type RowAction, type BulkAction, type StatusType } from '../components/table';
 import { Checkbox } from '../components/ui/checkbox';
 import { toast } from '@/lib/logger';
 import { 
@@ -67,6 +68,128 @@ import {
   parseISO,
   isToday
 } from 'date-fns';
+
+// ── Status → StatusType mapping ────────────────────────────────────────────────
+const visitStatusMap: Record<string, StatusType> = {
+  scheduled:  'blue',
+  in_progress: 'warning',
+  completed:  'success',
+  cancelled:  'error',
+  postponed:  'warning',
+  pending:    'neutral',
+  'Location Denied': 'error',
+};
+
+// ── Filter options ─────────────────────────────────────────────────────────────
+const STATUS_FILTER_OPTIONS = [
+  { id: 'all',          label: 'All' },
+  { id: 'scheduled',    label: 'Scheduled' },
+  { id: 'in_progress',  label: 'In Progress' },
+  { id: 'completed',    label: 'Completed' },
+  { id: 'cancelled',    label: 'Cancelled' },
+];
+
+// ── Table Columns ──────────────────────────────────────────────────────────────
+interface SiteVisitRow {
+  id: string;
+  visit_date: string;
+  client_name: string;
+  purpose_of_visit: string;
+  site_address: string;
+  visit_time: string;
+  out_time: string;
+  status: string;
+  engineer: string;
+  visited_by: string;
+  next_step: string;
+  follow_up_date: string;
+  [key: string]: any;
+}
+
+const siteVisitColumns: ColumnDef<SiteVisitRow>[] = [
+  {
+    header: 'Visit ID & Purpose',
+    accessorKey: 'purpose_of_visit',
+    id: 'purpose',
+    type: 'text',
+    align: 'left',
+    secondaryText: (row) => `SV-${row.id?.slice(0, 6).toUpperCase() || '------'}`,
+  },
+  {
+    header: 'Client',
+    accessorKey: 'client_name',
+    id: 'client',
+    type: 'text',
+    align: 'left',
+  },
+  {
+    header: 'Location',
+    accessorKey: 'site_address',
+    id: 'location',
+    type: 'text',
+    align: 'left',
+  },
+  {
+    header: 'Date & Time',
+    accessorKey: 'visit_date',
+    id: 'dateTime',
+    type: 'date',
+    align: 'left',
+    cell: ({ row }) => {
+      const date = row.visit_date ? format(parseISO(row.visit_date), 'dd MMM yyyy') : '--';
+      const time = row.visit_time || '--:--';
+      return (
+        <div className="flex flex-col">
+          <span>{date}</span>
+          <span className="text-[11px] text-zinc-500">{time}</span>
+        </div>
+      );
+    },
+  },
+  {
+    header: 'Status',
+    accessorKey: 'status',
+    id: 'status',
+    type: 'status',
+    align: 'center',
+    statusType: (row) => visitStatusMap[row.status] ?? 'neutral',
+  },
+  {
+    header: 'Assigned To',
+    accessorKey: 'engineer',
+    id: 'assignedTo',
+    type: 'text',
+    align: 'left',
+    cell: ({ row }) => {
+      const name = row.engineer || row.visited_by || '--';
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center text-[10px] font-bold text-zinc-600">
+            {name.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-[13px]">{name}</span>
+        </div>
+      );
+    },
+  },
+  {
+    header: 'Next Step',
+    accessorKey: 'next_step',
+    id: 'nextStep',
+    type: 'text',
+    align: 'left',
+    cell: ({ row }) => (
+      <div>
+        <span>{row.next_step || '--'}</span>
+        {row.follow_up_date && (
+          <div className="text-[10px] text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-full inline-block border border-blue-100">
+            Follow-up: {format(parseISO(row.follow_up_date), 'dd MMM')}
+          </div>
+        )}
+      </div>
+    ),
+  },
+];
 
 const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -177,6 +300,16 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
       </div>
     </div>
   );
+};
+
+// ── Row-level actions ──────────────────────────────────────────────────────────
+const getSiteVisitRowActions = (onView: (v: any) => void, onEdit: (v: any) => void, onDelete: (v: any) => void, onDownloadPdf: (v: any) => void): ((row: SiteVisitRow) => RowAction[]) => {
+  return (row: SiteVisitRow): RowAction[] => [
+    { label: 'View details', icon: <Eye size={14} />, onClick: () => onView(row) },
+    { label: 'Edit visit', icon: <Pencil size={14} />, onClick: () => onEdit(row) },
+    { label: 'Download PDF', icon: <Download size={14} />, onClick: () => onDownloadPdf(row) },
+    { label: 'Delete', icon: <Trash2 size={14} />, variant: 'danger', onClick: () => onDelete(row) },
+  ];
 };
 
 const SiteVisitUpdatesView = ({ visits, onEdit, onDelete, onView }: any) => {
@@ -862,31 +995,7 @@ export function SiteVisits() {
     setStatusFilter(filter);
   }, []);
 
-  const defaultColumns = { date: true, client: true, visitedBy: true, status: true, nextStep: true, actions: true };
-  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('siteVisitColumns');
-      return saved ? JSON.parse(saved) : defaultColumns;
-    } catch {
-      return defaultColumns;
-    }
-  });
-
-  // Debounced localStorage write
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      localStorage.setItem('siteVisitColumns', JSON.stringify(visibleColumns));
-    }, 500);
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [visibleColumns]);
+  const [hiddenColumnIds, setHiddenColumnIds] = useState<string[]>([]);
 
   const queryClient = useQueryClient();
 
@@ -1848,282 +1957,64 @@ export function SiteVisits() {
         {/* Table View */}
         {viewMode === 'table' && (
           <div className="flex flex-col h-full bg-white">
-            
-            {/* Bulk Action Header */}
-            {selectedVisits.length > 0 && (
-              <div className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">
-                <div>
-                  <span className="text-sm font-semibold">{selectedVisits.length} selected</span>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold ml-3">Bulk Actions</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => window.print()}
-                    className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 active:scale-[0.98] transition-all hover:bg-zinc-100"
-                  >
-                    Print
-                  </button>
-                  <button
-                    onClick={handleBatchDelete}
-                    className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 active:scale-[0.98] transition-all hover:bg-red-700"
-                  >
-                    Delete Selected
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Table */}
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full border-separate border-spacing-0">
-                <thead>
-                  <tr className="bg-white">
-                    <th className="sticky top-0 z-10 h-[36px] w-[50px] px-4 text-center align-middle bg-white border-b border-zinc-200">
-                      <Checkbox
-                        checked={selectedVisits.length === paginatedVisits.length && paginatedVisits.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
-                        Visit ID & Purpose
-                      </span>
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
-                        Client
-                      </span>
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
-                        Location
-                      </span>
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
-                        Date & Time
-                      </span>
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
-                        Status
-                      </span>
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-left">
-                      <span className="flex items-center gap-2 hover:text-zinc-900 transition-colors group cursor-pointer">
-                        Assigned To
-                      </span>
-                    </th>
-                    <th className="sticky top-0 z-10 h-[36px] w-[70px] px-6 pl-1 text-center align-middle bg-white border-b border-zinc-200">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedVisits.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-5 py-16 text-center text-sm text-zinc-500">
-                        <div className="flex flex-col items-center gap-2">
-                          <CalendarDays className="w-12 h-12 text-zinc-300" />
-                          <p className="text-zinc-600 font-medium">No site visits found</p>
-                          <p className="text-sm text-zinc-500">Try adjusting your filters or create a new visit</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedVisits.map((visit: any, index: number) => {
-                      const isSelected = selectedVisits.includes(visit.id);
-                      return (
-                        <tr 
-                          key={visit.id} 
-                          className={cn(
-                            "border-t border-zinc-200/70 transition-all",
-                            index % 2 === 0 ? "bg-white" : "bg-zinc-50/30",
-                            isSelected ? "bg-indigo-50/50 border-l-blue-600" : "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm"
-                          )}
-                        >
-                          <td className="px-4 py-[26px] text-center align-middle">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => toggleVisitSelection(visit.id)}
-                            />
-                          </td>
-                          
-                          {/* Visit ID & Purpose */}
-                          <td className="px-6 py-[26px] align-middle">
-                            <div>
-                              <div className="font-semibold text-zinc-900 text-sm">SV-{visit.id.slice(0, 6)}</div>
-                              <div className="text-xs text-zinc-600 max-w-[180px] truncate" title={visit.purpose_of_visit || 'Site Measurement'}>
-                                {visit.purpose_of_visit || 'Site Measurement'}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Client */}
-                          <td className="px-6 py-[26px] align-middle">
-                            <div>
-                              <div className="font-medium text-zinc-900 text-sm">{visit.clients?.client_name || 'N/A'}</div>
-                              <div className="text-xs text-zinc-500">{visit.clients?.phone || ''}</div>
-                            </div>
-                          </td>
-
-                          {/* Location */}
-                          <td className="px-6 py-[26px] align-middle">
-                            <div className="flex items-start gap-2">
-                              <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
-                              <div className="text-sm text-zinc-800 max-w-[220px] truncate" title={visit.site_address || 'No address'}>
-                                {visit.site_address || 'No address'}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Date & Time */}
-                          <td className="px-6 py-[26px] align-middle">
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-2 text-sm text-zinc-900">
-                                <CalendarIcon className="w-4 h-4 text-zinc-400" />
-                                {format(parseISO(visit.visit_date), 'd MMM yyyy')}
-                              </div>
-                              {visit.visit_time && (
-                                <div className="flex items-center gap-2 text-xs text-zinc-600 font-mono">
-                                  <Clock className="w-3 h-3 text-zinc-400" />
-                                  {visit.visit_time}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-6 py-[26px] align-middle">
-                            <div className={cn(
-                              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase",
-                              getStatusBadgeColor(visit.status)
-                            )}>
-                              {getStatusIcon(visit.status)}
-                              <span>{visit.status.replace('_', ' ')}</span>
-                            </div>
-                          </td>
-
-                          {/* Assigned To */}
-                          <td className="px-6 py-[26px] align-middle">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                {(visit.engineer || visit.visited_by || 'U').charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-zinc-900">{visit.engineer || visit.visited_by || 'Unassigned'}</div>
-                                <div className="text-xs text-zinc-500">Engineer</div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Actions */}
-                          <td className="px-6 py-[26px] text-center align-middle">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => setVisitToView(visit)}
-                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors active:scale-[0.98]"
-                              >
-                                <Eye className="w-4 h-4 text-blue-600" />
-                              </button>
-                              <button
-                                onClick={() => handleEditVisit(visit)}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors active:scale-[0.98]"
-                              >
-                                <Edit2 className="w-4 h-4 text-zinc-600" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteVisit(visit)}
-                                className="p-2 hover:bg-red-50 rounded-lg transition-colors active:scale-[0.98]"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
-                <span className="text-sm font-medium text-zinc-600">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredVisits.length)} of {filteredVisits.length} entries
-                </span>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                    disabled={currentPage === 1}
-                    className={cn(
-                      currentPage === 1
-                        ? "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium rounded-md px-3 border border-zinc-100 bg-zinc-50 text-zinc-400 cursor-not-allowed"
-                        : "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium transition-all rounded-md px-3 border border-zinc-200 shadow-sm text-zinc-700 hover:bg-zinc-200 bg-white"
-                    )}
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Prev
-                  </button>
-
-                  {/* Page Numbers */}
-                  <div className="flex items-center gap-1.5">
-                    {[...Array(Math.min(totalPages, 7))].map((_, idx) => {
-                      let pageNum;
-                      if (totalPages <= 7) {
-                        pageNum = idx + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = idx + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 6 + idx;
-                      } else {
-                        pageNum = currentPage - 3 + idx;
-                      }
-
-                      if (pageNum === currentPage - 3 && currentPage > 4) {
-                        return <span key="ellipsis1" className="px-2 text-zinc-400">...</span>;
-                      }
-                      if (pageNum === currentPage + 3 && currentPage < totalPages - 3) {
-                        return <span key="ellipsis2" className="px-2 text-zinc-400">...</span>;
-                      }
-
-                      const isPageActive = pageNum === currentPage;
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={cn(
-                            "h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-all flex items-center justify-center",
-                            isPageActive
-                              ? "bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm font-semibold"
-                              : "text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200"
-                          )}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className={cn(
-                      currentPage === totalPages
-                        ? "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium rounded-md px-3 border border-zinc-100 bg-zinc-50 text-zinc-400 cursor-not-allowed"
-                        : "h-[32px] min-w-[80px] inline-flex items-center justify-center text-sm font-medium transition-all rounded-md px-3 border border-zinc-200 shadow-sm text-zinc-700 hover:bg-zinc-200 bg-white"
-                    )}
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+            {/* Reusable Table Component */}
+            <Table<SiteVisitRow>
+              data={paginatedVisits.map((v: any) => ({
+                ...v,
+                client_name: v.clients?.client_name || '--',
+              }))}
+              columns={siteVisitColumns}
+              loading={isLoadingVisits}
+              page={currentPage}
+              pageSize={itemsPerPage}
+              totalRows={filteredVisits.length}
+              searchable
+              selectable
+              sortable
+              pagination
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => { /* itemsPerPage is const */ }}
+              onSearch={(val) => setSearchQuery(val)}
+              filterOptions={STATUS_FILTER_OPTIONS}
+              selectedFilterId={statusFilter}
+              onFilterSelect={(id) => { setStatusFilter(id); setCurrentPage(1); }}
+              selectedRowIds={new Set(selectedVisits)}
+              onRowSelectChange={(row, checked) => {
+                if (checked) setSelectedVisits(prev => [...prev, row.id]);
+                else setSelectedVisits(prev => prev.filter(id => id !== row.id));
+              }}
+              onSelectAllChange={(checked) => {
+                if (checked) setSelectedVisits(paginatedVisits.map((v: any) => v.id));
+                else setSelectedVisits([]);
+              }}
+              onView={(row) => setVisitToView(row)}
+              rowActions={getSiteVisitRowActions(
+                (v) => setVisitToView(v),
+                handleEditVisit,
+                handleDeleteVisit,
+                downloadVisitPDF
+              )}
+              bulkActions={[
+                {
+                  label: 'Print',
+                  icon: <Download size={14} />,
+                  variant: 'default' as const,
+                  onClick: (rows) => rows.forEach((r: any) => downloadVisitPDF(r)),
+                },
+                {
+                  label: 'Delete',
+                  icon: <Trash2 size={14} />,
+                  variant: 'danger' as const,
+                  onClick: () => handleBatchDelete(),
+                },
+              ]}
+              hiddenColumnIds={hiddenColumnIds}
+              onColumnVisibilityChange={setHiddenColumnIds}
+              mandatoryColumnIds={['purpose', 'client']}
+              emptyTitle="No site visits found"
+              emptySubtitle="Try adjusting your filters or search query."
+            />
+                      </div>
         )}
 
       {/* Delete Confirmation Dialog */}

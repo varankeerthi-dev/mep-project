@@ -14,6 +14,7 @@ import {
   type PendingPhoto,
   type SiteReportPhoto,
 } from '@/hooks/useSiteReportPhotos';
+import { Button } from '@/components/ui/button';
 
 type Mode = 'create' | 'edit' | 'view';
 
@@ -246,14 +247,12 @@ export function SiteReportPhotoUploader({
               {totalCount}/{MAX_PHOTOS} photos · auto-compressed to WebP (max 1600px @ 80%)
             </div>
             {!atLimit && !isBusy && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
+              <Button variant="default" size="sm" type="button" onClick={() => fileInputRef.current?.click()}
                 className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg px-3 py-1.5"
               >
                 <Upload className="w-3.5 h-3.5" />
                 Choose files
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -368,37 +367,20 @@ function PhotoTile({
 
         {editable && (
           <div className="absolute top-1 right-1 flex flex-col gap-0.5">
-            <button
-              type="button"
-              onClick={onDelete}
-              className="w-6 h-6 rounded-md bg-white/90 hover:bg-red-50 text-zinc-600 hover:text-red-600 flex items-center justify-center shadow"
-              title="Delete"
-            >
+            <Button variant="destructive" size="icon-xs" type="button" onClick={onDelete} title="Delete" >
               <Trash2 className="w-3 h-3" />
-            </button>
+            </Button>
           </div>
         )}
 
         {editable && (
           <div className="absolute top-1 left-1 flex flex-col gap-0.5">
-            <button
-              type="button"
-              onClick={onMoveUp}
-              disabled={!canMoveUp}
-              className="w-6 h-6 rounded-md bg-white/90 hover:bg-zinc-50 text-zinc-600 disabled:opacity-30 flex items-center justify-center shadow"
-              title="Move up"
-            >
+            <Button variant="default" size="icon-xs" type="button" onClick={onMoveUp} disabled={!canMoveUp} title="Move up" >
               <ChevronUp className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={onMoveDown}
-              disabled={!canMoveDown}
-              className="w-6 h-6 rounded-md bg-white/90 hover:bg-zinc-50 text-zinc-600 disabled:opacity-30 flex items-center justify-center shadow"
-              title="Move down"
-            >
+            </Button>
+            <Button variant="default" size="icon-xs" type="button" onClick={onMoveDown} disabled={!canMoveDown} title="Move down" >
               <ChevronDown className="w-3 h-3" />
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -421,22 +403,14 @@ function PhotoTile({
                 className="flex-1 text-[11px] border border-zinc-200 rounded-md p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
                 autoFocus
               />
-              <button
-                type="button"
-                onClick={onToggleCaption}
-                className="text-zinc-400 hover:text-zinc-700 mt-0.5"
-              >
+              <Button variant="ghost" size="icon-xs" type="button" onClick={onToggleCaption} >
                 <X className="w-3 h-3" />
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={onToggleCaption}
-              className="w-full text-left text-[11px] text-zinc-500 hover:text-zinc-800 truncate"
-            >
+            <Button variant="ghost" size="icon-xs" type="button" onClick={onToggleCaption} >
               {caption || '+ Add caption'}
-            </button>
+            </Button>
           )}
         </div>
       )}

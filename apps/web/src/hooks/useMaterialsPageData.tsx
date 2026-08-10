@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { memo, useCallback } from 'react';
 import { formatCurrency } from '../utils/formatters';
+import { Button } from '../components/ui/button';
 
 interface MaterialsPageData {
   materials: any[];
@@ -219,11 +220,11 @@ export const MaterialActionsCell = memo(function MaterialActionsCell({
 }) {
   return (
     <div className="item-actions-cell">
-      <button className="btn btn-sm btn-secondary" onClick={() => onEdit(material)}>Edit</button>
-      <button className="btn btn-sm btn-secondary" onClick={() => onToggleActive(material)}>
+      <Button variant="secondary" size="sm" onClick={() => onEdit(material)}>Edit</Button>
+      <Button variant="secondary" size="sm" onClick={() => onToggleActive(material)}>
         {material.is_active ? 'Disable' : 'Enable'}
-      </button>
-      <button className="btn btn-sm btn-secondary" onClick={() => onDelete(material)}>Delete</button>
+      </Button>
+      <Button variant="secondary" size="sm" onClick={() => onDelete(material)}>Delete</Button>
     </div>
   );
 });

@@ -7,6 +7,7 @@ import { useTask, useUpdateTask, useTaskComments, useCreateComment, useTaskAttac
 import type { TaskStatus, TaskPriority, TaskDiscipline } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, DISCIPLINE_CONFIG, TASK_TYPE_CONFIG } from './types';
 import { cn } from '../../lib/utils';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import {
   X,
   Check,
@@ -27,6 +28,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TaskDetailDrawerProps {
   taskId: string | null;
@@ -81,12 +83,9 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-          >
+          <Button variant="secondary" size="icon-xs" onClick={onClose} >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {isLoading ? (
@@ -112,9 +111,7 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
                 { key: 'time' as const, label: 'Time', icon: Timer },
                 { key: 'activity' as const, label: 'Activity', icon: Activity },
               ].map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
+                <Button variant="default" size="sm" key={key} onClick={() => setActiveTab(key)}
                   className={cn(
                     '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[11px] font-medium transition-colors',
                     activeTab === key
@@ -124,7 +121,7 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
                 >
                   <Icon size={12} />
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -336,9 +333,9 @@ function TaskDetailsTab({
               {tag}
             </span>
           ))}
-          <button className="rounded-md border border-dashed border-zinc-200 px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-zinc-300 hover:text-zinc-500">
+          <Button variant="ghost" size="sm">
             + Add
-          </button>
+          </Button>
         </div>
       </Field>
 
@@ -416,13 +413,9 @@ function TaskCommentsTab({
             placeholder="Write a comment..."
             className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-[12px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-400"
           />
-          <button
-            onClick={onComment}
-            disabled={!commentText.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
-          >
+          <Button variant="default" size="icon-xs" onClick={onComment} disabled={!commentText.trim()} >
             <Send size={14} />
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -434,6 +427,7 @@ function TaskCommentsTab({
 // ============================================
 
 function TaskAttachmentsTab({ attachments }: { attachments: any[] }) {
+  const { formatDate } = useAppDateFormat();
   return (
     <div className="px-5 py-4">
       {attachments.length === 0 ? (
@@ -454,12 +448,12 @@ function TaskAttachmentsTab({ attachments }: { attachments: any[] }) {
               <div className="flex-1">
                 <p className="text-[12px] font-medium text-zinc-700">{att.file_name}</p>
                 <p className="text-[10px] text-zinc-400">
-                  {att.file_size ? `${(att.file_size / 1024).toFixed(0)} KB` : ''} · {new Date(att.created_at).toLocaleDateString()}
+                  {att.file_size ? `${(att.file_size / 1024).toFixed(0)} KB` : ''} · {formatDate(att.created_at)}
                 </p>
               </div>
-              <button className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600">
+              <Button variant="secondary" size="icon-xs">
                 <Download size={14} />
-              </button>
+              </Button>
             </div>
           ))}
         </div>

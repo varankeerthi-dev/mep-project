@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { Button } from '../components/ui/button';
 
 export default function PODetails() {
   const navigate = useNavigate();
@@ -69,9 +70,9 @@ export default function PODetails() {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <p>PO not found</p>
-        <button className="btn btn-secondary" onClick={() => navigate('/client-po')}>
+        <Button variant="secondary" onClick={() => navigate('/client-po')}>
           Back to List
-        </button>
+        </Button>
       </div>
     );
   }
@@ -89,9 +90,9 @@ export default function PODetails() {
           <h1 className="page-title">PO Details: {po.po_number}</h1>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-secondary" onClick={() => navigate(`/client-po/create?id=${po.id}`)}>
+          <Button variant="secondary" onClick={() => navigate(`/client-po/create?id=${po.id}`)}>
             Edit PO
-          </button>
+          </Button>
         </div>
       </div>
 

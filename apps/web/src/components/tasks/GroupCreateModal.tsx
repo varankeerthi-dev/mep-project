@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { GroupCreateInput } from './types';
+import { Button } from '@/components/ui/button';
 
 interface GroupCreateModalProps {
   projectId: string;
@@ -68,19 +69,9 @@ export default function GroupCreateModal({
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>
             Create Task List
           </h2>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.375rem',
-              borderRadius: '0.375rem',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#6b7280',
-            }}
-          >
+          <Button variant="ghost" size="default" onClick={onClose} >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {/* Form */}
@@ -186,39 +177,12 @@ export default function GroupCreateModal({
 
           {/* Footer */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '0.625rem 1rem',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                background: '#f3f4f6',
-                color: '#374151',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
+            <Button variant="default" size="default" type="button" onClick={onClose} >
               Cancel
-            </button>
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              disabled={!name.trim() || isLoading}
-              style={{
-                padding: '0.625rem 1.25rem',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                background: name.trim() && !isLoading ? '#2563eb' : '#93c5fd',
-                color: 'white',
-                border: 'none',
-                cursor: name.trim() && !isLoading ? 'pointer' : 'not-allowed',
-              }}
-            >
+            </Button>
+            <Button variant="default" size="default" type="submit" onClick={handleSubmit} disabled={!name.trim() || isLoading} >
               {isLoading ? 'Creating...' : 'Create List'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

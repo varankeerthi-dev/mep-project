@@ -4,6 +4,7 @@ import { getConsolidationDateWise, fetchProjects } from '../api';
 import { format } from 'date-fns';
 import { exportDateWiseConsolidationPDF } from '../utils/pdfExport';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 
 export default function DateWiseConsolidation() {
   const { organisation } = useAuth();
@@ -74,14 +75,14 @@ export default function DateWiseConsolidation() {
           <h1 className="page-title">Date-wise Consolidation</h1>
           <p className="page-subtitle">View delivery challans grouped by date</p>
         </div>
-        <button className="btn btn-primary" onClick={handleExport}>
+        <Button onClick={handleExport}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
           Export PDF
-        </button>
+        </Button>
       </div>
 
       <div className="filter-bar">

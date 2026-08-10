@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 import { useMaterials } from '../hooks/useMaterials';
 import { useProjects } from '../hooks/useProjects';
 import { useWarehouses } from '../hooks/useWarehouses';
@@ -1023,7 +1024,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
                     </td>
                     <td className="delete-cell col-shrink">
                       {!isLocked && items.length > 1 && (
-                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        <Button variant="destructive" size="icon" onClick={() => removeItem(item.id)}>×</Button>
                       )}
                     </td>
                   </tr>
@@ -1046,12 +1047,12 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
           
           {!isLocked && (
             <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-              <button type="button" className="btn btn-secondary" onClick={addItem} style={{ borderRadius: '8px', fontWeight: 500 }}>
+              <Button variant="secondary" onClick={addItem}>
                 + Add Item
-              </button>
-              <button type="button" className="btn btn-primary" onClick={() => setShowItemPicker(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>
+              </Button>
+              <Button onClick={() => setShowItemPicker(true)}>
                 + Add Multiple Items
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -1062,8 +1063,8 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
         </div>
         
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={loading || isLocked}>{loading ? 'Saving...' : isEditing ? 'Update NB-DC' : 'Create NB-DC'}</button>
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={loading || isLocked}>{loading ? 'Saving...' : isEditing ? 'Update NB-DC' : 'Create NB-DC'}</Button>
         </div>
       </form>
     </div>

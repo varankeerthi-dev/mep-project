@@ -1,4 +1,6 @@
 import React from 'react';
+import { Button, ButtonProps } from '../ui/button';
+import { Upload } from 'lucide-react';
 
 interface ActionButton {
   label: string;
@@ -126,149 +128,95 @@ export function DocumentActionBar({
   );
 }
 
-// --- Helper button components for consistent action bar buttons ---
+// --- Helper button components (now wrapping Button v2.1) ---
 
-const baseBtnStyle: React.CSSProperties = {
-  height: '36px',
-  padding: '0 16px',
-  borderRadius: '6px',
-  fontSize: '12px',
-  fontWeight: 500,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '6px',
-  cursor: 'pointer',
-  transition: 'all 0.15s',
-  border: 'none',
-  lineHeight: '36px',
-  whiteSpace: 'nowrap',
-};
+/**
+ * @deprecated Use `<Button variant="default">` directly instead.
+ */
+export function PrimaryButton({
+  onClick,
+  disabled,
+  children,
+  style,
+  type = 'button',
+}: ButtonProps & { style?: React.CSSProperties }) {
+  return (
+    <Button
+      variant="default"
+      onClick={onClick}
+      disabled={disabled}
+      style={style}
+      type={type}
+    >
+      {children}
+    </Button>
+  );
+}
 
-interface BtnProps {
+/**
+ * @deprecated Use `<Button variant="secondary">` directly instead.
+ */
+export function SecondaryButton({
+  onClick,
+  disabled,
+  children,
+  style,
+  type = 'button',
+}: ButtonProps & { style?: React.CSSProperties }) {
+  return (
+    <Button
+      variant="secondary"
+      onClick={onClick}
+      disabled={disabled}
+      style={style}
+      type={type}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/**
+ * @deprecated Use `<Button variant="ghost">` directly instead.
+ */
+export function GhostButton({
+  onClick,
+  disabled,
+  children,
+  style,
+  type = 'button',
+}: ButtonProps & { style?: React.CSSProperties }) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={onClick}
+      disabled={disabled}
+      style={style}
+      type={type}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/**
+ * @deprecated Use `<Button variant="outline" leftIcon={<Upload />}>Import PDF/Image</Button>` directly instead.
+ */
+export function ImportButton({
+  onClick,
+  disabled,
+}: {
   onClick: () => void;
   disabled?: boolean;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-  type?: 'button' | 'submit';
-}
-
-export function PrimaryButton({ onClick, disabled, children, style }: BtnProps) {
+}) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       onClick={onClick}
       disabled={disabled}
-      style={{
-        ...baseBtnStyle,
-        background: '#185FA5',
-        border: '1px solid #185FA5',
-        color: '#fff',
-        opacity: disabled ? 0.6 : 1,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        ...style,
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = '#0C447C';
-          e.currentTarget.style.borderColor = '#0C447C';
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = '#185FA5';
-        e.currentTarget.style.borderColor = '#185FA5';
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-export function SecondaryButton({ onClick, disabled, children, style }: BtnProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        ...baseBtnStyle,
-        background: '#fff',
-        border: '1px solid #d4d4d4',
-        color: '#525252',
-        opacity: disabled ? 0.5 : 1,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        ...style,
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = '#f5f5f5';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = '#fff';
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-export function GhostButton({ onClick, disabled, children, style }: BtnProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        ...baseBtnStyle,
-        background: 'transparent',
-        border: 'none',
-        color: '#525252',
-        opacity: disabled ? 0.5 : 1,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        ...style,
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.color = '#18181b';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = '#525252';
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-export function ImportButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        height: '36px',
-        padding: '0 12px',
-        background: '#eef2ff',
-        border: '1px solid #c7d2fe',
-        color: '#4338ca',
-        borderRadius: '6px',
-        fontSize: '12px',
-        fontWeight: 600,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '6px',
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        lineHeight: '36px',
-        whiteSpace: 'nowrap',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = '#e0e7ff';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = '#eef2ff';
-      }}
+      leftIcon={<Upload />}
     >
       Import PDF/Image
-    </button>
+    </Button>
   );
 }

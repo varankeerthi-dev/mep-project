@@ -269,7 +269,7 @@ export function UnitTab() {
         footer={
           <>
             <Button variant="secondary" onClick={resetForm} style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 500 }}>Cancel</Button>
-            <Button variant="primary" onClick={handleSubmit} disabled={saveMutation.isPending} style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, background: '#185FA5', border: '1px solid #185FA5', color: '#fff' }}>{editingUnit ? 'Update' : 'Save'}</Button>
+            <Button variant="default" onClick={handleSubmit} disabled={saveMutation.isPending} style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, background: '#185FA5', border: '1px solid #185FA5', color: '#fff' }}>{editingUnit ? 'Update' : 'Save'}</Button>
           </>
         }
       >

@@ -66,29 +66,23 @@ export function ItemsToolbar({
 
         {/* Category filter */}
         <div className="relative" data-dropdown="category">
-          <button
-            onClick={onToggleCategoryDropdown}
-            className="flex items-center gap-2 h-9 px-3 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm text-zinc-700 transition-colors"
-          >
+          <Button variant="secondary" size="sm" onClick={onToggleCategoryDropdown} >
             <Package className="w-4 h-4" />
             <span>{categoryFilter === 'All' ? 'All Categories' : categoryFilter}</span>
-          </button>
+          </Button>
           {showCategoryDropdown && (
             <div className="absolute top-full left-0 mt-1 z-20 w-56 bg-white border border-zinc-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-              <button
-                onClick={() => { onCategoryChange('All'); onToggleCategoryDropdown(); }}
+              <Button variant="default" size="default" onClick={() => { onCategoryChange('All'); onToggleCategoryDropdown(); }}
                 className={`w-full text-left px-4 py-2 text-sm hover:bg-zinc-50 ${categoryFilter === 'All' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-zinc-700'}`}
               >
                 All Categories
-              </button>
+              </Button>
               {categoryOptions.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => { onCategoryChange(cat); onToggleCategoryDropdown(); }}
+                <Button variant="default" size="default" key={cat} onClick={() => { onCategoryChange(cat); onToggleCategoryDropdown(); }}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-zinc-50 ${categoryFilter === cat ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-zinc-700'}`}
                 >
                   {cat}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -126,8 +120,7 @@ export function ItemsToolbar({
 
         {/* Three-dot More menu */}
         <div ref={moreRef} className="relative">
-          <button
-            onClick={() => setShowMore(!showMore)}
+          <Button variant="default" size="default" onClick={() => setShowMore(!showMore)}
             className={`flex items-center h-8 px-2 rounded-lg border text-xs transition-colors ${
               showMore
                 ? 'border-indigo-300 bg-indigo-50 text-indigo-600'
@@ -135,27 +128,24 @@ export function ItemsToolbar({
             }`}
           >
             <MoreHorizontal className="w-4 h-4" />
-          </button>
+          </Button>
           {showMore && (
             <div className="absolute top-full right-0 mt-1 z-50 bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[180px]">
-              <button
-                onClick={() => { onBulkPrice(); setShowMore(false); }}
+              <Button variant="default" size="default" onClick={() => { onBulkPrice(); setShowMore(false); }}
                 className="w-full text-left px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
               >
                 <Tag className="w-3.5 h-3.5" /> Bulk Price Update
-              </button>
-              <button
-                onClick={() => { onBulkImport(); setShowMore(false); }}
+              </Button>
+              <Button variant="default" size="default" onClick={() => { onBulkImport(); setShowMore(false); }}
                 className="w-full text-left px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
               >
                 <Upload className="w-3.5 h-3.5" /> Bulk Import
-              </button>
-              <button
-                onClick={() => { onExcelEdit(); setShowMore(false); }}
+              </Button>
+              <Button variant="default" size="default" onClick={() => { onExcelEdit(); setShowMore(false); }}
                 className="w-full text-left px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" /> Excel Edit
-              </button>
+              </Button>
             </div>
           )}
         </div>

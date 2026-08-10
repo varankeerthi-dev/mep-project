@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { ShieldAlert, AlertCircle, Plus, Calendar, FileText, CheckCircle2 } from 'lucide-react';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 interface VendorDisputeLog {
   id: string;
@@ -19,6 +20,7 @@ interface VendorDisputeLog {
 }
 
 export const VendorDisputesLog: React.FC = () => {
+  const { formatDate } = useAppDateFormat();
   const [logs, setLogs] = useState<VendorDisputeLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +159,7 @@ export const VendorDisputesLog: React.FC = () => {
                       {log.commissioning_date ? (
                         <span className="inline-flex items-center text-xs text-gray-700">
                           <Calendar className="w-3.5 h-3.5 mr-1 text-purple-600" />
-                          {new Date(log.commissioning_date).toLocaleDateString()}
+                          {formatDate(log.commissioning_date)}
                         </span>
                       ) : (
                         <span className="text-xs text-amber-600">Pending Certificate</span>

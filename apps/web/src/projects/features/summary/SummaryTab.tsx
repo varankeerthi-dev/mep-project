@@ -4,6 +4,7 @@ import { supabase } from '../../../supabase';
 import { PermissionGuard } from '../../../rbac';
 import { ScopeEditor } from '../../../components/projects/ScopeEditor';
 import { ClosureChecklistPanel } from '../../../components/projects/ClosureChecklistPanel';
+import { Button } from '@/components/ui/button';
 
 interface SummaryTabProps {
   selectedProject: any;
@@ -198,49 +199,15 @@ export function SummaryTab({
         {/* Download Certificate Button */}
         {Number(selectedProject.completion_percentage) === 100 &&
           ['Execution Completed', 'Closed', 'Financially Closed'].includes(selectedProject.status || '') && (
-            <button
-              className="pl-btn"
-              style={{
-                background: '#10b981',
-                color: '#ffffff',
-                border: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.375rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.375rem',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-              }}
-              onClick={() => downloadCompletionCertificate(selectedProject)}
+            <Button variant="default" size="default" style={{ background: '#10b981', color: '#ffffff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }} onClick={() => downloadCompletionCertificate(selectedProject)}
             >
               <Download size={14} />
               Download Completion Certificate
-            </button>
+            </Button>
         )}
 
         {/* Schedule AMC Visit Button */}
-        <button
-          className="pl-btn"
-          disabled={!selectedProject.client_id}
-          title={!selectedProject.client_id ? "This project has no client linked" : "Schedule AMC / Maintenance visit"}
-          style={{
-            background: selectedProject.client_id ? 'var(--pl-primary, #3b82f6)' : '#e2e8f0',
-            color: selectedProject.client_id ? '#ffffff' : '#94a3b8',
-            border: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            padding: '0.5rem 1rem',
-            borderRadius: '0.375rem',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            cursor: selectedProject.client_id ? 'pointer' : 'not-allowed',
-            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-          }}
-          onClick={() => {
+        <Button variant="default" size="default" disabled={!selectedProject.client_id} title={!selectedProject.client_id ? "This project has no client linked" : "Schedule AMC / Maintenance visit"} style={{ background: selectedProject.client_id ? 'var(--pl-primary, #3b82f6)' : '#e2e8f0', color: selectedProject.client_id ? '#ffffff' : '#94a3b8', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: selectedProject.client_id ? 'pointer' : 'not-allowed', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }} onClick={() => {
             if (selectedProject.client_id) {
               navigate(`/site-visits?scheduleNew=true&projectId=${selectedProject.id}&clientId=${selectedProject.client_id}`);
             }
@@ -248,7 +215,7 @@ export function SummaryTab({
         >
           <Calendar size={14} />
           Schedule AMC / Maintenance Visit
-        </button>
+        </Button>
       </div>
 
       <div className="pl-summary-grid">

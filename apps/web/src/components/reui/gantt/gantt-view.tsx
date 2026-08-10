@@ -2734,7 +2734,7 @@ const GanttTreeRow = memo(function GanttTreeRow({
               {row.isGroup ? (
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="sm"
                   aria-expanded={!row.collapsed}
                   aria-label={row.resource.title}
                   className={cn(

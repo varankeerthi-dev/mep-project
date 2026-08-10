@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, Edit3, Save, X, GripVertical, FileDown, FileSp
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { openSansRegular, openSansBold } from '../../../../fonts/openSans';
+import { Button } from '@/components/ui/button';
 
 const calcRow = (rate: any, discountPercent: any, quantity: any) => {
   const r = parseFloat(rate) || 0;
@@ -226,9 +227,9 @@ export default function BOQDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/estimation/boq')} className="p-1.5 hover:bg-zinc-100 rounded">
+          <Button variant="default" size="sm" onClick={() => navigate('/estimation/boq')} className="p-1.5 hover:bg-zinc-100 rounded">
             <ArrowLeft className="h-5 w-5 text-zinc-600" />
-          </button>
+          </Button>
           <div>
             <h1 className="text-xl font-semibold text-zinc-800">{boq.boq_no}</h1>
             {boq.title && <p className="text-sm text-zinc-500">{boq.title}</p>}
@@ -236,25 +237,25 @@ export default function BOQDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <button onClick={() => setShowExportMenu(!showExportMenu)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
+            <Button variant="default" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
               <FileDown className="h-4 w-4" /> Export
-            </button>
+            </Button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 min-w-[160px]">
-                <button onClick={exportToPDF} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
+                <Button variant="default" size="sm" onClick={exportToPDF}>
                   <FileSpreadsheet className="h-4 w-4" /> Export to PDF
-                </button>
-                <button onClick={exportToExcel} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
+                </Button>
+                <Button variant="default" size="sm" onClick={exportToExcel}>
                   <Table className="h-4 w-4" /> Export to Excel
-                </button>
+                </Button>
               </div>
             )}
           </div>
           <PermissionGuard permission="estimation.boq.update">
-            <button onClick={() => navigate(`/estimation/boq/edit?id=${id}`)}
+            <Button variant="default" size="sm" onClick={() => navigate(`/estimation/boq/edit?id=${id}`)}
               className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
               Edit
-            </button>
+            </Button>
           </PermissionGuard>
         </div>
       </div>
@@ -284,9 +285,9 @@ export default function BOQDetailPage() {
                       <div className="flex items-center gap-2 flex-1">
                         <input value={editSectionName} onChange={(e) => setEditSectionName(e.target.value)}
                           className="flex-1 px-2 py-1 text-sm border border-zinc-300 rounded" autoFocus />
-                        <button onClick={() => { updateSection.mutate({ id: section.id!, input: { name: editSectionName } }); setEditingSection(null); }}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded"><Save className="h-4 w-4" /></button>
-                        <button onClick={() => setEditingSection(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded"><X className="h-4 w-4" /></button>
+                        <Button variant="default" size="sm" onClick={() => { updateSection.mutate({ id: section.id!, input: { name: editSectionName } }); setEditingSection(null); }}
+                          className="p-1 text-green-600 hover:bg-green-50 rounded"><Save className="h-4 w-4" /></Button>
+                        <Button variant="default" size="sm" onClick={() => setEditingSection(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded"><X className="h-4 w-4" /></Button>
                       </div>
                     ) : (
                       <>
@@ -297,10 +298,10 @@ export default function BOQDetailPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <PermissionGuard permission="estimation.boq.update">
-                      <button onClick={() => { setEditingSection(section.id!); setEditSectionName(section.name); }}
-                        className="p-1.5 hover:bg-zinc-100 rounded text-zinc-400 hover:text-zinc-600"><Edit3 className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm('Delete this section and its items?')) deleteSection.mutate({ id: section.id!, boqId: id! }); }}
-                        className="p-1.5 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <Button variant="default" size="sm" onClick={() => { setEditingSection(section.id!); setEditSectionName(section.name); }}
+                        className="p-1.5 hover:bg-zinc-100 rounded text-zinc-400 hover:text-zinc-600"><Edit3 className="h-3.5 w-3.5" /></Button>
+                      <Button variant="default" size="sm" onClick={() => { if (confirm('Delete this section and its items?')) deleteSection.mutate({ id: section.id!, boqId: id! }); }}
+                        className="p-1.5 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></Button>
                     </PermissionGuard>
                   </div>
                 </div>
@@ -363,8 +364,8 @@ export default function BOQDetailPage() {
                                   </td>
                                   <td className="px-3 py-1.5">
                                     <div className="flex items-center gap-1">
-                                      <button onClick={() => saveEditItem(item.id!, section.id!)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Save className="h-3.5 w-3.5" /></button>
-                                      <button onClick={() => setEditingItem(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded"><X className="h-3.5 w-3.5" /></button>
+                                      <Button variant="default" size="sm" onClick={() => saveEditItem(item.id!, section.id!)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Save className="h-3.5 w-3.5" /></Button>
+                                      <Button variant="default" size="sm" onClick={() => setEditingItem(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded"><X className="h-3.5 w-3.5" /></Button>
                                     </div>
                                   </td>
                                 </>
@@ -381,9 +382,9 @@ export default function BOQDetailPage() {
                                   <td className="px-3 py-1.5">
                                     <PermissionGuard permission="estimation.boq.update">
                                       <div className="flex items-center gap-1">
-                                        <button onClick={() => startEditItem(item)} className="p-1 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100"><Edit3 className="h-3.5 w-3.5" /></button>
-                                        <button onClick={() => { if (confirm('Delete this item?')) deleteItem.mutate({ id: item.id!, sectionId: section.id! }); }}
-                                          className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100"><Trash2 className="h-3.5 w-3.5" /></button>
+                                        <Button variant="default" size="sm" onClick={() => startEditItem(item)} className="p-1 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100"><Edit3 className="h-3.5 w-3.5" /></Button>
+                                        <Button variant="default" size="sm" onClick={() => { if (confirm('Delete this item?')) deleteItem.mutate({ id: item.id!, sectionId: section.id! }); }}
+                                          className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100"><Trash2 className="h-3.5 w-3.5" /></Button>
                                       </div>
                                     </PermissionGuard>
                                   </td>
@@ -412,8 +413,8 @@ export default function BOQDetailPage() {
                     <input value={newItemDesc[section.id!] || ''} onChange={(e) => setNewItemDesc({ ...newItemDesc, [section.id!]: e.target.value })}
                       placeholder="Add item description..." className="flex-1 px-2 py-1 text-sm border border-transparent focus:border-zinc-300 rounded focus:outline-none"
                       onKeyDown={(e) => { if (e.key === 'Enter') handleAddItem(section.id!); }} />
-                    <button onClick={() => handleAddItem(section.id!)} disabled={!newItemDesc[section.id!]?.trim()}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30"><Plus className="h-4 w-4" /></button>
+                    <Button variant="default" size="sm" onClick={() => handleAddItem(section.id!)} disabled={!newItemDesc[section.id!]?.trim()}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-30"><Plus className="h-4 w-4" /></Button>
                   </div>
                 </PermissionGuard>
               </div>
@@ -426,10 +427,9 @@ export default function BOQDetailPage() {
               <input value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)}
                 placeholder="New section name..." className="flex-1 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAddSection(); }} />
-              <button onClick={handleAddSection} disabled={!newSectionName.trim()}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <Button variant="default" size="sm" onClick={handleAddSection} disabled={!newSectionName.trim()}>
                 <Plus className="h-4 w-4" /> Add Section
-              </button>
+              </Button>
             </div>
           </PermissionGuard>
 

@@ -60,6 +60,7 @@ import {
   FolderPlus,
   Clock,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TaskListViewProps {
   projectId?: string;
@@ -237,24 +238,20 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
         <div className="flex items-center gap-2 px-4 py-2">
           {/* New Task */}
           {can('tasks.create') && (
-            <button
-              onClick={() => setShowQuickAdd('__top__')}
+            <Button variant="default" size="sm" onClick={() => setShowQuickAdd('__top__')}
               className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-700"
             >
               <Plus size={14} />
               New Task
-            </button>
+            </Button>
           )}
 
           {/* New Group */}
           {can('tasks.create') && (
-            <button
-              onClick={handleCreateGroup}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
+            <Button variant="secondary" size="sm" onClick={handleCreateGroup} >
               <FolderPlus size={14} />
               New Group
-            </button>
+            </Button>
           )}
 
           <div className="h-5 w-px bg-zinc-200" />
@@ -272,8 +269,7 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
           </div>
 
           {/* Filter */}
-          <button
-            onClick={() => setShowFilterPanel(!showFilterPanel)}
+          <Button variant="default" size="sm" onClick={() => setShowFilterPanel(!showFilterPanel)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors',
               Object.keys(activeFilters).length > 0
@@ -288,27 +284,24 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
                 {Object.keys(activeFilters).length}
               </span>
             )}
-          </button>
+          </Button>
 
           {/* Column Visibility */}
           <div className="relative">
-            <button
-              onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+            <Button variant="default" size="sm" onClick={() => setShowColumnDropdown(!showColumnDropdown)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
             >
               <Columns size={14} />
               Columns
               <ChevronDown size={12} />
-            </button>
+            </Button>
             {showColumnDropdown && (
               <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg">
                 <p className="mb-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   Toggle Columns
                 </p>
                 {Object.entries(col).map(([key, cfg]) => (
-                  <button
-                    key={key}
-                    onClick={() => toggleColumn(key)}
+                  <Button variant="default" size="sm" key={key} onClick={() => toggleColumn(key)}
                     className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[12px] text-zinc-700 transition-colors hover:bg-zinc-50"
                   >
                     <div
@@ -320,7 +313,7 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
                       {cfg.visible && <Check size={10} className="text-white" />}
                     </div>
                     <span className="capitalize">{key.replace(/_/g, ' ')}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -359,42 +352,33 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
                 </select>
               )}
               {bulkValue && (
-                <button
-                  onClick={handleBulkAction}
-                  className="rounded bg-blue-600 px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-blue-700"
-                >
+                <Button variant="default" size="sm" onClick={handleBulkAction} >
                   Apply
-                </button>
+                </Button>
               )}
-              <button
-                onClick={() => { setSelectedTaskIds(new Set()); setBulkAction(null); setBulkValue(''); }}
+              <Button variant="default" size="sm" onClick={() => { setSelectedTaskIds(new Set()); setBulkAction(null); setBulkValue(''); }}
                 className="rounded px-1.5 py-0.5 text-[11px] text-blue-600 hover:bg-blue-100"
               >
                 Cancel
-              </button>
+              </Button>
               <div className="h-4 w-px bg-blue-200" />
-              <button
-                onClick={() => setBulkAssignMode('assign')}
+              <Button variant="default" size="sm" onClick={() => setBulkAssignMode('assign')}
                 className="rounded bg-blue-600 px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-blue-700"
               >
                 Assign...
-              </button>
-              <button
-                onClick={() => setBulkAssignMode('unassign')}
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setBulkAssignMode('unassign')}
                 className="rounded border border-blue-200 bg-white px-2.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-50"
               >
                 Unassign...
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Export */}
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-          >
+          <Button variant="secondary" size="sm" onClick={handleExportCSV} >
             Export CSV
-          </button>
+          </Button>
 
           {/* Task count */}
           <span className="text-[11px] text-zinc-400">
@@ -452,12 +436,11 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
               />
               <div className="flex-1" />
               {Object.keys(activeFilters).length > 0 && (
-                <button
-                  onClick={() => setActiveFilters({})}
+                <Button variant="default" size="sm" onClick={() => setActiveFilters({})}
                   className="text-[11px] font-medium text-zinc-500 hover:text-zinc-700"
                 >
                   Clear all
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -504,13 +487,12 @@ export default function TaskListView({ projectId, organisationId }: TaskListView
             <Layout size={32} className="text-zinc-200" />
             <p className="text-sm font-medium text-zinc-400">No tasks yet</p>
             {can('tasks.create') && (
-              <button
-                onClick={() => setShowQuickAdd('__top__')}
+              <Button variant="default" size="sm" onClick={() => setShowQuickAdd('__top__')}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-[12px] font-semibold text-white hover:bg-blue-700"
               >
                 <Plus size={14} />
                 Add first task
-              </button>
+              </Button>
             )}
           </div>
         ) : (
@@ -662,10 +644,7 @@ function TaskGroupSection({
   return (
     <div>
       {/* Group Header */}
-      <button
-        onClick={onToggle}
-        className="group flex w-full items-center border-b border-zinc-100 bg-zinc-50/50 px-2 py-2 text-left transition-colors hover:bg-zinc-100"
-      >
+      <Button variant="secondary" size="icon-xs" onClick={onToggle} >
         <div className="flex w-8 shrink-0 items-center justify-center">
           {isExpanded ? (
             <ChevronDown size={14} className="text-zinc-400" />
@@ -683,7 +662,7 @@ function TaskGroupSection({
         <span className="ml-2 text-[10px] font-medium text-zinc-400">
           ({tasks.length})
         </span>
-      </button>
+      </Button>
 
       {/* Tasks */}
       {isExpanded &&
@@ -716,13 +695,10 @@ function TaskGroupSection({
 
       {/* Add task button */}
       {isExpanded && canEdit && !showQuickAdd && (
-        <button
-          onClick={onQuickAdd}
-          className="flex w-full items-center gap-2 border-b border-zinc-50 px-10 py-1.5 text-[11px] font-medium text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
-        >
+        <Button variant="ghost" size="sm" onClick={onQuickAdd} >
           <Plus size={12} />
           Add task
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -1011,20 +987,18 @@ function TaskRow({
       {/* Actions */}
       <div className="w-16 shrink-0 px-1 py-2.5 flex items-center justify-center gap-0.5">
         {/* Timer button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onQuickLog(task.id); }}
+        <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onQuickLog(task.id); }}
           className="rounded p-1 text-zinc-300 opacity-0 transition-colors hover:bg-blue-50 hover:text-blue-500 group-hover:opacity-100"
           title="Log time"
         >
           <Clock size={12} />
-        </button>
+        </Button>
         {canDelete && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+          <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
             className="rounded p-1 text-zinc-300 opacity-0 transition-colors hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
           >
             <Trash2 size={12} />
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -1088,19 +1062,12 @@ function QuickAddRow({
         </div>
       )}
       <div className="flex items-center gap-1 px-2">
-        <button
-          onClick={onAdd}
-          disabled={!value.trim()}
-          className="rounded bg-blue-600 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
-        >
+        <Button variant="default" size="sm" onClick={onAdd} disabled={!value.trim()} >
           Add
-        </button>
-        <button
-          onClick={onCancel}
-          className="rounded px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100"
-        >
+        </Button>
+        <Button variant="secondary" size="icon-xs" onClick={onCancel} >
           <X size={14} />
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1129,8 +1096,7 @@ function FilterChip({
 
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
+      <Button variant="default" size="sm" onClick={() => setOpen(!open)}
         className={cn(
           'inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors',
           values.length > 0
@@ -1145,15 +1111,13 @@ function FilterChip({
             {values.length}
           </span>
         )}
-      </button>
+      </Button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-zinc-200 bg-white p-1.5 shadow-lg">
             {options.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => toggle(opt.value)}
+              <Button variant="default" size="sm" key={opt.value} onClick={() => toggle(opt.value)}
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-[11px] text-zinc-700 transition-colors hover:bg-zinc-50"
               >
                 <div
@@ -1165,7 +1129,7 @@ function FilterChip({
                   {values.includes(opt.value) && <Check size={8} className="text-white" />}
                 </div>
                 {opt.label}
-              </button>
+              </Button>
             ))}
           </div>
         </>

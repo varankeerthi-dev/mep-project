@@ -2,6 +2,7 @@ import type { Material, MaterialUnit } from '../entities/Material';
 import type { MaterialEditorFormData } from '../aggregates/MaterialEditor';
 import type { VariantPricingRow } from '../aggregates/MaterialPricing';
 import type { WarehouseStockMap, WarehouseStockEntry } from '../aggregates/WarehouseStock';
+import { buildStockKey } from '../aggregates/WarehouseStock';
 import type { VendorMappingRow } from '../aggregates/VendorMapping';
 import type { ClientMappingRow } from '../aggregates/ClientMapping';
 import type { MaterialEditorFormData as FormData } from '../aggregates/MaterialEditor';
@@ -94,13 +95,13 @@ export function materialToEditor(
 /** Build warehouse stock map from stock records */
 export function buildWarehouseStockMap(
   materialId: string,
-  stock: { item_id: string; warehouse_id: string; company_variant_id: string | null; current_stock: number }[]
+  stock: { item_id: string; warehouse_id: string; company_variant_id: string | null; make?: string | null; current_stock: number }[]
 ): WarehouseStockMap {
   const stockMap: WarehouseStockMap = {};
   const itemRecords = stock.filter((s) => s.item_id === materialId);
   itemRecords.forEach((record) => {
     const vId = record.company_variant_id || 'no_variant';
-    stockMap[`${record.warehouse_id}_${vId}`] = {
+    stockMap[buildStockKey(record.warehouse_id, record.company_variant_id, record.make)] = {
       exclude: false,
       current_stock: record.current_stock || 0,
     };

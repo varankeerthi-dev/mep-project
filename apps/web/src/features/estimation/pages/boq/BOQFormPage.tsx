@@ -25,6 +25,7 @@ import {
 import type { BOQHeaderInput, BOQSectionInput, BOQItemInput } from '../../model';
 import { BOQ_STATUSES } from '../../constants';
 import { withTimeout } from '../../../../utils/queryTimeout';
+import { Button } from '@/components/ui/button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -988,48 +989,43 @@ export default function BOQFormPage() {
       {/* Header Bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-zinc-100 rounded">
+          <Button variant="default" size="sm" onClick={() => navigate(-1)} className="p-1.5 hover:bg-zinc-100 rounded">
             <ArrowLeft className="h-5 w-5 text-zinc-600" />
-          </button>
+          </Button>
           <h1 className="text-xl font-semibold text-zinc-800">{isEdit ? 'Edit BOQ' : 'New BOQ'}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowColumnPanel(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
+          <Button variant="default" size="sm" onClick={() => setShowColumnPanel(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
             <Settings className="h-4 w-4" /> Columns
-          </button>
+          </Button>
           <div className="relative">
-            <button onClick={() => setShowExportMenu(!showExportMenu)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
+            <Button variant="default" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
               <FileDown className="h-4 w-4" /> Export
-            </button>
+            </Button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 min-w-[160px]">
-                <button onClick={exportToPDF} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
+                <Button variant="default" size="sm" onClick={exportToPDF}>
                   <FileSpreadsheet className="h-4 w-4" /> Export to PDF
-                </button>
-                <button onClick={exportToExcel} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
+                </Button>
+                <Button variant="default" size="sm" onClick={exportToExcel}>
                   <Table className="h-4 w-4" /> Export to Excel
-                </button>
-                <button onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
+                </Button>
+                <Button variant="default" size="sm" onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
                   <Settings className="h-4 w-4" /> Export Settings
-                </button>
+                </Button>
               </div>
             )}
           </div>
-          <button
-            onClick={() => { const sel: Record<string, boolean> = {}; sections.forEach((s) => { sel[s.id] = true; }); setSelectedSheets(sel); setShowStockCheckModal(true); }}
+          <Button variant="default" size="sm" onClick={() => { const sel: Record<string, boolean> = {}; sections.forEach((s) => { sel[s.id] = true; }); setSelectedSheets(sel); setShowStockCheckModal(true); }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
           >
             Stock Check
-          </button>
+          </Button>
           <PermissionGuard permission="estimation.boq.update">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
-            >
+            <Button variant="default" size="icon-xs" onClick={handleSave} disabled={isSaving} >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {isSaving ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
           </PermissionGuard>
         </div>
       </div>
@@ -1144,7 +1140,7 @@ export default function BOQFormPage() {
         {/* Section Tabs */}
         <div className="mb-3 flex items-center gap-2">
           <PermissionGuard permission="estimation.boq.update">
-            <button onClick={() => {
+            <Button variant="default" size="sm" onClick={() => {
               if (activeSection) {
                 const list = [...currentItems];
                 const newRow: LocalItem = {
@@ -1157,7 +1153,7 @@ export default function BOQFormPage() {
               }
             }} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs border border-zinc-300 rounded hover:bg-zinc-50">
               <Plus className="h-3.5 w-3.5" /> Add Row
-            </button>
+            </Button>
           </PermissionGuard>
           <div className="flex items-center gap-1 ml-auto bg-zinc-100 border border-zinc-200 rounded p-1">
             {sections.map((section) => (
@@ -1181,22 +1177,22 @@ export default function BOQFormPage() {
                     }}
                     autoFocus className="w-28 px-1.5 py-0.5 text-xs border border-zinc-400 rounded" />
                 ) : (
-                  <button onClick={() => activeSectionId === section.id ? (setEditingSectionId(section.id), setEditingSectionName(section.name)) : setActiveSectionId(section.id)}
+                  <Button variant="default" size="sm" onClick={() => activeSectionId === section.id ? (setEditingSectionId(section.id), setEditingSectionName(section.name)) : setActiveSectionId(section.id)}
                     className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded ${activeSectionId === section.id ? 'bg-white text-zinc-800 shadow-sm border border-zinc-300' : 'text-zinc-600 hover:text-zinc-800 border border-transparent'}`}
                   >
                     <Sheet className="h-3 w-3" /> {section.name}
-                  </button>
+                  </Button>
                 )}
                 {sections.length > 1 && (
-                  <button onClick={() => deleteSection(section.id)} className="p-0.5 text-zinc-400 hover:text-red-500 ml-0.5">
+                  <Button variant="default" size="sm" onClick={() => deleteSection(section.id)} className="p-0.5 text-zinc-400 hover:text-red-500 ml-0.5">
                     <X className="h-3 w-3" />
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
-            <button onClick={addNewSection} className="p-1 text-zinc-500 hover:text-zinc-700">
+            <Button variant="ghost" size="icon-xs" onClick={addNewSection}>
               <Plus className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -1261,13 +1257,13 @@ export default function BOQFormPage() {
                             {col.key === 'rowControl' && (
                               <div className="flex items-center gap-0.5">
                                 <span className="text-zinc-300 cursor-grab"><GripVertical className="h-3 w-3" /></span>
-                                <button onClick={() => deleteRow(virtualRow.index)} className="p-0.5 text-zinc-400 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                                <Button variant="default" size="sm" onClick={() => deleteRow(virtualRow.index)} className="p-0.5 text-zinc-400 hover:text-red-500"><Trash2 className="h-3 w-3" /></Button>
                               </div>
                             )}
                             {col.key === 'sno' && (
                               <div className="flex items-center gap-0.5 px-1">
                                 <span className="text-zinc-600">{isRowEmpty ? '' : sno}</span>
-                                <button onClick={() => insertRow(virtualRow.index)} className="p-0.5 text-zinc-400 hover:text-blue-500 ml-auto"><Plus className="h-2.5 w-2.5" /></button>
+                                <Button variant="default" size="sm" onClick={() => insertRow(virtualRow.index)} className="p-0.5 text-zinc-400 hover:text-blue-500 ml-auto"><Plus className="h-2.5 w-2.5" /></Button>
                               </div>
                             )}
                             {col.key === 'description' && (
@@ -1420,7 +1416,7 @@ export default function BOQFormPage() {
           <div className="bg-white rounded-lg p-5 w-80 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-semibold">Adjust Columns</h3>
-              <button onClick={() => setShowColumnPanel(false)} className="p-1 text-zinc-400 hover:text-zinc-600"><X className="h-5 w-5" /></button>
+              <Button variant="default" size="sm" onClick={() => setShowColumnPanel(false)} className="p-1 text-zinc-400 hover:text-zinc-600"><X className="h-5 w-5" /></Button>
             </div>
             <div className="space-y-2">
               {columnSettings.filter((c) => !['rowControl', 'sno', 'rateAfterDiscount', 'totalAmount'].includes(c.key)).map((col) => (
@@ -1439,7 +1435,7 @@ export default function BOQFormPage() {
           <div className="bg-white rounded-lg p-5 w-[520px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-semibold">Export Settings</h3>
-              <button onClick={() => setShowExportSettings(false)} className="p-1 text-zinc-400 hover:text-zinc-600"><X className="h-5 w-5" /></button>
+              <Button variant="default" size="sm" onClick={() => setShowExportSettings(false)} className="p-1 text-zinc-400 hover:text-zinc-600"><X className="h-5 w-5" /></Button>
             </div>
             <div className="mb-4">
               <div className="font-medium text-sm mb-2">Columns</div>
@@ -1473,11 +1469,11 @@ export default function BOQFormPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => {
+              <Button variant="default" size="sm" onClick={() => {
                 if (form.boq_no) localStorage.setItem(`boq_export_${form.boq_no}`, JSON.stringify({ columns: exportColumns, sheets: exportSheets, orientation: exportOrientation }));
                 setShowExportSettings(false);
-              }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save As Default</button>
-              <button onClick={() => setShowExportSettings(false)} className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">Close</button>
+              }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save As Default</Button>
+              <Button variant="default" size="sm" onClick={() => setShowExportSettings(false)} className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">Close</Button>
             </div>
           </div>
         </div>
@@ -1495,14 +1491,14 @@ export default function BOQFormPage() {
               </label>
             ))}
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowDiscountApplyModal(false)} className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">Cancel</button>
-              <button onClick={() => {
+              <Button variant="default" size="sm" onClick={() => setShowDiscountApplyModal(false)} className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">Cancel</Button>
+              <Button variant="default" size="sm" onClick={() => {
                 const { variantId, discount, prevDiscount } = pendingDiscountChange;
                 setBoqVariantDiscounts((p) => ({ ...p, [variantId]: discount }));
                 applyVariantDiscountToRows(variantId, discount, discountApplyMode);
                 setShowDiscountApplyModal(false);
                 setPendingDiscountChange(null);
-              }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</button>
+              }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</Button>
             </div>
           </div>
         </div>
@@ -1528,11 +1524,11 @@ export default function BOQFormPage() {
               );
             })}
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowStockCheckModal(false)} className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">Cancel</button>
-              <button onClick={handleLaunchStockCheck} disabled={launchingStockCheck || Object.values(selectedSheets).every((v) => !v)}
+              <Button variant="default" size="sm" onClick={() => setShowStockCheckModal(false)} className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">Cancel</Button>
+              <Button variant="default" size="sm" onClick={handleLaunchStockCheck} disabled={launchingStockCheck || Object.values(selectedSheets).every((v) => !v)}
                 className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 disabled:opacity-50">
                 {launchingStockCheck ? 'Creating...' : 'Launch Stock Check'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

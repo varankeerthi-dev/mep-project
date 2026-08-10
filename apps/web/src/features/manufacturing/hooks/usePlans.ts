@@ -55,14 +55,16 @@ export function useCreateProductionPlanMutation() {
       plan,
       items,
       orgId,
-      userId
+      userId,
+      userName,
     }: {
       plan: Omit<ProductionPlan, 'id' | 'plan_no' | 'created_at' | 'updated_at'>;
       items: Omit<ProductionPlanItem, 'id' | 'plan_id' | 'created_at'>[];
       orgId: string;
       userId: string;
+      userName: string;
     }) => {
-      return R.createProductionPlanAggregate(plan, items, orgId, userId);
+      return R.createProductionPlanAggregate(plan, items, orgId, userId, userName);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['production-plans', data.plan.organisation_id] });

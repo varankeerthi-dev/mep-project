@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
 
 export interface SettingToggleProps {
   label?: string;
@@ -34,12 +35,7 @@ export const SettingToggle: React.FC<SettingToggleProps> = ({
           )}
         </div>
       )}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
+      <Button variant="ghost" size="default" type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => !disabled && onChange(!checked)}
         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
           disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
@@ -53,7 +49,7 @@ export const SettingToggle: React.FC<SettingToggleProps> = ({
           }`}
           style={{ marginTop: '2px' }}
         />
-      </button>
+      </Button>
     </div>
   );
 };

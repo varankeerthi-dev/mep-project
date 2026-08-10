@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../supabase';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useMaterialsPageData } from '../../../hooks/useMaterialsPageData';
-import { useUnits } from '../../../hooks/useUnits';
+import { supabase } from '@/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMaterialsPageData } from '@/hooks/useMaterialsPageData';
+import { useUnits } from '@/hooks/useUnits';
 import { useMaterialForm } from '../hooks/useMaterialForm';
 import { ItemEditorDialog } from '../components/editor/ItemEditorDialog';
 import { checkVariantRecords } from '../persistence/materialsPersistence';

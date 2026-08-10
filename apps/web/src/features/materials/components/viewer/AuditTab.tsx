@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { AuditTxnRow } from '../../model/aggregates';
+import { Button } from '@/components/ui/button';
 
 interface AuditTabProps {
   rows: AuditTxnRow[];
@@ -28,8 +29,7 @@ function AuditEntry({ entry }: { entry: AuditTxnRow }) {
 
   return (
     <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
+      <Button variant="default" size="default" onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -46,7 +46,7 @@ function AuditEntry({ entry }: { entry: AuditTxnRow }) {
           <span className="text-xs text-zinc-400 truncate max-w-[300px]">{entry.notes}</span>
           {expanded ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
         </div>
-      </button>
+      </Button>
       {expanded && entry.changes.length > 0 && (
         <div className="px-4 pb-3 space-y-1">
           {entry.changes.map((change, i) => (

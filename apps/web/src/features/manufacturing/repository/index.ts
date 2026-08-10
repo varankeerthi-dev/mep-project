@@ -5,3 +5,4 @@ export * from './dispatchRepository';
 export * from './qcRepository';
 export * from './storesRepository';
 export * from './planRepository';
+export * from './procurement/procurementRepository';

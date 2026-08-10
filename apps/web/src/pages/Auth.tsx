@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TrendingUp, Target, FileText, Boxes, Briefcase, Clock, Bot, ShoppingCart, Calculator, ArrowLeft, Lightbulb, Eye, EyeOff } from 'lucide-react'
+import { Button } from '../components/ui/button'
 import { z } from 'zod'
 import { supabase, signInWithEmail, signUp, signInWithGoogle, sendVerificationEmail, resetPassword, getCurrentUser, onAuthStateChange } from '../supabase'
 import { sendOnboardingSuccessEmail } from '../utils/emailService'
@@ -424,25 +425,15 @@ export function Login({ onLogin }: LoginProps) {
               <div style={{ marginTop: '4px' }}>
                 {resendLoginMessage ? (
                   <span style={{ fontSize: '12px', color: '#12b76a', fontWeight: 600 }}>{resendLoginMessage}</span>
-                ) : (
-                  <button
+                ) : (              <Button 
                     type="button"
+                    variant="destructive"
+                    size="sm"
                     onClick={handleResendLoginVerification}
                     disabled={resendLoginLoading}
-                    style={{
-                      background: '#ffffff',
-                      border: '1px solid #d92d20',
-                      borderRadius: '8px',
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: '#d92d20',
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                    }}
                   >
                     {resendLoginLoading ? 'Sending...' : 'Resend Verification Email'}
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
@@ -477,14 +468,14 @@ export function Login({ onLogin }: LoginProps) {
             <p style={{ color: 'var(--gray-600)', fontSize: '14px', marginBottom: '24px', textAlign: 'center' }}>
               Enter your email and we'll send you a reset link.
             </p>
-            <button 
+            <Button 
               onClick={handleForgotPassword} 
               disabled={loading}
-              className="btn btn-primary btn-block"
+              fullWidth
               style={{ marginBottom: '16px' }}
             >
               {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
+            </Button>
             <button 
               onClick={() => setShowForgot(false)}
               style={{
@@ -587,15 +578,13 @@ export function Login({ onLogin }: LoginProps) {
                     </button>
                   </div>
                 )}
-              </div>
-              
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="btn btn-primary btn-block"
-              >
+              </div>              <Button 
+              type="submit" 
+              disabled={loading}
+              fullWidth
+            >
                 {loading ? 'Signing in...' : 'Continue'}
-              </button>
+              </Button>
             </form>
             
             <div style={{
@@ -609,10 +598,11 @@ export function Login({ onLogin }: LoginProps) {
               <div style={{ flex: 1, height: '1px', background: 'var(--gray-200)' }} />
             </div>
             
-            <button 
+            <Button 
+              variant="secondary"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="btn btn-secondary btn-block"
+              fullWidth
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -627,7 +617,7 @@ export function Login({ onLogin }: LoginProps) {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
               Continue with Google
-            </button>
+            </Button>
 
             <div className="auth-footer" style={{ marginTop: '20px' }}>
               <p>
@@ -1035,9 +1025,9 @@ export function Signup({ onSignup }: SignupProps) {
             )}
           </div>
           
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+          <Button type="submit" fullWidth disabled={loading}>
             {loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
+          </Button>
         </form>
         
         <div className="auth-footer">
@@ -1092,7 +1082,7 @@ export function AuthCallback({ onAuth }: AuthCallbackProps) {
             <h1>Authentication Failed</h1>
             <p>{error}</p>
           </div>
-          <button onClick={() => navigate('/login')} className="btn btn-primary btn-block">Back to Login</button>
+          <Button onClick={() => navigate('/login')} fullWidth>Back to Login</Button>
         </div>
       </div>
     )
@@ -1166,18 +1156,18 @@ export function SelectOrganisation({ organisations, onSelect, onCreateNew }: Sel
             />
           </div>
           
-          <button 
+          <Button 
             onClick={handleCreate} 
-            className="btn btn-primary btn-block"
+            fullWidth
             disabled={loading}
           >
             {loading ? 'Creating...' : 'Create Organisation'}
-          </button>
+          </Button>
           
           <div className="auth-footer">
-            <button onClick={() => setShowCreate(false)} className="btn btn-link">
+            <Button variant="link" onClick={() => setShowCreate(false)}>
               Back to organisations
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -1195,12 +1185,12 @@ export function SelectOrganisation({ organisations, onSelect, onCreateNew }: Sel
         {organisations.length === 0 ? (
           <div>
             <p>You don't have any organisations yet.</p>
-            <button 
+            <Button 
               onClick={() => setShowCreate(true)} 
-              className="btn btn-primary btn-block"
+              fullWidth
             >
               Create New Organisation
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="org-list">
@@ -1220,12 +1210,13 @@ export function SelectOrganisation({ organisations, onSelect, onCreateNew }: Sel
               </button>
             ))}
             
-            <button 
+            <Button 
+              variant="secondary"
               onClick={() => setShowCreate(true)} 
-              className="btn btn-secondary btn-block"
+              fullWidth
             >
               + Create New Organisation
-            </button>
+            </Button>
           </div>
         )}
       </div>

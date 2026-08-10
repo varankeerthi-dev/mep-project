@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
+import { formatAppDate } from '@/lib/dateFormat';
 import {
   NeedsAttentionItemV2,
   LiveNowSiteCheckInV2,
@@ -196,7 +197,7 @@ export const useOpenSalesOrdersV2 = () => {
         id: po.id,
         client: po.client?.client_name || 'Unknown Client',
         orderNo: po.po_number,
-        orderDate: new Date(po.created_at).toLocaleDateString(),
+        orderDate: formatAppDate(po.created_at),
         value: po.total_amount || 0
       }));
     },
@@ -259,7 +260,7 @@ export const useProjectActivityV2 = () => {
         managerInitials: (p.manager?.full_name || 'U').substring(0, 2).toUpperCase(),
         progress: p.progress_percentage || 0,
         nextMilestone: p.current_phase || 'Execution',
-        milestoneDate: new Date(p.created_at).toLocaleDateString(),
+        milestoneDate: formatAppDate(p.created_at),
         status: p.progress_percentage > 60 ? 'On Track' : p.progress_percentage > 30 ? 'At Risk' : 'Delayed'
       }));
     },
@@ -310,7 +311,7 @@ export const useOverdueReceivables = () => {
           id: inv.id,
           company: inv.client?.client_name || 'Unknown Client',
           invoice: inv.invoice_number || 'Invoice',
-          dueDate: new Date(inv.due_date || inv.created_at).toLocaleDateString(),
+          dueDate: formatAppDate(inv.due_date || inv.created_at),
           amount: inv.total_amount || 0,
           daysOverdue: Math.max(0, daysOverdue)
         };

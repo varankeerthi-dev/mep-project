@@ -3058,7 +3058,7 @@ export function ClientCommunication() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowSiteVisitModal(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleCreateSiteVisit} isLoading={createSiteVisitMutation.isPending} disabled={!siteVisitData.visit_date}>
+            <Button variant="default" onClick={handleCreateSiteVisit} loading={createSiteVisitMutation.isPending} disabled={!siteVisitData.visit_date}>
               Schedule Visit
             </Button>
           </>

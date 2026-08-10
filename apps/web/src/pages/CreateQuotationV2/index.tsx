@@ -17,6 +17,7 @@ import { TermsConditionsDrawer } from '../../components/TermsConditionsDrawer';
 import { FileText, Plus, RotateCcw } from 'lucide-react';
 import { AiDocumentParserModal } from '../../components/AiDocumentParserModal';
 import { ErectionSection } from '../../components/ErectionSection';
+import { Button } from '../../components/ui/button';
 import { ApprovalIntegration } from '../../approvals/integration';
 import { toast } from '../../lib/logger';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
@@ -2318,9 +2319,9 @@ export default function CreateQuotation() {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <div style={{ fontWeight: 600, color: '#b91c1c', marginBottom: '12px' }}>{initErrorMessage}</div>
-        <button type="button" className="btn btn-primary" onClick={() => initQuery.refetch()}>
+        <Button onClick={() => initQuery.refetch()}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -2898,8 +2899,8 @@ export default function CreateQuotation() {
             <DialogDescription>{confirmDialog?.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDialog(null)}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={confirmDialog?.onConfirm}>{confirmDialog?.confirmLabel || 'Confirm'}</button>
+            <Button variant="secondary" onClick={() => setConfirmDialog(null)}>Cancel</Button>
+            <Button onClick={confirmDialog?.onConfirm}>{confirmDialog?.confirmLabel || 'Confirm'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -3072,7 +3073,7 @@ export default function CreateQuotation() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '90%', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Add Multiple Items</h3>
-              <button className="btn-close" onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '4px 8px' }}>×</button>
+              <Button variant="ghost" size="icon" onClick={() => setShowItemPicker(false)} style={{ fontSize: '20px' }}>×</Button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -3170,8 +3171,8 @@ export default function CreateQuotation() {
               </div>
             </div>
             <div className="modal-footer" style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button className="btn btn-secondary px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium hover:bg-zinc-50" onClick={() => setShowItemPicker(false)}>Cancel</button>
-              <button className="btn btn-primary px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50" onClick={handleAddItemsToQuotation} disabled={pickerItems.length === 0}>Add to Quotation ({pickerItems.length})</button>
+              <Button variant="secondary" onClick={() => setShowItemPicker(false)}>Cancel</Button>
+              <Button onClick={handleAddItemsToQuotation} disabled={pickerItems.length === 0}>Add to Quotation ({pickerItems.length})</Button>
             </div>
           </div>
         </div>

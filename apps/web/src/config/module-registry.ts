@@ -105,6 +105,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     route: '/store/transfer',
   },
   {
+    id: 'warehouse',
+    label: 'Warehouse Management',
+    description: 'Visual warehouse designer, floors, zones, racks, bins and capacity management.',
+    icon: 'Warehouse',
+    category: 'inventory',
+    route: '/warehouse',
+  },
+  {
     id: 'purchase',
     label: 'Purchase Module',
     description: 'Procurement lifecycle: requisitions, inquiries, POs, and vendor management.',

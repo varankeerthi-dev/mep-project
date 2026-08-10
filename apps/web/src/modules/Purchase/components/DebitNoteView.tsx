@@ -5,6 +5,7 @@ import { AppTable } from '../../../components/ui/AppTable';
 import { cn } from '../../../lib/utils';
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { useDebitNotes, useDeleteDebitNote } from '../hooks/usePurchaseQueries';
 import { generateProGridAdjustmentNotePdf } from '../../../pdf/proGridAdjustmentNotePdf';
 import { generateSakthiPdf } from '../../../pdf/sakthiTemplatePdf';
@@ -21,12 +22,9 @@ function formatCurrency(n: number) {
   return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 export const DebitNoteView: React.FC = () => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [search, setSearch] = useState('');
   const [selectedDN, setSelectedDN] = useState<any>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);

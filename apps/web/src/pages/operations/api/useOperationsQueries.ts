@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
+import { formatAppDate } from '@/lib/dateFormat';
 import {
   NeedsAttentionItem,
   LiveNowSiteCheckIn,
@@ -237,7 +238,7 @@ export const useUpcomingEvents = () => {
         type: 'visit',
         title: v.client?.client_name || 'Site Visit',
         meta: v.purpose || 'Follow-up',
-        tag: new Date(v.visit_date).toLocaleDateString()
+        tag: formatAppDate(v.visit_date)
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -262,7 +263,7 @@ export const useProjectActivity = () => {
         progress: p.progress_percentage || 0,
         manager: p.manager?.full_name || null,
         nextMilestone: p.current_phase || 'Execution',
-        date: new Date(p.created_at).toLocaleDateString()
+        date: formatAppDate(p.created_at)
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -310,8 +311,8 @@ export const useBlockingWork = () => {
           id: s.id,
           project: s.project?.project_name || 'Unknown Project',
           context: s.reason || 'Stoppage',
-          workStarted: new Date(s.created_at).toLocaleDateString(),
-          stoppedSince: new Date(s.start_time).toLocaleDateString(),
+          workStarted: formatAppDate(s.created_at),
+          stoppedSince: formatAppDate(s.start_time),
           daysStopped,
           pendingAmount: 0
         };
@@ -337,7 +338,7 @@ export const useProformaAdvancePending = () => {
         id: pi.id,
         client: pi.client?.client_name || 'Unknown Client',
         context: pi.invoice_number || 'Proforma',
-        poDate: new Date(pi.created_at).toLocaleDateString(),
+        poDate: formatAppDate(pi.created_at),
         terms: 'Advance',
         receivedPct: 0,
         status: 'Grace period',
@@ -381,7 +382,7 @@ export const usePayablesList = () => {
           aging: daysOverdue > 14 ? 'alert' : (daysOverdue > 0 ? 'warn' : 'ok'),
           agingText: daysOverdue > 0 ? `${daysOverdue}d overdue` : `Due in ${Math.abs(daysOverdue)}d`,
           amount: pb.total_amount || 0,
-          dueDate: new Date(pb.due_date || pb.created_at).toLocaleDateString(),
+          dueDate: formatAppDate(pb.due_date || pb.created_at),
           paymentMode: 'Bank Transfer',
           bank: 'HDFC',
           contact: 'Vendor Contact',
@@ -414,7 +415,7 @@ export const useReceivablesList = () => {
           aging: daysOverdue > 30 ? 'alert' : (daysOverdue > 0 ? 'warn' : 'ok'),
           agingText: daysOverdue > 0 ? `${daysOverdue}d overdue` : `Due in ${Math.abs(daysOverdue)}d`,
           amount: inv.total_amount || 0,
-          dueDate: new Date(inv.due_date || inv.created_at).toLocaleDateString(),
+          dueDate: formatAppDate(inv.due_date || inv.created_at),
           paymentMode: 'Bank Transfer',
           bank: 'SBI',
           contact: 'Client Contact',

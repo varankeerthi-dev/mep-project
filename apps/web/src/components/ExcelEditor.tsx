@@ -11,6 +11,7 @@ import {
   Trash2 as TrashIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface ChangeAuditEntry {
   itemId: string;
@@ -349,27 +350,15 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={handleAddRow}
-            disabled={isSaving}
-            className="px-4 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors flex items-center gap-2"
-          >
+          <Button variant="default" size="sm" onClick={handleAddRow} disabled={isSaving} >
             <PlusIcon className="w-4 h-4" /> Add New Row
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={isSaving}
-            className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-bold text-zinc-600 hover:bg-zinc-50 transition-colors flex items-center gap-2"
-          >
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onCancel} disabled={isSaving} >
             <CancelIcon className="w-4 h-4" /> Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={dirtyCount === 0 && newItems.length === 0 && deletedItems.size === 0 || isSaving}
-            className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-bold hover:bg-zinc-800 transition-all flex items-center gap-2 disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="default" size="sm" onClick={handleSave} disabled={dirtyCount === 0 && newItems.length === 0 && deletedItems.size === 0 || isSaving} >
             <SaveIcon className="w-4 h-4" /> {isSaving ? 'Saving...' : `Save ${dirtyCount + newItems.length + deletedItems.size} Changes`}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -421,13 +410,12 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
                 </td>
                 {selectedFields.includes('_delete') && (
                   <td className="p-2 border-r border-zinc-200 text-center bg-zinc-50/50">
-                    <button
-                      onClick={() => handleDeleteRow(row.id)}
+                    <Button variant="default" size="sm" onClick={() => handleDeleteRow(row.id)}
                       className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1 transition-colors"
                       title="Delete row"
                     >
                       <TrashIcon className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </td>
                 )}
                 {getColumnConfig.map(col => {
@@ -512,17 +500,14 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
             Showing {startIndex + 1} to {Math.min(endIndex, rows.length)} of {rows.length} items
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
+            <Button variant="default" size="sm" onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
               className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
-            </button>
+            </Button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
+              <Button variant="default" size="sm" key={page} onClick={() => handlePageChange(page)}
                 className={cn(
                   "px-3 py-1.5 text-sm font-medium rounded-lg border",
                   currentPage === page
@@ -531,15 +516,14 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
                 )}
               >
                 {page}
-              </button>
+              </Button>
             ))}
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
+            <Button variant="default" size="sm" onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
               className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -617,20 +601,15 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
             </div>
 
             <div className="px-8 py-6 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50/50">
-              <button 
-                onClick={() => setShowPreview(false)} 
+              <Button variant="default" size="sm" onClick={() => setShowPreview(false)} 
                 disabled={isSaving}
                 className="px-6 py-3 rounded-xl font-bold text-zinc-600 hover:bg-white border border-zinc-200 transition-all font-bold"
               >
                 Back to Editing
-              </button>
-              <button 
-                onClick={confirmSave}
-                disabled={isSaving}
-                className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
-              >
+              </Button>
+              <Button variant="default" size="icon-xs" onClick={confirmSave} disabled={isSaving} >
                 {isSaving ? 'Processing...' : 'Confirm & Save'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -681,7 +660,7 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
     <div className="space-y-6">
       <div className="flex justify-between items-center px-4">
         <h3 className="text-sm font-black text-zinc-500 uppercase tracking-widest">Select Fields to Edit</h3>
-        <button onClick={handleSelectAll} className="text-xs font-bold text-blue-600 hover:underline">Select All</button>
+        <Button variant="ghost" size="sm" onClick={handleSelectAll}>Select All</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

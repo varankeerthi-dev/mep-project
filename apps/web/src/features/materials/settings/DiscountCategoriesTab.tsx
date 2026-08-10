@@ -265,7 +265,7 @@ export function DiscountCategoriesTab() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 className="text-sm font-semibold text-zinc-900 m-0">{editing ? 'Edit Discount Category' : 'Add Discount Category'}</h2>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+              <Button variant="ghost" size="default" onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</Button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex flex-col gap-1">

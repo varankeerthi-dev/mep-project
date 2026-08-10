@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as P from '../persistence';
 import * as R from '../repository';
 import { BOMHeader, BOMItem } from '../model/types';
+import { SaveBOMPayloadSchema } from '../validation/bomSchemas';
 import { toast } from '../../../lib/logger';
 
 export function useBomsListQuery(orgId: string | undefined, statusFilter: 'active' | 'inactive' | 'all', search: string) {
@@ -43,7 +44,8 @@ export function useSaveBOMMutation(onSuccessCallback?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: { header: Partial<BOMHeader>; items: Partial<BOMItem>[] }) => {
-      return R.saveBOMAggregate(payload.header, payload.items);
+      const validated = SaveBOMPayloadSchema.parse(payload);
+      return R.saveBOMAggregate(validated.header, validated.items);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boms'] });
@@ -69,6 +71,23 @@ export function useDeleteBOMMutation(onSuccessCallback?: () => void) {
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to delete BOM');
+    },
+  });
+}
+
+export function useCloneBOMMutation(onSuccessCallback?: (newBomId: string) => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sourceBomId, orgId }: { sourceBomId: string; orgId: string }) => {
+      return R.cloneBOM(sourceBomId, orgId);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      toast.success('BOM cloned successfully');
+      if (onSuccessCallback) onSuccessCallback(variables.sourceBomId);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to clone BOM');
     },
   });
 }

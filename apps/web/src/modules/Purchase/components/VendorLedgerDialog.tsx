@@ -6,6 +6,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Input } from '../../../components/ui/input';
 import { Card, StatCard } from '../../../components/ui/Card';
 import { AppTable } from '../../../components/ui/AppTable';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { useVendorLedger } from '../hooks/usePurchaseQueries';
 import {
   buildVendorLedgerEntries,
@@ -13,7 +14,6 @@ import {
   downloadVendorLedgerPdf,
   filterVendorLedgerEntries,
   formatLedgerCurrency,
-  formatLedgerDate,
   type VendorLedgerVendor,
 } from '../utils/vendorLedger';
 
@@ -32,6 +32,7 @@ export default function VendorLedgerDialog({
   organisationId,
   vendor,
 }: VendorLedgerDialogProps) {
+  const { formatDate } = useAppDateFormat();
   const [draftStartDate, setDraftStartDate] = useState('');
   const [draftEndDate, setDraftEndDate] = useState('');
   const [appliedStartDate, setAppliedStartDate] = useState('');
@@ -70,7 +71,7 @@ export default function VendorLedgerDialog({
       header: 'Date',
       render: (entry: any) => (
         <span className="text-sm">
-          {entry.type === 'Opening Balance' ? '-' : formatLedgerDate(entry.date)}
+          {entry.type === 'Opening Balance' ? '-' : formatDate(entry.date)}
         </span>
       ),
     },
@@ -174,7 +175,7 @@ export default function VendorLedgerDialog({
             </div>
             <div className="flex gap-2">
               <Button
-                variant="primary"
+                variant="default"
                 onClick={() => {
                   setAppliedStartDate(draftStartDate);
                   setAppliedEndDate(draftEndDate);
@@ -243,7 +244,7 @@ export default function VendorLedgerDialog({
           <AppTable
             columns={columns}
             data={entries}
-            isLoading={isLoading}
+            loading={isLoading}
             emptyMessage={
               <div className="py-12 text-center">
                 <FileText className="w-12 h-12 text-zinc-300 mx-auto mb-3" />

@@ -4,6 +4,7 @@ import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Trash2, Edit2 } from 'lucide-react';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 
 type ProductionEntryFormProps = {
@@ -30,6 +31,7 @@ type WarehouseInfo = {
 
 export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormProps) {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const jobCardId = searchParams.get('jobCard');
@@ -1156,7 +1158,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                       {productionEntries.map((entry: any) => (
                         <tr key={entry.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>{entry.entry_no}</td>
-                          <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{new Date(entry.created_at).toLocaleDateString()}</td>
+                          <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{formatDate(entry.created_at)}</td>
                           {!formData.job_card_id && (
                             <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>
                               <span style={{ fontWeight: 600, color: '#1f2937' }}>{entry.job_cards?.job_card_no || '—'}</span>

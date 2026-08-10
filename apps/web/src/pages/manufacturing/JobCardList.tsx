@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Trash2, Loader2, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import {
   useJobCardsListQuery,
   useDeleteJobCardMutation
 } from '../../features/manufacturing';
 import { Table, ColumnDef, RowAction } from '../../components/table';
 import { JobCard } from '../../features/manufacturing/model/types';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 type JobCardListProps = {
   onNavigate: (path: string) => void;
@@ -25,6 +27,7 @@ const FILTER_OPTIONS = [
 
 export default function JobCardList({ onNavigate }: JobCardListProps) {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
@@ -91,7 +94,7 @@ export default function JobCardList({ onNavigate }: JobCardListProps) {
       align: 'left',
       cell: ({ row }) => (
         <span style={{ fontSize: '13px', color: '#4b5563' }}>
-          {row.created_at ? new Date(row.created_at).toLocaleDateString() : '—'}
+          {row.created_at ? formatDate(row.created_at) : '—'}
         </span>
       ),
     },
@@ -121,27 +124,9 @@ export default function JobCardList({ onNavigate }: JobCardListProps) {
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Job Cards</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Track material issuance and production</span>
         </div>
-        <button
-          onClick={() => onNavigate('/manufacturing/job-cards/create')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '6px 12px',
-            background: '#185FA5',
-            border: '1px solid #185FA5',
-            color: '#fff',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-        >
-          <Plus size={14} /> Create Job Card
-        </button>
+        <Button onClick={() => onNavigate('/manufacturing/job-cards/create')} leftIcon={<Plus size={14} />}>
+          Create Job Card
+        </Button>
       </div>
 
       {/* Main Content Area */}
@@ -186,45 +171,16 @@ export default function JobCardList({ onNavigate }: JobCardListProps) {
             </p>
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', height: '36px' }}>
-              <button onClick={() => setDeleteConfirmId(null)}
-                style={{
-                  height: '36px',
-                  padding: '0 16px',
-                  border: '1px solid #d1d5db',
-                  background: '#fff',
-                  color: '#4b5563',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
-                Cancel
-              </button>
-              <button onClick={() => deleteJobCard.mutate(deleteConfirmId)} disabled={deleteJobCard.isPending}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  height: '36px',
-                  padding: '0 16px',
-                  background: '#e11d48',
-                  border: '1px solid #e11d48',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: deleteJobCard.isPending ? 'not-allowed' : 'pointer',
-                  opacity: deleteJobCard.isPending ? 0.6 : 1,
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => { if (!deleteJobCard.isPending) e.currentTarget.style.background = '#be123c'; }}
-                onMouseLeave={e => { if (!deleteJobCard.isPending) e.currentTarget.style.background = '#e11d48'; }}>
-                {deleteJobCard.isPending && <Loader2 size={14} className="animate-spin" />}
-                {deleteJobCard.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+              <Button variant="secondary" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteJobCard.mutate(deleteConfirmId)}
+                disabled={deleteJobCard.isPending}
+                loading={deleteJobCard.isPending}
+                loadingText="Deleting..."
+              >
+                Delete
+              </Button>
             </div>
           </div>
         </div>

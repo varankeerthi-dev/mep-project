@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Calendar } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import { Table, ColumnDef, RowAction } from '../../components/table';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 type ProductionScheduleListProps = {
   onNavigate: (path: string) => void;
@@ -11,6 +13,7 @@ type ProductionScheduleListProps = {
 
 export default function ProductionScheduleList({ onNavigate }: ProductionScheduleListProps) {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
@@ -77,7 +80,7 @@ export default function ProductionScheduleList({ onNavigate }: ProductionSchedul
       cell: ({ row }) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#374151' }}>
           <Calendar size={13} style={{ color: '#9ca3af' }} />
-          {new Date(row.schedule_date).toLocaleDateString()}
+          {formatDate(row.schedule_date)}
         </div>
       ),
     },
@@ -97,7 +100,7 @@ export default function ProductionScheduleList({ onNavigate }: ProductionSchedul
       type: 'date',
       cell: ({ row }) => (
         <span style={{ fontSize: '13px', color: '#6b7280' }}>
-          {new Date(row.created_at).toLocaleDateString()}
+          {formatDate(row.created_at)}
         </span>
       ),
     },
@@ -111,27 +114,9 @@ export default function ProductionScheduleList({ onNavigate }: ProductionSchedul
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Production Schedules</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Group multiple products for production</span>
         </div>
-        <button
-          onClick={() => onNavigate('/manufacturing/schedules/create')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '6px 12px',
-            background: '#185FA5',
-            border: '1px solid #185FA5',
-            color: '#fff',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-        >
-          <Plus size={14} /> Create Schedule
-        </button>
+        <Button onClick={() => onNavigate('/manufacturing/schedules/create')} leftIcon={<Plus size={14} />}>
+          Create Schedule
+        </Button>
       </div>
 
       {/* Main Content Area */}

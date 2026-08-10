@@ -21,6 +21,7 @@ import { ArcPricingToggle, ArcPricingStatusBadge } from '../../components/ArcPri
 import { ArcConfirmationDialog } from '../../components/ArcConfirmationDialog';
 import { getArcRateFromMap, fetchArcPricingForItems } from '../../lib/arc-pricing';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const styles = `
   .cne-page { padding: 24px 32px 100px; max-width: 1200px; margin: 0 auto; }
@@ -665,10 +666,10 @@ export function CreditNoteEditorPage() {
   return (
     <div className="cne-page">
       <div className="cne-header">
-        <button className="cne-back-btn" onClick={() => navigate('/credit-notes')}>
+        <Button variant="default" size="default" onClick={() => navigate('/credit-notes')}>
           <ArrowLeft size={16} />
           Back
-        </button>
+        </Button>
         <h1 className="cne-title">
           {isEditing ? `Edit ${existingCN?.cn_number}` : 'New Credit Note'}
         </h1>
@@ -891,14 +892,14 @@ export function CreditNoteEditorPage() {
           </span>
         </div>
         <div className="cne-footer-right">
-          <button className="cne-btn-draft" onClick={() => doSave('Pending')} disabled={saving}>
+          <Button variant="default" size="default" onClick={() => doSave('Pending')} disabled={saving}>
             <FileDown size={14} />
             Save as Draft
-          </button>
-          <button className="cne-btn-save" onClick={() => doSave('Approved')} disabled={saving}>
+          </Button>
+          <Button variant="default" size="default" onClick={() => doSave('Approved')} disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Saving...' : 'Save'}
-          </button>
+          </Button>
         </div>
       </div>
 

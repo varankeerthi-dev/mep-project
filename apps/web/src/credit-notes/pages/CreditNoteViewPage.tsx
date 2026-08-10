@@ -14,6 +14,7 @@ import VerticalTemplate from '../../templates/VerticalTemplate';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { htmlToPdf } from '../../utils/htmlTemplateRenderer';
+import { Button } from '@/components/ui/button';
 
 export function CreditNoteViewPage() {
   const { organisation } = useAuth();
@@ -318,9 +319,9 @@ export function CreditNoteViewPage() {
       <div className="w-[300px] flex flex-col bg-white shadow-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
         <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-zinc-700">All Credit Notes</h2>
-          <button onClick={() => navigate('/credit-notes/create')} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+          <Button variant="default" size="sm" onClick={() => navigate('/credit-notes/create')} className="p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
             <Plus className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         <div className="px-4 py-3 border-b border-zinc-100">
@@ -376,51 +377,43 @@ export function CreditNoteViewPage() {
                 <CNStatusBadge status={selectedCN.approval_status} />
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={handlePreview}
-                  className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none"
-                >
+                <Button variant="default" size="sm" onClick={handlePreview} >
                   <Printer className="w-[14px] h-[14px]" />
                   Print
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-2 mb-6" style={{ paddingBottom: '16px' }}>
-              <button
-                onClick={() => navigate(`/credit-notes/edit?id=${selectedCN.id}`)}
+              <Button variant="default" size="sm" onClick={() => navigate(`/credit-notes/edit?id=${selectedCN.id}`)}
                 className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
               >
                 <Pencil className="w-[14px] h-[14px]" /> Edit
-              </button>
+              </Button>
 
               <div className="relative" ref={printMenuRef}>
-                <button
-                  onClick={() => { setPrintMenuOpen(!printMenuOpen); setPrintMenuView('main'); }}
+                <Button variant="default" size="sm" onClick={() => { setPrintMenuOpen(!printMenuOpen); setPrintMenuView('main'); }}
                   className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold"
                 >
                   <FileText className="w-[14px] h-[14px]" /> Print Template <ChevronDown className="w-[12px] h-[12px]" />
-                </button>
+                </Button>
                 {printMenuOpen && (
                   <div className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
                     {printMenuView === 'main' ? (
                       <>
-                        <button
-                          onClick={() => { handlePreview(); setPrintMenuOpen(false); }}
+                        <Button variant="default" size="sm" onClick={() => { handlePreview(); setPrintMenuOpen(false); }}
                           className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50 rounded"
                         >
                           <Eye className="w-4 h-4 text-sky-500" /> Preview in New Tab
-                        </button>
-                        <button
-                          onClick={() => { handleDownload(); setPrintMenuOpen(false); }}
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => { handleDownload(); setPrintMenuOpen(false); }}
                           className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50 rounded"
                         >
                           <Download className="w-4 h-4 text-sky-500" /> Download PDF
-                        </button>
+                        </Button>
                         <div className="h-px bg-zinc-100 my-1" />
-                        <button
-                          onClick={() => setPrintMenuView('templates')}
+                        <Button variant="default" size="sm" onClick={() => setPrintMenuView('templates')}
                           className="flex items-center justify-between w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50 rounded"
                         >
                           <div className="flex items-center gap-3">
@@ -428,29 +421,26 @@ export function CreditNoteViewPage() {
                             Choose Template
                           </div>
                           <ChevronRight className="w-4 h-4 text-zinc-400" />
-                        </button>
+                        </Button>
                       </>
                     ) : (
                       <>
                         <div className="flex items-center gap-2 p-2 mb-1 border-b border-zinc-100">
-                          <button
-                            onClick={() => setPrintMenuView('main')}
+                          <Button variant="default" size="sm" onClick={() => setPrintMenuView('main')}
                             className="p-1 hover:bg-zinc-100 rounded transition-colors"
                           >
                             <ChevronLeft className="w-4 h-4 text-zinc-500" />
-                          </button>
+                          </Button>
                           <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
                         </div>
                         <div className="max-h-[300px] overflow-y-auto">
                           {cnTemplates.map(t => (
-                            <button
-                              key={t.id}
-                              onClick={() => handleSelectTemplate(t.id)}
+                            <Button variant="default" size="sm" key={t.id} onClick={() => handleSelectTemplate(t.id)}
                               className={`block w-full text-left text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'}`}
                               style={{ padding: '10px 12px' }}
                             >
                               {t.template_name}
-                            </button>
+                            </Button>
                           ))}
                         </div>
                       </>
@@ -460,12 +450,11 @@ export function CreditNoteViewPage() {
               </div>
 
               {selectedCN.approval_status === 'Pending' && (
-                <button
-                  onClick={() => setDeleteConfirmOpen(true)}
+                <Button variant="default" size="sm" onClick={() => setDeleteConfirmOpen(true)}
                   className="inline-flex items-center gap-2 px-4 h-[25px] bg-white text-red-600 border border-red-200 rounded hover:bg-red-50 transition-all text-[12px] font-bold"
                 >
                   <Trash2 className="w-[14px] h-[14px]" /> Delete
-                </button>
+                </Button>
               )}
             </div>
 
@@ -563,12 +552,12 @@ export function CreditNoteViewPage() {
                 <span style={{ fontWeight: 600, fontSize: '14px' }}>{selectedCN?.cn_number} — {selectedCN?.client?.name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button onClick={handleDownload} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: 'pointer' }}>
+                <Button variant="outline" size="sm" onClick={handleDownload}>
                   <Download size={14} /> Download
-                </button>
-                <button onClick={() => { setPreviewModalOpen(false); if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
+                </Button>
+                <Button variant="default" size="sm" onClick={() => { setPreviewModalOpen(false); if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
                   <X size={20} />
-                </button>
+                </Button>
               </div>
             </div>
             <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
@@ -593,8 +582,8 @@ export function CreditNoteViewPage() {
             <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700 }}>Delete Credit Note</h3>
             <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#525252' }}>Are you sure you want to delete this credit note? This action cannot be undone.</p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirmOpen(false)} style={{ padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleDelete} style={{ padding: '8px 16px', border: 'none', borderRadius: '6px', background: '#dc2626', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+              <Button variant="default" size="sm" onClick={() => setDeleteConfirmOpen(false)} style={{ padding: '8px 16px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={handleDelete}>Delete</Button>
             </div>
           </div>
         </div>

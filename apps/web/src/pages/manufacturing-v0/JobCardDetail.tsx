@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, RefreshCw, Loader2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 
 type JobCardDetailProps = {
@@ -33,6 +34,7 @@ type JobMaterial = {
 
 export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailProps) {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const queryClient = useQueryClient();
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
@@ -703,7 +705,7 @@ export default function JobCardDetail({ jobCardId, onNavigate }: JobCardDetailPr
                       {productionEntries.map((entry) => (
                         <tr key={entry.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>{entry.entry_no}</td>
-                          <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{new Date(entry.created_at).toLocaleDateString()}</td>
+                          <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{formatDate(entry.created_at)}</td>
                           <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: 600, color: '#111827', textAlign: 'right' }}>{entry.actual_qty} {entry.output_unit}</td>
                           <td style={{ padding: '10px 12px', fontSize: '12px', color: '#10b981', fontWeight: 500, textAlign: 'right' }}>{entry.yield_pct}%</td>
                           <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{entry.operator_name || '—'}</td>

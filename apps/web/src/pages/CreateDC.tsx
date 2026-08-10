@@ -3,6 +3,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import { format, subMonths, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
@@ -26,6 +27,32 @@ type CreateDCProps = {
   onSuccess: () => void
   onCancel: () => void
   editDC?: any
+}
+
+type DCItem = {
+  id: number | string;
+  material_id: string;
+  variant_id: string;
+  material_name: string;
+  unit: string;
+  quantity: string;
+  rate: string;
+  amount: number;
+  uses_variant: boolean;
+  available_qty: number;
+  valid: boolean;
+  is_service: boolean;
+  make?: string;
+  warehouse_id?: string;
+  stock_warning?: boolean;
+  description?: string;
+  hsn_code?: string;
+  gst_rate?: number;
+  discount_percent?: number;
+  discount_amount?: number;
+  tax_percent?: number;
+  tax_amount?: number;
+  remarks?: string;
 }
 
 interface CustomDatePickerProps {
@@ -166,6 +193,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
   const sourceId = searchParams.get('sourceId');
   const [loading, setLoading] = useState(false);
+  const isEditing = !!editDC;
   // Use shared hooks - NO local state needed
   const clientsQuery = useClients();
   const clients = clientsQuery.data || [];
@@ -283,7 +311,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   });
   const shippingDropdownRef = useRef<HTMLDivElement | null>(null);
   
-  const isEditing = !!editDC;
   const isLocked = editDC?.status === 'APPROVED';
 
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' };
@@ -303,6 +330,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     driver_name: '',
     eway_bill_no: '',
     eway_bill_date: '',
+    eway_valid_till: '',
     po_no: '',
     po_date: '',
     remarks: '',
@@ -337,7 +365,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   });
   const arcPricingMap = arcRatesQuery.data || {};
 
-  const [items, setItems] = useState<any[]>([
+  const [items, setItems] = useState<DCItem[]>([
     { id: 1, material_id: '', variant_id: '', material_name: '', unit: '', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
   ]);
   const [isDirty, setIsDirty] = useState(false);
@@ -749,7 +777,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         .from('projects')
         .select('id, client_name, site_address')
         .eq('id', projectId)
-        .single();
+        .single() as { data: { id: string; client_name?: string; site_address?: string } | null };
       if (proj) {
         shipData = {
           ...shipData,
@@ -1427,7 +1455,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 opacity: loading || isLocked ? 0.6 : 1,
                 transition: 'all 0.15s'
               }}
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               disabled={loading || isLocked}
             >
               {loading ? 'Saving...' : isEditing ? 'Update DC' : 'Save Delivery Challan'}
@@ -1595,7 +1623,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 <div style={fieldColStyle}>
                   <select name="authorized_signatory_id" className="form-select" style={inputStyle} value={formData.authorized_signatory_id || ''} onChange={handleInputChange} disabled={isLocked}>
                     <option value="">Select</option>
-                    {(organisation?.signatures || []).map(sig => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
+                    {((organisation?.signatures as any[]) || []).map(sig => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
                   </select>
                 </div>
               </div>
@@ -1746,8 +1774,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddShippingModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={handleAddShippingAddress}>Save Address</button>
+                <Button variant="secondary" onClick={() => setShowAddShippingModal(false)}>Cancel</Button>
+                <Button onClick={handleAddShippingAddress}>Save Address</Button>
               </div>
             </div>
           </div>
@@ -1932,7 +1960,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                     </td>
                     <td className="delete-cell col-shrink">
                       {!isLocked && items.length > 1 && (
-                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        <Button variant="destructive" size="icon" onClick={() => removeItem(item.id)}>×</Button>
                       )}
                     </td>
                   </tr>

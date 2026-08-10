@@ -29,6 +29,7 @@ import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
 import PaymentHistoryDrawer from '../components/PaymentHistoryDrawer';
 import ActivityLogDrawer from '../components/ActivityLogDrawer';
 import AddSubmittedDetailsDrawer from '../components/AddSubmittedDetailsDrawer';
+import { Button } from '@/components/ui/button';
 
 export default function InvoiceView() {
   const navigate = useNavigate();
@@ -250,9 +251,9 @@ export default function InvoiceView() {
   if (!invoiceId) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <button onClick={() => navigate('/invoices')} style={{ marginBottom: '16px' }}>
+        <Button variant="default" size="sm" onClick={() => navigate('/invoices')} style={{ marginBottom: '16px' }}>
           ← Back to Invoices
-        </button>
+        </Button>
         <p>Invoice ID is missing.</p>
       </div>
     );
@@ -264,12 +265,11 @@ export default function InvoiceView() {
       <div className="w-[300px] flex flex-col bg-white shadow-sm" style={{ fontFamily: "'Inter', sans-serif" }}>
         <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-zinc-700">All Invoices</h2>
-          <button
-            onClick={() => navigate('/invoices/create')}
+          <Button variant="default" size="sm" onClick={() => navigate('/invoices/create')}
             className="p-1.5 bg-sky-500 text-white rounded hover:bg-sky-600 transition-colors"
           >
             <Plus className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
           {invoicesQuery.isPending ? (
@@ -355,51 +355,41 @@ export default function InvoiceView() {
                   {getStatusBadge(selectedInvoice.status)}
                 </div>
                 <div className="flex items-center gap-3">
-                  <button
-                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-xs font-bold shadow-none border-none"
-                    onClick={() => handlePrintAction('download')}
+                  <Button variant="default" size="sm" onClick={() => handlePrintAction('download')}
                     disabled={printLoading}
                   >
                     {printLoading ? <Loader2 className="w-[14px] h-[14px] animate-spin" /> : <Printer className="w-[14px] h-[14px]" />}
                     Print
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-[20px] mb-6 px-8 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
-                <button
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
-                  onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
+                <Button variant="secondary" size="sm" onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
                 >
                   <Edit className="w-[14px] h-[14px]" />
                   Edit
-                </button>
+                </Button>
 
-                <button
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
-                  onClick={handleDuplicate}
-                >
+                <Button variant="secondary" size="sm" onClick={handleDuplicate} >
                   <Copy className="w-[14px] h-[14px]" />
                   Duplicate
-                </button>
+                </Button>
 
                 <div className="relative">
-                  <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-all text-sm font-semibold"
-                    onClick={() => {
+                  <Button variant="success" size="sm" onClick={() => {
                       setShowPaymentMenu(!showPaymentMenu);
                     }}
                   >
                     <CreditCard className="w-[14px] h-[14px]" />
                     Payments
                     <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPaymentMenu ? 'rotate-180' : ''}`} />
-                  </button>
+                  </Button>
 
                   {showPaymentMenu && (
                     <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
-                      <button
-                        onClick={() => {
+                      <Button variant="default" size="sm" onClick={() => {
                           setEditingPayment(null);
                           setRecordPaymentOpen(true);
                           setShowPaymentMenu(false);
@@ -409,9 +399,8 @@ export default function InvoiceView() {
                       >
                         <CreditCard className="w-4 h-4 text-emerald-600" />
                         Record Payment
-                      </button>
-                      <button
-                        onClick={() => {
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => {
                           setPaymentHistoryOpen(true);
                           setShowPaymentMenu(false);
                         }}
@@ -425,15 +414,13 @@ export default function InvoiceView() {
                             {paymentsQuery.data.filter(p => p.status === 'paid').length}
                           </span>
                         )}
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
 
                 <div className="relative">
-                  <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
-                    onClick={() => {
+                  <Button variant="secondary" size="sm" onClick={() => {
                       setShowConvertMenu(!showConvertMenu);
                       setShowPrintMenu(false);
                       setShowTemplateMenu(false);
@@ -442,43 +429,38 @@ export default function InvoiceView() {
                     <FileText className="w-[14px] h-[14px]" />
                     Convert
                     <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showConvertMenu ? 'rotate-180' : ''}`} />
-                  </button>
+                  </Button>
 
                   {showConvertMenu && (
                     <div className="absolute left-0 top-full mt-1 z-50 min-w-[220px] bg-white border border-zinc-200 shadow-xl p-1">
-                      <button
-                        onClick={() => handleConvert('invoice')}
+                      <Button variant="default" size="sm" onClick={() => handleConvert('invoice')}
                         className="block w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50"
                       >
                         New from this Invoice
-                      </button>
+                      </Button>
                       <div className="my-1 border-t border-zinc-100" />
-                      <button
-                        onClick={() => {
+                      <Button variant="default" size="sm" onClick={() => {
                           navigate(`/credit-notes/create?convertFrom=invoice-to-creditnote&sourceId=${selectedInvoice.id}`);
                           setShowConvertMenu(false);
                         }}
                         className="block w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
                       >
                         Convert to Credit Note
-                      </button>
-                      <button
-                        onClick={() => {
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => {
                           navigate(`/dc/create?convertFrom=invoice-to-challan&sourceId=${selectedInvoice.id}`);
                           setShowConvertMenu(false);
                         }}
                         className="block w-full text-left px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50"
                       >
                         Convert to Delivery Challan
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
 
                 <div className="relative">
-                  <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-sm font-semibold"
-                    onClick={() => {
+                  <Button variant="secondary" size="sm" onClick={() => {
                       setShowPrintMenu(!showPrintMenu);
                       setShowConvertMenu(false);
                       setShowTemplateMenu(false);
@@ -492,39 +474,35 @@ export default function InvoiceView() {
                     )}
                     Print ({getSelectedTemplateName()})
                     <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
-                  </button>
+                  </Button>
 
                   {showPrintMenu && (
                     <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
                       {printMenuView === 'main' ? (
                         <>
-                          <button
-                            onClick={() => handlePrintAction('preview')}
+                          <Button variant="default" size="sm" onClick={() => handlePrintAction('preview')}
                             className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                             style={{ padding: '12px' }}
                           >
                             <Eye className="w-4 h-4 text-sky-500" />
                             Preview PDF
-                          </button>
-                          <button
-                            onClick={() => handlePrintAction('download')}
+                          </Button>
+                          <Button variant="default" size="sm" onClick={() => handlePrintAction('download')}
                             className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                             style={{ padding: '12px' }}
                           >
                             <Download className="w-4 h-4 text-sky-500" />
                             Download PDF
-                          </button>
-                          <button
-                            onClick={() => handlePrintAction('print')}
+                          </Button>
+                          <Button variant="default" size="sm" onClick={() => handlePrintAction('print')}
                             className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
                             style={{ padding: '12px' }}
                           >
                             <Printer className="w-4 h-4 text-sky-500" />
                             Print PDF
-                          </button>
+                          </Button>
                           <div className="h-px bg-zinc-100 my-1" />
-                          <button
-                            onClick={() => setPrintMenuView('templates')}
+                          <Button variant="default" size="sm" onClick={() => setPrintMenuView('templates')}
                             className="flex items-center justify-between w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors group"
                             style={{ padding: '12px' }}
                           >
@@ -533,17 +511,16 @@ export default function InvoiceView() {
                               Choose Template
                             </div>
                             <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-sky-500 transition-colors" />
-                          </button>
+                          </Button>
                         </>
                       ) : (
                         <>
                           <div className="flex items-center gap-2 p-2 mb-1 border-b border-zinc-100">
-                            <button
-                              onClick={() => setPrintMenuView('main')}
+                            <Button variant="default" size="sm" onClick={() => setPrintMenuView('main')}
                               className="p-1 hover:bg-zinc-100 rounded transition-colors"
                             >
                               <ChevronLeft className="w-4 h-4 text-zinc-500" />
-                            </button>
+                            </Button>
                             <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
                           </div>
                           <div className="max-h-[300px] overflow-y-auto">
@@ -551,9 +528,7 @@ export default function InvoiceView() {
                               <div className="px-3 py-4 text-xs text-zinc-400 text-center">No templates found</div>
                             ) : (
                               templates.map((t) => (
-                                <button
-                                  key={t.id}
-                                  onClick={() => {
+                                <Button variant="default" size="sm" key={t.id} onClick={() => {
                                     handleSelectTemplate(t.id);
                                     setPrintMenuView('main');
                                   }}
@@ -563,7 +538,7 @@ export default function InvoiceView() {
                                   style={{ padding: '10px 12px' }}
                                 >
                                   {t.name || t.template_name || 'Untitled'}
-                                </button>
+                                </Button>
                               ))
                             )}
                           </div>
@@ -574,13 +549,10 @@ export default function InvoiceView() {
                 </div>
 
                 {selectedInvoice.status === 'draft' && (
-                  <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-sm font-semibold"
-                    onClick={handleDelete}
-                  >
+                  <Button variant="destructive" size="sm" onClick={handleDelete} >
                     <Trash2 className="w-[14px] h-[14px]" />
                     Delete
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -594,13 +566,12 @@ export default function InvoiceView() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div>Approved by:</div>
-                  <button 
-                    onClick={() => setActivityLogOpen(true)}
+                  <Button variant="default" size="sm" onClick={() => setActivityLogOpen(true)}
                     className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded transition-colors font-medium"
                   >
                     <History size={14} />
                     Activity log
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -835,8 +806,7 @@ export default function InvoiceView() {
                     <h4 className="text-sm font-bold text-zinc-500 uppercase tracking-widest" style={{ paddingTop: '10px', paddingBottom: '10px' }}>Submission Tracking</h4>
                     {selectedInvoice.submitted_date ? (
                       <div className="bg-white border border-zinc-100 py-5 px-[30px] rounded-xl shadow-sm space-y-3 relative group">
-                        <button 
-                          onClick={() => {
+                        <Button variant="default" size="sm" onClick={() => {
                             setSelectedInvoiceForSubmission(selectedInvoice);
                             setSubmissionOpen(true);
                           }}
@@ -844,7 +814,7 @@ export default function InvoiceView() {
                           title="Edit submission details"
                         >
                           <Edit size={14} />
-                        </button>
+                        </Button>
                         <div className="flex items-center gap-3 text-zinc-900">
                           <CheckCircle2 size={18} className="text-emerald-500" />
                           <span className="text-sm font-semibold">Submitted to Client</span>
@@ -868,8 +838,7 @@ export default function InvoiceView() {
                     ) : (
                       <div className="bg-zinc-50 border border-dashed border-zinc-200 p-5 rounded-xl text-center">
                         <div className="text-sm text-zinc-400 mb-3" style={{ paddingTop: '10px', paddingBottom: '10px' }}>No submission record found</div>
-                        <button 
-                          onClick={() => {
+                        <Button variant="default" size="sm" onClick={() => {
                             setSelectedInvoiceForSubmission(selectedInvoice);
                             setSubmissionOpen(true);
                           }}
@@ -877,7 +846,7 @@ export default function InvoiceView() {
                           style={{ paddingTop: '10px', paddingBottom: '10px' }}
                         >
                           + Add Submission Details
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -928,23 +897,21 @@ export default function InvoiceView() {
                               <span className="font-bold text-zinc-900">{formatCurrency(p.amount)}</span>
                             </div>
                           ))}
-                          <button 
-                            onClick={() => setPaymentHistoryOpen(true)}
+                          <Button variant="default" size="sm" onClick={() => setPaymentHistoryOpen(true)}
                             className="w-full text-center text-xs font-bold text-zinc-400 hover:text-zinc-600 py-2 transition-colors"
                           >
                             View all {paymentsQuery.data.length} transactions
-                          </button>
+                          </Button>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center py-4">
                           <div className="text-sm text-zinc-500 mb-4">No payments have been recorded for this invoice yet.</div>
-                          <button 
-                            onClick={() => setRecordPaymentOpen(true)}
+                          <Button variant="default" size="sm" onClick={() => setRecordPaymentOpen(true)}
                             className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-emerald-700 transition-all shadow-sm active:scale-[0.95]"
                           >
                             <CreditCard size={14} />
                             Mark Payment?
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1001,9 +968,7 @@ export default function InvoiceView() {
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={async () => {
+                <Button variant="default" size="sm" type="button" onClick={async () => {
                     if (selectedInvoice?.id) {
                       const selTpl = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null;
                       await downloadInvoicePDF(selectedInvoice, { template: selTpl });
@@ -1027,10 +992,8 @@ export default function InvoiceView() {
                 >
                   <Download size={14} />
                   Download
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
+                </Button>
+                <Button variant="default" size="sm" type="button" onClick={async () => {
                     if (selectedInvoice?.id) {
                       const selTpl = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null;
                       await printInvoicePDF(selectedInvoice, { template: selTpl });
@@ -1054,29 +1017,12 @@ export default function InvoiceView() {
                 >
                   <Printer size={14} />
                   Print
-                </button>
-                <button
-                  type="button"
-                  onClick={closePreview}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '2rem',
-                    height: '2rem',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    color: '#6b7280',
-                    cursor: 'pointer',
-                    fontSize: '1.25rem',
-                    lineHeight: 1,
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                </Button>
+                <Button variant="ghost" size="sm" type="button" onClick={closePreview} onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   ×
-                </button>
+                </Button>
               </div>
             </div>
 

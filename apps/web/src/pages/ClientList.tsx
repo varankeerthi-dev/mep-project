@@ -6,6 +6,8 @@ import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, ge
 import { ChevronUp, ChevronDown, ChevronsUpDown, MessageSquare, Phone, Mail, Smartphone, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
+import { Button } from '../components/ui/button';
 
 export const CLIENT_QUERY_KEYS = {
   list: () => ['clients'] as const,
@@ -40,6 +42,7 @@ const SortIcon = ({ column }: { column: any }) => {
 };
 
 function TransactionsTable({ rows, loading, onOpen, emptyMessage }: TransactionsTableProps) {
+  const { formatDate } = useAppDateFormat();
   const [sorting, setSorting] = useState<any[]>([]);
   const [columnFilters, setColumnFilters] = useState<any[]>([]);
   const [globalFilter, setGlobalFilter] = useState<string>('');
@@ -60,7 +63,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
     {
       header: 'Date',
       accessorKey: 'date',
-      cell: (info: any) => info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-',
+      cell: (info: any) => info.getValue() ? formatDate(info.getValue()) : '-',
       enableSorting: true
     },
     {
@@ -85,7 +88,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
       id: 'action',
       header: 'Action',
       cell: ({ row }: any) => (
-        <button className="btn btn-sm btn-secondary" onClick={() => onOpen(row.original)}>Open</button>
+        <Button variant="secondary" size="sm" onClick={() => onOpen(row.original)}>Open</Button>
       ),
       enableSorting: false
     }
@@ -591,7 +594,7 @@ const txQueries = useQueries({
       <div className="card" style={{ padding: '8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '16px' }}>Clients</h3>
-          <button className="btn btn-sm btn-primary" onClick={() => navigate('/clients/new')} style={{ marginLeft: 'auto' }}>+ New</button>
+          <Button size="sm" onClick={() => navigate('/clients/new')} style={{ marginLeft: 'auto' }}>+ New</Button>
         </div>
         <input
           type="text"
@@ -635,25 +638,25 @@ const txQueries = useQueries({
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1 }}>{activeClient.client_name}</h2>
-              <button className="btn btn-sm btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => navigate(`/clients/edit?id=${activeClient.id}`)}>Edit</button>
+              <Button variant="secondary" size="sm" style={{ marginLeft: 'auto' }} onClick={() => navigate(`/clients/edit?id=${activeClient.id}`)}>Edit</Button>
             </div>
 
             <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <button className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('overview')}>Overview</button>
-              <button className={`btn btn-sm ${activeTab === 'reports' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('reports')}>Reports</button>
+              <Button variant={activeTab === 'overview' ? 'default' : 'secondary'} size="sm" onClick={() => setActiveTab('overview')}>Overview</Button>
+              <Button variant={activeTab === 'reports' ? 'default' : 'secondary'} size="sm" onClick={() => setActiveTab('reports')}>Reports</Button>
             </div>
 
             {activeTab === 'reports' && (
               <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px', flexWrap: 'wrap' }}>
-                <button className={`btn btn-sm ${reportsSubTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('ledger')}>Ledger Statement</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('transactions')}>Transactions</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'quotation' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('quotation')}>Quotations ({txCounts.quotation})</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'client_po' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('client_po')}>Client PO ({txCounts.client_po})</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'project' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('project')}>Projects ({txCounts.project})</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'site_visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('site_visit')}>Site Visits ({txCounts.site_visit})</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'delivery_challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('delivery_challan')}>Delivery Challans ({txCounts.delivery_challan})</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('meeting')}>Meetings ({txCounts.meeting})</button>
-                <button className={`btn btn-sm ${reportsSubTab === 'communication' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('communication')}>Communications ({txCounts.communication})</button>
+                <Button variant={reportsSubTab === 'ledger' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('ledger')}>Ledger Statement</Button>
+                <Button variant={reportsSubTab === 'transactions' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('transactions')}>Transactions</Button>
+                <Button variant={reportsSubTab === 'quotation' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('quotation')}>Quotations ({txCounts.quotation})</Button>
+                <Button variant={reportsSubTab === 'client_po' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('client_po')}>Client PO ({txCounts.client_po})</Button>
+                <Button variant={reportsSubTab === 'project' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('project')}>Projects ({txCounts.project})</Button>
+                <Button variant={reportsSubTab === 'site_visit' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('site_visit')}>Site Visits ({txCounts.site_visit})</Button>
+                <Button variant={reportsSubTab === 'delivery_challan' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('delivery_challan')}>Delivery Challans ({txCounts.delivery_challan})</Button>
+                <Button variant={reportsSubTab === 'meeting' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('meeting')}>Meetings ({txCounts.meeting})</Button>
+                <Button variant={reportsSubTab === 'communication' ? 'default' : 'secondary'} size="sm" onClick={() => setReportsSubTab('communication')}>Communications ({txCounts.communication})</Button>
               </div>
             )}
 

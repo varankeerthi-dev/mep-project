@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { QuotationTxnRow, InvoiceTxnRow, PurchaseTxnRow, ChallanTxnRow } from '../../model/aggregates';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { Button } from '@/components/ui/button';
 
 interface TransactionsTabProps {
   quotationRows: QuotationTxnRow[];
@@ -28,9 +30,7 @@ export function TransactionsTab({ quotationRows, invoiceRows, purchaseRows, chal
     <div className="p-4">
       <div className="flex gap-1 mb-4 border-b border-zinc-200">
         {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+          <Button variant="default" size="default" key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === tab.key
                 ? 'border-indigo-600 text-indigo-700'
@@ -38,7 +38,7 @@ export function TransactionsTab({ quotationRows, invoiceRows, purchaseRows, chal
             }`}
           >
             {tab.label} ({tab.count})
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -51,6 +51,7 @@ export function TransactionsTab({ quotationRows, invoiceRows, purchaseRows, chal
 }
 
 function QuotationTable({ rows }: { rows: QuotationTxnRow[] }) {
+  const { formatDate } = useAppDateFormat();
   if (rows.length === 0) return <p className="text-sm text-zinc-400">No quotations found.</p>;
   return (
     <div className="overflow-x-auto">
@@ -68,7 +69,7 @@ function QuotationTable({ rows }: { rows: QuotationTxnRow[] }) {
           {rows.map((r) => (
             <tr key={r.id} className="border-t border-zinc-100 hover:bg-zinc-50">
               <td className="px-3 py-2 text-xs font-medium">{r.quotation_no}</td>
-              <td className="px-3 py-2 text-xs text-zinc-500">{r.quote_date ? new Date(r.quote_date).toLocaleDateString() : '-'}</td>
+              <td className="px-3 py-2 text-xs text-zinc-500">{r.quote_date ? formatDate(r.quote_date) : '-'}</td>
               <td className="px-3 py-2 text-xs text-zinc-600">{r.client_name}</td>
               <td className="px-3 py-2 text-xs">{r.status || '-'}</td>
               <td className="px-3 py-2 text-xs text-right">{r.qty}</td>
@@ -83,6 +84,7 @@ function QuotationTable({ rows }: { rows: QuotationTxnRow[] }) {
 }
 
 function InvoiceTable({ rows }: { rows: InvoiceTxnRow[] }) {
+  const { formatDate } = useAppDateFormat();
   if (rows.length === 0) return <p className="text-sm text-zinc-400">No invoices found.</p>;
   return (
     <div className="overflow-x-auto">
@@ -100,7 +102,7 @@ function InvoiceTable({ rows }: { rows: InvoiceTxnRow[] }) {
             <tr key={r.id} className="border-t border-zinc-100 hover:bg-zinc-50">
               <td className="px-3 py-2 text-xs">{r.type}</td>
               <td className="px-3 py-2 text-xs font-mono">{r.doc_no}</td>
-              <td className="px-3 py-2 text-xs text-zinc-500">{r.doc_date ? new Date(r.doc_date).toLocaleDateString() : '-'}</td>
+              <td className="px-3 py-2 text-xs text-zinc-500">{r.doc_date ? formatDate(r.doc_date) : '-'}</td>
               <td className="px-3 py-2 text-xs text-zinc-600">{r.party}</td>
               <td className="px-3 py-2 text-xs text-right">{r.qty}</td>
               <td className="px-3 py-2 text-xs text-right font-medium">{r.amount}</td>
@@ -113,6 +115,7 @@ function InvoiceTable({ rows }: { rows: InvoiceTxnRow[] }) {
 }
 
 function PurchaseTable({ rows }: { rows: PurchaseTxnRow[] }) {
+  const { formatDate } = useAppDateFormat();
   if (rows.length === 0) return <p className="text-sm text-zinc-400">No purchase records found.</p>;
   return (
     <div className="overflow-x-auto">
@@ -131,7 +134,7 @@ function PurchaseTable({ rows }: { rows: PurchaseTxnRow[] }) {
             <tr key={r.id} className="border-t border-zinc-100 hover:bg-zinc-50">
               <td className="px-3 py-2 text-xs">{r.vendor_name}</td>
               <td className="px-3 py-2 text-xs font-mono">{r.invoice_no}</td>
-              <td className="px-3 py-2 text-xs text-zinc-500">{r.purchase_date ? new Date(r.purchase_date).toLocaleDateString() : '-'}</td>
+              <td className="px-3 py-2 text-xs text-zinc-500">{r.purchase_date ? formatDate(r.purchase_date) : '-'}</td>
               <td className="px-3 py-2 text-xs text-right">{r.qty}</td>
               <td className="px-3 py-2 text-xs text-zinc-500">{r.unit}</td>
               <td className="px-3 py-2 text-xs text-right">{r.rate}</td>
@@ -145,6 +148,7 @@ function PurchaseTable({ rows }: { rows: PurchaseTxnRow[] }) {
 }
 
 function ChallanTable({ rows }: { rows: ChallanTxnRow[] }) {
+  const { formatDate } = useAppDateFormat();
   if (rows.length === 0) return <p className="text-sm text-zinc-400">No delivery challans found.</p>;
   return (
     <div className="overflow-x-auto">
@@ -162,7 +166,7 @@ function ChallanTable({ rows }: { rows: ChallanTxnRow[] }) {
           {rows.map((r) => (
             <tr key={r.id} className="border-t border-zinc-100 hover:bg-zinc-50">
               <td className="px-3 py-2 text-xs font-medium">{r.dc_no}</td>
-              <td className="px-3 py-2 text-xs text-zinc-500">{r.dc_date ? new Date(r.dc_date).toLocaleDateString() : '-'}</td>
+              <td className="px-3 py-2 text-xs text-zinc-500">{r.dc_date ? formatDate(r.dc_date) : '-'}</td>
               <td className="px-3 py-2 text-xs text-zinc-600">{r.client_name}</td>
               <td className="px-3 py-2 text-xs">{r.status || '-'}</td>
               <td className="px-3 py-2 text-xs text-right">{r.qty}</td>

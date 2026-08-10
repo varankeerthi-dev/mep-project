@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { SettingsCategory, SettingsTabDefinition } from '../types';
+import { Button } from '@/components/ui/button';
 
 export interface SettingsSidebarProps {
   tabs: SettingsTabDefinition[];
@@ -80,10 +81,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                 const isDirty = dirtyTabIds.has(tab.id);
 
                 return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onSelectTab(tab.id)}
+                  <Button variant="ghost" size="default" key={tab.id} type="button" onClick={() => onSelectTab(tab.id)}
                     className={`w-full flex items-center justify-between px-3.5 py-3 rounded-lg font-medium transition-all cursor-pointer text-left leading-normal ${
                       isActive
                         ? 'bg-zinc-100 text-zinc-900 font-semibold shadow-2xs border-l-3 border-[#185FA5]'
@@ -105,7 +103,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                         title="Unsaved changes in this section"
                       />
                     )}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

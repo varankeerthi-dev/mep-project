@@ -1,9 +1,10 @@
-// src/App.tsx
+﻿// src/App.tsx
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { PageSkeleton } from './components/ui/skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { PermissionGuard } from './rbac';
@@ -11,10 +12,13 @@ import { supabase, getUserOrganisations, createOrganization, signOut, sendVerifi
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import { Toaster } from './lib/logger';
 import { AuthContext, useAuth, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
+import { DateFormatProvider } from './contexts/DateFormatContext';
 
 
 export { useAuth };
 export type { AuthContextValue, Organisation, OrganisationMember };
+
+import ItemEditorPage from './features/materials/page/ItemEditorPage';
 
 const DynamicAgentation = lazy(() => {
   if (typeof window === 'undefined') return Promise.resolve({ default: () => null });
@@ -33,36 +37,14 @@ function memoLazyModule<T>(loader: () => Promise<T>): () => Promise<T> {
   return () => (cached ??= loader());
 }
 
-// --- SKELETON LOADING COMPONENT ---
-const PageSkeleton = () => (
-  <div className="flex flex-col h-full animate-pulse">
-    {/* Header skeleton */}
-    <div className="h-16 bg-zinc-100 border-b border-zinc-200 flex items-center px-6">
-      <div className="h-8 bg-zinc-200 rounded w-1/4" />
-      <div className="ml-auto flex gap-3">
-        <div className="h-8 w-24 bg-zinc-200 rounded" />
-        <div className="h-8 w-24 bg-zinc-200 rounded" />
-      </div>
-    </div>
-    {/* Content skeleton */}
-    <div className="flex-1 p-6">
-      <div className="h-6 bg-zinc-200 rounded w-1/3 mb-4" />
-      <div className="h-4 bg-zinc-100 rounded w-2/3 mb-8" />
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="h-32 bg-zinc-100 rounded" />
-        <div className="h-32 bg-zinc-100 rounded" />
-        <div className="h-32 bg-zinc-100 rounded" />
-      </div>
-      <div className="h-64 bg-zinc-100 rounded" />
-    </div>
-  </div>
-);
 
 // Lazy load all pages
 const LandingPage      = lazyAny(() => import('./pages/LandingPage'));
 
 const Sidebar         = lazyAny(() => import('./components/Sidebar'));
 const QuickAccessBar  = lazyAny(() => import('./components/QuickAccessBar'));
+const DesignAuditPage = lazyAny(() => import('./components/DesignAuditPage'));
+const SkeletonDemoPage = lazyAny(() => import('./components/SkeletonDemoPage'));
 const EmployeeTab      = lazyAny(() => import('./pages/hr/EmployeeTab'));
 const AttendancePlanning = lazyAny(() => import('./pages/hr/AttendancePlanning'));
 const AttendanceEntry  = lazyAny(() => import('./pages/hr/AttendanceEntry'));
@@ -70,6 +52,7 @@ const SalarySlipDashboard = lazyAny(() => import('./pages/hr/salary-slip/SalaryS
 const ToolsManagement  = lazyAny(() => import('./pages/ToolsManagement'));
 const DynamicTableDemo = lazyAny(() => import('./components/ui/DynamicTableDemo').then(m => ({ default: m.DynamicTableDemo })));
 const CreateDC = lazyAny(() => import('./pages/CreateDC'));
+const CreateDCV2 = lazyAny(() => import('./pages/CreateDCV2'));
 const CreateNonBillableDC = lazyAny(() => import('./pages/CreateNonBillableDC'));
 const DCList = lazyAny(() => import('./pages/DCList'));
 const NonBillableDCList = lazyAny(() => import('./pages/NonBillableDCList'));
@@ -77,7 +60,6 @@ const DateWiseConsolidation = lazyAny(() => import('./pages/DateWiseConsolidatio
 const MaterialWiseConsolidation = lazyAny(() => import('./pages/MaterialWiseConsolidation'));
 const DCConsolidation = lazyAny(() => import('./pages/DCConsolidation').then(m => ({ default: m.default })));
 const MaterialsList = lazyAny(() => import('./features/materials/page/MaterialsPage'));
-const ItemEditorPage = lazyAny(() => import('./features/materials/page/ItemEditorPage'));
 const StockTransfer = lazyAny(() => import('./pages/StockTransfer'));
 const TransactionNumberSeries = lazyAny(() => import('./pages/TransactionNumberSeries'));
 const CreatePO = lazyAny(() => import('./pages/CreatePO'));
@@ -106,6 +88,7 @@ const CreateQuotationV2 = lazyAny(() => import('./pages/CreateQuotationV2/index'
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const SalesOrderList = lazyAny(() => import('./pages/sales/SalesOrderList'));
 const SalesOrderCreate = lazyAny(() => import('./pages/sales/SalesOrderCreate'));
+const SalesOrderCreateV2 = lazyAny(() => import('./pages/sales/SalesOrderCreateV2'));
 const SalesOrderDetail = lazyAny(() => import('./pages/sales/SalesOrderDetail'));
 const DCView = lazyAny(() => import('./pages/DCView'));
 const ReturnListPage = lazyAny(() => import('./pages/ReturnListPage'));
@@ -170,6 +153,7 @@ const ManpowerAttendance     = lazyAny(() => import('./pages/ManpowerAttendance'
 const ManpowerAttendanceList = lazyAny(() => import('./pages/ManpowerAttendanceList').then(m => ({ default: m.ManpowerAttendanceList })));
 const SubcontractorWorkOrders     = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
 const SubcontractorWorkOrderCreate = lazyAny(() => import('./pages/SubcontractorWorkOrderCreate'));
+const SubcontractorWorkOrderCreateV2 = lazyAny(() => import('./pages/SubcontractorWorkOrderCreateV2'));
 const WorkOrderDetailView    = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
 const MeasurementSheetWrapper = lazyAny(() => import('./pages/MeasurementSheetWrapper').then(m => ({ default: m.MeasurementSheetWrapper })));
 const SubcontractorDailyLogs = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDailyLogs })));
@@ -195,14 +179,21 @@ const SiteMaterials        = lazyAny(() => _projectMgmtInternal().then(m => ({ d
 const ToolsList            = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.ToolsList })));
 const LeadsModule = lazyAny(() => import('./modules/Leads/LeadsModule'));
 const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
+const DebitNoteViewV2 = lazyAny(() => import('./modules/Purchase/components/DebitNoteViewV2'));
+const PurchaseOrdersV2 = lazyAny(() => import('./modules/Purchase/components/PurchaseOrdersV2'));
 const AdvanceExpenseModule = lazyAny(() => import('./modules/AdvanceExpense/AdvanceExpenseModule'));
 const CreditNoteListPage = lazyAny(() => import('./credit-notes/pages/CreditNoteListPage').then(m => ({ default: m.CreditNoteListPage })));
 const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNoteViewPage').then(m => ({ default: m.CreditNoteViewPage })));
 const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
+const CreditNoteEditorPageV2 = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPageV2').then(m => ({ default: m.CreditNoteEditorPageV2 })));
+const InvoiceEditorPageV2 = lazyAny(() => import('./invoices/pages/InvoiceEditorPageV2'));
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
 const TableDemo = lazyAny(() => import('./pages/TableDemo'));
 const CustomTableDemo = lazyAny(() => import('./pages/CustomTableDemo'));
+
+// Warehouse Management module
+const WarehouseModule = lazyAny(() => import('./warehouse/WarehouseModule'));
 
 // Manufacturing
 const ManufacturingShellV0 = lazyAny(() => import('./pages/manufacturing-v0/ManufacturingShell'));
@@ -418,6 +409,8 @@ export default function App() {
       case '/pricing-demo': return <PricingTableOneDemo />;
       case '/table-demo': return <TableDemo />;
       case '/custom-table-demo': return <CustomTableDemo />;
+      case '/design-audit': return <DesignAuditPage />;
+      case '/skeleton-demo': return <SkeletonDemoPage />;
       case '/':
         return <Dashboard onNavigate={navigate} />;
       case '/login':
@@ -460,6 +453,7 @@ export default function App() {
       case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
       case '/subcontractors/workorders': return <SubcontractorWorkOrders onNavigate={navigate} />;
       case '/subcontractors/workorders/create': return <SubcontractorWorkOrderCreate onNavigate={navigate} />;
+      case '/subcontractors/workorders/create-v2': return <SubcontractorWorkOrderCreateV2 onNavigate={navigate} />;
       case '/subcontractors/attendance': return <ManpowerAttendance onNavigate={navigate} />;
       case '/subcontractors/attendance/list': return <ManpowerAttendanceList onNavigate={navigate} />;
       case '/subcontractors/payments': return <SubcontractorPayments onNavigate={navigate} />;
@@ -494,6 +488,7 @@ export default function App() {
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/sales-orders': return <SalesOrderList />;
       case '/sales-orders/create': return <SalesOrderCreate onSuccess={() => navigate('/sales-orders')} onCancel={() => navigate('/sales-orders')} />;
+      case '/sales-orders/create-v2': return <SalesOrderCreateV2 />;
       case '/sales-orders/edit': return <SalesOrderCreate onSuccess={() => navigate('/sales-orders')} onCancel={() => navigate('/sales-orders')} editMode={true} />;
       case '/sales-orders/view': return <SalesOrderDetail />;
       case '/client-lookup': return <PermissionGuard permission="quick_lookup.read" fallback={<div className="p-6">Access Denied</div>}><ClientLookup /></PermissionGuard>;
@@ -508,6 +503,10 @@ export default function App() {
       case '/credit-notes/view': return <CreditNoteViewPage />;
       case '/credit-notes/create': return <CreditNoteEditorPage />;
       case '/credit-notes/edit': return <CreditNoteEditorPage />;
+      case '/credit-notes/create-v2': return <CreditNoteEditorPageV2 />;
+      case '/credit-notes/edit-v2': return <CreditNoteEditorPageV2 />;
+      case '/invoices/create-v2': return <InvoiceEditorPageV2 />;
+      case '/invoices/edit-v2': return <InvoiceEditorPageV2 />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;
       case '/follow-up': return <FollowUpCentre />;
       case '/boq': return <BOQList />;
@@ -524,6 +523,9 @@ export default function App() {
       case '/estimation/resources': return <PermissionGuard permission="estimation.resources.read" fallback={<div className="p-6">Access Denied</div>}><ResourceCatalogPage /></PermissionGuard>;
       // Manufacturing — V2 (refactored) module is now the default at /manufacturing
       case '/manufacturing':
+      case '/manufacturing/machines':
+      case '/manufacturing/moulds':
+      case '/manufacturing/dashboard':
       case '/manufacturing/inventory':
       case '/manufacturing/boms':
       case '/manufacturing/boms/create':
@@ -576,6 +578,10 @@ export default function App() {
       case '/purchase':
       case '/purchase/dashboard':
       case '/purchase/vendors':
+      case '/purchase/debit-notes-v2':
+        return <DebitNoteViewV2 />;
+      case '/purchase/orders-v2':
+        return <PurchaseOrdersV2 />;
       case '/purchase/requisitions':
       case '/purchase/inquiries':
       case '/purchase/orders':
@@ -586,6 +592,16 @@ export default function App() {
       case '/purchase/payment-queue':
       case '/purchase/payment-accountant':
         return <PurchaseModule />;
+      // Warehouse Management module
+      case '/warehouse':
+      case '/warehouse/dashboard':
+      case '/warehouse/designer':
+      case '/warehouse/viewer':
+      case '/warehouse/inventory':
+      case '/warehouse/operations':
+      case '/warehouse/reports':
+      case '/warehouse/warehouses':
+        return <PermissionGuard permission="warehouses.read" fallback={<div className="p-6">Access Denied</div>}><WarehouseModule /></PermissionGuard>;
       // Inventory
       case '/procurement': return <ProcurementList />;
       case '/procurement/detail': return <ProcurementDetail />;
@@ -610,6 +626,7 @@ export default function App() {
       case '/reports/profit': return <ProfitReport />;
       // Delivery Challan
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
+      case '/dc/create-v2': return <CreateDCV2 onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
       case '/dc/list': return <DCList />;
       case '/dc/consolidation': return <DCConsolidation />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
@@ -704,14 +721,14 @@ export default function App() {
         }
         // V2 Manufacturing module deep links
         if (
-          pathKey.startsWith('/manufacturing/job-cards/') ||
-          pathKey.startsWith('/manufacturing/dispatch/') ||
-          pathKey.startsWith('/manufacturing/plans/') ||
-          pathKey.startsWith('/manufacturing/inventory/') ||
-          pathKey.startsWith('/manufacturing/qc/') ||
-          pathKey.startsWith('/manufacturing/stores/')
+          pathKey.startsWith('/manufacturing/') ||
+          pathKey.startsWith('/manufacturing-v2/')
         ) {
           return <ManufacturingShellV2 />;
+        }
+        // Warehouse module deep links (e.g. /warehouse/designer/<id>)
+        if (pathKey.startsWith('/warehouse/')) {
+          return <PermissionGuard permission="warehouses.read" fallback={<div className="p-6">Access Denied</div>}><WarehouseModule /></PermissionGuard>;
         }
         if (pathKey.startsWith('/meetings/') && pathKey.includes('/minutes')) {
           const meetingId = pathKey.split('/meetings/')[1].split('/minutes')[0];
@@ -1092,17 +1109,20 @@ export default function App() {
   if (isEmbed) {
     return (
       <AuthContext.Provider value={authContextValue}>
-        <div className="embed-container bg-background min-h-screen w-full">
-          <Suspense fallback={<PageSkeleton />}>
-            {renderedPage}
-          </Suspense>
-        </div>
+        <DateFormatProvider>
+          <div className="embed-container bg-background min-h-screen w-full">
+            <Suspense fallback={<PageSkeleton />}>
+              {renderedPage}
+            </Suspense>
+          </div>
+        </DateFormatProvider>
       </AuthContext.Provider>
     );
   }
 
   return (
     <AuthContext.Provider value={authContextValue}>
+      <DateFormatProvider>
       <div className="app-container">
 
         <Suspense fallback={null}>
@@ -1293,6 +1313,8 @@ export default function App() {
 
       <Toaster />
       <ReactQueryDevtools initialIsOpen={false} />
+      </DateFormatProvider>
     </AuthContext.Provider>
   );
 }
+

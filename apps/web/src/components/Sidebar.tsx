@@ -63,6 +63,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   issue: 'site_reports',
   procurement: 'materials',
   store: 'materials',
+  warehouse: 'warehouse',
   purchase: 'purchase',
   dc: 'delivery_challans',
   'client-po': 'client_purchase_orders',
@@ -242,7 +243,21 @@ const menuData: MenuSection[] = [
           { id: 'stock-transfer', label: 'Stock transfer', path: '/store/materials?tab=stock-transfer' },
           { id: 'stock-balance', label: 'Stock balance', path: '/store/materials?tab=stock-balance' },
           { id: 'quick-stock-check', label: 'Stock check', path: '/store/materials?tab=stock-check' },
-          { id: 'warehouses', label: 'Warehouses', path: '/store/materials?tab=warehouses' }
+          { id: 'warehouses', label: 'Warehouses (legacy)', path: '/store/materials?tab=warehouses' }
+        ]
+      },
+      {
+        id: 'warehouse',
+        label: 'Warehouse',
+        flyout: true,
+        submenu: [
+          { id: 'wh-dashboard', label: 'Dashboard', path: '/warehouse/dashboard' },
+          { id: 'wh-designer', label: 'Designer', path: '/warehouse/designer' },
+          { id: 'wh-viewer', label: 'Viewer', path: '/warehouse/viewer' },
+          { id: 'wh-inventory', label: 'Inventory', path: '/warehouse/inventory' },
+          { id: 'wh-operations', label: 'Operations', path: '/warehouse/operations' },
+          { id: 'wh-reports', label: 'Reports', path: '/warehouse/reports' },
+          { id: 'wh-warehouses', label: 'Warehouses', path: '/warehouse/warehouses' }
         ]
       },
       {
@@ -398,6 +413,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'advances-expenses': 'BanknotesIcon',
   'purchase-payment-queue': 'ClockIcon',
   procurement: 'ClipboardDocumentListIcon',
+  warehouse: 'BuildingStorefrontIcon',
   manufacturing: 'Cog6ToothIcon',
   accounting: 'CalculatorIcon',
   'chart-of-accounts': 'RectangleGroupIcon',
@@ -605,15 +621,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
                     return (
                       <div key={item.id}>
-                        <button
-                          className={cx(
-                            'sidebar-item',
-                            isActiveBtn && 'active',
-                            isParentActiveBtn && 'parent-active',
-                            isExpanded && 'expanded'
-                          )}
-                          onClick={handleClick(item)}
-                          onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
+                        <button className={cx( 'sidebar-item', isActiveBtn && 'active', isParentActiveBtn && 'parent-active', isExpanded && 'expanded' )} onClick={handleClick(item)} onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
                           onMouseLeave={item.flyout ? handleFlyoutLeave : undefined}
                           type="button"
                         >
@@ -632,12 +640,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                           <div className="sidebar-submenu">
                             {item.submenu.map(subItem => (
                               <div key={subItem.id}>
-                                <button
-                                  className={cx(
-                                    'sidebar-submenu-item',
-                                    isActive(subItem.path) && 'active'
-                                  )}
-                                  onClick={() => {
+                                <button className={cx( 'sidebar-submenu-item', isActive(subItem.path) && 'active' )} onClick={() => {
                                     setFlyoutMenu(null);
                                     subItem.submenu ? toggleMenu(subItem.id) : onNavigate(subItem.path);
                                   }}
@@ -653,13 +656,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                                 {subItem.submenu && expandedMenus.includes(subItem.id) && (
                                   <div className="sidebar-submenu" style={{ paddingLeft: '16px' }}>
                                     {subItem.submenu.map(nestedItem => (
-                                      <button
-                                        key={nestedItem.id}
-                                        className={cx(
-                                          'sidebar-submenu-item',
-                                          isActive(nestedItem.path) && 'active'
-                                        )}
-                                        onClick={() => {
+                                      <button key={nestedItem.id} className={cx( 'sidebar-submenu-item', isActive(nestedItem.path) && 'active' )} onClick={() => {
                                           setFlyoutMenu(null);
                                           onNavigate(nestedItem.path);
                                         }}
@@ -692,15 +689,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
               return (
                 <div key={item.id} className="w-full">
-                  <button
-                    className={cx(
-                      'sidebar-item',
-                      isActiveBtn && 'active',
-                      isParentActiveBtn && 'parent-active',
-                      isExpanded && 'expanded'
-                    )}
-                    onClick={handleClick(item)}
-                    onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
+                  <button className={cx( 'sidebar-item', isActiveBtn && 'active', isParentActiveBtn && 'parent-active', isExpanded && 'expanded' )} onClick={handleClick(item)} onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
                     onMouseLeave={item.flyout ? handleFlyoutLeave : undefined}
                     type="button"
                   >
@@ -717,7 +706,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                 </div>
               );
             })}
-            <button className="sidebar-toggle" onClick={() => { setFlyoutMenu(null); onToggle(); }} type="button">
+            <button className="sidebar-item" onClick={() => { setFlyoutMenu(null); onToggle(); }} type="button">
               <span className="sidebar-item-icon">
                 {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
               </span>
@@ -734,10 +723,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
           >
             <div className="sidebar-flyout-title">{activeFlyoutItem.label}</div>
             {activeFlyoutItem.submenu?.map(sub => (
-              <button
-                key={sub.id}
-                className={cx('sidebar-flyout-item', isActive(sub.path) && 'active')}
-                onClick={() => {
+              <button key={sub.id} className={cx('sidebar-flyout-item', isActive(sub.path) && 'active')} onClick={() => {
                   setFlyoutMenu(null);
                   onNavigate(sub.path);
                 }}

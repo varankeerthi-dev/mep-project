@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, FilePlus2, ChevronUp, ChevronDown, Folder, Link2, AlertTriangle } from 'lucide-react';
 import { PO_STATUS_CONFIG } from '../../constants';
+import { Button } from '@/components/ui/button';
 
 interface TransactionsTabProps {
   selectedProject: any;
@@ -62,16 +63,12 @@ export function TransactionsTab({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 className="pl-summary-title" style={{ margin: 0 }}>Transaction Summary</h3>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              className="pl-btn pl-btn-primary"
-              onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}
+            <Button variant="default" size="sm" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}
             >
               <Plus size={16} />
               Create PO
-            </button>
-            <button
-              className="pl-btn"
-              onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: null })}
+            </Button>
+            <Button variant="default" size="sm" onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: null })}
               style={{
                 background: '#fff',
                 color: 'var(--text-primary)',
@@ -80,7 +77,7 @@ export function TransactionsTab({
             >
               <FilePlus2 size={16} />
               Create Invoice
-            </button>
+            </Button>
           </div>
         </div>
         <div className="pl-financial-grid">
@@ -124,9 +121,7 @@ export function TransactionsTab({
         {transactionSubTabs.map(subTab => {
           const isActive = activeTransactionTab === subTab.id;
           return (
-            <button
-              key={subTab.id}
-              onClick={() => setActiveTransactionTab(subTab.id)}
+            <Button variant="default" size="sm" key={subTab.id} onClick={() => setActiveTransactionTab(subTab.id)}
               style={{
                 padding: '0.5rem 1rem',
                 borderRadius: '0.5rem',
@@ -140,7 +135,7 @@ export function TransactionsTab({
               }}
             >
               {subTab.label} ({subTab.count})
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -273,9 +268,7 @@ export function TransactionsTab({
                           </span>
                         </td>
                         <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className="pl-btn"
-                            onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: po.id })}
+                          <Button variant="default" size="sm" onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: po.id })}
                             style={{
                               background: 'var(--accent, #2563eb)',
                               color: '#fff',
@@ -289,7 +282,7 @@ export function TransactionsTab({
                             }}
                           >
                             <Plus size={12} /> Invoice
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                       {isExpanded && (
@@ -307,8 +300,7 @@ export function TransactionsTab({
                                 }}
                               >
                                 <Link2 size={12} /> No invoices linked to this PO yet.
-                                <button
-                                  onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: po.id })}
+                                <Button variant="default" size="sm" onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: po.id })}
                                   style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -320,7 +312,7 @@ export function TransactionsTab({
                                   }}
                                 >
                                   Create the first invoice
-                                </button>
+                                </Button>
                               </div>
                             ) : (
                               <table style={{ width: '100%', fontSize: '0.8125rem' }}>
@@ -351,8 +343,7 @@ export function TransactionsTab({
                                         <span className="pl-status">{inv.status || 'Pending'}</span>
                                       </td>
                                       <td style={{ padding: '0.375rem 0.5rem', textAlign: 'right' }}>
-                                        <button
-                                          onClick={() => setInvoiceModal({ open: true, mode: 'edit', invoice: inv })}
+                                        <Button variant="default" size="sm" onClick={() => setInvoiceModal({ open: true, mode: 'edit', invoice: inv })}
                                           style={{
                                             background: 'transparent',
                                             border: '1px solid var(--border)',
@@ -364,7 +355,7 @@ export function TransactionsTab({
                                           }}
                                         >
                                           Edit
-                                        </button>
+                                        </Button>
                                       </td>
                                     </tr>
                                   ))}
@@ -388,10 +379,10 @@ export function TransactionsTab({
         <div className="pl-card">
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Purchase Orders</h3>
-            <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
+            <Button variant="default" size="sm" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
               <Plus size={16} />
               Create PO
-            </button>
+            </Button>
           </div>
           {projectPOs.length === 0 ? (
             <div className="pl-empty">
@@ -433,13 +424,11 @@ export function TransactionsTab({
         <div className="pl-card">
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Invoices</h3>
-            <button
-              className="pl-btn pl-btn-primary"
-              onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: null })}
+            <Button variant="default" size="sm" onClick={() => setInvoiceModal({ open: true, mode: 'create', defaultPoId: null })}
             >
               <Plus size={16} />
               Create Invoice
-            </button>
+            </Button>
           </div>
           {projectInvoices.length === 0 ? (
             <div className="pl-empty">
@@ -500,8 +489,7 @@ export function TransactionsTab({
                       <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, textAlign: 'left' }}>{fmt(inv.total_amount)}</td>
                       <td><span className="pl-status">{inv.status}</span></td>
                       <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => setInvoiceModal({ open: true, mode: 'edit', invoice: inv })}
+                        <Button variant="default" size="sm" onClick={() => setInvoiceModal({ open: true, mode: 'edit', invoice: inv })}
                           style={{
                             background: 'transparent',
                             border: '1px solid var(--border)',
@@ -513,7 +501,7 @@ export function TransactionsTab({
                           }}
                         >
                           Edit
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );

@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, Check, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useTaskSearch, useTaskLabelResolution, TaskSearchResult } from '../../hooks/useTaskSearch';
+import { Button } from '@/components/ui/button';
 
 // ─── Status badge config ───────────────────────────────────────────────────
 
@@ -276,8 +277,7 @@ export default function TaskLinkSelector({
                 </span>
               )}
               {!disabled && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeId(id); }}
+                <Button variant="default" size="default" onClick={(e) => { e.stopPropagation(); removeId(id); }}
                   style={{
                     padding: 0,
                     background: 'none',
@@ -290,7 +290,7 @@ export default function TaskLinkSelector({
                   }}
                 >
                   <X size={11} />
-                </button>
+                </Button>
               )}
             </span>
           );
@@ -385,9 +385,7 @@ export default function TaskLinkSelector({
               visibleResults.map((task) => {
                 const isSelected = selectedIds.includes(task.id);
                 return (
-                  <button
-                    key={task.id}
-                    onClick={() => toggleTask(task)}
+                  <Button variant="default" size="default" key={task.id} onClick={() => toggleTask(task)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -476,7 +474,7 @@ export default function TaskLinkSelector({
                         </span>
                       )}
                     </div>
-                  </button>
+                  </Button>
                 );
               })
             )}

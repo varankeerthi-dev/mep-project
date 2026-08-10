@@ -27,6 +27,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Search, UserPlus, Settings2, Save, MoreHorizontal, Pencil, Eye, Trash2 } from 'lucide-react'
 import { EmployeeForm } from './EmployeeForm'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { useAppDateFormat } from '@/contexts/DateFormatContext'
 
 interface EmployeeDirectoryProps {
   onSelectEmployee: (employee: Employee) => void
@@ -48,6 +49,7 @@ const ALL_COLUMNS = [
 export function EmployeeDirectory({ onSelectEmployee }: EmployeeDirectoryProps) {
   const { data: employees, isLoading, error } = useEmployees()
   const { settings, updateSettings, isUpdating } = useOrganisationSettings()
+  const { formatDate } = useAppDateFormat()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'Active' | 'Inactive' | 'All'>('Active')
@@ -131,7 +133,7 @@ export function EmployeeDirectory({ onSelectEmployee }: EmployeeDirectoryProps) 
         case 'employment_type': return emp.employment_type
         case 'phone': return emp.phone || emp.mobile_no
         case 'email': return emp.email || (emp as any).personal_email
-        case 'dob': return emp.date_of_birth ? new Date(emp.date_of_birth).toLocaleDateString() : null
+        case 'dob': return emp.date_of_birth ? formatDate(emp.date_of_birth) : null
         default: return null
       }
     }

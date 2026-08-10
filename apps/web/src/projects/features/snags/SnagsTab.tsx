@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Folder, Link2, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '@/components/ui/button';
 
 interface SnagsTabProps {
   selectedProject: any;
@@ -64,9 +65,7 @@ export function SnagsTab({
       <div className="pl-card" style={{ padding: '1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Layout Drawings & Schematic Blueprints</h3>
-          <button 
-            className="pl-btn pl-btn-primary" 
-            onClick={() => {
+          <Button variant="default" size="sm" onClick={() => {
               setSnagFormData({
                 description: '',
                 location_area: '',
@@ -83,7 +82,7 @@ export function SnagsTab({
             style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8125rem' }}
           >
             <Plus size={14} /> Add Snag
-          </button>
+          </Button>
         </div>
         
         <div style={{ marginTop: '1rem' }}>
@@ -91,10 +90,7 @@ export function SnagsTab({
             <div style={{ padding: '1.5rem', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', textAlign: 'center' }}>
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>No drawing layouts uploaded for this project yet.</p>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button 
-                  className="pl-btn pl-btn-primary"
-                  style={{ fontSize: '0.8125rem' }}
-                  onClick={async () => {
+                <Button variant="default" size="sm" onClick={async () => {
                     try {
                       if (!selectedProject?.id || !organisation?.id) return;
                       const { error } = await supabase
@@ -114,23 +110,18 @@ export function SnagsTab({
                   }}
                 >
                   Initialize Default Blueprint
-                </button>
-                <button 
-                  className="pl-btn"
-                  style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.8125rem' }}
-                  onClick={() => setIsAddingDrawing(true)}
+                </Button>
+                <Button variant="outline" size="sm" style={{ background: '#fff', border: '1px solid #cbd5e1', fontSize: '0.8125rem' }} onClick={() => setIsAddingDrawing(true)}
                 >
                   Upload Custom Drawing
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#64748b' }}>Select Layout:</span>
               {projectDrawings.map((dw: any) => (
-                <button 
-                  key={dw.id} 
-                  onClick={() => {
+                <Button variant="default" size="sm" key={dw.id} onClick={() => {
                     setActiveDrawingId(dw.id);
                     setHighlightedSnagId(null);
                   }}
@@ -144,10 +135,9 @@ export function SnagsTab({
                   }}
                 >
                   {dw.name}
-                </button>
+                </Button>
               ))}
-              <button 
-                onClick={() => setIsAddingDrawing(true)} 
+              <Button variant="default" size="sm" onClick={() => setIsAddingDrawing(true)} 
                 className="pl-btn"
                 style={{
                   fontSize: '0.8125rem',
@@ -160,7 +150,7 @@ export function SnagsTab({
                 }}
               >
                 <Plus size={14} /> Add Drawing
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -284,9 +274,7 @@ export function SnagsTab({
                             {snag.covered_under_warranty && (
                               <>
                                 {matchingClaim ? (
-                                  <button
-                                    className="pl-btn"
-                                    onClick={() => {
+                                  <Button variant="default" size="sm" onClick={() => {
                                       setClaimFormData({
                                         id: matchingClaim.id,
                                         snag_id: matchingClaim.snag_id || '',
@@ -314,11 +302,9 @@ export function SnagsTab({
                                     }}
                                   >
                                     Claim: {matchingClaim.status}
-                                  </button>
+                                  </Button>
                                 ) : (
-                                  <button
-                                    className="pl-btn pl-btn-primary"
-                                    onClick={() => {
+                                  <Button variant="default" size="sm" onClick={() => {
                                       const supplierName = linkedEquipment?.supplier || '';
                                       setClaimFormData({
                                         id: '',
@@ -347,7 +333,7 @@ export function SnagsTab({
                                     }}
                                   >
                                     Claim
-                                  </button>
+                                  </Button>
                                 )}
                               </>
                             )}
@@ -439,12 +425,11 @@ export function SnagsTab({
                   <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                       <span style={{ fontWeight: 600, color: '#334155' }}>Selected Snag Details</span>
-                      <button 
-                        onClick={() => setHighlightedSnagId(null)} 
+                      <Button variant="default" size="sm" onClick={() => setHighlightedSnagId(null)} 
                         style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
                       >
                         <X size={14} />
-                      </button>
+                      </Button>
                     </div>
                     <p style={{ margin: '0.25rem 0', color: '#475569' }}>{snag.description}</p>
                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap', color: '#64748b', fontSize: '0.75rem' }}>
@@ -564,9 +549,7 @@ export function SnagsTab({
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-                        <button
-                          className="pl-btn"
-                          onClick={() => {
+                        <Button variant="default" size="sm" onClick={() => {
                             setClaimFormData({
                               id: claim.id,
                               snag_id: claim.snag_id || '',
@@ -594,10 +577,8 @@ export function SnagsTab({
                           }}
                         >
                           Edit
-                        </button>
-                        <button
-                          className="pl-btn"
-                          onClick={() => {
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => {
                             setNotifyingClaim(claim);
                             setNotifyEmail(claim.vendor_email || '');
                             setNotifySlaDays(7);
@@ -612,7 +593,7 @@ export function SnagsTab({
                           }}
                         >
                           {claim.vendor_notified_at ? 'Re-send Letter' : 'Send Claim Letter'}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -653,12 +634,10 @@ export function SnagsTab({
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-              <button className="pl-btn" onClick={() => setIsAddingDrawing(false)} style={{ background: '#fff', border: '1px solid #cbd5e1' }}>
+              <Button variant="default" size="sm" onClick={() => setIsAddingDrawing(false)} style={{ background: '#fff', border: '1px solid #cbd5e1' }}>
                 Cancel
-              </button>
-              <button 
-                className="pl-btn pl-btn-primary" 
-                onClick={async () => {
+              </Button>
+              <Button variant="default" size="sm" onClick={async () => {
                   if (!newDrawingName || !newDrawingUrl) return;
                   try {
                     if (!selectedProject?.id || !organisation?.id) return;
@@ -682,7 +661,7 @@ export function SnagsTab({
                 }}
               >
                 Add Layout
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -741,13 +720,10 @@ export function SnagsTab({
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button className="pl-btn" onClick={() => setNotifyingClaim(null)} style={{ background: '#fff', border: '1px solid #cbd5e1' }} disabled={sendingLetter}>
+                <Button variant="default" size="sm" onClick={() => setNotifyingClaim(null)} style={{ background: '#fff', border: '1px solid #cbd5e1' }} disabled={sendingLetter}>
                   Cancel
-                </button>
-                <button 
-                  className="pl-btn pl-btn-primary" 
-                  disabled={!notifyEmail || sendingLetter}
-                  onClick={async () => {
+                </Button>
+                <Button variant="default" size="sm" disabled={!notifyEmail || sendingLetter} onClick={async () => {
                     try {
                       setSendingLetter(true);
                       // Trigger email logic or save to DB
@@ -773,7 +749,7 @@ export function SnagsTab({
                   }}
                 >
                   {sendingLetter ? 'Sending...' : 'Send Email Letter'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { TDSPaymentPanel } from './TDSPaymentPanel';
 import { exportLedgerPDF } from '../utils/exportLedgerPDF';
 import { formatCurrency } from '../utils/formatters';
 import { Download, Plus, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface SubcontractorLedgerProps {
   subcontractorId: string;
@@ -33,9 +34,9 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
     return (
       <div className="p-6 text-center text-red-600" style={{ fontFamily: 'Courier New, monospace' }}>
         Error loading ledger: {error.message}
-        <button onClick={() => refetch()} className="ml-4 px-3 py-1 border border-black">
+        <Button variant="default" size="sm" onClick={() => refetch()} className="ml-4 px-3 py-1 border border-black">
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -77,21 +78,14 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
         </div>
         <div className="flex gap-2">
           {onBack && (
-            <button
-              onClick={onBack}
-              className="px-4 py-2 border border-black hover:bg-zinc-100"
-            >
+            <Button variant="secondary" size="sm" onClick={onBack} >
               Back
-            </button>
+            </Button>
           )}
-          <button
-            onClick={handleExportPDF}
-            disabled={!summary}
-            className="px-4 py-2 border border-black hover:bg-zinc-100 flex items-center gap-2 disabled:opacity-50"
-          >
+          <Button variant="secondary" size="sm" onClick={handleExportPDF} disabled={!summary} >
             <Download size={16} />
             Export PDF
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -100,26 +94,23 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-lg">WORK ORDERS</h3>
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowAmendmentPanel(!showAmendmentPanel)}
+            <Button variant="default" size="sm" onClick={() => setShowAmendmentPanel(!showAmendmentPanel)}
               className="px-3 py-1 border border-black text-sm hover:bg-zinc-100 flex items-center gap-1"
             >
               <Clock size={14} />
               Pending Amendments
-            </button>
-            <button
-              onClick={() => setShowTDSPanel(!showTDSPanel)}
+            </Button>
+            <Button variant="default" size="sm" onClick={() => setShowTDSPanel(!showTDSPanel)}
               className="px-3 py-1 border border-black text-sm hover:bg-zinc-100"
             >
               TDS Tracking
-            </button>
+            </Button>
             {selectedWO && (
-              <button
-                onClick={() => setSelectedWO(null)}
+              <Button variant="default" size="sm" onClick={() => setSelectedWO(null)}
                 className="px-3 py-1 border border-black text-sm bg-zinc-100"
               >
                 Show All
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -150,8 +141,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
                   <td className="border border-black p-2 text-right">{formatCurrency(wo.total_amount)}</td>
                   <td className="border border-black p-2 text-center">{wo.status}</td>
                   <td className="border border-black p-2 text-center">
-                    <button
-                      onClick={(e) => {
+                    <Button variant="default" size="sm" onClick={(e) => {
                         e.stopPropagation();
                         handleCreateAmendment(wo);
                       }}
@@ -159,7 +149,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
                     >
                       <Plus size={12} />
                       Amend
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               );

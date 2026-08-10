@@ -4,9 +4,12 @@ import { PermissionGuard } from '../../../../rbac';
 import { useTenders, useDeleteTender } from '../../hooks/useTenders';
 import type { TenderFilterParams } from '../../api/tenders';
 import { TENDER_STATUSES } from '../../constants';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { Plus, Search, FileText, Trash2, Edit, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function TenderListPage() {
+  const { formatDate } = useAppDateFormat();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -121,25 +124,23 @@ export default function TenderListPage() {
                     }`}>{tender.status}</span>
                   </td>
                   <td className="px-6 py-4 text-sm text-zinc-500">
-                    {tender.submission_date ? new Date(tender.submission_date).toLocaleDateString() : '-'}
+                    {tender.submission_date ? formatDate(tender.submission_date) : '-'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
                       <PermissionGuard permission="estimation.tender.update">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/estimation/tenders/edit?id=${tender.id}`); }}
+                        <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/estimation/tenders/edit?id=${tender.id}`); }}
                           className="p-1.5 hover:bg-zinc-100 rounded text-zinc-400 hover:text-zinc-600"
                         >
                           <Edit className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </PermissionGuard>
                       <PermissionGuard permission="estimation.tender.delete">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (confirm('Delete this tender?')) deleteTender.mutate(tender.id!); }}
+                        <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); if (confirm('Delete this tender?')) deleteTender.mutate(tender.id!); }}
                           className="p-1.5 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </PermissionGuard>
                     </div>
                   </td>

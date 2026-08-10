@@ -6,6 +6,7 @@ import { AmendmentApprovalPanel } from '../../../../components/AmendmentApproval
 import { TDSPaymentPanel } from '../../../../components/TDSPaymentPanel';
 import { exportLedgerPDF } from '../../../../utils/exportLedgerPDF';
 import { formatCurrency } from '../../../../utils/formatters';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { Download, Clock } from 'lucide-react';
 
 interface SubcontractorLedgerProps {
@@ -16,6 +17,7 @@ interface SubcontractorLedgerProps {
 
 export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack }: SubcontractorLedgerProps) {
   const { data, isLoading, error, refetch } = useSubcontractorLedger(subcontractorId);
+  const { formatDate } = useAppDateFormat();
   const [selectedWO, setSelectedWO] = useState<string | null>(null);
   const [showAmendmentModal, setShowAmendmentModal] = useState(false);
   const [showAmendmentPanel, setShowAmendmentPanel] = useState(false);
@@ -190,7 +192,7 @@ export function SubcontractorLedger({ subcontractorId, subcontractorName, onBack
           <tbody>
             {filteredLedger.map((entry) => (
               <tr key={entry.id} className="hover:bg-zinc-50">
-                <td className="border border-black p-2 whitespace-nowrap">{entry.date}</td>
+                <td className="border border-black p-2 whitespace-nowrap">{formatDate(entry.date)}</td>
                 <td className="border border-black p-2 font-semibold text-xs">{entry.type}</td>
                 <td className="border border-black p-2 font-mono text-xs">{entry.reference}</td>
                 <td className="border border-black p-2 font-bold text-xs">{entry.workOrderRef || '-'}</td>

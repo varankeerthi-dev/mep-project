@@ -7,8 +7,11 @@ import { allocationStatusEnum } from '../../model';
 import AllocatePartnerModal from '../../components/AllocatePartnerModal';
 import AllocationStatusBadge from '../../components/AllocationStatusBadge';
 import { Plus } from 'lucide-react';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { Button } from '@/components/ui/button';
 
 export default function AllocationsListPage() {
+  const { formatDate } = useAppDateFormat();
   const { organisation } = useAuth();
   const [searchParams] = useSearchParams();
   const leadId = searchParams.get('lead_id');
@@ -33,11 +36,11 @@ export default function AllocationsListPage() {
           <h1 className="text-xl font-semibold text-zinc-800">Lead Allocations</h1>
           {leadId && <p className="text-sm text-zinc-500 mt-1">Showing allocations for a specific lead</p>}
         </div>
-        <button onClick={() => setShowModal(true)}
+        <Button variant="default" size="sm" onClick={() => setShowModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="h-4 w-4" />
           Allocate Partner
-        </button>
+        </Button>
       </div>
 
       {!leadId && (
@@ -82,7 +85,7 @@ export default function AllocationsListPage() {
                     <div className="text-xs text-zinc-400">{allocation.partner?.contact_person || ''}</div>
                   </td>
                   <td className="px-6 py-3"><AllocationStatusBadge status={allocation.status} /></td>
-                  <td className="px-6 py-3 text-zinc-600">{new Date(allocation.assigned_at || allocation.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-3 text-zinc-600">{formatDate(allocation.assigned_at || allocation.created_at)}</td>
                   <td className="px-6 py-3 text-zinc-600">₹{(allocation.estimated_value || 0).toLocaleString()}</td>
                 </tr>
               ))}

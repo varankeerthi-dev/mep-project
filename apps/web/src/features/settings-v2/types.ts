@@ -19,6 +19,7 @@ export interface SettingsTabDefinition {
 export interface GeneralConfigData {
   round_off_enabled: boolean;
   auto_generate_item_codes: boolean;
+  date_format: string;
 }
 
 export interface OrganisationInfoData {

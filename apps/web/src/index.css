@@ -461,9 +461,9 @@ html, body {
 }
 
 :root {
-  --primary: oklch(0.59 0.20 277.12);
-  --primary-dark: #4338ca;
-  --primary-light: #818cf8;
+  --primary: #185FA5;
+  --primary-dark: #0C447C;
+  --primary-light: #4f9fe0;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -542,6 +542,39 @@ html, body {
   padding: 0;
   box-sizing: border-box;
   border-radius: 0 !important;
+}
+
+/* settings-v2 content area: 5px default padding baseline.
+   Scoped to .sv-content (right-side panel only) and wrapped in :where() so its
+   specificity stays 0 — components with their own padding (cards, inputs, rows)
+   keep their values; only padding-less elements pick up 5px. Sidebar/other pages
+   are untouched. */
+:where(.sv-content *) {
+  padding: 5px;
+}
+
+/* settings-v2 card: 10px corner radius. Class-level !important (specificity
+   0,1,0) overrides the global `border-radius: 0 !important` reset on `*`. */
+.sv-card {
+  border-radius: 10px !important;
+}
+
+/* Drawer panels — 8px left/right baseline (top/bottom 0), 4px corner radius. */
+.drawer-panel {
+  padding: 0 8px;
+  border-radius: 4px !important;
+}
+
+/* Button v2.1 — override global border-radius reset */
+[data-slot="button"] {
+  border-radius: 6px !important;
+}
+
+[data-slot="button"][class*="size-9"],
+[data-slot="button"][class*="size-8"],
+[data-slot="button"][class*="size-6"],
+[data-slot="button"][class*="size-10"] {
+  border-radius: 6px !important;
 }
 
 body {
@@ -679,60 +712,6 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: var(--gray-800);
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--primary-dark);
-}
-
-.btn-secondary {
-  background: var(--gray-100);
-  color: var(--gray-700);
-  border: 1px solid var(--gray-200);
-}
-
-.btn-secondary:hover {
-  background: var(--gray-200);
-}
-
-.btn-outline {
-  background: transparent;
-  color: var(--gray-700);
-  border: 1px solid var(--gray-300);
-}
-
-.btn-outline:hover {
-  background: var(--gray-100);
-}
-
-.btn-danger {
-  background: var(--danger);
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
 }
 
 /* Forms */
@@ -1958,7 +1937,7 @@ body {
   padding: 0;
 }
 
-.grid-table .btn-delete {
+.grid-table .btn-delete-v2 {
   background: none;
   border: none;
   color: #9ca3af;
@@ -1972,12 +1951,12 @@ body {
   opacity: 0.65;
 }
 
-.grid-table tbody tr:hover .btn-delete {
+.grid-table tbody tr:hover .btn-delete-v2 {
   visibility: visible;
   opacity: 1;
 }
 
-.grid-table .btn-delete:hover {
+.grid-table .btn-delete-v2:hover {
   color: #ef4444;
   background: #fef2f2;
 }
@@ -2795,8 +2774,8 @@ form > div:first-child > [data-slot="editor-section"]:first-child {
   --card-foreground: oklch(0.93 0.01 255.51);
   --popover: oklch(0.28 0.04 260.03);
   --popover-foreground: oklch(0.93 0.01 255.51);
-  --primary: oklch(0.68 0.16 276.93);
-  --primary-foreground: oklch(0.21 0.04 265.75);
+  --primary: #185FA5;
+  --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.34 0.03 260.91);
   --secondary-foreground: oklch(0.87 0.01 258.34);
   --muted: oklch(0.28 0.04 260.03);
@@ -2806,7 +2785,7 @@ form > div:first-child > [data-slot="editor-section"]:first-child {
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(0.45 0.03 256.80);
   --input: oklch(0.45 0.03 256.80);
-  --ring: oklch(0.68 0.16 276.93);
+  --ring: #185FA5;
   --chart-1: oklch(0.68 0.16 276.93);
   --chart-2: oklch(0.59 0.20 277.12);
   --chart-3: oklch(0.51 0.23 276.97);

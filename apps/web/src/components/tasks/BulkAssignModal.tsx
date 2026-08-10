@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, X, UserPlus, UserMinus, Check } from 'lucide-react';
 import { useTeamMembers, useBulkAssignTasks, useBulkUnassignTasks } from './hooks';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface BulkAssignModalProps {
   taskIds: string[];
@@ -58,12 +59,9 @@ export default function BulkAssignModal({ taskIds, mode, onClose }: BulkAssignMo
               {mode === 'assign' ? 'Assign Tasks' : 'Unassign Tasks'}
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
-          >
+          <Button variant="secondary" size="icon-xs" onClick={onClose} >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {/* Body */}
@@ -92,9 +90,7 @@ export default function BulkAssignModal({ taskIds, mode, onClose }: BulkAssignMo
           ) : (
             <div className="space-y-1">
               {filtered.map((member) => (
-                <button
-                  key={member.id}
-                  onClick={() => setSelectedId(selectedId === member.id ? null : member.id)}
+                <Button variant="default" size="sm" key={member.id} onClick={() => setSelectedId(selectedId === member.id ? null : member.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
                     selectedId === member.id
                       ? 'bg-blue-50 border border-blue-200'
@@ -117,7 +113,7 @@ export default function BulkAssignModal({ taskIds, mode, onClose }: BulkAssignMo
                   {selectedId === member.id && (
                     <Check className="w-4 h-4 text-blue-600 shrink-0" />
                   )}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -125,28 +121,16 @@ export default function BulkAssignModal({ taskIds, mode, onClose }: BulkAssignMo
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-zinc-200 bg-zinc-50/50">
-          <button
-            onClick={onClose}
-            disabled={isPending}
-            className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors disabled:opacity-50"
-          >
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={isPending} >
             Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedId || isPending}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${
-              mode === 'assign'
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-red-600 hover:bg-red-700'
-            }`}
-          >
+          </Button>
+          <Button variant="default" size="sm" onClick={handleConfirm} disabled={!selectedId || isPending} className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${ mode === 'assign' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700' }`} >
             {isPending
               ? 'Processing...'
               : mode === 'assign'
               ? `Assign to ${taskIds.length} task${taskIds.length !== 1 ? 's' : ''}`
               : `Unassign from ${taskIds.length} task${taskIds.length !== 1 ? 's' : ''}`}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import * as P from '../persistence';
 import * as R from '../repository';
 import { MaterialRequisition, MaterialRequisitionItem, GoodsReceiptNote, GRNItem } from '../model/types';
 import { toast } from '../../../lib/logger';
+import * as PR from '../repository/procurement';
 
 // =========================================================================
 // Material Requisition Hooks
@@ -53,7 +54,7 @@ export function useCreateMaterialRequisitionMutation() {
       items: Omit<MaterialRequisitionItem, 'id' | 'requisition_id' | 'created_at'>[];
       orgId: string;
     }) => {
-      return R.createMaterialRequisitionAggregate(requisition, items, orgId);
+      return PR.createMaterialRequisitionAggregate(requisition, items, orgId);
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['material-requisitions', variables.orgId] });
@@ -72,12 +73,14 @@ export function useIssueMaterialRequisitionMutation() {
       requisitionId,
       orgId,
       userId,
+      userName,
     }: {
       requisitionId: string;
       orgId: string;
       userId: string;
+      userName: string;
     }) => {
-      return R.issueMaterialRequisitionAggregate(requisitionId, orgId, userId);
+      return R.issueMaterialRequisitionAggregate(requisitionId, orgId, userId, userName);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['material-requisitions', data.organisation_id] });
@@ -144,7 +147,7 @@ export function useCreateGoodsReceiptNoteMutation() {
       items: Omit<GRNItem, 'id' | 'grn_id' | 'created_at'>[];
       orgId: string;
     }) => {
-      return R.createGoodsReceiptNoteAggregate(grn, items, orgId);
+      return PR.createGoodsReceiptNoteAggregate(grn, items, orgId);
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['goods-receipt-notes', variables.orgId] });
@@ -163,12 +166,14 @@ export function useConfirmGRNAcceptanceMutation() {
       grnId,
       orgId,
       userId,
+      userName,
     }: {
       grnId: string;
       orgId: string;
       userId: string;
+      userName: string;
     }) => {
-      return R.confirmGRNAcceptanceAggregate(grnId, orgId, userId);
+      return PR.confirmGRNAcceptanceAggregate(grnId, orgId, userId, userName);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['goods-receipt-notes', data.organisation_id] });

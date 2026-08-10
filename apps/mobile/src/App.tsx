@@ -11,12 +11,13 @@ import { ClientModule } from './screens/ClientModule';
 import { ProjectModule } from './screens/ProjectModule';
 import { PurchaseModule } from './screens/PurchaseModule';
 import { AlertTriangle } from 'lucide-react';
-import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, LogOut } from 'lucide-react';
+import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, LogOut, Wrench } from 'lucide-react';
 
 import { FieldVariationMobile } from './screens/FieldVariationMobile';
 import { MaterialReturnMobile } from './screens/MaterialReturnMobile';
+import { MachineBoardMobile } from './screens/MachineBoardMobile';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return';
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board';
 type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
 
 function App() {
@@ -126,6 +127,7 @@ function App() {
 
   const NAV_ITEMS = [
     { key: 'dashboard',      label: 'Dashboard',   Icon: Home },
+    { key: 'machine_board',  label: 'Machines',    Icon: Wrench },
     { key: 'approvals',      label: 'Approvals',   Icon: ClipboardList },
     { key: 'site_report',    label: 'Site Report', Icon: ClipboardCheck },
     { key: 'site_visits',    label: 'Site Visit',  Icon: MapPin },
@@ -147,6 +149,7 @@ function App() {
             isDemo={isDemo}
           />
         )}
+        {currentScreen === 'machine_board' && <MachineBoardMobile />}
         {currentScreen === 'approvals' && <Approvals isDemo={isDemo} />}
         {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} onFormDirtyChange={setFormDirty} />}
         {currentScreen === 'site_visits' && <SiteVisits isDemo={isDemo} />}

@@ -94,11 +94,7 @@ export default function QuickAccessBar({
     <header className={`quick-access-bar${sidebarCollapsed ? ' sidebar-collapsed' : ''}`} data-tour-anchor="quick-access-bar">
       {/* LEFT: Menu + Quick Create + Approvals */}
       <div className="quick-access-left">
-        <button
-          className="quick-tool-btn menu-btn"
-          onClick={onMenuToggle}
-          title="Toggle Menu"
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
+        <button className="quick-tool-btn" onClick={onMenuToggle} title="Toggle Menu" onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
@@ -114,9 +110,7 @@ export default function QuickAccessBar({
           onMouseEnter={() => setShowCreateMenu(true)}
           onMouseLeave={() => setShowCreateMenu(false)}
         >
-          <button
-            className="quick-tool-btn"
-            onClick={() => setShowCreateMenu(prev => !prev)}
+          <button onClick={() => setShowCreateMenu(prev => !prev)}
             title="Quick Create"
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
@@ -146,9 +140,7 @@ export default function QuickAccessBar({
             }}>
               <style>{`@keyframes dropdownFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
               {createItems.map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => handleCreateClick(item.path)}
+                <button key={item.path} onClick={() => handleCreateClick(item.path)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
                     width: '100%', padding: '6px 10px', border: 'none',
@@ -171,9 +163,7 @@ export default function QuickAccessBar({
         </div>
 
         {/* New Material */}
-        <button
-          className="quick-tool-btn"
-          onClick={() => navigate('/store/materials/items/new')}
+        <button className="quick-tool-btn" onClick={() => navigate('/store/materials/items/new')}
           title="New Material"
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -185,9 +175,7 @@ export default function QuickAccessBar({
         </button>
 
         {/* Manufacturing */}
-        <button
-          className="quick-tool-btn"
-          onClick={() => navigate('/manufacturing')}
+        <button className="quick-tool-btn" onClick={() => navigate('/manufacturing')}
           title="Manufacturing"
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -201,9 +189,7 @@ export default function QuickAccessBar({
         <span className="quick-bar-divider" />
 
         {/* Approvals */}
-        <button
-          className="quick-tool-btn"
-          onClick={() => navigate('/approvals')}
+        <button className="quick-tool-btn" onClick={() => navigate('/approvals')}
           title="Approvals"
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -257,8 +243,7 @@ export default function QuickAccessBar({
             }}
           />
           {searchQuery && (
-            <button
-              onClick={() => { setSearchQuery(''); }}
+            <button onClick={() => { setSearchQuery(''); }}
               style={{
                 background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', color: '#9ca3af',
@@ -285,9 +270,7 @@ export default function QuickAccessBar({
           </span>
         )}
 
-        <button
-          className="quick-tool-btn"
-          onClick={() => navigate('/settings')}
+        <button className="quick-tool-btn" onClick={() => navigate('/settings')}
           title="Settings"
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -297,11 +280,7 @@ export default function QuickAccessBar({
           </svg>
         </button>
 
-        <button
-          className="quick-tool-btn"
-          onClick={onHelp}
-          title="Help"
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
+        <button className="quick-tool-btn" onClick={onHelp} title="Help" onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
@@ -313,8 +292,7 @@ export default function QuickAccessBar({
 
         {/* User Menu */}
         <div ref={userRef} style={{ position: 'relative' }}>
-          <button
-            onClick={() => setShowUserMenu(prev => !prev)}
+          <button onClick={() => setShowUserMenu(prev => !prev)}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '2px 6px', height: '24px', background: 'transparent',
@@ -354,8 +332,7 @@ export default function QuickAccessBar({
                 <div style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{displayName}</div>
                 <div style={{ fontSize: '10.5px', color: '#6b7280', marginTop: '1px' }}>{userEmail}</div>
               </div>
-              <button
-                onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
+              <button onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   width: '100%', padding: '6px 10px', border: 'none',
@@ -371,8 +348,7 @@ export default function QuickAccessBar({
                 </svg>
                 Settings
               </button>
-              <button
-                onClick={() => { setShowUserMenu(false); onLogout(); }}
+              <button onClick={() => { setShowUserMenu(false); onLogout(); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   width: '100%', padding: '6px 10px', border: 'none',

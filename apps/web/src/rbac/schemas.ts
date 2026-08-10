@@ -9,7 +9,7 @@ export type EmployeeStatus = z.infer<typeof employeeStatusSchema>;
 export const permissionKeySchema = z
   .string()
   .min(1)
-  .regex(/^[a-z_]+\.(read|create|update|delete|approve|manage_users|manage_roles|assign|create_dc|clear_activity_log)$/);
+  .regex(/^[a-z_]+\.(read|create|update|delete|approve|manage_users|manage_roles|assign|create_dc|clear_activity_log|design|capacity)$/);
 export type PermissionKey = z.infer<typeof permissionKeySchema>;
 
 export const employeeSchema = z.object({

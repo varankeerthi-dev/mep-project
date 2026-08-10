@@ -49,6 +49,7 @@ import {
 } from '../ui-utils';
 import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
 import type { ConversionType } from '../../conversions/types';
+import { Button } from '@/components/ui/button';
 
 function queryParam(search: string, key: string) {
   return new URLSearchParams(search).get(key);
@@ -1600,101 +1601,23 @@ export default function InvoiceEditorPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           <InvoiceStatusBadge status={getValues('status')} />
           
-          <button
-            type="button"
-            onClick={handlePreviewPdf}
-            disabled={!isEditMode || pdfAction !== null}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              color: '#525252',
-              cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
-              opacity: pdfAction !== null ? 0.5 : 1,
-              transition: 'all 0.15s'
-            }}
-            title="Preview PDF"
-          >
+          <Button variant="outline" size="icon-xs" type="button" onClick={handlePreviewPdf} disabled={!isEditMode || pdfAction !== null} title="Preview PDF" >
             {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Eye size={14} />}
-          </button>
+          </Button>
           
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            disabled={!isEditMode || pdfAction !== null}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              color: '#525252',
-              cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
-              opacity: pdfAction !== null ? 0.5 : 1,
-              transition: 'all 0.15s'
-            }}
-            title="Download PDF"
-          >
+          <Button variant="outline" size="icon-xs" type="button" onClick={handleDownloadPdf} disabled={!isEditMode || pdfAction !== null} title="Download PDF" >
             {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Download size={14} />}
-          </button>
+          </Button>
           
-          <button
-            type="button"
-            onClick={handlePrintPdf}
-            disabled={!isEditMode || pdfAction !== null}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              color: '#525252',
-              cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
-              opacity: pdfAction !== null ? 0.5 : 1,
-              transition: 'all 0.15s'
-            }}
-            title="Print"
-          >
+          <Button variant="outline" size="icon-xs" type="button" onClick={handlePrintPdf} disabled={!isEditMode || pdfAction !== null} title="Print" >
             {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Printer size={14} />}
-          </button>
+          </Button>
           
-          <button
-            type="button"
-            onClick={handleEmailPdf}
-            disabled={!isEditMode || pdfAction !== null}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              color: '#525252',
-              cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
-              opacity: pdfAction !== null ? 0.5 : 1,
-              transition: 'all 0.15s'
-            }}
-            title="Email"
-          >
+          <Button variant="outline" size="icon-xs" type="button" onClick={handleEmailPdf} disabled={!isEditMode || pdfAction !== null} title="Email" >
             {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Mail size={14} />}
-          </button>
+          </Button>
           
-          <button
-            type="button"
-            onClick={() => setIsParserOpen(true)}
+          <Button variant="default" size="sm" type="button" onClick={() => setIsParserOpen(true)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -1712,11 +1635,9 @@ export default function InvoiceEditorPage() {
           >
             <FileText size={14} />
             Import PDF/Image
-          </button>
+          </Button>
           
-          <button
-            type="button"
-            onClick={() => navigate('/invoices')}
+          <Button variant="default" size="sm" type="button" onClick={() => navigate('/invoices')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -1733,7 +1654,7 @@ export default function InvoiceEditorPage() {
             }}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1744,14 +1665,10 @@ export default function InvoiceEditorPage() {
               <span className="bg-indigo-50/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">AI Imported</span>
               <span>All line items and header values were filled using the AI Document Parser.</span>
             </div>
-            <button 
-              type="button"
-              onClick={handleUndoImport}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/50 hover:bg-indigo-650 border border-indigo-600 text-white rounded font-bold transition-all cursor-pointer"
-            >
+            <Button variant="default" size="sm" type="button" onClick={handleUndoImport} >
               <RotateCcw className="w-3.5 h-3.5" />
               Undo Import
-            </button>
+            </Button>
           </div>
         )}
 
@@ -2154,22 +2071,9 @@ export default function InvoiceEditorPage() {
                   ))}
                 </select>
                 {(selectedSourceType === 'po' || selectedSourceType === 'quotation' || selectedSourceType === 'proforma') && selectedSourceId && (
-                  <button
-                    type="button"
-                    onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection}
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      background: '#f5f5f5',
-                      color: '#525252',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
+                  <Button variant="default" size="sm" type="button" onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection} >
                     Select Lines
-                  </button>
+                  </Button>
                 )}
               </div>
               {sourceDraftQuery.isLoading && (
@@ -2453,52 +2357,14 @@ export default function InvoiceEditorPage() {
         justifyContent: 'flex-end',
         zIndex: 100
       }}>
-        <button
-          type="button"
-          onClick={handleSaveAsDraft}
-          disabled={isSaving}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 20px',
-            border: '1px solid #d4d4d4',
-            borderRadius: '4px',
-            background: '#fff',
-            color: '#525252',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            opacity: isSaving ? 0.6 : 1,
-            transition: 'all 0.15s'
-          }}
-        >
+        <Button variant="outline" size="sm" type="button" onClick={handleSaveAsDraft} disabled={isSaving} >
           {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
           Save as Draft
-        </button>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={isSaving}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '4px',
-            background: '#171717',
-            color: '#fff',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            opacity: isSaving ? 0.6 : 1,
-            transition: 'all 0.15s'
-          }}
-        >
+        </Button>
+        <Button variant="default" size="icon-xs" type="button" onClick={onSubmit} disabled={isSaving} >
           {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
           {isEditMode ? 'Save' : 'Create'}
-        </button>
+        </Button>
       </div>
 
       <ArcConfirmationDialog

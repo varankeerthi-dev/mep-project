@@ -76,13 +76,15 @@ export function useCreateFGQCInspectionMutation() {
       results,
       orgId,
       userId,
+      userName,
     }: {
       inspection: Omit<FGQCInspection, 'id' | 'inspection_no' | 'created_at' | 'updated_at'>;
       results: Omit<QCParameterResult, 'id' | 'inspection_id' | 'created_at'>[];
       orgId: string;
       userId: string;
+      userName: string;
     }) => {
-      return R.createFGQCInspectionAggregate(inspection, results, orgId, userId);
+      return R.createFGQCInspectionAggregate(inspection, results, orgId, userId, userName);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['qc-inspections', data.organisation_id] });

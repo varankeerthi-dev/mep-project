@@ -38,6 +38,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button as ShadcnButton } from '../../../components/ui/button';
+import { PageSkeleton } from '../../../components/ui/skeleton';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
 import { 
@@ -60,6 +61,7 @@ import { cn } from '../../../lib/utils';
 
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { usePurchaseOrders, usePurchaseOrder, useVendors, useCreatePurchaseOrder, useUpdatePurchaseOrder, useUpdatePOStatus, useDeletePO } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
 import { z } from 'zod';
@@ -191,6 +193,7 @@ function DragHandle() {
 
 export const PurchaseOrders: React.FC = () => {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
   
@@ -963,7 +966,7 @@ export const PurchaseOrders: React.FC = () => {
       accessorKey: 'po_date' as const,
       header: 'Date',
       cell: ({ getValue }: any) => (
-        <span className="text-xs text-zinc-600">{new Date(getValue()).toLocaleDateString('en-IN')}</span>
+        <span className="text-xs text-zinc-600">{formatDate(getValue())}</span>
       ),
     }] : []),
     ...(visibleColumns.has('vendor') ? [{
@@ -1997,7 +2000,9 @@ export const PurchaseOrders: React.FC = () => {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={visibleColumns.size + 2} className="px-6 py-16 text-center text-sm text-zinc-500">Loading...</td>
+                <td colSpan={visibleColumns.size + 2} className="p-0">
+                  <PageSkeleton variant="table" rows={8} />
+                </td>
               </tr>
             ) : poList.length === 0 ? (
               <tr>
@@ -2039,7 +2044,7 @@ export const PurchaseOrders: React.FC = () => {
                 )}
                 {visibleColumns.has('po_date') && (
                   <td className="px-6 py-[13px] align-middle text-xs text-zinc-600">
-                    {new Date(po.po_date).toLocaleDateString('en-IN')}
+                    {formatDate(po.po_date)}
                   </td>
                 )}
                 {visibleColumns.has('vendor') && (

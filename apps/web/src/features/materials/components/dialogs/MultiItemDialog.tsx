@@ -125,7 +125,7 @@ export function MultiItemDialog({
             <h3 className="text-lg font-bold">Bulk Item Addition</h3>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => addRow()}>+ Add Row</Button>
-              <button type="button" onClick={onClose} className="text-2xl">&times;</button>
+              <Button variant="default" size="icon-xs" type="button" onClick={onClose}>&times;</Button>
             </div>
           </div>
         </div>
@@ -270,12 +270,12 @@ export function MultiItemDialog({
                     </td>
                     <td className="px-2 py-1 border border-zinc-200 text-center">
                       <div className="flex items-center gap-1 justify-center">
-                        <button onClick={() => addRow(row)} className="text-blue-500 hover:text-blue-700" title="Clone row">
+                        <Button variant="default" size="sm" onClick={() => addRow(row)} className="text-blue-500 hover:text-blue-700" title="Clone row">
                           <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => removeRow(idx)} className="text-zinc-400 hover:text-red-600" title="Remove row">
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => removeRow(idx)} className="text-zinc-400 hover:text-red-600" title="Remove row">
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

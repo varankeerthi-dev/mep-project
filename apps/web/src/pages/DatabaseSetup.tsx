@@ -1,3 +1,5 @@
+import { Button } from '../components/ui/button';
+
 export default function DatabaseSetup() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8f9fa' }}>
@@ -13,9 +15,9 @@ export default function DatabaseSetup() {
           </ul>
         </div>
         <div style={{ marginTop: '20px' }}>
-          <button onClick={() => window.location.reload()} className="btn btn-primary">
+          <Button onClick={() => window.location.reload()}>
             Refresh After Setup
-          </button>
+          </Button>
         </div>
       </div>
     </div>

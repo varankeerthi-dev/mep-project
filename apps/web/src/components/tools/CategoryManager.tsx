@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Package, Tag } from 'lucide-react';
 import { useAuth } from '../../App';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { Button } from '@/components/ui/button';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -53,6 +55,7 @@ interface CategoryManagerProps {
 }
 
 export default function CategoryManager({ isOpen, onClose, organisation }: CategoryManagerProps) {
+  const { formatDate } = useAppDateFormat();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -197,22 +200,9 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
             <Tag size={20} />
             Manage Categories
           </h2>
-          <button
-            onClick={onClose}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-            }}
-          >
+          <Button variant="default" size="icon-xs" onClick={onClose} style={{ width: '32px', height: '32px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: DESIGN_TOKENS.borderRadius.none, }} >
             <X size={20} color={DESIGN_TOKENS.colors.text.secondary} />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -280,37 +270,12 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={handleCloseForm}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${DESIGN_TOKENS.colors.border}`,
-                    borderRadius: DESIGN_TOKENS.borderRadius.none,
-                    fontSize: DESIGN_TOKENS.typography.button,
-                    fontWeight: 600,
-                    color: DESIGN_TOKENS.colors.text.secondary,
-                    cursor: 'pointer',
-                  }}
-                >
+                <Button variant="default" size="sm" type="button" onClick={handleCloseForm} style={{ padding: '10px 20px', backgroundColor: 'transparent', border: `1px solid ${DESIGN_TOKENS.colors.border}`, borderRadius: DESIGN_TOKENS.borderRadius.none, fontSize: DESIGN_TOKENS.typography.button, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary, cursor: 'pointer', }} >
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: DESIGN_TOKENS.colors.accent,
-                    border: 'none',
-                    borderRadius: DESIGN_TOKENS.borderRadius.none,
-                    fontSize: DESIGN_TOKENS.typography.button,
-                    fontWeight: 600,
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                  }}
-                >
+                </Button>
+                <Button variant="default" size="icon-xs" type="submit" >
                   {editingCategory ? 'Update Category' : 'Create Category'}
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
@@ -320,8 +285,7 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
                 <div style={{ fontSize: DESIGN_TOKENS.typography.input, color: DESIGN_TOKENS.colors.text.secondary }}>
                   {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'}
                 </div>
-                <button
-                  onClick={() => setIsAddingCategory(true)}
+                <Button variant="default" size="sm" onClick={() => setIsAddingCategory(true)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -338,7 +302,7 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
                 >
                   <Plus size={16} />
                   Add Category
-                </button>
+                </Button>
               </div>
 
               {loading ? (
@@ -394,12 +358,11 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
                           fontSize: DESIGN_TOKENS.typography.label, 
                           color: DESIGN_TOKENS.colors.text.muted 
                         }}>
-                          {category.tool_count || 0} tools • Created {new Date(category.created_at).toLocaleDateString()}
+                          {category.tool_count || 0} tools • Created {formatDate(category.created_at)}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => handleEdit(category)}
+                        <Button variant="default" size="sm" onClick={() => handleEdit(category)}
                           style={{
                             width: '32px',
                             height: '32px',
@@ -413,9 +376,8 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
                           }}
                         >
                           <Edit2 size={16} color={DESIGN_TOKENS.colors.text.secondary} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.id)}
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => handleDelete(category.id)}
                           style={{
                             width: '32px',
                             height: '32px',
@@ -429,7 +391,7 @@ export default function CategoryManager({ isOpen, onClose, organisation }: Categ
                           }}
                         >
                           <Trash2 size={16} color={DESIGN_TOKENS.colors.text.muted} />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}

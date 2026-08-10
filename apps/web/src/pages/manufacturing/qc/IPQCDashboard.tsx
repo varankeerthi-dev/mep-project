@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, CheckCircle2, AlertTriangle, AlertCircle, Plus, Eye } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '../../../components/ui/button';
 import {
   useIPQCCheckpointsQuery,
   useIPQCInspectionsQuery,
@@ -138,21 +139,9 @@ export default function IPQCDashboard({ onNavigate }: IPQCDashboardProps) {
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Record measurements against quality check sequences for active batches</span>
         </div>
         <div>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/qc/ipqc/checkpoints')}
-            style={{
-              padding: '6px 12px',
-              background: '#185FA5',
-              border: 'none',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
+          <Button onClick={() => onNavigate?.('/manufacturing/qc/ipqc/checkpoints')}>
             Configure Checkpoints
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -258,21 +247,13 @@ export default function IPQCDashboard({ onNavigate }: IPQCDashboardProps) {
                             <td style={{ padding: '10px 12px', textTransform: 'uppercase', fontSize: '9px' }}>{cp.checkpoint_type}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'center' }}>{statusTag}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                              <button
+                              <Button
+                                variant="outline"
+                                size="xs"
                                 onClick={() => handleOpenLogModal(cp.id!)}
-                                style={{
-                                  padding: '4px 8px',
-                                  border: '1px solid #d1d5db',
-                                  background: '#fff',
-                                  color: '#374151',
-                                  fontSize: '10px',
-                                  fontWeight: 500,
-                                  borderRadius: '4px',
-                                  cursor: 'pointer'
-                                }}
                               >
                                 Log check
-                              </button>
+                              </Button>
                             </td>
                           </tr>
                         );
@@ -348,20 +329,23 @@ export default function IPQCDashboard({ onNavigate }: IPQCDashboardProps) {
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         type="button"
                         onClick={() => setActiveCheckpointId(null)}
-                        style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', fontSize: '11px', cursor: 'pointer' }}
                       >
                         Cancel
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm"
                         type="submit"
                         disabled={logInspectionMutation.isPending}
-                        style={{ padding: '6px 16px', background: '#185FA5', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                        loading={logInspectionMutation.isPending}
+                        loadingText="Saving..."
                       >
-                        {logInspectionMutation.isPending ? 'Saving...' : 'Save Inspection log'}
-                      </button>
+                        Save Inspection log
+                      </Button>
                     </div>
                   </form>
                 </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { 
   X, Upload, FileText, Check, Play, AlertTriangle, AlertCircle, 
   HelpCircle, RefreshCw, Trash2, ArrowRight, CornerDownRight 
@@ -10,6 +11,7 @@ import {
   parseCleanNumber, cleanUom, matchMaterial, 
   hasSizeMismatch, calculateJaccard, MatchCandidate 
 } from '../utils/aiMatcher';
+import { Button } from '@/components/ui/button';
 
 interface AiDocumentParserModalProps {
   isOpen: boolean;
@@ -134,6 +136,7 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
   onImport
 }) => {
   const { organisation, user, session } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [step, setStep] = useState<'upload' | 'password' | 'pages' | 'parsing' | 'review'>('upload');
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
@@ -369,7 +372,7 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
       if (successExt) {
         setDuplicateWarning({
           filename: existingFile.filename,
-          date: new Date(existingFile.created_at).toLocaleDateString(),
+          date: formatDate(existingFile.created_at),
           extraction: successExt
         });
       }
@@ -991,12 +994,9 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
               <p className="text-xs text-slate-400">Automated Quotation, Invoice, and PO extraction</p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-lg transition-colors"
-          >
+          <Button variant="default" size="icon-xs" onClick={onClose} >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Content body */}
@@ -1045,18 +1045,14 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
                   onChange={(e) => setPdfPassword(e.target.value)}
                 />
                 <div className="flex gap-3 justify-end mt-2">
-                  <button 
-                    onClick={() => setStep('upload')} 
+                  <Button variant="default" size="sm" onClick={() => setStep('upload')} 
                     className="px-4 py-2 text-sm bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors"
                   >
                     Cancel
-                  </button>
-                  <button 
-                    onClick={decryptPdf} 
-                    className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors font-medium"
-                  >
+                  </Button>
+                  <Button variant="default" size="sm" onClick={decryptPdf} >
                     Decrypt & Parse
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1075,18 +1071,16 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
                 
                 {/* Extraction Mode switcher */}
                 <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-lg">
-                  <button 
-                    onClick={() => setSourceType('TEXT')}
+                  <Button variant="default" size="sm" onClick={() => setSourceType('TEXT')}
                     className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${sourceType === 'TEXT' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
                   >
                     Text Mode
-                  </button>
-                  <button 
-                    onClick={() => setSourceType('VISION')}
+                  </Button>
+                  <Button variant="default" size="sm" onClick={() => setSourceType('VISION')}
                     className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${sourceType === 'VISION' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
                   >
                     Vision Mode
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -1099,18 +1093,16 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
                       This file was already successfully extracted as <strong>{duplicateWarning.filename}</strong> on {duplicateWarning.date}.
                     </p>
                     <div className="flex gap-3 mt-3">
-                      <button 
-                        onClick={() => triggerUploadAndAI(false)}
+                      <Button variant="default" size="sm" onClick={() => triggerUploadAndAI(false)}
                         className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md font-semibold"
                       >
                         Reuse Cached AI Extraction (Instant)
-                      </button>
-                      <button 
-                        onClick={() => triggerUploadAndAI(true)}
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => triggerUploadAndAI(true)}
                         className="px-3 py-1.5 text-xs bg-amber-900/40 hover:bg-amber-900/60 text-amber-200 rounded-md font-semibold border border-amber-800"
                       >
                         Reparse Document Anyway (Uses Tokens)
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1164,13 +1156,12 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
               {/* Start Extraction button */}
               {!duplicateWarning && (
                 <div className="flex justify-end mt-4">
-                  <button 
-                    onClick={() => triggerUploadAndAI(false)}
+                  <Button variant="default" size="sm" onClick={() => triggerUploadAndAI(false)}
                     className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold flex items-center gap-2 shadow-lg hover:shadow-indigo-500/20 transition-all cursor-pointer"
                   >
                     <Play className="w-4 h-4 fill-white" />
                     Run AI Parse ({sourceType} Mode)
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1216,13 +1207,9 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
                       ) : (
                         <div className="flex items-center gap-1.5 w-full justify-between">
                           <span className="text-rose-400 font-medium">No Match</span>
-                          <button 
-                            disabled={isAddingParty}
-                            onClick={handleQuickPartyCreate}
-                            className="px-2 py-0.5 text-[9px] bg-indigo-900/50 hover:bg-indigo-800 border border-indigo-700 text-indigo-300 rounded"
-                          >
+                          <Button variant="default" size="icon-xs" disabled={isAddingParty} onClick={handleQuickPartyCreate} >
                             {isAddingParty ? 'Creating...' : '+ Quick Create'}
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1375,12 +1362,11 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
                               ) : (
                                 <div className="flex items-center gap-2 justify-between">
                                   <span className="text-rose-400 font-medium shrink-0">Unmatched Item</span>
-                                  <button 
-                                    onClick={() => handleQuickMaterialCreate(item.id)}
+                                  <Button variant="default" size="sm" onClick={() => handleQuickMaterialCreate(item.id)}
                                     className="px-2 py-1 text-[10px] bg-indigo-900/40 hover:bg-indigo-850 border border-indigo-750 text-indigo-300 rounded font-semibold shrink-0"
                                   >
                                     + Add to Catalog
-                                  </button>
+                                  </Button>
                                 </div>
                               )}
                             </td>
@@ -1472,20 +1458,16 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
 
               {/* Bottom import bar */}
               <div className="flex items-center justify-between border-t border-slate-800 pt-4 shrink-0 bg-slate-950 -mx-6 -mb-6 p-6">
-                <button 
-                  onClick={() => setStep('pages')}
+                <Button variant="default" size="sm" onClick={() => setStep('pages')}
                   className="px-5 py-2.5 bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white rounded-xl text-sm font-semibold transition-colors"
                 >
                   Back to Pages
-                </button>
+                </Button>
 
-                <button 
-                  onClick={handleImportSubmit}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold shadow-lg hover:shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer"
-                >
+                <Button variant="default" size="sm" onClick={handleImportSubmit} >
                   Import Selected Items ({reviewItems.filter(i => i.selected).length})
                   <ArrowRight className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
 
             </div>

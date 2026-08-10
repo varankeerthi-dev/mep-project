@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { AppTable } from '../components/ui/AppTable';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 
 export default function RemindMe() {
   const { organisation } = useAuth();
@@ -40,8 +41,8 @@ export default function RemindMe() {
 
   return (
     <div>
-      <div className="page-header"><h1 className="page-title">Remind Me</h1><button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</button></div>
-      {showForm && (<div className="card"><form onSubmit={handleSubmit}><div className="form-group"><label className="form-label">Title</label><input type="text" className="form-input" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required /></div><div className="form-group"><label className="form-label">Date</label><input type="date" className="form-input" value={formData.remind_date} onChange={e => setFormData({...formData, remind_date: e.target.value})} required /></div><div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div><button type="submit" className="btn btn-primary">Save</button></form></div>)}
+      <div className="page-header"><h1 className="page-title">Remind Me</h1><Button onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Button></div>
+      {showForm && (<div className="card"><form onSubmit={handleSubmit}><div className="form-group"><label className="form-label">Title</label><input type="text" className="form-input" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required /></div><div className="form-group"><label className="form-label">Date</label><input type="date" className="form-input" value={formData.remind_date} onChange={e => setFormData({...formData, remind_date: e.target.value})} required /></div><div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div><Button type="submit">Save</Button></form></div>)}
       <div className="card">{reminders.length === 0 ? <div className="empty-state"><h3>No Reminders</h3></div> : (<AppTable data={reminders} columns={tableColumns} enableSorting={true} enablePagination={true} emptyMessage="No reminders" />)}</div>
     </div>
   );

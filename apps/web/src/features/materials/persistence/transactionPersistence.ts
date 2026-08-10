@@ -17,7 +17,7 @@ export async function fetchItemStockTransactions(itemId: string) {
     'item_stock',
     supabase
       .from('item_stock')
-      .select('id, item_id, company_variant_id, warehouse_id, current_stock, low_stock_level, updated_at')
+      .select('id, item_id, company_variant_id, make, warehouse_id, current_stock, low_stock_level, updated_at')
       .eq('item_id', itemId)
   );
 }

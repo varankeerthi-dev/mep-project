@@ -12,6 +12,7 @@ import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_CONFIG } from '@/types/expense'
 import type { ExpenseEntry, ExpenseEntryType, ExpenseCategory, ExpenseItemType, ExpensePaymentMethod, ExpenseEntryInsert } from '@/types/expense';
 import ReceiptPreview from '@/components/ReceiptPreview';
 import ExpenseSummary from '@/components/ExpenseSummary';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 // ─── Design Tokens (DESIGN.md) ──────────────────────────────────────────────
 const styles = {
@@ -86,6 +87,7 @@ type SiteExpensesProps = {
 export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
   const { organisation, user } = useAuth();
   const orgId = organisation?.id;
+  const { formatDate } = useAppDateFormat();
   const { data: entries, isLoading } = useExpenseEntries({
     organisationId: orgId,
     projectId,
@@ -247,7 +249,7 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                 >
                   <td style={{ padding: '12px 24px', color: '#52525b' }}>
-                    {new Date(entry.created_at).toLocaleDateString()}
+                    {formatDate(entry.created_at)}
                   </td>
                   <td style={{ padding: '12px 24px' }}>
                     <span style={{ background: '#f4f4f5', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, color: '#52525b' }}>
@@ -261,7 +263,7 @@ export function SiteExpenses({ projectId, clientId }: SiteExpensesProps) {
                     ₹{Number(entry.amount).toLocaleString()}
                   </td>
                   <td style={{ padding: '12px 24px', color: '#52525b' }}>
-                    {entry.required_date ? new Date(entry.required_date).toLocaleDateString() : '-'}
+                    {entry.required_date ? formatDate(entry.required_date) : '-'}
                   </td>
                   <td style={{ padding: '12px 24px' }}>
                     <span style={{

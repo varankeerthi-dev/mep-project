@@ -20,6 +20,7 @@ import {
   ZoomOut,
   GripVertical,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TaskGanttProps {
   projectId?: string;
@@ -186,16 +187,14 @@ export default function TaskGantt({ projectId, organisationId }: TaskGanttProps)
         <span className="text-[11px] font-medium text-zinc-500">Zoom:</span>
         <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
           {(['day', 'week', 'month', 'quarter'] as ZoomLevel[]).map((z) => (
-            <button
-              key={z}
-              onClick={() => setZoom(z)}
+            <Button variant="default" size="default" key={z} onClick={() => setZoom(z)}
               className={cn(
                 'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
                 zoom === z ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
               )}
             >
               {ZOOM_CONFIG[z].label}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="h-5 w-px bg-zinc-200" />
@@ -360,15 +359,14 @@ export default function TaskGantt({ projectId, organisationId }: TaskGanttProps)
 
                   {/* Dependency indicator */}
                   {task.due_date && (
-                    <button
-                      onClick={() => {
+                    <Button variant="default" size="default" onClick={() => {
                         setShowDependencyModal(task.id);
                         setDepTargetId('');
                       }}
                       className="absolute right-1 top-3 rounded p-0.5 text-zinc-300 opacity-0 transition-colors hover:bg-zinc-100 hover:text-zinc-500 group-hover:opacity-100"
                     >
                       <Link size={10} />
-                    </button>
+                    </Button>
                   )}
                 </div>
               );
@@ -383,9 +381,9 @@ export default function TaskGantt({ projectId, organisationId }: TaskGanttProps)
           <div className="w-80 rounded-xl border border-zinc-200 bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-[14px] font-bold text-zinc-900">Add Dependency</h3>
-              <button onClick={() => setShowDependencyModal(null)} className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
+              <Button variant="default" size="default" onClick={() => setShowDependencyModal(null)} className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
                 <X size={16} />
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-3">
@@ -418,13 +416,9 @@ export default function TaskGantt({ projectId, organisationId }: TaskGanttProps)
                 </select>
               </div>
 
-              <button
-                onClick={handleAddDependency}
-                disabled={!depTargetId}
-                className="w-full rounded-lg bg-blue-600 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
-              >
+              <Button variant="default" size="lg" onClick={handleAddDependency} disabled={!depTargetId} >
                 Add Dependency
-              </button>
+              </Button>
             </div>
           </div>
         </div>

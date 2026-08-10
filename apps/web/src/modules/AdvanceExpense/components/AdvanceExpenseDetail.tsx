@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { StatusBadge } from './StatusBadge';
 import { useDeleteAdvanceExpense, useSubmitForApproval, useMarkAsPaid } from '../hooks/useAdvanceExpense';
 import type { AdvanceExpense } from '../types';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 const ROW_STYLE: React.CSSProperties = {
   display: 'flex',
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export const AdvanceExpenseDetail: React.FC<Props> = ({ id, onClose, onEdit }) => {
+  const { formatDate } = useAppDateFormat();
   const [record, setRecord] = useState<AdvanceExpense | null>(null);
   const deleteMutation = useDeleteAdvanceExpense();
   const submitMutation = useSubmitForApproval();
@@ -74,7 +76,7 @@ export const AdvanceExpenseDetail: React.FC<Props> = ({ id, onClose, onEdit }) =
     { label: 'Narration', value: record.narration },
     { label: 'Remarks', value: record.remarks },
     { label: 'Created By', value: record.created_by_name },
-    { label: 'Created At', value: new Date(record.created_at).toLocaleDateString() },
+    { label: 'Created At', value: formatDate(record.created_at) },
   ];
 
   return (

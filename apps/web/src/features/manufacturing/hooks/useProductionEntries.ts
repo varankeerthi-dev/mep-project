@@ -8,8 +8,10 @@ export function useProductionEntriesQuery(jobCardId?: string, orgId?: string) {
   return useQuery({
     queryKey: ['production-entries', jobCardId, orgId],
     queryFn: async () => {
+      if (!orgId) return [];
       return P.fetchProductionEntries(jobCardId, orgId);
     },
+    enabled: !!orgId,
   });
 }
 

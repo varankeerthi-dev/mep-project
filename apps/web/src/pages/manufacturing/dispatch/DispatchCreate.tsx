@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Trash, Loader2 } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import { supabase } from '../../../supabase';
 import { useMaterials } from '../../../hooks/useMaterials';
 import { useCreateDispatchOrderMutation } from '../../../features/manufacturing';
@@ -268,12 +269,9 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyCenter: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Create Dispatch Order</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Select sales order or add materials manually for dispatch</span>
@@ -413,13 +411,9 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6', paddingBottom: '8px', marginBottom: '16px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#111827', margin: 0 }}>Materials to Dispatch</h3>
             {!selectedSOId && (
-              <button
-                type="button"
-                onClick={handleAddManualItem}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', fontSize: '11px', color: '#185FA5', cursor: 'pointer', fontWeight: 500 }}
-              >
-                <Plus size={12} /> Add Item Manually
-              </button>
+              <Button variant="outline" size="xs" type="button" onClick={handleAddManualItem} leftIcon={<Plus size={12} />} className="text-blue-600">
+                Add Item Manually
+              </Button>
             )}
           </div>
 
@@ -496,13 +490,9 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
                         <td style={{ padding: '8px 12px', color: '#4b5563' }}>{item.unit}</td>
                         {!selectedSOId && (
                           <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(idx)}
-                              style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}
-                            >
+                            <Button variant="ghost" size="icon-xs" type="button" onClick={() => handleRemoveItem(idx)} aria-label="Remove item" className="text-red-500 hover:text-red-600">
                               <Trash size={14} />
-                            </button>
+                            </Button>
                           </td>
                         )}
                       </tr>
@@ -528,30 +518,15 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
 
         {/* Action buttons */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{ padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
-          >
-            Cancel
-          </button>
-          <button
+          <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+          <Button
             type="submit"
             disabled={createDispatchOrder.isPending}
-            style={{
-              padding: '6px 16px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: createDispatchOrder.isPending ? 'not-allowed' : 'pointer',
-              opacity: createDispatchOrder.isPending ? 0.7 : 1
-            }}
+            loading={createDispatchOrder.isPending}
+            loadingText="Creating..."
           >
-            {createDispatchOrder.isPending ? 'Creating...' : 'Create Draft Order'}
-          </button>
+            Create Draft Order
+          </Button>
         </div>
       </form>
     </div>

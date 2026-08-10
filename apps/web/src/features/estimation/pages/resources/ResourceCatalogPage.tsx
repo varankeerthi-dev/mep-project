@@ -4,6 +4,7 @@ import { useLabourCatalog, useUpsertLabourCatalog, useEquipmentCatalog, useUpser
 import { PermissionGuard } from '../../../../rbac';
 import { LABOUR_CATEGORIES } from '../../constants';
 import { Plus, Save, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function ResourceCatalogPage() {
   const { organisation } = useAuth();
@@ -55,18 +56,16 @@ export default function ResourceCatalogPage() {
       </div>
 
       <div className="flex gap-1 px-6 pt-4">
-        <button
-          onClick={() => setTab('labour')}
+        <Button variant="default" size="sm" onClick={() => setTab('labour')}
           className={`px-4 py-2 text-sm font-medium rounded-t-lg ${tab === 'labour' ? 'bg-white border border-b-white border-zinc-200 text-blue-600' : 'text-zinc-500 hover:text-zinc-700'}`}
         >
           Labour
-        </button>
-        <button
-          onClick={() => setTab('equipment')}
+        </Button>
+        <Button variant="default" size="sm" onClick={() => setTab('equipment')}
           className={`px-4 py-2 text-sm font-medium rounded-t-lg ${tab === 'equipment' ? 'bg-white border border-b-white border-zinc-200 text-blue-600' : 'text-zinc-500 hover:text-zinc-700'}`}
         >
           Equipment
-        </button>
+        </Button>
       </div>
 
       <div className="flex-1 overflow-auto px-6 pb-6">
@@ -97,8 +96,7 @@ export default function ResourceCatalogPage() {
                               className="w-24 px-2 py-1 border border-zinc-300 rounded text-sm"
                               autoFocus
                             />
-                            <button
-                              onClick={() => {
+                            <Button variant="default" size="sm" onClick={() => {
                                 upsertLabour.mutate({
                                   ...item,
                                   default_rate: editLabourRate ? Number(editLabourRate) : null,
@@ -108,10 +106,10 @@ export default function ResourceCatalogPage() {
                               className="p-1 text-green-600 hover:bg-green-50 rounded"
                             >
                               <Save className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => setEditingLabour(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded">
+                            </Button>
+                            <Button variant="default" size="sm" onClick={() => setEditingLabour(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded">
                               <X className="h-3.5 w-3.5" />
-                            </button>
+                            </Button>
                           </div>
                         ) : (
                           <span
@@ -151,14 +149,10 @@ export default function ResourceCatalogPage() {
                           placeholder="Rate"
                           className="w-24 px-2 py-1.5 text-sm border border-zinc-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <button
-                          onClick={handleAddLabour}
-                          disabled={!newLabour.name.trim()}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                        >
+                        <Button variant="default" size="sm" onClick={handleAddLabour} disabled={!newLabour.name.trim()} >
                           <Plus className="h-4 w-4" />
                           Add
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -193,18 +187,17 @@ export default function ResourceCatalogPage() {
                               className="w-24 px-2 py-1 border border-zinc-300 rounded text-sm"
                               autoFocus
                             />
-                            <button
-                              onClick={() => {
+                            <Button variant="default" size="sm" onClick={() => {
                                 upsertEquipment.mutate({ ...item, default_rate: editEquipRate ? Number(editEquipRate) : null } as any);
                                 setEditingEquipment(null);
                               }}
                               className="p-1 text-green-600 hover:bg-green-50 rounded"
                             >
                               <Save className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => setEditingEquipment(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded">
+                            </Button>
+                            <Button variant="default" size="sm" onClick={() => setEditingEquipment(null)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded">
                               <X className="h-3.5 w-3.5" />
-                            </button>
+                            </Button>
                           </div>
                         ) : (
                           <span
@@ -241,14 +234,10 @@ export default function ResourceCatalogPage() {
                           placeholder="Rate"
                           className="w-24 px-2 py-1.5 text-sm border border-zinc-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <button
-                          onClick={handleAddEquipment}
-                          disabled={!newEquipment.name.trim()}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                        >
+                        <Button variant="default" size="sm" onClick={handleAddEquipment} disabled={!newEquipment.name.trim()} >
                           <Plus className="h-4 w-4" />
                           Add
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -10,7 +10,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-    }
+    },
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     host: '0.0.0.0',

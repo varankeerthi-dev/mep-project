@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Loader2, Trash2, Edit2 } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import {
   useJobCardsListQuery,
   useJobCardDetailQuery,
@@ -13,6 +14,7 @@ import {
   useDeleteProductionEntryMutation,
   useUpdateProductionEntryMutation
 } from '../../features/manufacturing';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 type ProductionEntryFormProps = {
   onNavigate: (path: string) => void;
@@ -30,6 +32,7 @@ type MaterialEntry = {
 
 export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormProps) {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [searchParams] = useSearchParams();
   const jobCardId = searchParams.get('jobCard');
 
@@ -304,64 +307,23 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={() => onNavigate('/manufacturing/job-cards')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              border: '1px solid #d1d5db',
-              background: '#fff',
-              color: '#374151',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-          >
-            Cancel
-          </button>
-          <button
+          <Button variant="secondary" onClick={() => onNavigate('/manufacturing/job-cards')}>Cancel</Button>
+          <Button
             onClick={handleSave}
             disabled={!formData.job_card_id || !formData.actual_qty || isPending || (!editingEntryId && !allValid)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: (!formData.job_card_id || !formData.actual_qty || isPending || (!editingEntryId && !allValid)) ? 'not-allowed' : 'pointer',
-              opacity: (!formData.job_card_id || !formData.actual_qty || isPending || (!editingEntryId && !allValid)) ? 0.6 : 1,
-              transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { if (formData.job_card_id && formData.actual_qty && !isPending && (editingEntryId || allValid)) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
-            onMouseLeave={e => { if (formData.job_card_id && formData.actual_qty && !isPending && (editingEntryId || allValid)) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
+            loading={isPending}
+            loadingText="Saving..."
           >
-            {isPending && <Loader2 size={13} className="animate-spin" />}
-            {isPending ? 'Saving...' : (editingEntryId ? 'Update Entry' : 'Save Entry')}
-          </button>
+            {editingEntryId ? 'Update Entry' : 'Save Entry'}
+          </Button>
           {editingEntryId && (
-            <button
+            <Button
+              variant="secondary"
               onClick={() => { setEditingEntryId(null); setFormData({ job_card_id: jobCardId || '', actual_qty: 0, output_unit: 'nos', notes: '', production_start_time: '', production_end_time: '', operator_name: '', machine_name: '', scrap_byproducts: '' }); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px',
-                border: '1px solid #d1d5db', background: '#fff', color: '#374151',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer',
-                transition: 'all 0.15s'
-              }}
               type="button"
             >
               Cancel Edit
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -618,7 +580,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                       {productionEntries.map((entry: any) => (
                         <tr key={entry.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: 600, color: '#1f2937' }}>{entry.entry_no}</td>
-                          <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '—'}</td>
+                          <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>{entry.created_at ? formatDate(entry.created_at) : '—'}</td>
                           {!formData.job_card_id && (
                             <td style={{ padding: '10px 12px', fontSize: '12px', color: '#4b5563' }}>
                               <span style={{ fontWeight: 600, color: '#1f2937' }}>{entry.job_cards?.job_card_no || '—'}</span>
@@ -633,7 +595,9 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                             {entry.notes || entry.scrap_byproducts || '—'}
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'center', display: 'flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={() => {
                                 setFormData({
                                   job_card_id: entry.job_card_id || '',
@@ -650,23 +614,21 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                                 loadEntryForEdit(entry);
                               }}
                               title="Edit entry"
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', borderRadius: '4px', transition: 'all 0.15s' }}
-                              onMouseEnter={e => { e.currentTarget.style.color = '#185FA5'; e.currentTarget.style.background = '#eff6ff'; }}
-                              onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+                              className="text-slate-400 hover:text-blue-600"
                               type="button"
                             >
                               <Edit2 size={13} />
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={() => setDeleteTarget(entry.id)}
                               title="Delete entry"
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', borderRadius: '4px', transition: 'all 0.15s' }}
-                              onMouseEnter={e => { e.currentTarget.style.color = '#e11d48'; e.currentTarget.style.background = '#fef2f2'; }}
-                              onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+                              className="text-slate-400 hover:text-red-600"
                               type="button"
                             >
                               <Trash2 size={13} />
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -763,30 +725,17 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
               This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', height: '36px' }}>
-              <button onClick={() => setDeleteTarget(null)} disabled={deleteEntry.isPending}
-                style={{
-                  height: '36px', padding: '0 16px', border: '1px solid #d1d5db',
-                  background: '#fff', color: '#4b5563', borderRadius: '8px',
-                  fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s'
-                }}
+              <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={deleteEntry.isPending} type="button">Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteEntry.mutate({ entryId: deleteTarget, orgId: organisation?.id || '', userId: user?.id || '', userEmail: user?.email || 'Unknown' })}
+                disabled={deleteEntry.isPending}
+                loading={deleteEntry.isPending}
+                loadingText="Deleting..."
                 type="button"
               >
-                Cancel
-              </button>
-              <button onClick={() => deleteEntry.mutate({ entryId: deleteTarget, orgId: organisation?.id || '', userId: user?.id || '', userEmail: user?.email || 'Unknown' })} disabled={deleteEntry.isPending}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  height: '36px', padding: '0 16px', background: '#e11d48',
-                  border: '1px solid #e11d48', color: '#fff', borderRadius: '8px',
-                  fontSize: '12px', fontWeight: 600,
-                  cursor: deleteEntry.isPending ? 'not-allowed' : 'pointer',
-                  opacity: deleteEntry.isPending ? 0.6 : 1, transition: 'all 0.15s'
-                }}
-                type="button"
-              >
-                {deleteEntry.isPending && <Loader2 size={13} className="animate-spin" />}
-                {deleteEntry.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
         </div>

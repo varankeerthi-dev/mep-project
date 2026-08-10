@@ -5,6 +5,7 @@ import { supabase } from '../../../supabase';
 import { timedSupabaseQuery } from '../../../utils/queryTimeout';
 import { buildItemChangeLog, appendLocalAuditEntry } from '../shared/audit';
 import { generateItemCode } from '../shared/utils';
+import { buildStockKey, variantStockCombos } from '../model/aggregates/WarehouseStock';
 
 const defaultFormData = {
   item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
@@ -98,8 +99,7 @@ export function useMaterialForm() {
       const itemStockRecords = stock ? stock.filter((s: any) => s.item_id === material.id) : [];
       if (itemStockRecords.length > 0) hasStock = true;
       itemStockRecords.forEach((record: any) => {
-        const vId = record.company_variant_id || 'no_variant';
-        wStock[`${record.warehouse_id}_${vId}`] = { exclude: false, current_stock: parseFloat(record.current_stock) || 0 };
+        wStock[buildStockKey(record.warehouse_id, record.company_variant_id, record.make)] = { exclude: false, current_stock: parseFloat(record.current_stock) || 0 };
       });
     }
     setWarehouseStock(wStock);
@@ -284,28 +284,27 @@ export function useMaterialForm() {
 
       // Save warehouse stock
       if (formData.track_inventory && warehouses) {
-        const activeVariantIds = formData.uses_variant
-          ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
-          : ['no_variant'];
+        const rawCombos = formData.uses_variant ? variantStockCombos(variantPricing) : [];
+        const stockCombos = rawCombos.length > 0 ? rawCombos : [{ variantId: 'no_variant', make: '' }];
         const stockInsertions = [];
-        for (const vId of activeVariantIds) {
-          const dbVariantId = vId === 'no_variant' ? null : vId;
+        for (const combo of stockCombos) {
+          const dbVariantId = combo.variantId === 'no_variant' ? null : combo.variantId;
+          const dbMake = combo.make || null;
           for (const wh of warehouses) {
-            const key = `${wh.id}_${vId}`;
+            const key = buildStockKey(wh.id, dbVariantId, dbMake);
             const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
             if (ws.exclude) {
-              if (dbVariantId) {
-                await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).eq('company_variant_id', dbVariantId);
-              } else {
-                await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).is('company_variant_id', null);
-              }
+              const del = supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id);
+              if (dbVariantId) del.eq('company_variant_id', dbVariantId); else del.is('company_variant_id', null);
+              if (dbMake) del.eq('make', dbMake); else del.is('make', null);
+              await del;
             } else {
-              stockInsertions.push({ item_id: itemId, warehouse_id: wh.id, company_variant_id: dbVariantId, current_stock: ws.current_stock || 0, updated_at: nowIso });
+              stockInsertions.push({ item_id: itemId, warehouse_id: wh.id, company_variant_id: dbVariantId, make: dbMake, current_stock: ws.current_stock || 0, updated_at: nowIso });
             }
           }
         }
         if (stockInsertions.length > 0) {
-          const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, warehouse_id' });
+          const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, make, warehouse_id' });
           if (stockError) console.error('Error saving warehouse stock:', stockError);
         }
       }

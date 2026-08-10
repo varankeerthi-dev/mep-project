@@ -9,6 +9,7 @@ import type { CNItemTotals } from '../logic';
 import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
 import { getArcRateFromMap } from '../../lib/arc-pricing';
 import { ArcRateBadge, StandardRateBadge } from '../../components/ArcPricingToggle';
+import { Button } from '@/components/ui/button';
 
 type CNItemForm = {
   id?: string;
@@ -410,9 +411,9 @@ export function CNItemsEditor({
     <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f5f5f5', borderBottom: '1px solid #d4d4d4' }}>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>Line Items</span>
-        <button type="button" onClick={() => append(createEmptyCNItem())} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#525252', cursor: 'pointer' }}>
+        <Button variant="default" size="default" type="button" onClick={() => append(createEmptyCNItem())} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff', fontSize: '11px', fontWeight: 600, color: '#525252', cursor: 'pointer' }}>
           <Plus size={12} /> Add
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -623,9 +624,9 @@ export function CNItemsEditor({
                   {!isInterState && <td style={{ padding: '4px', textAlign: 'right', fontSize: '11px', color: '#525252' }}>{Number(item.sgst_amount).toFixed(2)}</td>}
                   <td style={{ padding: '4px', textAlign: 'right', fontSize: '11px', fontWeight: 600, color: '#171717' }}>{Number(item.total_amount).toFixed(2)}</td>
                   <td style={{ padding: '4px', textAlign: 'center' }}>
-                    <button type="button" onClick={() => remove(index)} disabled={fields.length <= 1} style={{ border: 'none', background: 'transparent', cursor: fields.length <= 1 ? 'not-allowed' : 'pointer', color: fields.length <= 1 ? '#d4d4d4' : '#dc2626', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Button variant="default" size="default" type="button" onClick={() => remove(index)} disabled={fields.length <= 1} style={{ border: 'none', background: 'transparent', cursor: fields.length <= 1 ? 'not-allowed' : 'pointer', color: fields.length <= 1 ? '#d4d4d4' : '#dc2626', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <X size={14} />
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               );

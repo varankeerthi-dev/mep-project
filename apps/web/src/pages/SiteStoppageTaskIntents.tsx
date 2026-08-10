@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../App';
 import { AlertCircle, CheckCircle2, Clock, ShieldAlert, ArrowRight, Check, X, Filter } from 'lucide-react';
 import { toast } from '@/lib/logger';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 export interface SiteReportStoppageIntent {
   id: string;
@@ -18,6 +19,7 @@ export interface SiteReportStoppageIntent {
 
 export const SiteStoppageTaskIntents: React.FC = () => {
   const { user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [intents, setIntents] = useState<SiteReportStoppageIntent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +176,7 @@ export const SiteStoppageTaskIntents: React.FC = () => {
                 {filteredIntents.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50/80 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="font-bold">{new Date(item.created_at).toLocaleDateString()}</div>
+                      <div className="font-bold">{formatDate(item.created_at)}</div>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 mt-0.5">
                         {item.source_type === 'site_visit' ? 'Site Visit' : 'Daily Report'}
                       </span>

@@ -20,7 +20,8 @@ export async function createFGQCInspectionAggregate(
   inspection: Omit<FGQCInspection, 'id' | 'inspection_no' | 'created_at' | 'updated_at'>,
   results: Omit<QCParameterResult, 'id' | 'inspection_id' | 'created_at'>[],
   orgId: string,
-  userId: string
+  userId: string,
+  userName: string
 ) {
   // 1. Generate inspection number
   const inspectionNo = await generateNextQCInspectionNumber(orgId);
@@ -164,7 +165,7 @@ export async function createFGQCInspectionAggregate(
       result: createdInspection.inspection_result,
     },
     user_id: userId,
-    user_name: 'System User',
+    user_name: userName,
     organisation_id: orgId,
   });
 

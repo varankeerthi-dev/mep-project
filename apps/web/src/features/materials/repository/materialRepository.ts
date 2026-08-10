@@ -1,5 +1,6 @@
 // @ts-nocheck
 import * as P from '../persistence';
+import { buildStockKey, variantStockCombos, NO_VARIANT_KEY } from '../model/aggregates/WarehouseStock';
 
 /** Save a material with all its related data (alternative units, variants, stock, vendors, clients) */
 export async function saveMaterialAggregate(
@@ -52,23 +53,24 @@ export async function saveMaterialAggregate(
 
   // Warehouse stock
   if (formData.track_inventory && warehouses) {
-    const activeVariantIds = formData.uses_variant
-      ? [...new Set(variantPricing.map((p) => p.company_variant_id || 'no_variant'))]
-      : ['no_variant'];
+    const rawCombos = formData.uses_variant ? variantStockCombos(variantPricing) : [];
+    const stockCombos = rawCombos.length > 0 ? rawCombos : [{ variantId: NO_VARIANT_KEY, make: '' }];
 
     const stockInserts = [];
-    for (const vId of activeVariantIds) {
-      const dbVariantId = vId === 'no_variant' ? null : vId;
+    for (const combo of stockCombos) {
+      const dbVariantId = combo.variantId === NO_VARIANT_KEY ? null : combo.variantId;
+      const dbMake = combo.make || null;
       for (const wh of warehouses) {
-        const key = `${wh.id}_${vId}`;
+        const key = buildStockKey(wh.id, dbVariantId, dbMake);
         const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
         if (ws.exclude) {
-          await P.deleteWarehouseStock(itemId, wh.id, dbVariantId);
+          await P.deleteWarehouseStock(itemId, wh.id, dbVariantId, dbMake);
         } else {
           stockInserts.push({
             item_id: itemId,
             warehouse_id: wh.id,
             company_variant_id: dbVariantId,
+            make: dbMake,
             current_stock: ws.current_stock || 0,
             updated_at: nowIso,
           });

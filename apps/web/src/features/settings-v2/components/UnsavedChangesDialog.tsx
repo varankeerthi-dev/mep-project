@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface UnsavedChangesDialogProps {
   isOpen: boolean;
@@ -41,12 +42,9 @@ export const UnsavedChangesDialog: React.FC<UnsavedChangesDialogProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onCancel}
-            className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
-          >
+          <Button variant="secondary" size="default" onClick={onCancel} >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Body */}
@@ -59,35 +57,15 @@ export const UnsavedChangesDialog: React.FC<UnsavedChangesDialogProps> = ({
 
         {/* Footer Actions */}
         <div className="px-6 py-3.5 bg-zinc-50/80 border-t border-zinc-100 flex items-center justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isSaving}
-            className="px-3.5 py-1.5 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-200/60 transition-colors cursor-pointer"
-          >
+          <Button variant="secondary" size="xs" type="button" onClick={onCancel} disabled={isSaving} >
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onDiscardAndProceed}
-            disabled={isSaving}
-            className="px-3.5 py-1.5 rounded-md text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
-          >
+          </Button>
+          <Button variant="destructive" size="xs" type="button" onClick={onDiscardAndProceed} disabled={isSaving} >
             Discard & Proceed
-          </button>
-          <button
-            type="button"
-            onClick={onSaveAndProceed}
-            disabled={isSaving}
-            className="px-4 py-1.5 rounded-md text-xs font-medium text-white shadow-xs transition-colors cursor-pointer"
-            style={{
-              backgroundColor: '#185FA5',
-              padding: '6px 14px',
-              fontSize: '12px',
-            }}
-          >
+          </Button>
+          <Button variant="default" size="xs" type="button" onClick={onSaveAndProceed} disabled={isSaving} style={{ backgroundColor: '#185FA5', padding: '6px 14px', fontSize: '12px', }} >
             {isSaving ? 'Saving...' : 'Save & Proceed'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

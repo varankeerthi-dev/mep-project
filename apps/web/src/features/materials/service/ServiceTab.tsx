@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { useMaterials } from '../../../hooks/useMaterials';
+import { Button } from '@/components/ui/button';
 
 const UNIT_OPTIONS = ['Nos', 'Mtrs', 'Kgs', 'Sqft', 'Cum', 'Ltr', 'Pcs', 'Job', 'Hour', 'Day'];
 const GST_OPTIONS = [0, 5, 12, 18, 28];
@@ -90,12 +91,11 @@ function ServiceItemsTab() {
           className="h-8 w-full max-w-[300px] min-w-0 px-2.5 py-1 text-xs text-[#0C0A09] border border-[#E7E5E4] outline-none"
           style={{ borderWidth: '0.888889px' }}
         />
-        <button
-          onClick={() => setShowForm(true)}
+        <Button variant="default" size="default" onClick={() => setShowForm(true)}
           style={{ height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500, background: 'oklch(52% 0.105 223.1)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
         >
           + Add Service
-        </button>
+        </Button>
       </div>
 
       <div className="overflow-x-auto w-full">
@@ -128,8 +128,8 @@ function ServiceItemsTab() {
                 </td>
                 <td className="p-2 text-right align-middle">
                   <div className="flex items-center justify-end gap-3">
-                    <button onClick={() => editService(s)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
-                    <button onClick={() => deleteService(s.id)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Delete</button>
+                    <Button variant="default" size="default" onClick={() => editService(s)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</Button>
+                    <Button variant="default" size="default" onClick={() => deleteService(s.id)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Delete</Button>
                   </div>
                 </td>
               </tr>
@@ -143,7 +143,7 @@ function ServiceItemsTab() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px', padding: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 0' }}>
               <h2 style={{ fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, color: '#0C0A09', margin: 0 }}>{editingService ? 'Edit Service' : 'Add Service'}</h2>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#79716B', padding: '4px' }}>×</button>
+              <Button variant="ghost" size="default" onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#79716B', padding: '4px' }}>×</Button>
             </div>
             <form onSubmit={handleSubmit} style={{ padding: '20px 24px 24px' }}>
               <div className="flex flex-col w-full gap-5" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
@@ -195,8 +195,8 @@ function ServiceItemsTab() {
                   <label className="text-[12px] leading-[100%] text-[#0C0A09] cursor-pointer">Active</label>
                 </div>
                 <div className="flex gap-3 justify-end pt-1">
-                  <button type="submit" style={{ height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500, background: 'oklch(52% 0.105 223.1)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{editingService ? 'Update' : 'Save'}</button>
-                  <button type="button" onClick={resetForm} style={{ height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500, background: 'transparent', color: '#79716B', border: '1px solid #E7E5E4', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                  <Button variant="default" size="default" type="submit">{editingService ? 'Update' : 'Save'}</Button>
+                  <Button variant="ghost" size="default" type="button" onClick={resetForm}>Cancel</Button>
                 </div>
               </div>
             </form>
@@ -321,12 +321,11 @@ function ServiceRatesTab() {
           className="h-8 w-full max-w-[300px] min-w-0 px-2.5 py-1 text-xs text-[#0C0A09] border border-[#E7E5E4] outline-none"
           style={{ borderWidth: '0.888889px' }}
         />
-        <button
-          onClick={() => setShowForm(true)}
+        <Button variant="default" size="default" onClick={() => setShowForm(true)}
           style={{ height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500, background: 'oklch(52% 0.105 223.1)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
         >
           + Add Service Rate
-        </button>
+        </Button>
       </div>
 
       <div className="overflow-x-auto w-full">
@@ -359,8 +358,8 @@ function ServiceRatesTab() {
                 </td>
                 <td className="p-2 text-right align-middle">
                   <div className="flex items-center justify-end gap-3">
-                    <button onClick={() => editRate(r)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
-                    <button onClick={() => deleteRate(r.id)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Delete</button>
+                    <Button variant="default" size="default" onClick={() => editRate(r)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</Button>
+                    <Button variant="default" size="default" onClick={() => deleteRate(r.id)} className="hover:text-[oklch(52%_0.105_223.1)] hover:font-bold" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, color: '#000000', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Delete</Button>
                   </div>
                 </td>
               </tr>
@@ -406,25 +405,11 @@ function ServiceRatesTab() {
               }}>
                 {editingRate ? 'Edit Service Rate' : 'Add Service Rate'}
               </h3>
-              <button
-                type="button"
-                onClick={resetForm}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '4px',
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#525252',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+              <Button variant="ghost" size="default" type="button" onClick={resetForm} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
                 <X size={20} />
-              </button>
+              </Button>
             </div>
             <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -650,45 +635,16 @@ function ServiceRatesTab() {
                 paddingTop: '16px',
                 borderTop: '1px solid #e5e5e5',
               }}>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    background: '#fff',
-                    color: '#525252',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                <Button variant="outline" size="default" type="button" onClick={resetForm} style={{ flex: 1, padding: '10px 16px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff', color: '#525252', fontSize: '14px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', }} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
                   onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
                 >
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: 'none',
-                    borderRadius: '4px',
-                    background: '#185FA5',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#154d8a'}
+                </Button>
+                <Button variant="default" size="default" type="submit" style={{ flex: 1, padding: '10px 16px', border: 'none', borderRadius: '4px', background: '#185FA5', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', }} onMouseEnter={(e) => e.currentTarget.style.background = '#154d8a'}
                   onMouseLeave={(e) => e.currentTarget.style.background = '#185FA5'}
                 >
                   {editingRate ? 'Update Service Rate' : 'Save Service Rate'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -704,18 +660,16 @@ export function ServiceTab() {
   return (
     <div>
       <div className="bg-[#F3F1F1] rounded-[26px] p-[6px] gap-x-[10px] gap-y-4 inline-flex flex-wrap mb-6">
-        <button
-          onClick={() => setActiveSubTab('items')}
+        <Button variant="default" size="default" onClick={() => setActiveSubTab('items')}
           className={`px-3 py-1.5 text-sm font-medium transition-all ${activeSubTab === 'items' ? 'bg-white text-[#0C0A09] shadow-sm rounded-full' : 'bg-transparent text-[#0C0A0999] hover:text-[#0C0A09] rounded-[14px]'}`}
         >
           Service Items
-        </button>
-        <button
-          onClick={() => setActiveSubTab('rates')}
+        </Button>
+        <Button variant="default" size="default" onClick={() => setActiveSubTab('rates')}
           className={`px-3 py-1.5 text-sm font-medium transition-all ${activeSubTab === 'rates' ? 'bg-white text-[#0C0A09] shadow-sm rounded-full' : 'bg-transparent text-[#0C0A0999] hover:text-[#0C0A09] rounded-[14px]'}`}
         >
           Service Rates (Erection)
-        </button>
+        </Button>
       </div>
 
       {activeSubTab === 'items' && <ServiceItemsTab />}

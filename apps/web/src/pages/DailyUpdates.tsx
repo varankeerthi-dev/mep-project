@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { AppTable } from '../components/ui/AppTable';
+import { Button } from '../components/ui/button';
 
 export default function DailyUpdates() {
   const { organisation } = useAuth();
@@ -30,7 +31,9 @@ export default function DailyUpdates() {
 
   return (
     <div>
-      <button className="btn btn-primary" onClick={() => setShowForm(!showForm)} style={{ margin: '20px 24px' }}>{showForm ? 'Cancel' : '+ Add Update'}</button>
+      <div style={{ margin: '20px 24px' }}>
+        <Button onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Update'}</Button>
+      </div>
       {showForm && (
         <div className="card">
           <form onSubmit={handleSubmit}>
@@ -41,7 +44,7 @@ export default function DailyUpdates() {
             <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
             <div className="form-group"><label className="form-label">Upload Pictures</label><input type="file" className="form-input" multiple accept="image/*" /></div>
             <div className="form-group"><label className="form-label">Upload Documents (PDF)</label><input type="file" className="form-input" multiple accept="application/pdf" /></div>
-            <button type="submit" className="btn btn-primary">Submit</button>
+            <Button type="submit">Submit</Button>
           </form>
         </div>
       )}

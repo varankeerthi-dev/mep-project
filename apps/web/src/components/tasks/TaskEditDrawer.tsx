@@ -36,6 +36,7 @@ import {
 import { toast } from '../../lib/logger';
 import { useTaskPermissions } from './useTaskPermissions';
 import TaskLinkSelector from './TaskLinkSelector';
+import { Button } from '@/components/ui/button';
 
 interface TaskEditDrawerProps {
   task: ProjectTask;
@@ -273,9 +274,7 @@ export default function TaskEditDrawer({
           />
           <div style={{ display: 'flex', gap: '0.25rem', position: 'relative' }}>
             {/* Action Menu */}
-            <button
-              ref={moreButtonRef}
-              onClick={() => setShowActionMenu(!showActionMenu)}
+            <Button variant="default" size="sm" ref={moreButtonRef} onClick={() => setShowActionMenu(!showActionMenu)}
               style={{
                 padding: '0.375rem',
                 borderRadius: '0.375rem',
@@ -286,7 +285,7 @@ export default function TaskEditDrawer({
               }}
             >
               <MoreHorizontal size={18} />
-            </button>
+            </Button>
 
             {/* Action Menu Dropdown */}
             {showActionMenu && (
@@ -305,30 +304,14 @@ export default function TaskEditDrawer({
                   overflow: 'hidden',
                 }}
               >
-                <button
-                  onClick={handleCopyLink}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.625rem',
-                    width: '100%',
-                    padding: '0.625rem 0.75rem',
-                    fontSize: '0.8125rem',
-                    color: '#374151',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
+                <Button variant="ghost" size="sm" onClick={handleCopyLink} >
                   <Link size={14} />
                   Copy Link
-                </button>
+                </Button>
 
                 {/* Color */}
                 <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowColorPicker(!showColorPicker)}
+                  <Button variant="default" size="sm" onClick={() => setShowColorPicker(!showColorPicker)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -354,7 +337,7 @@ export default function TaskEditDrawer({
                     />
                     Color
                     <ChevronDown size={12} style={{ marginLeft: 'auto' }} />
-                  </button>
+                  </Button>
                   {showColorPicker && (
                     <div
                       style={{
@@ -365,9 +348,7 @@ export default function TaskEditDrawer({
                     >
                       <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
                         {TASK_COLORS.map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => handleColorChange(color)}
+                          <Button variant="default" size="sm" key={color} onClick={() => handleColorChange(color)}
                             style={{
                               width: '1.5rem',
                               height: '1.5rem',
@@ -378,8 +359,7 @@ export default function TaskEditDrawer({
                             }}
                           />
                         ))}
-                        <button
-                          onClick={() => handleColorChange('')}
+                        <Button variant="default" size="sm" onClick={() => handleColorChange('')}
                           style={{
                             width: '1.5rem',
                             height: '1.5rem',
@@ -392,34 +372,18 @@ export default function TaskEditDrawer({
                           }}
                         >
                           ×
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <button
-                  onClick={handleFollowToggle}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.625rem',
-                    width: '100%',
-                    padding: '0.625rem 0.75rem',
-                    fontSize: '0.8125rem',
-                    color: '#374151',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
+                <Button variant="ghost" size="icon-xs" onClick={handleFollowToggle} >
                   <Eye size={14} />
                   {isFollowing ? 'Unfollow' : 'Follow'}
-                </button>
+                </Button>
 
-                <button
-                  onClick={() => setShowMoveModal(true)}
+                <Button variant="default" size="sm" onClick={() => setShowMoveModal(true)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -436,65 +400,25 @@ export default function TaskEditDrawer({
                 >
                   <Move size={14} />
                   Move
-                </button>
+                </Button>
 
-                <button
-                  onClick={handleClone}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.625rem',
-                    width: '100%',
-                    padding: '0.625rem 0.75rem',
-                    fontSize: '0.8125rem',
-                    color: '#374151',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
+                <Button variant="ghost" size="sm" onClick={handleClone} >
                   <Copy size={14} />
                   Clone
-                </button>
+                </Button>
 
                 <div style={{ borderTop: '1px solid #e5e7eb', margin: '0.25rem 0' }} />
 
-                <button
-                  onClick={handleDelete}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.625rem',
-                    width: '100%',
-                    padding: '0.625rem 0.75rem',
-                    fontSize: '0.8125rem',
-                    color: '#ef4444',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
+                <Button variant="ghost" size="sm" onClick={handleDelete} >
                   <Trash2 size={14} />
                   Delete
-                </button>
+                </Button>
               </div>
             )}
 
-            <button
-              onClick={onClose}
-              style={{
-                padding: '0.375rem',
-                borderRadius: '0.375rem',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#6b7280',
-              }}
-            >
+            <Button variant="ghost" size="icon-xs" onClick={onClose} >
               <X size={18} />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -518,8 +442,7 @@ export default function TaskEditDrawer({
               Status
             </label>
             <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              <Button variant="default" size="sm" onClick={() => setShowStatusDropdown(!showStatusDropdown)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -538,7 +461,7 @@ export default function TaskEditDrawer({
               >
                 {effectiveStatusLabel}
                 <ChevronDown size={14} />
-              </button>
+              </Button>
               {showStatusDropdown && (
                 <div
                   style={{
@@ -559,9 +482,7 @@ export default function TaskEditDrawer({
                       const isSelected = currentStatus === status || currentStatus === STATUS_LABELS[status];
                       const statusCfg = STATUS_COLORS[status as keyof typeof STATUS_COLORS];
                       return (
-                        <button
-                          key={status}
-                          onClick={() => {
+                        <Button variant="default" size="sm" key={status} onClick={() => {
                             stageUpdate({ status });
                             setShowStatusDropdown(false);
                           }}
@@ -581,7 +502,7 @@ export default function TaskEditDrawer({
                         >
                           {isSelected && <Check size={12} />}
                           {STATUS_LABELS[status] || status}
-                        </button>
+                        </Button>
                       );
                     })}
                 </div>
@@ -608,8 +529,7 @@ export default function TaskEditDrawer({
               Priority
             </label>
             <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowPriorityDropdown(!showPriorityDropdown)}
+              <Button variant="default" size="sm" onClick={() => setShowPriorityDropdown(!showPriorityDropdown)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -628,7 +548,7 @@ export default function TaskEditDrawer({
               >
                 {effectivePriorityLabel}
                 <ChevronDown size={14} />
-              </button>
+              </Button>
               {showPriorityDropdown && (
                 <div
                   style={{
@@ -649,9 +569,7 @@ export default function TaskEditDrawer({
                     const isSelected = currentPriority === priority;
                     const priCfg = PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS];
                     return (
-                      <button
-                        key={priority}
-                        onClick={() => {
+                      <Button variant="default" size="sm" key={priority} onClick={() => {
                           stageUpdate({ priority });
                           setShowPriorityDropdown(false);
                         }}
@@ -671,7 +589,7 @@ export default function TaskEditDrawer({
                     >
                       {isSelected && <Check size={12} />}
                       {PRIORITY_LABELS[priority] || priority}
-                    </button>
+                    </Button>
                     );
                   })}
                 </div>
@@ -737,8 +655,7 @@ export default function TaskEditDrawer({
                           {initials}
                         </div>
                         {name}
-                        <button
-                          onClick={() => {
+                        <Button variant="default" size="sm" onClick={() => {
                             const updated = effectiveAssigneeIds.filter(aid => aid !== id);
                             stageUpdate({ assignee_ids: updated.length > 0 ? updated : undefined });
                           }}
@@ -754,15 +671,14 @@ export default function TaskEditDrawer({
                           }}
                         >
                           <X size={12} />
-                        </button>
+                        </Button>
                       </div>
                     );
                   })
                 ) : (
                   <span style={{ fontSize: '0.8125rem', color: '#9ca3af' }}>No assignees</span>
                 )}
-                <button
-                  onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
+                <Button variant="default" size="sm" onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
                   style={{
                     padding: '0.25rem 0.5rem',
                     borderRadius: '9999px',
@@ -778,7 +694,7 @@ export default function TaskEditDrawer({
                 >
                   <Plus size={12} />
                   Add
-                </button>
+                </Button>
               </div>
               {showAssigneeDropdown && (
                 <div
@@ -803,9 +719,7 @@ export default function TaskEditDrawer({
                     orgMembers.map(member => {
                       const isSelected = effectiveAssigneeIds.includes(member.id);
                       return (
-                        <button
-                          key={member.id}
-                          onClick={() => {
+                        <Button variant="default" size="sm" key={member.id} onClick={() => {
                             const updated = isSelected
                               ? effectiveAssigneeIds.filter(aid => aid !== member.id)
                               : [...effectiveAssigneeIds, member.id];
@@ -847,7 +761,7 @@ export default function TaskEditDrawer({
                             <div style={{ fontWeight: 500 }}>{member.name}</div>
                             {member.email && <div style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>{member.email}</div>}
                           </div>
-                        </button>
+                        </Button>
                       );
                     })
                   )}
@@ -1109,20 +1023,10 @@ export default function TaskEditDrawer({
               ) : (
                 <span style={{ fontSize: '0.8125rem', color: '#9ca3af' }}>No tags</span>
               )}
-              <button
-                style={{
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '0.25rem',
-                  fontSize: '0.75rem',
-                  color: '#2563eb',
-                  background: '#eff6ff',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
+              <Button variant="default" size="sm" >
                 <Plus size={12} style={{ display: 'inline', marginRight: '0.25rem' }} />
                 Add
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1167,8 +1071,7 @@ export default function TaskEditDrawer({
           <div style={{ marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
             {/* Header row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <button
-                onClick={() => setShowReportHistory(prev => !prev)}
+              <Button variant="default" size="sm" onClick={() => setShowReportHistory(prev => !prev)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1190,11 +1093,10 @@ export default function TaskEditDrawer({
                   size={12}
                   style={{ transform: showReportHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
                 />
-              </button>
+              </Button>
 
               {/* Create Daily Report button */}
-              <button
-                onClick={() =>
+              <Button variant="default" size="sm" onClick={() =>
                   navigate(`/site-reports?task_id=${task.id}&action=create`)
                 }
                 style={{
@@ -1221,7 +1123,7 @@ export default function TaskEditDrawer({
               >
                 <Plus size={12} />
                 Create Daily Report
-              </button>
+              </Button>
             </div>
 
             {/* Collapsible history list */}
@@ -1252,24 +1154,10 @@ export default function TaskEditDrawer({
             boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
           }}
         >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.625rem 1rem',
-              borderRadius: '0.5rem',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              fontFamily: "'Inter', system-ui, sans-serif",
-              background: '#f1f5f9',
-              color: '#475569',
-              border: '1px solid #e2e8f0',
-              cursor: 'pointer',
-            }}
-          >
+          <Button variant="default" size="sm" onClick={onClose} >
             Cancel
-          </button>
-          <button
-            onClick={() => {
+          </Button>
+          <Button variant="default" size="sm" onClick={() => {
               const updates: TaskUpdateInput = {};
               let hasChanges = Object.keys(pendingUpdates).length > 0;
 
@@ -1325,7 +1213,7 @@ export default function TaskEditDrawer({
             onMouseLeave={(e) => { if (hasChanges) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.transform = 'translateY(0)'; } }}
           >
             Update Task
-          </button>
+          </Button>
         </div>
 
         {/* Move Modal */}
@@ -1353,9 +1241,7 @@ export default function TaskEditDrawer({
               <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Move to Task List</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {groups.filter(g => g.id !== 'ungrouped').map((group) => (
-                  <button
-                    key={group.id}
-                    onClick={() => handleMove(group.id)}
+                  <Button variant="default" size="sm" key={group.id} onClick={() => handleMove(group.id)}
                     style={{
                       padding: '0.625rem 0.75rem',
                       borderRadius: '0.375rem',
@@ -1368,11 +1254,10 @@ export default function TaskEditDrawer({
                     }}
                   >
                     {group.name}
-                  </button>
+                  </Button>
                 ))}
               </div>
-              <button
-                onClick={() => {
+              <Button variant="default" size="sm" onClick={() => {
                   handleMove(null);
                   setShowMoveModal(false);
                 }}
@@ -1389,7 +1274,7 @@ export default function TaskEditDrawer({
                 }}
               >
                 No Task List
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -1421,8 +1306,7 @@ export default function TaskEditDrawer({
                 This action cannot be undone. Are you sure you want to delete "{task.title}"?
               </p>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
+                <Button variant="default" size="sm" onClick={() => setShowDeleteConfirm(false)}
                   style={{
                     flex: 1,
                     padding: '0.625rem',
@@ -1436,23 +1320,10 @@ export default function TaskEditDrawer({
                   }}
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  style={{
-                    flex: 1,
-                    padding: '0.625rem',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: 500,
-                    background: '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
+                </Button>
+                <Button variant="destructive" size="sm" onClick={confirmDelete} style={{ flex: 1, padding: '0.625rem', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 500, background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', }} >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1748,8 +1619,7 @@ function ReportHistoryPanel({
 
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                <button
-                  onClick={() => setEditingReportId(null)}
+                <Button variant="default" size="sm" onClick={() => setEditingReportId(null)}
                   style={{
                     flex: 1,
                     padding: '0.375rem',
@@ -1763,9 +1633,8 @@ function ReportHistoryPanel({
                   }}
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={() => handleSaveCorrections(report.id)}
+                </Button>
+                <Button variant="default" size="sm" onClick={() => handleSaveCorrections(report.id)}
                   style={{
                     flex: 1,
                     padding: '0.375rem',
@@ -1779,7 +1648,7 @@ function ReportHistoryPanel({
                   }}
                 >
                   Save Corrections
-                </button>
+                </Button>
               </div>
             </div>
           );
@@ -1880,8 +1749,7 @@ function ReportHistoryPanel({
 
             {/* PM/Admin Correction button */}
             {isPmOrAdmin && (
-              <button
-                onClick={(e) => {
+              <Button variant="default" size="sm" onClick={(e) => {
                   e.stopPropagation();
                   handleStartEditing(link);
                 }}
@@ -1898,7 +1766,7 @@ function ReportHistoryPanel({
                 }}
               >
                 Correct Links
-              </button>
+              </Button>
             )}
 
             {/* Arrow */}
@@ -1908,8 +1776,7 @@ function ReportHistoryPanel({
       })}
 
       {reports.length >= page && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onLoadMore(); }}
+        <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onLoadMore(); }}
           style={{
             padding: '0.5rem',
             borderRadius: '0.375rem',
@@ -1925,7 +1792,7 @@ function ReportHistoryPanel({
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           Load more reports
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -106,7 +106,7 @@ export function EnhancedDataTable<TData, TValue>({
           )}
           {onAdd && (
             <Button
-              variant="primary"
+              variant="default"
               size="sm"
               onClick={onAdd}
               className="gap-2"

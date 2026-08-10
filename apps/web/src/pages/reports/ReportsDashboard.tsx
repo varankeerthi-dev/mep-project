@@ -138,12 +138,7 @@ const ReportsDashboard = () => {
             <option value="this-quarter">This Quarter</option>
             <option value="this-year">This Year</option>
           </select>
-          <button style={{
-            padding: '6px 16px', fontSize: '12px', fontWeight: 500, color: '#fff',
-            background: accent, border: 'none', cursor: 'pointer', fontFamily: 'system-ui, sans-serif',
-          }}>
-            Schedule
-          </button>
+          <Button variant="default">Schedule</Button>
         </div>
       </div>
 

@@ -3,8 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTender, useDeleteTenderDocument } from '../../hooks/useTenders';
 import { PermissionGuard } from '../../../../rbac';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Trash2 } from 'lucide-react';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { Button } from '@/components/ui/button';
 
 export default function TenderDetailPage() {
+  const { formatDate } = useAppDateFormat();
   const [searchParams] = useSearchParams();
   const id = searchParams.get('id');
   const navigate = useNavigate();
@@ -28,9 +31,9 @@ export default function TenderDetailPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/estimation/tenders')} className="p-1.5 hover:bg-zinc-100 rounded">
+          <Button variant="default" size="sm" onClick={() => navigate('/estimation/tenders')} className="p-1.5 hover:bg-zinc-100 rounded">
             <ArrowLeft className="h-5 w-5 text-zinc-600" />
-          </button>
+          </Button>
           <div>
             <h1 className="text-xl font-semibold text-zinc-800">{tender.tender_no}</h1>
             {tender.title && <p className="text-sm text-zinc-500">{tender.title}</p>}
@@ -44,12 +47,11 @@ export default function TenderDetailPage() {
             'bg-zinc-100 text-zinc-600'
           }`}>{tender.status}</span>
           <PermissionGuard permission="estimation.tender.update">
-            <button
-              onClick={() => navigate(`/estimation/tenders/edit?id=${id}`)}
+            <Button variant="default" size="sm" onClick={() => navigate(`/estimation/tenders/edit?id=${id}`)}
               className="px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50"
             >
               Edit
-            </button>
+            </Button>
           </PermissionGuard>
         </div>
       </div>
@@ -93,13 +95,13 @@ export default function TenderDetailPage() {
               <div>
                 <p className="text-xs text-zinc-500">Submission Date</p>
                 <p className="text-sm font-medium text-zinc-700">
-                  {tender.submission_date ? new Date(tender.submission_date).toLocaleDateString() : '-'}
+                  {tender.submission_date ? formatDate(tender.submission_date) : '-'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500">Decision Date</p>
                 <p className="text-sm font-medium text-zinc-700">
-                  {tender.decision_date ? new Date(tender.decision_date).toLocaleDateString() : '-'}
+                  {tender.decision_date ? formatDate(tender.decision_date) : '-'}
                 </p>
               </div>
             </div>
@@ -141,12 +143,11 @@ export default function TenderDetailPage() {
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       )}
-                      <button
-                        onClick={() => { if (confirm('Delete this document?')) deleteDocument.mutate({ id: doc.id!, tenderId: id! }); }}
+                      <Button variant="default" size="sm" onClick={() => { if (confirm('Delete this document?')) deleteDocument.mutate({ id: doc.id!, tenderId: id! }); }}
                         className="p-1 hover:bg-red-50 rounded text-zinc-400 hover:text-red-500"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}

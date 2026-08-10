@@ -1,5 +1,6 @@
 import { cn } from '../../lib/utils';
 import { formatCurrency } from '../ui-utils';
+import { Button } from '@/components/ui/button';
 
 type InvoiceSummaryFooterProps = {
   subtotal: number;
@@ -78,21 +79,14 @@ export function InvoiceSummaryFooter({
           {onToggleRoundOff && (
             <div className="mt-3 flex items-center justify-between pt-2">
               <span className="text-[12px] text-zinc-500">Round off to nearest rupee</span>
-              <button
-                type="button"
-                onClick={onToggleRoundOff}
-                className={cn(
-                  'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
-                  enableRoundOff ? 'bg-zinc-900' : 'bg-zinc-300'
-                )}
-              >
+              <Button variant="default" size="default" type="button" onClick={onToggleRoundOff} className={cn( 'relative inline-flex h-5 w-9 items-center rounded-full transition-colors', enableRoundOff ? 'bg-zinc-900' : 'bg-zinc-300' )} >
                 <span
                   className={cn(
                     'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
                     enableRoundOff ? 'translate-x-5' : 'translate-x-0.5'
                   )}
                 />
-              </button>
+              </Button>
             </div>
           )}
         </div>

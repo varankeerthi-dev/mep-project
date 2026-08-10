@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import {
   useBomsListQuery,
-  useDeleteBOMMutation
+  useDeleteBOMMutation,
+  useCloneBOMMutation
 } from '../../features/manufacturing';
 import { Table, ColumnDef, RowAction } from '../../components/table';
 import { BOMHeader } from '../../features/manufacturing/model/types';
@@ -31,6 +33,10 @@ export default function BOMList({ onNavigate }: BOMListProps) {
     setDeleteTarget(null);
   });
 
+  const cloneBOM = useCloneBOMMutation(() => {
+    // list will refresh automatically
+  });
+
   const { data: boms, isLoading } = useBomsListQuery(organisation?.id, statusFilter, search);
 
   const pagedData = boms?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) || [];
@@ -48,10 +54,32 @@ export default function BOMList({ onNavigate }: BOMListProps) {
       ),
     },
     {
+      header: 'Revision',
+      accessorKey: 'revision',
+      id: 'revision',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="text-sm text-zinc-600 tabular-nums">
+          {row.revision || '—'}
+        </span>
+      ),
+    },
+    {
       header: 'Product Name',
       accessorKey: 'product_name',
       id: 'product_name',
       align: 'left',
+    },
+    {
+      header: 'Type',
+      accessorKey: 'bom_type',
+      id: 'bom_type',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="text-xs text-zinc-500 capitalize">
+          {row.bom_type || 'assembly'}
+        </span>
+      ),
     },
     {
       header: 'Output',
@@ -60,6 +88,16 @@ export default function BOMList({ onNavigate }: BOMListProps) {
       cell: ({ row }) => (
         <span className="text-sm tabular-nums text-zinc-600">
           {row.output_qty} <span className="text-zinc-400">{row.output_unit}</span>
+        </span>
+      ),
+    },
+    {
+      header: 'Est. Cost',
+      id: 'total_estimated_cost',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="text-sm tabular-nums text-zinc-600">
+          ₹{(row.total_estimated_cost || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       ),
     },
@@ -86,6 +124,10 @@ export default function BOMList({ onNavigate }: BOMListProps) {
     {
       label: 'Edit BOM',
       onClick: () => onNavigate(`/manufacturing/boms/edit?id=${row.id}`),
+    },
+    {
+      label: 'Clone BOM',
+      onClick: () => cloneBOM.mutate({ sourceBomId: row.id!, orgId: row.organisation_id }),
     },
     {
       label: 'Create Job Card',
@@ -115,13 +157,13 @@ export default function BOMList({ onNavigate }: BOMListProps) {
                 Define product-to-material mappings
               </p>
             </div>
-            <button
+            <Button
               onClick={() => onNavigate('/manufacturing/boms/create')}
-              className="inline-flex items-center gap-1.5 h-9 px-4 bg-zinc-900 text-white text-[13px] font-medium rounded-lg hover:bg-zinc-800 border border-zinc-950 transition-all duration-150 shadow-[0_1px_2px_rgba(0,0,0,0.08)] active:scale-[0.98]"
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+              className="h-9 px-4 bg-zinc-900 text-white text-[13px] font-medium hover:bg-zinc-800 border-zinc-950 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
             >
-              <Plus className="w-3.5 h-3.5" />
               Create BOM
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -183,14 +225,19 @@ function DeleteBOMModal({ target, onCancel, onConfirm, isPending }: {
           This will permanently remove the BOM and all its material rows. Job cards or production schedules that reference this BOM will block the delete. This action cannot be undone.
         </p>
         <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} disabled={isPending}
-            className="px-4 h-9 text-[12px] font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-50 transition-all">
+          <Button onClick={onCancel} disabled={isPending} variant="secondary" size="sm">
             Cancel
-          </button>
-          <button onClick={onConfirm} disabled={isPending}
-            className="inline-flex items-center gap-1.5 px-4 h-9 text-[12px] font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-60 transition-all">
-            {isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting...</> : 'Delete BOM'}
-          </button>
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isPending}
+            loading={isPending}
+            loadingText="Deleting..."
+            variant="destructive"
+            size="sm"
+          >
+            Delete BOM
+          </Button>
         </div>
       </div>
     </div>

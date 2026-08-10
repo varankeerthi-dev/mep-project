@@ -16,6 +16,7 @@ import type { Lead, LeadStatus } from '@/types/leads';
 import { formatFollowUpCurrency } from '@/lib/followup/currency-format';
 import { formatFollowUpDate } from '@/lib/followup/date-format';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
   New: 'bg-blue-50 text-blue-800 ring-blue-200',
@@ -157,27 +158,18 @@ export const LeadRow = memo(function LeadRow({
               className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
             />
             <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleSaveAction}
-                disabled={disabled}
-                className="rounded bg-blue-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
+              <Button variant="default" size="sm" type="button" onClick={handleSaveAction} disabled={disabled} >
                 Save
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditingAction(false)}
+              </Button>
+              <Button variant="default" size="sm" type="button" onClick={() => setEditingAction(false)}
                 className="rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-50"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => !disabled && !isClosed && setEditingAction(true)}
+          <Button variant="default" size="sm" type="button" onClick={() => !disabled && !isClosed && setEditingAction(true)}
             disabled={disabled || isClosed}
             className={cn(
               'flex w-full items-center gap-1.5 rounded-md border px-2 py-1 text-left text-xs transition-colors',
@@ -195,44 +187,38 @@ export const LeadRow = memo(function LeadRow({
             <span className={cn('shrink-0 text-[10px]', overdue ? 'font-semibold' : 'opacity-70')}>
               {formatDateTime(item.next_action_at)}
             </span>
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Actions */}
       <div className="flex w-[140px] shrink-0 items-center justify-end gap-1.5 px-3" onClick={(e) => e.stopPropagation()}>
         {!isClosed && onConvert && (
-          <button
-            type="button"
-            onClick={() => onConvert(item.id)}
+          <Button variant="default" size="sm" type="button" onClick={() => onConvert(item.id)}
             disabled={disabled}
             className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
             title="Mark as converted"
           >
             <CheckCircle2 className="h-3 w-3" />
             Convert
-          </button>
+          </Button>
         )}
         {!isClosed && onDisqualify && (
-          <button
-            type="button"
-            onClick={() => onDisqualify(item.id)}
+          <Button variant="default" size="sm" type="button" onClick={() => onDisqualify(item.id)}
             disabled={disabled}
             className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100 hover:text-red-600 disabled:opacity-50"
             title="Disqualify"
           >
             <XCircle className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         )}
         {onSelect && (
-          <button
-            type="button"
-            onClick={() => onSelect(item.id)}
+          <Button variant="default" size="sm" type="button" onClick={() => onSelect(item.id)}
             className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:bg-indigo-50 hover:text-indigo-700"
             title="View detail"
           >
             <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

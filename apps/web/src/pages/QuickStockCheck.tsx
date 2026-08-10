@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -524,22 +525,22 @@ export default function QuickStockCheck() {
         <div style={{ display: 'flex', gap: '8px' }}>
           {!isReadOnly && (
             <>
-              <button className="btn btn-secondary" onClick={() => setShowPreview(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
+              <Button variant="secondary" onClick={() => setShowPreview(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 Generate Preview
-              </button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ fontSize: '12px', padding: '6px 12px' }}>
+              </Button>
+              <Button onClick={handleSave} disabled={saving} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 {saving ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
             </>
           )}
           {isViewMode && (
             <>
-              <button className="btn btn-secondary" onClick={() => setShowPreview(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
+              <Button variant="secondary" onClick={() => setShowPreview(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 Export / Print
-              </button>
-              <button className="btn btn-secondary" onClick={() => setShowEmailModal(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
+              </Button>
+              <Button variant="secondary" onClick={() => setShowEmailModal(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 Send Email
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -619,9 +620,9 @@ export default function QuickStockCheck() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fff' }}>
           <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Items</h3>
           {!isReadOnly && !intentId && (
-            <button className="btn btn-primary btn-sm" onClick={handleAddItem} style={{ fontSize: '11px', padding: '2px 8px' }}>
+            <Button size="sm" onClick={handleAddItem} style={{ fontSize: '11px', padding: '2px 8px' }}>
               + Add Item
-            </button>
+            </Button>
           )}
         </div>
 
@@ -765,9 +766,9 @@ export default function QuickStockCheck() {
       </div>
 
       <div style={{ marginTop: '16px' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/quick-stock-check')} style={{ fontSize: '12px' }}>
+        <Button variant="secondary" onClick={() => navigate('/quick-stock-check')} style={{ fontSize: '12px' }}>
           Back to List
-        </button>
+        </Button>
       </div>
 
       {showPreview && (
@@ -782,8 +783,8 @@ export default function QuickStockCheck() {
             <div style={{ padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Export Preview & Settings</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-primary" onClick={handleExportPDF} style={{ fontSize: '12px' }}>Export PDF</button>
-                <button className="btn btn-secondary" onClick={handleExportImage} style={{ fontSize: '12px' }}>Export Image</button>
+                <Button onClick={handleExportPDF} style={{ fontSize: '12px' }}>Export PDF</Button>
+                <Button variant="secondary" onClick={handleExportImage} style={{ fontSize: '12px' }}>Export Image</Button>
                 <button onClick={() => setShowPreview(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', marginLeft: '12px' }}>×</button>
               </div>
             </div>
@@ -926,8 +927,8 @@ export default function QuickStockCheck() {
               />
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowEmailModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSendEmail}>Send</button>
+              <Button variant="secondary" onClick={() => setShowEmailModal(false)}>Cancel</Button>
+              <Button onClick={handleSendEmail}>Send</Button>
             </div>
           </div>
         </div>

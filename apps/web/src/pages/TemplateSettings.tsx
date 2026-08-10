@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import DOMPurify from 'dompurify';
+import { Button } from '../components/ui/button';
 
 import { PortraitTemplate } from '../templates/PortraitTemplate';
 
@@ -1639,15 +1640,15 @@ export default function TemplateSettings() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-          <button className="btn btn-secondary" onClick={() => setShowForm(false)}>
+          <Button variant="secondary" onClick={() => setShowForm(false)}>
             Cancel
-          </button>
-          <button className="btn btn-secondary" onClick={() => setShowPreview(true)}>
+          </Button>
+          <Button variant="secondary" onClick={() => setShowPreview(true)}>
             Preview Format
-          </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Template'}
-          </button>
+          </Button>
         </div>
 
         {showPreview && (
@@ -1655,13 +1656,13 @@ export default function TemplateSettings() {
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
               <div className="modal-header">
                 <h2 className="modal-title">Template Preview</h2>
-                <button onClick={() => setShowPreview(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
+                <Button variant="ghost" size="icon" onClick={() => setShowPreview(false)}>&times;</Button>
               </div>
               <div className="modal-body" style={{ overflowY: 'auto', background: '#f3f4f6', padding: '40px 20px' }}>
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatePreviewHTML()) }} />
               </div>
               <div className="modal-footer">
-                <button className="btn btn-primary" onClick={() => setShowPreview(false)}>Close Preview</button>
+                <Button onClick={() => setShowPreview(false)}>Close Preview</Button>
               </div>
             </div>
           </div>
@@ -1675,26 +1676,26 @@ export default function TemplateSettings() {
       <div className="page-header">
         <h1 className="page-title">Template Settings</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-secondary" onClick={seedBuiltInTemplates} disabled={loading}>
+          <Button variant="secondary" onClick={seedBuiltInTemplates} disabled={loading}>
             Restore Defaults
-          </button>
-          <button 
-            className="btn btn-secondary" 
+          </Button>
+          <Button 
+            variant="secondary" 
             onClick={() => handleNew('vertical')}
             style={{ borderColor: '#1e3a8a', color: '#1e3a8a' }}
           >
             + Vertical
-          </button>
-          <button 
-            className="btn btn-secondary" 
+          </Button>
+          <Button 
+            variant="secondary" 
             onClick={() => handleNew('grid_minimal')}
             style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
           >
             + Grid Minimal
-          </button>
-          <button className="btn btn-primary" onClick={() => handleNew()}>
+          </Button>
+          <Button onClick={() => handleNew()}>
             + Create Template
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1814,33 +1815,33 @@ export default function TemplateSettings() {
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {!template.is_default && (
-                            <button
-                              className="btn btn-sm btn-secondary"
+                            <Button
+                              variant="secondary" size="sm"
                               onClick={() => handleSetDefault(template)}
                             >
                               Set Default
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            className="btn btn-sm btn-secondary"
+                          <Button
+                            variant="secondary" size="sm"
                             onClick={() => handleClone(template)}
                             title="Create a copy of this template"
                           >
                             Clone
-                          </button>
-                          <button
-                            className="btn btn-sm btn-secondary"
+                          </Button>
+                          <Button
+                            variant="secondary" size="sm"
                             onClick={() => handleEdit(template)}
                           >
                             Edit
-                          </button>
-                          <button
-                            className="btn btn-sm btn-secondary"
+                          </Button>
+                          <Button
+                            variant="secondary" size="sm"
                             style={{ color: '#dc2626' }}
                             onClick={() => handleDelete(template.id)}
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))}

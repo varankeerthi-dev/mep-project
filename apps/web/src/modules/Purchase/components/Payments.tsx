@@ -38,6 +38,7 @@ import { cn } from '../../../lib/utils';
 
 import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { useOrgApprovalSettings } from '@/hooks/useApprovals';
 import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests, useDeletePaymentRequest, useResendPaymentRequest, useUpdatePaymentRequest, useVendorHolds } from '../hooks/usePurchaseQueries';
 
@@ -45,6 +46,7 @@ const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT',
 
 export const Payments: React.FC = () => {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [openDialog, setOpenDialog] = useState(false);
   const [openRequestDialog, setOpenRequestDialog] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
@@ -247,13 +249,9 @@ export const Payments: React.FC = () => {
     {
       id: 'request_date',
       header: 'Date',
-      cell: ({ row }: any) => {
-        const d = new Date(row.original.request_date);
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mmm = d.toLocaleString('en-US', { month: 'short' });
-        const yyyy = d.getFullYear();
-        return <span className="text-[10px]">{`${dd}-${mmm}-${yyyy}`}</span>;
-      },
+      cell: ({ row }: any) => (
+        <span className="text-[10px]">{formatDate(row.original.request_date)}</span>
+      ),
     },
     {
       id: 'vendor',
@@ -350,12 +348,9 @@ export const Payments: React.FC = () => {
         if (!row.original.due_date) return '-';
         const due = new Date(row.original.due_date);
         const daysLeft = Math.ceil((due.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-        const dd = String(due.getDate()).padStart(2, '0');
-        const mmm = due.toLocaleString('en-US', { month: 'short' });
-        const yyyy = due.getFullYear();
         return (
           <div>
-            <span className="text-[10px] text-zinc-700">{`${dd}-${mmm}-${yyyy}`}</span>
+            <span className="text-[10px] text-zinc-700">{formatDate(row.original.due_date)}</span>
             <span className="ml-2 text-[10px] font-semibold text-zinc-500">{daysLeft > 0 ? `${daysLeft}d` : `${Math.abs(daysLeft)}d overdue`}</span>
           </div>
         );
@@ -435,7 +430,7 @@ export const Payments: React.FC = () => {
     {
       id: 'payment_date',
       header: 'Date',
-      cell: ({ row }: any) => new Date(row.original.payment_date).toLocaleDateString('en-IN'),
+      cell: ({ row }: any) => formatDate(row.original.payment_date),
     },
     {
       id: 'vendor',
@@ -789,7 +784,7 @@ export const Payments: React.FC = () => {
                               />
                             </TableCell>
                             <TableCell className="font-semibold text-zinc-700">{bill.bill_number}</TableCell>
-                            <TableCell className="text-xs text-zinc-500 font-medium">{new Date(bill.bill_date).toLocaleDateString('en-IN')}</TableCell>
+                            <TableCell className="text-xs text-zinc-500 font-medium">{formatDate(bill.bill_date)}</TableCell>
                             <TableCell className="text-right font-medium">₹{Number(bill.total_amount).toLocaleString()}</TableCell>
                             <TableCell className="text-right font-bold text-rose-600 italic">₹{Number(bill.balance_amount || bill.total_amount).toLocaleString()}</TableCell>
                           </TableRow>

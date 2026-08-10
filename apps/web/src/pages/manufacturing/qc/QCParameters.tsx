@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import { useMaterials } from '../../../hooks/useMaterials';
 import { useQCParametersQuery, useCreateQCParameterMutation } from '../../../features/manufacturing';
 
@@ -67,12 +68,9 @@ export default function QCParameters({ onCancel }: QCParametersProps) {
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Manage QC Parameters</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Define specifications and tests for finished goods products</span>
@@ -165,23 +163,15 @@ export default function QCParameters({ onCancel }: QCParametersProps) {
               />
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={createParam.isPending}
-              style={{
-                marginTop: '8px',
-                padding: '6px 12px',
-                background: '#185FA5',
-                border: 'none',
-                color: '#fff',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer'
-              }}
+              loading={createParam.isPending}
+              loadingText="Saving..."
+              className="mt-2"
             >
-              {createParam.isPending ? 'Saving...' : 'Add Parameter'}
-            </button>
+              Add Parameter
+            </Button>
           </form>
         </div>
 

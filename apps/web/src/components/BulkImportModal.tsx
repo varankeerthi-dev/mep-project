@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { Button } from '../components/ui/button';
 import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
@@ -242,9 +243,9 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
           <h2 className="text-xl font-bold text-zinc-900">Bulk Import/Update Items</h2>
-          <button onClick={handleClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-zinc-600">
+          <Button variant="ghost" size="icon" onClick={handleClose}>
             <CloseIcon className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -278,21 +279,21 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
               </div>
 
               <div className="flex flex-wrap gap-3 items-center">
-                <button onClick={() => handleDownloadTemplate('tsv')} className="btn btn-outline flex items-center gap-2 text-sm font-bold">
+                <Button variant="outline">
                   <DownloadIcon className="w-4 h-4" /> Download Template (TSV)
-                </button>
-                <button onClick={() => handleDownloadTemplate('csv')} className="btn btn-outline flex items-center gap-2 text-sm font-bold">
+                </Button>
+                <Button variant="outline">
                   <DownloadIcon className="w-4 h-4" /> Download Template (CSV)
-                </button>
-                <button onClick={() => handleDownloadTemplate('xlsx')} className="btn btn-outline flex items-center gap-2 text-sm font-bold">
+                </Button>
+                <Button variant="outline">
                   <DownloadIcon className="w-4 h-4" /> Download Template (XLSX)
-                </button>
-                <button onClick={handleDownloadSample} className="btn btn-outline flex items-center gap-2 text-sm font-bold">
+                </Button>
+                <Button variant="outline">
                   <DownloadIcon className="w-4 h-4" /> Download Current Items ({materials.length})
-                </button>
-                <button onClick={() => fileInputRef.current?.click()} className="btn flex items-center gap-2 text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800">
+                </Button>
+                <Button onClick={() => fileInputRef.current?.click()}>
                   <UploadIcon className="w-4 h-4" /> Upload File
-                </button>
+                </Button>
                 <input type="file" ref={fileInputRef} className="hidden" accept=".txt,.csv,.tsv,.xlsx" onChange={handleFileUpload} />
               </div>
 
@@ -318,14 +319,13 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
               </div>
 
               <div className="flex justify-end pt-4">
-                <button
+                <Button
                   onClick={() => handleValidate()}
                   disabled={!importText.trim()}
-                  className="btn bg-blue-600 text-white hover:bg-blue-700 px-8 py-3 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50"
                 >
                   <PreviewIcon className="w-5 h-5" />
                   Preview & Validate
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -420,14 +420,13 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
               <div className="flex flex-col gap-4">
                 <div className="flex justify-between items-center bg-zinc-50 p-4 rounded-xl">
                   <span className="text-sm font-bold text-zinc-600">{selectedRows.size} of {validationResult.validRows.length} rows selected</span>
-                  <button
+                  <Button
                     onClick={handleApplyImport}
                     disabled={selectedRows.size === 0 || isProcessing}
-                    className="btn bg-indigo-600 text-white hover:bg-indigo-700 px-8 py-3 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-600/20"
                   >
                     {!isProcessing && <CheckIcon className="w-5 h-5" />}
                     {isProcessing ? 'Processing...' : `Import ${selectedRows.size} Items`}
-                  </button>
+                  </Button>
                 </div>
 
                 {isProcessing && (
@@ -478,9 +477,9 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
               )}
 
               <div className="flex justify-center pt-8">
-                <button onClick={handleClose} className="btn bg-zinc-900 text-white px-12 py-4 rounded-2xl font-bold shadow-xl shadow-zinc-900/10 hover:bg-zinc-800 transition-all">
+                <Button onClick={handleClose}>
                   Close Dashboard
-                </button>
+                </Button>
               </div>
             </div>
           )}

@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 
 type ProductionScheduleEditorProps = {
   onSuccess: () => void;
@@ -234,26 +235,9 @@ export default function ProductionScheduleEditor({ onSuccess, onCancel }: Produc
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={onCancel}
-            style={{
-              height: '32px',
-              width: '32px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              background: '#fff',
-              color: '#374151',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-          >
+          <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
             <ArrowLeft size={14} />
-          </button>
+          </Button>
           <div>
             <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>
               {scheduleId ? 'Edit Production Schedule' : 'Create Production Schedule'}
@@ -262,51 +246,15 @@ export default function ProductionScheduleEditor({ onSuccess, onCancel }: Produc
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '6px 14px',
-              border: '1px solid #d1d5db',
-              background: '#fff',
-              color: '#374151',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-          >
-            Cancel
-          </button>
-          <button
+          <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button
             onClick={() => saveSchedule.mutate()}
             disabled={!formData.schedule_name || saveSchedule.isPending}
-            style={{
-              padding: '6px 14px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: (!formData.schedule_name || saveSchedule.isPending) ? 'not-allowed' : 'pointer',
-              opacity: (!formData.schedule_name || saveSchedule.isPending) ? 0.6 : 1,
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-            onMouseEnter={e => { if (formData.schedule_name && !saveSchedule.isPending) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
-            onMouseLeave={e => { if (formData.schedule_name && !saveSchedule.isPending) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
+            loading={saveSchedule.isPending}
+            loadingText="Saving..."
           >
-            {saveSchedule.isPending && <Loader2 size={13} className="animate-spin" />}
-            {saveSchedule.isPending ? 'Saving...' : 'Save Schedule'}
-          </button>
+            Save Schedule
+          </Button>
         </div>
       </div>
 
@@ -376,27 +324,9 @@ export default function ProductionScheduleEditor({ onSuccess, onCancel }: Produc
                 <div style={{ fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                   Products to Produce
                 </div>
-                <button
-                  onClick={addItem}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 10px',
-                    border: '1px solid #185FA5',
-                    background: '#185FA5',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-                >
-                  <Plus size={12} /> Add Product
-                </button>
+                <Button variant="default" size="xs" onClick={addItem} leftIcon={<Plus size={12} />}>
+                  Add Product
+                </Button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -430,28 +360,9 @@ export default function ProductionScheduleEditor({ onSuccess, onCancel }: Produc
                       </div>
                       <div>
                         {items.length > 1 && (
-                          <button
-                            onClick={() => removeItem(index)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '6px 12px',
-                              border: '1px solid #d1d5db',
-                              background: '#fff',
-                              color: '#000000',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: 500,
-                              cursor: 'pointer',
-                              height: '32px',
-                              transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-                          >
-                            <Trash2 size={13} /> Remove
-                          </button>
+                          <Button variant="outline" size="sm" onClick={() => removeItem(index)} leftIcon={<Trash2 size={13} />}>
+                            Remove
+                          </Button>
                         )}
                       </div>
                     </div>

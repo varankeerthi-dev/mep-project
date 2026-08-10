@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Package, CheckCircle, AlertTriangle, Truck, FileText, Camera } from 'lucide-react';
 import { checkMaterialInBOQ, addNonBOQMaterial } from '../material-usage/api';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 interface MaterialIntent {
   id: string;
@@ -48,6 +49,7 @@ const STATUS_COLORS = {
 
 export default function ReceiveMaterial({ projectId, organisationId }: ProjectProps) {
   const queryClient = useQueryClient();
+  const { formatDate } = useAppDateFormat();
   const [selectedIntent, setSelectedIntent] = useState<MaterialIntent | null>(null);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [dcImage, setDcImage] = useState<File | null>(null);
@@ -329,7 +331,7 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
                 </TableCell>
                 <TableCell>{intent.received_qty} {intent.uom}</TableCell>
                 <TableCell>-</TableCell>
-                <TableCell>{new Date(intent.updated_at).toLocaleDateString()}</TableCell>
+                <TableCell>{formatDate(intent.updated_at)}</TableCell>
                 <TableCell>
                   <span style={{
                     fontSize: '11px',
@@ -464,7 +466,7 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
                 <Button variant="secondary" type="button" onClick={() => { setShowReceiveModal(false); setSelectedIntent(null); resetReceiveForm(); }}>
                   Cancel
                 </Button>
-                <Button type="submit" isLoading={receiveMutation.isPending}>
+                <Button type="submit" loading={receiveMutation.isPending}>
                   Confirm Receipt
                 </Button>
               </div>

@@ -7,6 +7,7 @@ import { exportDCToPDF } from '../utils/pdfExport';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjects } from '../hooks/useProjects';
 import { AppTable } from '../components/ui/AppTable';
+import { Button } from '../components/ui/button';
 
 export default function NonBillableDCList() {
   const navigate = useNavigate();
@@ -237,9 +238,9 @@ export default function NonBillableDCList() {
         </div>
         
         <div className="filter-group" style={{ alignSelf: 'flex-end' }}>
-          <button className="btn btn-primary btn-sm" onClick={applyFilters}>
+          <Button size="sm" onClick={applyFilters}>
             Apply Filters
-          </button>
+          </Button>
         </div>
       </div>
 

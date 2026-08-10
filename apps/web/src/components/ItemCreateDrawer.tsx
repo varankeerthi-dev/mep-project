@@ -6,6 +6,7 @@ import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
 import { X, Plus, Trash2, Warehouse } from 'lucide-react';
+import { buildStockKey, variantStockCombos, NO_VARIANT_KEY } from '../features/materials/model/aggregates/WarehouseStock';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -72,7 +73,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
     const defaultWStock = {};
     if (warehouses) {
       warehouses.forEach(wh => {
-        defaultWStock[`${wh.id}_no_variant`] = { exclude: false, current_stock: 0 };
+        defaultWStock[buildStockKey(wh.id, NO_VARIANT_KEY, '')] = { exclude: false, current_stock: 0 };
       });
     }
     setWarehouseStock(defaultWStock);
@@ -196,21 +197,22 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       
       // Handle warehouse stock
       if (formData.track_inventory && warehouses) {
-        const activeVariantIds = formData.uses_variant 
-          ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
-          : ['no_variant'];
+        const rawCombos = formData.uses_variant ? variantStockCombos(variantPricing) : [];
+        const stockCombos = rawCombos.length > 0 ? rawCombos : [{ variantId: NO_VARIANT_KEY, make: '' }];
 
         const stockInsertions = [];
-        for (const vId of activeVariantIds) {
-          const dbVariantId = vId === 'no_variant' ? null : vId;
+        for (const combo of stockCombos) {
+          const dbVariantId = combo.variantId === NO_VARIANT_KEY ? null : combo.variantId;
+          const dbMake = combo.make || null;
           for (const wh of warehouses) {
-             const key = `${wh.id}_${vId}`;
+             const key = buildStockKey(wh.id, dbVariantId, dbMake);
              const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
              if (!ws.exclude) {
                  stockInsertions.push({
                      item_id: itemId,
                      warehouse_id: wh.id,
                      company_variant_id: dbVariantId,
+                     make: dbMake,
                      current_stock: ws.current_stock || 0,
                      updated_at: nowIso
                  });
@@ -218,7 +220,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
           }
         }
         if (stockInsertions.length > 0) {
-            const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, warehouse_id' });
+            const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, make, warehouse_id' });
             if (stockError) console.error('Error saving warehouse stock:', stockError);
         }
       }
@@ -497,18 +499,18 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                 {formData.track_inventory && (
                   <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
                     {(() => {
-                      const activeVariantIds = formData.uses_variant 
-                        ? Array.from(new Set(variantPricing.map(p => p.company_variant_id).filter(Boolean)))
-                        : ['no_variant'];
-                      
-                      return activeVariantIds.map(vId => {
-                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Category' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Category';
+                      const rawCombos = formData.uses_variant ? variantStockCombos(variantPricing) : [];
+                      const stockCombos = rawCombos.length > 0 ? rawCombos : [{ variantId: NO_VARIANT_KEY, make: '' }];
+
+                      return stockCombos.map(combo => {
+                        const vName = combo.variantId === NO_VARIANT_KEY ? (formData.uses_variant ? 'No Category' : 'Standard Inventory') : variants.find(v => v.id === combo.variantId)?.variant_name || 'Unknown Category';
+                        const comboLabel = combo.variantId === NO_VARIANT_KEY ? vName : (combo.make ? `${vName} — ${combo.make}` : vName);
                         return (
-                          <div key={vId} style={{ marginBottom: '20px' }}>
+                          <div key={buildStockKey('header', combo.variantId, combo.make)} style={{ marginBottom: '20px' }}>
                             {formData.uses_variant && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                                 <Warehouse size={14} className="text-sky-600" />
-                                <h5 style={{ fontSize: '11px', fontWeight: 800, color: '#171717', textTransform: 'uppercase', margin: 0, letterSpacing: '0.02em' }}>{vName} Stock</h5>
+                                <h5 style={{ fontSize: '11px', fontWeight: 800, color: '#171717', textTransform: 'uppercase', margin: 0, letterSpacing: '0.02em' }}>{comboLabel} Stock</h5>
                               </div>
                             )}
                             <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', overflow: 'hidden' }}>
@@ -522,7 +524,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                                 </thead>
                                 <tbody>
                                   {warehouses.map(wh => {
-                                    const key = `${wh.id}_${vId}`;
+                                    const key = buildStockKey(wh.id, combo.variantId, combo.make);
                                     const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
                                     return (
                                       <tr key={wh.id} style={{ opacity: ws.exclude ? 0.5 : 1, transition: 'opacity 0.2s' }}>

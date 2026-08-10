@@ -8,6 +8,7 @@ import { RecordPaymentSchema, PAYMENT_MODES, PAYMENT_MODE_LABELS } from '../../l
 import type { InvoiceWithRelations } from '../api';
 import { formatCurrency } from '../ui-utils';
 import { toast } from '../../lib/logger';
+import { Button } from '@/components/ui/button';
 
 interface RecordPaymentDrawerProps {
   open: boolean;
@@ -163,25 +164,11 @@ export default function RecordPaymentDrawer({ open, onClose, invoice, onSuccess,
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#111827' }}>
             {editPayment ? 'Edit Payment' : 'Record Payment'}
           </h2>
-          <button
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              background: 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#6b7280',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+          <Button variant="ghost" size="sm" onClick={onClose} onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {/* Form */}
@@ -358,28 +345,12 @@ export default function RecordPaymentDrawer({ open, onClose, invoice, onSuccess,
           display: 'flex',
           gap: '8px',
         }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: '10px 16px',
-              background: '#fff',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: '#374151',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+          <Button variant="outline" size="sm" type="button" onClick={onClose} style={{ flex: 1, padding: '10px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: 500, color: '#374151', cursor: 'pointer', }} onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
             onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => form.handleSubmit((data) => onSubmit(data, 'draft'))()}
+          </Button>
+          <Button variant="default" size="sm" type="button" onClick={() => form.handleSubmit((data) => onSubmit(data, 'draft'))()}
             disabled={recordPayment.isPending}
             style={{
               flex: 1,
@@ -397,10 +368,8 @@ export default function RecordPaymentDrawer({ open, onClose, invoice, onSuccess,
             onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
           >
             {recordPayment.isPending ? <Loader2 className="animate-spin" size={16} /> : 'Save as Draft'}
-          </button>
-          <button
-            type="button"
-            onClick={form.handleSubmit((data) => onSubmit(data, 'paid'))}
+          </Button>
+          <Button variant="default" size="sm" type="button" onClick={form.handleSubmit((data) => onSubmit(data, 'paid'))}
             disabled={recordPayment.isPending}
             style={{
               flex: 1.5,
@@ -418,7 +387,7 @@ export default function RecordPaymentDrawer({ open, onClose, invoice, onSuccess,
             onMouseLeave={(e) => { e.currentTarget.style.background = '#059669'; }}
           >
             {recordPayment.isPending ? <Loader2 className="animate-spin" size={16} /> : 'Save as Paid'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

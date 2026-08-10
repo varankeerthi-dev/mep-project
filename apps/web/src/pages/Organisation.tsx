@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getOrganisationMembers, updateUserRole, removeMember, createOrganisation } from '../supabase'
+import { useAppDateFormat } from '../contexts/DateFormatContext'
+import { Button } from '../components/ui/button'
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -242,15 +244,16 @@ function DocumentNumberingSettings({ organisationId }: { organisationId?: string
       </div>
 
       <div style={{ marginTop: '16px' }}>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save Numbering Settings'}
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
 export function OrganisationSettings({ organisation, userId }) {
+  const { formatDate } = useAppDateFormat()
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showInvite, setShowInvite] = useState(false)
@@ -504,7 +507,7 @@ export function OrganisationSettings({ organisation, userId }) {
             />
           </div>
           <div>
-            <button className="btn btn-secondary btn-sm" style={{ position: 'relative' }}>
+            <Button variant="secondary" size="sm" style={{ position: 'relative' }}>
               {uploading ? 'Uploading...' : 'Upload Logo'}
               <input 
                 type="file" 
@@ -513,7 +516,7 @@ export function OrganisationSettings({ organisation, userId }) {
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} 
                 disabled={uploading}
               />
-            </button>
+            </Button>
             <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>Recommended: PNG/JPG, Square or Horizontal</p>
           </div>
         </div>
@@ -664,9 +667,9 @@ export function OrganisationSettings({ organisation, userId }) {
         </div>
         
         {isAdmin && (
-          <button onClick={handleUpdateOrg} className="btn btn-primary">
+          <Button onClick={handleUpdateOrg}>
             Save Changes
-          </button>
+          </Button>
         )}
       </div>
 
@@ -763,7 +766,7 @@ export function OrganisationSettings({ organisation, userId }) {
             <div className="form-group">
               <label className="form-label">Signature Image</label>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button className="btn btn-secondary btn-sm" style={{ position: 'relative' }}>
+                <Button variant="secondary" size="sm" style={{ position: 'relative' }}>
                   {newSignature.url ? 'Change Image' : 'Select Image'}
                   <input 
                     type="file" 
@@ -771,12 +774,12 @@ export function OrganisationSettings({ organisation, userId }) {
                     onChange={handleSignatureUpload} 
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
                   />
-                </button>
+                </Button>
                 {newSignature.url && <span style={{ color: '#10b981', fontSize: '12px' }}>✓ Uploaded</span>}
               </div>
             </div>
             <div className="form-group" style={{ alignSelf: 'flex-end' }}>
-              <button className="btn btn-primary btn-sm" onClick={addSignature}>Add to List</button>
+              <Button size="sm" onClick={addSignature}>Add to List</Button>
             </div>
           </div>
         </div>
@@ -789,7 +792,7 @@ export function OrganisationSettings({ organisation, userId }) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: '13px' }}>{sig.name}</span>
-                <button className="btn btn-sm" style={{ color: '#dc2626', padding: '2px 4px' }} onClick={() => removeSignature(sig.id)}>Remove</button>
+                <Button variant="destructive" size="sm" onClick={() => removeSignature(sig.id)}>Remove</Button>
               </div>
             </div>
           ))}
@@ -803,9 +806,9 @@ export function OrganisationSettings({ organisation, userId }) {
         {/* Save button appears after adding signature */}
         {orgDetails.signatures.length > 0 && isAdmin && (
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <button onClick={handleUpdateOrg} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '16px' }}>
+            <Button onClick={handleUpdateOrg} style={{ padding: '12px 32px', fontSize: '16px' }}>
               Save Signatures
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -814,9 +817,9 @@ export function OrganisationSettings({ organisation, userId }) {
         <div className="page-header" style={{ marginBottom: '16px' }}>
           <h3 className="card-title" style={{ margin: 0 }}>Team Members</h3>
           {isAdmin && (
-            <button onClick={() => setShowInvite(!showInvite)} className="btn btn-primary">
+            <Button onClick={() => setShowInvite(!showInvite)}>
               {showInvite ? 'Cancel' : '+ Invite Member'}
-            </button>
+            </Button>
           )}
         </div>
         
@@ -918,16 +921,17 @@ export function OrganisationSettings({ organisation, userId }) {
                         {member.status}
                       </span>
                     </td>
-                    <td>{new Date(member.joined_at).toLocaleDateString()}</td>
+                    <td>{formatDate(member.joined_at)}</td>
                     {isAdmin && (
                       <td>
                         {member.user_id !== userId && (
-                          <button
-                            className="btn btn-sm btn-secondary"
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => handleRemoveMember(member.id)}
                           >
                             Remove
-                          </button>
+                          </Button>
                         )}
                       </td>
                     )}
@@ -997,9 +1001,9 @@ export function JoinOrganisation({ userId }) {
         />
       </div>
       
-      <button onClick={handleJoin} className="btn btn-primary" disabled={loading}>
+      <Button onClick={handleJoin} disabled={loading}>
         {loading ? 'Joining...' : 'Join Organisation'}
-      </button>
+      </Button>
     </div>
   )
 }

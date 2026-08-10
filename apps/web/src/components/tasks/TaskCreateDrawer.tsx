@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { TaskGroup, TaskCreateInput, TaskStatus, TaskPriority, TaskType, TaskDiscipline, STATUS_CONFIG, PRIORITY_CONFIG, TASK_TYPE_CONFIG, DISCIPLINE_CONFIG } from './types';
+import { Button } from '@/components/ui/button';
 
 interface TaskCreateDrawerProps {
   projectId: string;
@@ -265,8 +266,7 @@ function CollapsibleSection({ icon, title, defaultOpen = true, children }: Colla
 
   return (
     <div style={{ marginBottom: '0.5rem' }}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
+      <Button variant="default" size="default" onClick={() => setIsOpen(!isOpen)}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -289,7 +289,7 @@ function CollapsibleSection({ icon, title, defaultOpen = true, children }: Colla
         <span style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: isOpen ? '#334155' : '#64748b', transition: 'color 0.15s' }}>
           {title}
         </span>
-      </button>
+      </Button>
       <div style={{
         maxHeight: isOpen ? '1200px' : '0',
         overflow: 'hidden',
@@ -491,19 +491,9 @@ export default function TaskCreateDrawer({
               Create Task
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.375rem',
-              borderRadius: '0.375rem',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#94a3b8',
-            }}
-          >
+          <Button variant="ghost" size="default" onClick={onClose} >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -857,42 +847,13 @@ export default function TaskCreateDrawer({
             background: '#fff',
           }}
         >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.625rem 1rem',
-              borderRadius: '0.5rem',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              background: '#f1f5f9',
-              color: '#475569',
-              border: '1px solid #e2e8f0',
-              cursor: 'pointer',
-            }}
-          >
+          <Button variant="default" size="default" onClick={onClose} >
             Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!name.trim() || isLoading}
-            style={{
-              padding: '0.625rem 1.5rem',
-              borderRadius: '0.5rem',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              background: name.trim() && !isLoading ? '#2563eb' : '#93c5fd',
-              color: 'white',
-              border: 'none',
-              cursor: name.trim() && !isLoading ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'background 0.15s',
-            }}
-          >
+          </Button>
+          <Button variant="default" size="default" onClick={handleSubmit} disabled={!name.trim() || isLoading} >
             <Plus size={14} />
             {isLoading ? 'Creating...' : 'Create Task'}
-          </button>
+          </Button>
         </div>
       </div>
 

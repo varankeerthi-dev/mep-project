@@ -53,9 +53,7 @@ export function ItemDetailsDialog({
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-zinc-200 overflow-x-auto">
         {ITEM_DETAIL_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => onTabChange(tab.key)}
+          <Button variant="default" size="default" key={tab.key} onClick={() => onTabChange(tab.key)}
             className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? 'border-indigo-600 text-indigo-700'
@@ -63,7 +61,7 @@ export function ItemDetailsDialog({
             }`}
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 

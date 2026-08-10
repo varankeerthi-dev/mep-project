@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ArrowLeft, Loader2, Save, AlertCircle } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import {
   useDemandRequirementsQuery,
   useCreateProductionPlanMutation
@@ -101,7 +102,8 @@ export default function ProductionPlanCreate({ onCancel, onSuccess }: Production
       },
       items: planItems,
       orgId: organisation?.id || '',
-      userId: user?.id || ''
+      userId: user?.id || '',
+      userName: user?.name || user?.email || 'Unknown'
     }, {
       onSuccess: () => {
         onSuccess();
@@ -115,12 +117,9 @@ export default function ProductionPlanCreate({ onCancel, onSuccess }: Production
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Create Production Plan (MRP Netting)</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Consolidate open customer orders and compute net shop floor requirements</span>
@@ -243,33 +242,10 @@ export default function ProductionPlanCreate({ onCancel, onSuccess }: Production
 
         {/* Actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{ padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={createPlanMutation.isPending || selectedProductIds.size === 0}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 16px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: createPlanMutation.isPending || selectedProductIds.size === 0 ? 'not-allowed' : 'pointer',
-              opacity: createPlanMutation.isPending || selectedProductIds.size === 0 ? 0.7 : 1
-            }}
-          >
-            <Save size={14} /> {createPlanMutation.isPending ? 'Generating...' : 'Save Demand Plan'}
-          </button>
+          <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={createPlanMutation.isPending || selectedProductIds.size === 0} loading={createPlanMutation.isPending} loadingText="Generating..." leftIcon={<Save size={14} />}>
+            Save Demand Plan
+          </Button>
         </div>
       </form>
     </div>

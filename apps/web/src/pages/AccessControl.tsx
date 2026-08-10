@@ -6,6 +6,7 @@ import { Check, Loader2, Plus, Shield, UserPlus, Users, Mail, Phone, Clock, Spar
 import { useApproveAccessRequest, useEmployees, useOrgAccessRequests, useRoles, useUpsertEmployee } from '@/rbac';
 import { useAuth } from '@/App';
 import { supabase } from '@/lib/supabase';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 const tabButton = (active: boolean) =>
   `inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-all duration-200 rounded-full ${
@@ -53,6 +54,7 @@ const EmptyState = ({ icon: Icon, title, description }: { icon: any; title: stri
 export default function AccessControlPage() {
   const { organisation, organisations } = useAuth();
   const orgId = organisation?.id ?? null;
+  const { formatDate } = useAppDateFormat();
 
   const isAdmin = useMemo(() => {
     if (!orgId) return false;
@@ -381,7 +383,7 @@ export default function AccessControlPage() {
                         <div>
                           <div className="font-medium text-zinc-900">{req.email}</div>
                           <div className="text-[12px] text-zinc-500">
-                            Requested {req.requested_at ? new Date(req.requested_at).toLocaleDateString() : '-'}
+                            Requested {req.requested_at ? formatDate(req.requested_at) : '-'}
                           </div>
                         </div>
                       </div>

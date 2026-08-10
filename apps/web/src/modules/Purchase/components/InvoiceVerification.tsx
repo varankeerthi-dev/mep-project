@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Search, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { AppTable } from '../../../components/ui/AppTable';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
@@ -8,6 +9,7 @@ import { usePurchaseBills, usePurchaseIVSettings, usePurchaseInvoiceVerification
 
 export default function InvoiceVerification() {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [search, setSearch] = useState('');
   const { data: billsRes = { data: [], count: 0 }, isLoading: billsLoading } = usePurchaseBills(organisation?.id);
   const bills = billsRes.data ?? [];
@@ -39,7 +41,7 @@ export default function InvoiceVerification() {
     {
       accessorKey: 'bill_date',
       header: 'Bill Date',
-      cell: ({ getValue }: any) => (getValue() ? new Date(getValue()).toLocaleDateString('en-IN') : '-'),
+      cell: ({ getValue }: any) => (getValue() ? formatDate(getValue()) : '-'),
     },
     {
       accessorKey: 'total_amount',

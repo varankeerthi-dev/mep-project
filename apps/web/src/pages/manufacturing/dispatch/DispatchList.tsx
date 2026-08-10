@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Plus } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import { useDispatchOrdersListQuery } from '../../../features/manufacturing';
 import { Table, ColumnDef, RowAction } from '../../../components/table';
 import { DispatchOrder } from '../../../features/manufacturing/model/types';
@@ -114,27 +115,9 @@ export default function DispatchList({ onNavigate }: DispatchListProps) {
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Dispatch Queue (P0)</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Manage finished goods picking, verification, and customer delivery challans</span>
         </div>
-        <button
-          onClick={() => onNavigate?.('/manufacturing/dispatch/create')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '6px 12px',
-            background: '#185FA5',
-            border: '1px solid #185FA5',
-            color: '#fff',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-        >
-          <Plus size={14} /> Create Dispatch Order
-        </button>
+        <Button onClick={() => onNavigate?.('/manufacturing/dispatch/create')} leftIcon={<Plus size={14} />}>
+          Create Dispatch Order
+        </Button>
       </div>
 
       {/* Main Content Area */}

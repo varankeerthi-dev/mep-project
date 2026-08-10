@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { SettingsSearchBar } from './SettingsSearchBar';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 export interface SettingsShellProps {
   children: React.ReactNode;
@@ -35,14 +36,12 @@ export const SettingsShell: React.FC<SettingsShellProps> = ({
       {/* Top Navigation Header */}
       <header className="h-14 bg-white border-b border-zinc-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40 shadow-2xs">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/settings')}
-            className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer"
+           <Button variant="ghost" size="default" type="button" onClick={() => navigate('/settings')}
+             className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer"
             title="Return to legacy Settings"
           >
             <ArrowLeft className="w-4 h-4" />
-          </button>
+          </Button>
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold text-zinc-900 tracking-tight">
               Settings Unified UI

@@ -49,6 +49,7 @@ import {
 import { toast } from '@/lib/logger';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { usePurchaseBills, useVendors, useCreatePurchaseBill, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
 import { fetchSourceDocument, transformSourceToTarget, getSourceStatusAfterConversion } from '../../../conversions/api';
 import { generateBillPDF, openPDFPreview } from '../utils/pdfGenerator';
@@ -79,6 +80,7 @@ interface BillItem {
 
 export const Bills: React.FC = () => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
@@ -383,7 +385,7 @@ export const Bills: React.FC = () => {
     {
       accessorKey: 'bill_date',
       header: 'Date',
-      cell: ({ getValue }: any) => new Date(getValue()).toLocaleDateString('en-IN'),
+      cell: ({ getValue }: any) => formatDate(getValue()),
     },
     {
       accessorKey: 'vendor',

@@ -122,11 +122,11 @@ export async function fetchVariantPricing(itemId: string) {
 
 export async function saveWarehouseStock(
   itemId: string,
-  stockInserts: { warehouse_id: string; company_variant_id: string | null; current_stock: number; updated_at: string }[]
+  stockInserts: { warehouse_id: string; company_variant_id: string | null; make?: string | null; current_stock: number; updated_at: string }[]
 ) {
   if (stockInserts.length > 0) {
     const { error } = await supabase.from('item_stock').upsert(stockInserts, {
-      onConflict: 'item_id, company_variant_id, warehouse_id',
+      onConflict: 'item_id, company_variant_id, make, warehouse_id',
     });
     if (error) console.error('Error saving warehouse stock:', error);
   }
@@ -135,23 +135,25 @@ export async function saveWarehouseStock(
 export async function deleteWarehouseStock(
   itemId: string,
   warehouseId: string,
-  variantId: string | null
+  variantId: string | null,
+  make?: string | null
 ) {
+  let query = supabase
+    .from('item_stock')
+    .delete()
+    .eq('item_id', itemId)
+    .eq('warehouse_id', warehouseId);
   if (variantId) {
-    await supabase
-      .from('item_stock')
-      .delete()
-      .eq('item_id', itemId)
-      .eq('warehouse_id', warehouseId)
-      .eq('company_variant_id', variantId);
+    query = query.eq('company_variant_id', variantId);
   } else {
-    await supabase
-      .from('item_stock')
-      .delete()
-      .eq('item_id', itemId)
-      .eq('warehouse_id', warehouseId)
-      .is('company_variant_id', null);
+    query = query.is('company_variant_id', null);
   }
+  if (make) {
+    query = query.eq('make', make);
+  } else {
+    query = query.is('make', null);
+  }
+  await query;
 }
 
 export async function saveVendorMappings(itemId: string, mappings: any[]) {
@@ -295,7 +297,7 @@ export async function fetchVendors(orgId: string) {
 export async function fetchStock(orgId: string) {
   const { data, error } = await supabase
     .from('item_stock')
-    .select('id, item_id, warehouse_id, company_variant_id, current_stock, updated_at')
+    .select('id, item_id, warehouse_id, company_variant_id, make, current_stock, updated_at')
     .eq('organisation_id', orgId);
   if (error) throw error;
   return data || [];

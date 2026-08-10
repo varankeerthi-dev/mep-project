@@ -10,6 +10,7 @@ import type { ProformaMaterialOption } from '../ui-utils';
 import { createEmptyProformaItem, formatCurrency, round2 } from '../ui-utils';
 import { useAuth } from '../../App';
 import { supabase } from '../../supabase';
+import { Button } from '@/components/ui/button';
 
 type ProformaItemsEditorProps = {
   fields: FieldArrayWithId<any, 'items', 'id'>[];
@@ -415,9 +416,7 @@ export function ProformaItemsEditor({
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
           Line Items
         </span>
-        <button
-          type="button"
-          onClick={() => append(createEmptyProformaItem())}
+        <Button variant="default" size="default" type="button" onClick={() => append(createEmptyProformaItem())}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -434,7 +433,7 @@ export function ProformaItemsEditor({
         >
           <Plus size={12} />
           Add
-        </button>
+        </Button>
       </div>
 
       {/* Table */}
@@ -866,9 +865,7 @@ export function ProformaItemsEditor({
                         {formatCurrency(amount)}
                       </td>
                       <td style={{ padding: '4px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => remove(index)}
+                        <Button variant="default" size="default" type="button" onClick={() => remove(index)}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -891,7 +888,7 @@ export function ProformaItemsEditor({
                           }}
                         >
                           <X size={12} />
-                        </button>
+                        </Button>
                       </td>
                     </SortableRow>
                   );

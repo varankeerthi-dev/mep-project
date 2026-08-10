@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import {
   useBomsForJobCardQuery,
   useBomItemsQuery,
@@ -181,29 +182,25 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyBetween: 'space-between', position: 'sticky', top: 0, zIndex: 40 }} className="flex justify-between">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.15s' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-            <ArrowLeft size={14} /> Back
-          </button>
+          <Button variant="ghost" size="sm" onClick={onCancel} leftIcon={<ArrowLeft size={14} />} className="text-gray-500">
+            Back
+          </Button>
           <div style={{ width: '1px', height: '20px', background: '#e5e7eb' }} />
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Create Job Card</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Issue raw materials for factory production run</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button onClick={onCancel} style={{ padding: '6px 14px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-            onMouseDown={e => { e.currentTarget.style.background = '#e5e7eb'; }}
-            onMouseUp={e => { e.currentTarget.style.background = '#f3f4f6'; }}>Cancel</button>
-          <button onClick={handleSave} disabled={!formData.bom_id || !formData.planned_qty || saveJobCard.isPending}
-            style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: saveJobCard.isPending || (!formData.bom_id || !formData.planned_qty) ? 'not-allowed' : 'pointer', opacity: saveJobCard.isPending || (!formData.bom_id || !formData.planned_qty) ? 0.6 : 1, transition: 'all 0.15s' }}
-            onMouseEnter={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
-            onMouseLeave={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}}
-            onMouseDown={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.transform = 'scale(0.98)'; }}}
-            onMouseUp={e => { if (!saveJobCard.isPending && formData.bom_id && formData.planned_qty) { e.currentTarget.style.transform = 'scale(1)'; }}}>
-            {saveJobCard.isPending ? 'Creating...' : 'Create Job Card'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={onCancel}>Cancel</Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSave}
+            disabled={!formData.bom_id || !formData.planned_qty}
+            loading={saveJobCard.isPending}
+            loadingText="Creating..."
+          >
+            Create Job Card
+          </Button>
         </div>
       </div>
 
@@ -294,12 +291,9 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="flex justify-between">
                 <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Materials to Issue</h2>
-                <button type="button" onClick={addMaterial}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#000000', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
-                  <Plus size={13} /> Add Material
-                </button>
+                <Button type="button" variant="outline" size="sm" onClick={addMaterial} leftIcon={<Plus size={13} />}>
+                  Add Material
+                </Button>
               </div>
 
               <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'visible' }}>
@@ -407,12 +401,9 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
                           </td>
                           <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                             {mat.is_additional ? (
-                              <button type="button" onClick={() => removeMaterial(index)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#000000', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
-                                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}>
-                                <Trash2 size={13} /> Delete
-                              </button>
+                              <Button type="button" variant="outline" size="sm" onClick={() => removeMaterial(index)} leftIcon={<Trash2 size={13} />}>
+                                Delete
+                              </Button>
                             ) : (
                               <span style={{ color: '#d1d5db' }}>—</span>
                             )}

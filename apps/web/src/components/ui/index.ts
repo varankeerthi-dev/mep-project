@@ -18,4 +18,5 @@ export { Calendar } from './Calendar';
 export { RangeCalendar } from './RangeCalendar';
 export { AppTable } from './AppTable';
 export { DynamicTable, StatusBadge as DynamicTableStatusBadge, type Column as DynamicTableColumn } from './DynamicTable';
+export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './resizable';
 

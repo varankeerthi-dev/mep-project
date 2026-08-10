@@ -18,6 +18,7 @@ import {
   FORM_STATUS_CONFIG as STATUS_CONFIG,
   BRAND_BLUE,
 } from '../constants';
+import { Button } from '@/components/ui/button';
 
 
 
@@ -38,15 +39,13 @@ const ClientLabel = ({ onAddClick }: { onAddClick: () => void }) => {
       Client
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button 
-            type="button" 
-            onMouseEnter={() => setOpen(true)}
+          <Button variant="default" size="sm" type="button" onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onAddClick(); }}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe', cursor: 'pointer' }}
           >
             <Plus size={12} strokeWidth={3} />
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent 
           onMouseEnter={() => setOpen(true)}
@@ -300,24 +299,18 @@ function DynamicScopeList({ value, onChange, placeholder = "Enter scope..." }: {
             style={inputStyle}
             className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md"
           />
-          <button 
-            type="button" 
-            onClick={() => removeItem(i)}
+          <Button variant="default" size="sm" type="button" onClick={() => removeItem(i)}
             style={{ padding: '4px', color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', opacity: items.length === 1 && !text ? 0.3 : 1 }}
             disabled={items.length === 1 && !text}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-          </button>
+          </Button>
         </div>
       ))}
-      <button 
-        type="button" 
-        onClick={addItem}
-        style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: BRAND_BLUE, fontWeight: 500, alignSelf: 'flex-start', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 0' }}
-      >
+      <Button variant="ghost" size="sm" type="button" onClick={addItem} >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         Add Scope
-      </button>
+      </Button>
     </div>
   );
 }
@@ -765,16 +758,14 @@ export default function CreateProject() {
         {/* Header Block & Navigation Row */}
         <div className="mb-6 flex items-center justify-between sticky top-0 z-40 bg-[#f8fafc] border-b border-zinc-200 pb-4 pt-4 -mx-4 px-4 md:-mx-10 md:px-10">
           <div className="flex items-center gap-3">
-            <button type="button"
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
-              onClick={() => { 
+            <Button variant="outline" size="sm" type="button" onClick={() => { 
                 if (window.confirm("Data will be lost. Are you sure you want to go back?")) {
                   clearDraft(); setDraftCleared(true); navigate('/projects'); 
                 }
               }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-            ><ChevronLeft size={13} /> Back</button>
+            ><ChevronLeft size={13} /> Back</Button>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold text-zinc-800">{editId ? 'Edit Project' : 'New Project'}</h1>
               {formData.status === 'Draft' && (
@@ -788,11 +779,10 @@ export default function CreateProject() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" style={{...secondaryBtnStyle, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer'}}
-              onClick={(e) => handleSaveClick(e, true)} disabled={saving}
+            <Button variant="default" size="sm" type="button" style={{...secondaryBtnStyle, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer'}} onClick={(e) => handleSaveClick(e, true)} disabled={saving}
               onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
               onMouseLeave={e => { if (!saving) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}}
-            >{saving ? 'Saving...' : 'Save as Draft'}</button>
+            >{saving ? 'Saving...' : 'Save as Draft'}</Button>
           </div>
         </div>
 
@@ -914,14 +904,12 @@ export default function CreateProject() {
                                   Select PO(s)
                                   <Popover>
                                     <PopoverTrigger asChild>
-                                      <button 
-                                        type="button" 
-                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAddPOModalOpen(true); }}
+                                      <Button variant="default" size="sm" type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAddPOModalOpen(true); }}
                                         disabled={!formData.client_id}
                                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', background: formData.client_id ? '#eff6ff' : '#f3f4f6', color: formData.client_id ? '#3b82f6' : '#9ca3af', border: formData.client_id ? '1px solid #bfdbfe' : '1px solid #d1d5db', cursor: formData.client_id ? 'pointer' : 'not-allowed' }}
                                       >
                                         <Plus size={12} strokeWidth={3} />
-                                      </button>
+                                      </Button>
                                     </PopoverTrigger>
                                     <PopoverContent side="top" align="center" className="p-2 w-auto text-xs font-normal">
                                       {formData.client_id ? "Create new PO" : "Select a Client first"}
@@ -1043,8 +1031,7 @@ export default function CreateProject() {
                           const isActive = formData.status === status;
                           const isCloseStatus = ['Execution Completed', 'Financially Closed', 'Closed'].includes(status);
                           const chip = (
-                            <button key={status} type="button"
-                              onClick={() => handleStatusChange(status)}
+                            <Button variant="default" size="sm" key={status} type="button" onClick={() => handleStatusChange(status)}
                               style={{
                                 padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
                                 cursor: 'pointer', border: isActive ? `1px solid ${cfg.color}` : '1px solid #d1d5db',
@@ -1052,7 +1039,7 @@ export default function CreateProject() {
                                 color: isActive ? cfg.color : '#6b7280',
                                 transition: 'all 0.15s',
                               }}
-                            >{status}</button>
+                            >{status}</Button>
                           );
                           if (isCloseStatus) {
                             return <PermissionGuard key={status} permission="projects.close" fallback={null}>{chip}</PermissionGuard>;
@@ -1076,11 +1063,11 @@ export default function CreateProject() {
             
             {/* Footer Navigation */}
             <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-between rounded-b-md">
-              <button type="button" style={secondaryBtnStyle} onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0}>Previous</button>
+              <Button variant="default" size="sm" type="button" style={secondaryBtnStyle} onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0}>Previous</Button>
               {currentStep < wizardSteps.length - 1 ? (
-                <button type="button" style={primaryBtnStyle} onClick={() => setCurrentStep(Math.min(wizardSteps.length - 1, currentStep + 1))}>Next Step</button>
+                <Button variant="default" size="sm" type="button" style={primaryBtnStyle} onClick={() => setCurrentStep(Math.min(wizardSteps.length - 1, currentStep + 1))}>Next Step</Button>
               ) : (
-                <button type="button" style={primaryBtnStyle} onClick={(e) => handleSaveClick(e, false)} disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update Project' : 'Save Project')}</button>
+                <Button variant="default" size="sm" type="button" style={primaryBtnStyle} onClick={(e) => handleSaveClick(e, false)} disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update Project' : 'Save Project')}</Button>
               )}
             </div>
           </div>

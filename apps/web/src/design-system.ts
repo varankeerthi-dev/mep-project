@@ -4,16 +4,16 @@
 export const colors = {
   // Primary palette
   primary: {
-    50: '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6',
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8a',
+    50: '#eaf2fb',
+    100: '#d4e4f6',
+    200: '#a9c9ed',
+    300: '#7dafe3',
+    400: '#4f9fe0',
+    500: '#2b84c4',
+    600: '#185FA5',
+    700: '#134b83',
+    800: '#0C447C',
+    900: '#0a3a68',
   },
   // Neutral grays
   gray: {

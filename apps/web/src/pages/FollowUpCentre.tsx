@@ -1025,7 +1025,7 @@ export default function FollowUpCentre() {
               </Button>
               <Button
                 type="button"
-                variant="primary"
+                variant="default"
                 size="sm"
                 leftIcon={<UserPlus className="h-3.5 w-3.5" />}
                 onClick={() => setLeadModalOpen(true)}

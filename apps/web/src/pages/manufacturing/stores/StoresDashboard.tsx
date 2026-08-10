@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, ArrowRight, ClipboardCheck, Import, Layers } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '../../../components/ui/button';
 import {
   useMaterialRequisitionsListQuery,
   useGoodsReceiptNotesListQuery
@@ -122,12 +123,7 @@ export default function StoresDashboard({ onNavigate }: StoresDashboardProps) {
           <div style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6', paddingBottom: '10px' }}>
               <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#111827', margin: 0 }}>Raw Goods Receipts (GRN)</h3>
-              <button
-                onClick={() => onNavigate?.('/manufacturing/stores/grn/create')}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid #185FA5', borderRadius: '4px', background: '#185FA5', color: '#fff', fontSize: '11px', cursor: 'pointer', fontWeight: 500 }}
-              >
-                <Plus size={12} /> Log GRN
-              </button>
+              <Button size="xs" onClick={() => onNavigate?.('/manufacturing/stores/grn/create')} leftIcon={<Plus size={12} />}>Log GRN</Button>
             </div>
 
             {grnLoading ? (
@@ -146,12 +142,9 @@ export default function StoresDashboard({ onNavigate }: StoresDashboardProps) {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${statusColors[grn.status] || ''}`}>
                         {grn.status.replace('_', ' ').toUpperCase()}
                       </span>
-                      <button
-                        onClick={() => onNavigate?.(`/manufacturing/stores/grn/${grn.id}`)}
-                        style={{ border: 'none', background: 'transparent', color: '#185FA5', cursor: 'pointer' }}
-                      >
+                      <Button variant="ghost" size="icon-xs" onClick={() => onNavigate?.(`/manufacturing/stores/grn/${grn.id}`)} aria-label="Open GRN" className="text-blue-600 hover:text-blue-700">
                         <ArrowRight size={14} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -181,12 +174,9 @@ export default function StoresDashboard({ onNavigate }: StoresDashboardProps) {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${statusColors[req.status] || ''}`}>
                         {req.status.replace('_', ' ').toUpperCase()}
                       </span>
-                      <button
-                        onClick={() => onNavigate?.(`/manufacturing/stores/requisitions/${req.id}`)}
-                        style={{ border: 'none', background: 'transparent', color: '#185FA5', cursor: 'pointer' }}
-                      >
+                      <Button variant="ghost" size="icon-xs" onClick={() => onNavigate?.(`/manufacturing/stores/requisitions/${req.id}`)} aria-label="Open requisition" className="text-blue-600 hover:text-blue-700">
                         <ArrowRight size={14} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}

@@ -1,627 +1,882 @@
-# Instructions
+# QuoteUI Design System — Unified Document Entry Forms
 
-Don't assume anything. Don't introduce new tech, libraries, or patterns. Every implementation must strictly follow one of the patterns documented in this file. If no matching pattern exists, ask before inventing anything new.
-
----
-
-# Card Body Padding
-
-Card body internal padding is **24px** on all sides (`SubcontractorWorkOrderCreate.tsx`).
-
-```tsx
-cardBody: { padding: '24px' }
-```
+> **Source of truth for all document creation/editing screens.**
+> Based on analysis of `CreateQuotation` and `CreateProforma` reference implementations.
+> Every document creation page must follow this system unless explicitly overridden.
 
 ---
 
-# Form Field Row — Document Section Pattern
+## 1. Design Philosophy
 
-Label-value row layout for document header sections (e.g., CreateQuotation, BOMEditor).
+### Core Principles
 
-## Structure
+1. **Dense data entry over marketing aesthetics.** ERP users enter hundreds of records daily. Every pixel must earn its space.
+2. **Three-tier visual hierarchy.** The eye must flow: Section Title → Description → Primary Action → Data Grid.
+3. **Consistent patterns, swappable labels.** The structure is identical across documents. Only labels, fields, and document-specific controls change.
+4. **Inline over modal.** Edit where you see. Avoid popup fatigue.
+5. **Blue is the only accent.** Primary actions, active states, and interactive highlights use blue (`#185FA5` / `#2563eb`). Red is reserved for destructive confirmation modals only.
+6. **8px spacing grid.** All spacing snaps to `4, 8, 12, 16, 20, 24, 32` pixels. No orphan values.
+7. **No unnecessary chrome.** Borders, shadows, and background tints are minimal. Whitespace does the grouping.
 
-Each field row is a horizontal flex row:
+### What NOT to Do
+
+- Do not make the UI look like a marketing website.
+- Do not use excessive gradients, animations, or decorative effects.
+- Do not assume a new pattern exists — check this document first.
+- Do not introduce new tech, libraries, or patterns without asking.
+- Do not change business logic, formulas, or data flow.
+
+---
+
+## 2. Unified Page Structure
+
+Every document creation page follows this identical layout:
 
 ```
-[Label (fixed width)] [gap] [Entry / Input (fills remaining)]
+┌─────────────────────────────────────────────────────────────┐
+│  FIXED TOP ACTION BAR                                        │
+│  [Document Title]  [Status]  [Actions...]  [Save] [Cancel]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  3-COLUMN HEADER CARDS                                       │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│  │  Card 1   │  │  Card 2   │  │  Card 3   │                  │
+│  │  Party    │  │ Document  │  │ Project/  │                  │
+│  │  Details  │  │ Details   │  │ Pricing   │                  │
+│  └──────────┘  └──────────┘  └──────────┘                  │
+│                                                              │
+│  LINE ITEM EDITOR TABLE                                      │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  Toolbar: [Add Row] [Add Material] [Add Section] ...   │ │
+│  │  ┌───┬────┬─────┬──────┬─────┬──────┬───────┬────┐    │ │
+│  │  │ # │Item│Make │Varian│ Qty │ Rate │Disc % │Amt │    │ │
+│  │  ├───┼────┼─────┼──────┼─────┼──────┼───────┼────┤    │ │
+│  │  │ 1 │... │ ... │ ...  │ ... │ ...  │ ...   │... │    │ │
+│  │  └───┴────┴─────┴──────┴─────┴──────┴───────┴────┘    │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                              │
+│  BOTTOM PANELS (Notes, Terms, Adjustments, Signatory)        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│  │  Notes    │  │ Terms &  │  │Adjustments│                  │
+│  │  & Remarks│  │Conditions│  │& Signatory│                  │
+│  └──────────┘  └──────────┘  └──────────┘                  │
+│                                                              │
+│  SUMMARY FOOTER (Subtotal, Tax, Discounts, Grand Total)     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Rows stack vertically with 8px gap. Wrapped in a section container with a section header label.
+---
 
-## Tokens
+## 3. Fixed Top Action Bar
+
+**Position:** `fixed` at top, below the app's main navbar (`top: 32px`).
+**Background:** `white` with `border-b border-zinc-200`.
+**Z-index:** 50.
+**Height:** Auto (content-driven, ~48-56px).
+
+### Layout
+
+```
+[Left: Title + Status Badge]  [Right: Action Buttons]
+```
+
+### Title
 
 ```tsx
-// Row container — flex row, centered vertically
-headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' }
+fontSize: '16px' | '18px'
+fontWeight: 700 | 'bold'
+color: '#0a0a0a' | '#111827'
+margin: 0
+```
 
-// Label — fixed width, right-aligned text
-labelColStyle   = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' }
+### Status Badge
 
-// Entry cell — fills remaining space
-fieldColStyle   = { flex: 1 }
+Inline badge showing document status (Draft, Active, Final, etc.).
+Placed immediately after the title.
 
-// Section group header — uppercase label above a group of rows
-sectionHeaderStyle = {
-  fontWeight: 600, fontSize: '11px', color: '#6b7280',
-  textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px'
+### Action Buttons (Right Side)
+
+Arranged horizontally with `gap: 6px`.
+
+| Button | Style | When |
+|---|---|---|
+| **Import PDF/Image** | Indigo ghost: `bg-indigo-50 border-indigo-200 text-indigo-600` | Always (if supported) |
+| **Preview PDF** | Icon button: `w-8 h-8 border border-zinc-300 rounded bg-white text-zinc-600` | Only when editing existing |
+| **Download PDF** | Same icon button style | Only when editing existing |
+| **Print** | Same icon button style | Only when editing existing |
+| **Email** | Same icon button style | Only when editing existing |
+| **Cancel** | Secondary: `border border-zinc-300 bg-white text-zinc-600 text-xs font-bold px-10 h-9 rounded` | Always |
+| **Save as Draft** | Secondary: same style as Cancel | Always |
+| **Save / Update** | Primary: `bg-[#185FA5] border-[#185FA5] text-white text-xs font-bold px-10 h-9 rounded` | Always |
+
+### Icon Button Pattern
+
+All icon buttons in the action bar share this geometry:
+
+```tsx
+{
+  width: '32px',
+  height: '32px',
+  border: '1px solid #d4d4d4',
+  borderRadius: '4px',
+  background: '#fff',
+  color: '#525252',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 }
-
-// Input styling inside entry cells
-inputStyle = { padding: '4px 8px', fontSize: '12px' }
+// hover: color → '#111827'
+// disabled: opacity 0.5, cursor 'not-allowed'
 ```
 
-## Render helper
+---
+
+## 4. 3-Column Header Cards
+
+**Grid:** `grid-template-columns: repeat(3, 1fr)` with `gap: 16px`.
+**Margin bottom:** `16px`.
+**Each card:** `cq-card-elevated` class or equivalent white card.
+
+### Card Structure
 
 ```tsx
-const renderHeaderField = (label, field, isLast = false) => (
-  <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
+<div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+  {/* Card Header */}
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: '8px',
+    fontSize: '12px', fontWeight: 700,
+    color: '#1e3a8a',           // dark blue
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    borderBottom: '1px solid #f3f4f6',
+    paddingBottom: '8px',
+    marginBottom: '4px'
+  }}>
+    <Icon size={14} style={{ color: '#2563eb' }} />
+    {Card Title}
+  </div>
+
+  {/* Field Rows */}
+  {renderHeaderField('Label:', <input ... />)}
+</div>
+```
+
+### Card 1 — Party Details
+
+**Icon:** `User` from lucide-react.
+**Title:** "Client" (or "Vendor" for purchase orders).
+
+| Field | Type | Required |
+|---|---|---|
+| Client * | Searchable dropdown | Yes |
+| Contact | Text input | No |
+| Address | Read-only div (auto-populated) | Auto |
+| Shipping | Select + textarea (if client has addresses) | No |
+| GSTIN | Text input (auto-populated) | Auto |
+| Default variant | Select | No |
+
+### Card 2 — Document Details
+
+**Icon:** `FileText` from lucide-react.
+**Title:** "Document".
+
+| Field | Type | Required |
+|---|---|---|
+| Doc No | Read-only div (auto-generating) | Auto |
+| Date | Custom date picker | Yes |
+| Valid Till / Due Date | Custom date picker (document-specific) | Depends |
+| Prepared By | Read-only div | Auto |
+| Reference | Text input | No |
+| Payment Terms | Text input | No |
+
+### Card 3 — Project / Pricing Details
+
+**Icon:** `Briefcase` from lucide-react.
+**Title:** "Project" (or document-specific).
+
+| Field | Type | Notes |
+|---|---|---|
+| Project | Select (filtered by client) | No |
+| Pricing | ARC toggle + status badge | Quotation/Invoice only |
+| Discount Categories | List with % inputs | Quotation/Invoice only |
+
+**If a document type doesn't need one of these cards, replace with the closest equivalent rather than removing the column.** The 3-column grid must stay balanced.
+
+---
+
+## 5. Form Field Row Pattern
+
+### Document Section Pattern
+
+```tsx
+const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
+const labelColStyle = { minWidth: '95px', maxWidth: '95px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+const fieldColStyle = { flex: 1 };
+const inputStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '12px' };
+
+const renderHeaderField = (label, field, hasMargin = true) => (
+  <div style={{ ...headerFieldStyle, marginBottom: hasMargin ? '8px' : '0' }}>
     <span style={labelColStyle}>{label}</span>
     <div style={fieldColStyle}>{field}</div>
   </div>
 );
 ```
 
-## Usage
+### Label Width Variants
 
-Sections sit inside a 2-column grid:
+- **70px** — Compact forms with short labels (CreateQuotation minimal mode)
+- **90-95px** — Standard forms (CreateQuotation, CreateDC, Proforma)
+- **120px** — Forms with longer labels (Purchase Orders)
 
-```tsx
-<div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px' }}>
-  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-    {/* Column 1 */}
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <div style={sectionHeaderStyle}>Section Title</div>
-      {renderHeaderField('Label:', <input ... />)}
-      {renderHeaderField('Another:', <select ... />)}
-    </div>
-    {/* Column 2 */}
-    <div>...</div>
-  </div>
-</div>
-```
+Pick based on the longest label in the card.
 
-## Label width variants
+### Spacing Between Fields
 
-- **CreateQuotation**: 70px — tighter, compact forms
-- **BOMEditor**: 90px — wider labels for longer field names
-
-Pick based on label length and available horizontal space.
+- **8px** vertical gap between field rows.
+- Fields stack vertically within a card column.
 
 ---
 
-# Searchable Dropdown — Default Pattern
+## 6. Custom Date Picker
 
-Replace native `<select>` with a searchable text input + dropdown for any list exceeding 5 items.
+**Shared component** used across all document screens. Reuse the existing `CustomDatePicker` from `QuotationHeaderForm.tsx`.
 
-Used in: `BOMEditor.tsx` (material dropdown), `CreateQuotation.tsx` (client dropdown)
+### Behavior
 
-## State
+- Display selected dates as `dd MMM yyyy`.
+- Save values as `yyyy-MM-dd`.
+- Open compact calendar popover on click.
+- Support previous/next month navigation.
+- Close on outside click.
+- Use `.cq-datepicker-input` class for trigger styling.
+- Disabled documents should prevent opening the picker.
 
-```
-searchText: string              // filters list in dropdown
-isDropdownOpen: boolean         // toggle visibility
-```
-
-## Click-Outside
-
-`useEffect` + `mousedown` listener using a `.dropdown-container` className:
-
-```tsx
-useEffect(() => {
-  const handler = (e: MouseEvent) => {
-    if (!(e.target as HTMLElement).closest('.dropdown-container')) {
-      setIsDropdownOpen(false);
-    }
-  };
-  document.addEventListener('mousedown', handler);
-  return () => document.removeEventListener('mousedown', handler);
-}, []);
-```
-
-## Input
-
-Always shows selected value when closed, search text when open:
-
-```tsx
-<input
-  value={isDropdownOpen ? searchText : (selectedItem?.name || '')}
-  onChange={e => { setSearchText(e.target.value); setIsDropdownOpen(true); }}
-  onFocus={() => setIsDropdownOpen(true)}
-  placeholder="Search..."
-/>
-```
-
-## Dropdown
-
-Absolute-positioned below input, filtered case-insensitively:
-
-```tsx
-{isDropdownOpen && (
-  <div style={{
-    position: 'absolute', top: '100%', left: 0, right: 0,
-    zIndex: 50, background: 'white', border: '1px solid #d1d5db',
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-    maxHeight: '200px', overflowY: 'auto'
-  }}>
-    {items
-      .filter(i => !searchText || i.name.toLowerCase().includes(searchText.toLowerCase()))
-      .map(i => (
-        <div key={i.id} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
-          onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-          onMouseLeave={e => e.currentTarget.style.background = 'white'}
-          onClick={() => { handleSelect(i); setSearchText(''); setIsDropdownOpen(false); }}
-        >{i.name}</div>
-      ))}
-    {filteredCount === 0 && (
-      <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No items found</div>
-    )}
-  </div>
-)}
-```
-
-## Container
-
-Must have `position: 'relative'` and parent with `overflow: 'hidden'` must be removed/avoided to prevent clipping.
-
-### Rendering Above Containers
-
-Dropdowns must always render above sibling elements and not be clipped by parent borders. To achieve this:
-
-1. **Remove `overflow: hidden`** from the parent container that holds the dropdown trigger
-2. **Set `zIndex: 50`** on the dropdown panel
-3. **Use `position: 'absolute'`** with `top: '100%'` to position below the trigger
-4. If the parent has `border-radius`, the dropdown will naturally extend beyond — this is correct behavior
-
-**Common mistake**: Setting `overflow: hidden` on a table/card container to enforce border-radius will clip all dropdowns inside it. Instead, use `overflow: 'visible'` or remove overflow entirely.
-
-**Example**:
-```tsx
-// ❌ BAD — clips dropdown
-<div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
-
-// ✅ GOOD — dropdown extends above
-<div style={{ border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-```
-
-## Per-Row in Tables
-
-When multiple dropdowns exist in a table (e.g., BOM rows), use:
-
-- `searchText: Record<number, string>` — search keyed by row index
-- `openIndex: number` — single open tracker (`-1` = none)
-- On row add: `setOpenIndex(newIndex)`
-- On row remove: rebuild index map
-
-## Container class
-
-`.dropdown-container` is added to the wrapper `div` for click-outside detection.
-
----
-
-# Buttons
-
-The button system has three intent levels: **primary**, **secondary**, and **destructive**. All buttons share the same core geometry; only color tokens differ.
-
-## Core tokens (shared by every button)
-
-| Token | Value |
-|---|---|
-| Padding (vertical / horizontal) | `6px` / `12px` (header) — `7px 16px` (modal) |
-| Border | `1px solid <intent-border>` |
-| Border-radius | `6px` (header) — `8px / rounded-lg` (modal) |
-| Font size / weight | `12px` / `500` (header) — `12px` / `600` (modal primary) |
-| Cursor | `pointer` — `not-allowed` when disabled |
-| Disabled opacity | `0.6` |
-| Transition | `all 0.15s` |
-| Layout | `display: 'flex', alignItems: 'center', gap: '4px'` |
-
-## Primary (Save / Confirm)
-
-Used for the main action in a screen or modal.
+### Visual Tokens
 
 ```tsx
 {
-  padding: '6px 14px',
-  background: '#185FA5',      // brand blue
-  border: '1px solid #185FA5',
-  color: '#fff',
+  position: 'absolute', top: '100%', left: 0,
+  marginTop: '4px', zIndex: 100,
+  background: 'white',
+  border: '1px solid #e5e7eb',
+  borderRadius: '8px',
+  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+  padding: '12px',
+  width: '250px'
 }
-onMouseEnter: background → '#0C447C', borderColor → '#0C447C'
-onMouseLeave: revert
+```
+
+### Trigger Input
+
+```tsx
+{
+  minHeight: '36px', padding: '4px 8px', fontSize: '12px',
+  background: 'white', border: '1px solid #d1d5db', borderRadius: '4px',
+  cursor: 'pointer', display: 'flex', alignItems: 'center'
+}
 ```
 
 ---
-dont use this below reference unless user expclity use "quoteui"
-# quoteui
 
-This is the shared design pattern for quotation-style document entry screens.
+## 7. Searchable Dropdowns
 
-Use this UI as the base for:
+**Replace native `<select>`** with searchable text input + dropdown for any list exceeding 5 items.
 
-- `quotation`
-- `invoice`
-- `delivery challan`
-- `proforma`
-- `credit note`
-- `debit note`
-- `purchase order`
+### Used For
 
-## Purpose
+- Client/party selection (all document headers)
+- Material/item selection (line item grid)
 
-`quoteui` is a dense, form-first document builder UI designed for:
+### Client/Party Dropdown Behavior
 
-- fast header entry
-- spreadsheet-like line item editing
-- section and subtotal rows
-- pricing rule controls
-- conversion-friendly document workflows
+- Text input shows selected party name when closed.
+- Typing filters dropdown case-insensitively.
+- Clicking/focusing opens the dropdown.
+- Selecting a party updates dependent fields (address, contact, shipping, GSTIN).
+- Outside click closes the dropdown.
+- Empty states show `No clients found` (or matching party label).
 
-## Core layout
+### Container Class
 
-- Fixed top action bar with document title, status controls, and primary save actions
-- 3-column header area for document metadata
-- large editable line-item table below
-- optional document-specific panels such as allocations, approvals, or pricing rules
-- modal/dialog support for bulk selection, confirmation, and history
+`.client-dropdown-container` for click-outside detection.
 
-## Visual style
+### Dropdown Visual Tokens
 
-- light slate page background
-- white cards with subtle borders
-- compact spacing and small type
-- strong section headers in uppercase
-- table-driven editing with dense rows
-- blue as the primary accent
+```tsx
+{
+  position: 'absolute', top: '100%', left: 0, right: 0,
+  zIndex: 50, background: 'white',
+  border: '1px solid #d1d5db',
+  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+  maxHeight: '200px', overflowY: 'auto'
+}
 
-## Header cards
+// Item:
+{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }
+// hover: background → '#eff6ff'
+```
 
-The header section is split into 3 cards:
+### Item/Material Dropdown (Line Items)
 
-- Client
-- Document
-- Project
+Use `SearchableItemSelect` component with fixed-position rendering to avoid clipping by table containers.
 
-Each card uses compact label/value rows and should follow the existing document-section row pattern already documented above.
+---
 
-## Line items
+## 8. Line Item Editor Table
 
-The line item table is the primary working area and should support:
-
-- add row
-- add material
-- add section
-- add subtotal
-- bulk add
-- column visibility controls
-- drag reordering
-- inline editing
-- item search/select
-- optional custom columns
-
-The table container should follow the quotation editor shell:
+### Container
 
 ```tsx
 <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
   <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
-    {/* title + compact toolbar */}
+    {/* Title + Toolbar */}
   </div>
   <div className="grid-table-container">
     <table className="grid-table cq-editable">
       <thead className="grid-table-header-dark">
-        {/* columns */}
+        {/* Columns */}
       </thead>
     </table>
   </div>
 </div>
 ```
 
-Item cells should use the same searchable dropdown behavior as quotation:
+### Toolbar
 
-- item/material cells use `SearchableItemSelect`
-- dropdown panel renders above the table using fixed positioning
-- selecting an item updates the row in place
-- description editing stays inline through `InlineDescriptionCell`
-- row-level variant, make, warehouse, quantity, and rate fields remain compact cell controls
+Located above the table header. Contains:
 
-Special row types:
+| Action | Style | Notes |
+|---|---|---|
+| Add Row | Ghost button (icon + text) | Adds empty row |
+| Add Material | Ghost button | Opens material picker |
+| Add Section | Ghost button | Adds section header row |
+| Add Subtotal | Ghost button | Adds subtotal row |
+| Bulk Add | Ghost button | Opens bulk picker |
+| Column Visibility | Dropdown | Toggle columns on/off |
+| AI Import | Indigo ghost | Opens parser modal |
 
-- section header rows
-- subtotal rows
-- erection/service rows if the document supports them
-
-## Shared modal patterns
-
-Use standard confirmation and input dialogs for:
-
-- destructive actions
-- revision or negotiation changes
-- bulk discount updates
-- replacement or selection flows
-
-## Custom date picker
-
-`quoteui` date fields should use the custom quotation date picker instead of native browser date inputs.
-
-Behavior:
-
-- display selected dates as `dd MMM yyyy`
-- save values as `yyyy-MM-dd`
-- open a compact calendar popover on click
-- support previous and next month navigation
-- close on outside click
-- use `.cq-datepicker-input` for the trigger styling
-- disabled document states should prevent opening the picker
-
-Use this for document dates such as:
-
-- quotation date
-- valid till
-- DC date
-- PO date
-- invoice due date when the target document supports it
-
-## quoteui dropdowns
-
-Client/party fields should use the quotation-style searchable text dropdown, not a native select, when following `quoteui`.
-
-Behavior:
-
-- text input shows the selected party name when closed
-- typing filters the dropdown case-insensitively
-- clicking or focusing opens the dropdown
-- selecting a party updates dependent fields such as address/contact
-- outside click closes the dropdown
-- empty states show `No clients found` or the matching party label
-
-For item/material fields inside the line-item grid, use the fixed-position `SearchableItemSelect` pattern so dropdowns are not clipped by the table container.
-
-## Reuse rule
-
-Use `quoteui` only when the user specifically asks to follow the `quoteui` design.
-
-If the user does not explicitly request `quoteui`, do not assume this layout or behavior for other document screens.
-
-## Template contract
-
-Use this as the source of truth when cloning the UI for other document types.
-
-### Shared base structure
-
-These elements stay consistent across all `quoteui`-based document screens unless the document type explicitly overrides them:
-
-- fixed top action bar
-- document title and state controls
-- compact status selector
-- primary save / submit action
-- three-column header card layout
-- line-item editor table
-- drag-and-drop row ordering
-- modal/dialog system
-- compact, spreadsheet-like spacing
-- blue primary accent
-
-### Swappable document labels
-
-Replace labels according to the document type while keeping the same visual pattern:
-
-- `Quote No` can become `Invoice No`, `DC No`, `Proforma No`, `Credit Note No`, `Debit Note No`, or `PO No`
-- `Valid Till` can become `Due Date`, `Dispatch Date`, `Approval Due`, or another relevant date field
-- `Client` can become `Vendor` or `Buyer` depending on the document flow
-- `Prepared By` may remain unchanged unless the business flow requires a different owner field
-- `Reference` can become `PO Ref`, `RFQ No`, `Project Ref`, or `Source Ref`
-
-### Shared document cards
-
-The 3-column top section should remain the same structure, but the content may change:
-
-- Card 1: party details
-- Card 2: document details
-- Card 3: project / pricing / workflow details
-
-If a document type does not need one of these cards, keep the layout balanced by replacing the card with the closest equivalent rather than removing the column entirely.
-
-### Allowed overrides by document type
-
-- `quotation`
-  - may use negotiation mode
-  - may use revision history
-  - may use ARC pricing
-  - may use DC allocation when converting from multiple DCs
-- `invoice`
-  - may use payment status, due date, tax/invoice-specific fields
-  - should not inherit quotation-only negotiation behavior unless explicitly required
-- `delivery challan`
-  - may use dispatch and transport details
-  - should not show quotation-specific pricing rules unless the flow requires it
-- `proforma`
-  - may reuse quotation-style header and item grid
-  - should relabel document metadata to proforma terms
-- `credit note`
-  - may use adjustment reason, reversal values, and reference-to-original-doc fields
-  - should not show quotation-only conversion helpers unless needed
-- `debit note`
-  - may use adjustment reason, surcharge values, and reference-to-original-doc fields
-- `purchase order`
-  - may switch party details from client to vendor
-  - may use PO-specific approval and delivery fields
-
-### Behavior rules
-
-- Keep the line-item table as the main editing surface.
-- Keep inline editing over modal editing where practical.
-- Keep subtotal and section rows only when the document type supports grouped items.
-- Keep pricing rules only when the document type has item-rate logic.
-- Keep conversion helpers only when the source and target documents are part of the workflow.
-
-### Do not copy blindly
-
-Do not copy quotation-only controls into another document type unless the user or business flow explicitly asks for them.
-
-Examples of quotation-only controls:
-
-- negotiation mode
-- revision history tied to quote editing
-- quotation-specific approval hooks
-- DC allocation inside quotation creation
-- ARC pricing toggle if the target document does not support it
-
-### quoteui Typography & Font Sizes
-
-To maintain the dense, spreadsheet-like layout, typography is tightly controlled:
-
-- **Section & Card Headers**: `11px` font size, `600` font weight, uppercase with `0.05em` letter spacing (`color: '#6b7280'` or `#1e3a8a`).
-- **Metadata Labels**: `11px` font size, `600` font weight (`color: '#374151'`).
-- **Metadata Inputs & Selects**: `12px` font size (`color: '#1f2937'`).
-- **Table Headers**: `11px` font size, `700` font weight, white text on dark blue (`#1e3a8a`) background.
-- **Table Line Item Cells**:
-  - Item Select / Search text: `12px` font size (`color: '#1e293b'`).
-  - Item Description: `11px` font size, muted grey (`color: '#737373'` or `#64748b`). Editing mode textarea uses `12px`.
-  - Make & Variant cells: `11px` font size (`color: '#0f172a'` when set, `#94a3b8` when unset).
-  - Quantity, UOM, and Rate inputs: `12px` font size.
-- **Special Table Rows**:
-  - Section Header row: `12px` font size, `700` font weight, uppercase.
-  - Subtotal row: `13px` font size, `700` font weight.
-- **Table Footer Summary Rows**:
-  - Subtotals, Taxes, and Discounts: `13px` font size (`color: '#374151'`).
-  - Grand Total row: `15px` font size, `700` font weight.
-  - Amount in Words: `12px` font size, `600` font weight, italic.
-- **Bottom Panels (Notes, Terms, Adjustments)**:
-  - Header labels: `13px` font size, `600` font weight (`color: '#374151'`).
-  - Notes & Terms textareas: `13px` font size.
-  - Adjustment inputs: `13px` font size.
-  - Authorized Signatory trigger: `12px` font size (`text-xs font-medium`).
-  - Signatory helper label / preview label: `10px` / `9px` font size, uppercase, tracked (`color: '#a1a1aa'`).
-
-### quoteui Bottom Layout & Footer Panels
-
-The bottom area of a document page consists of notes, terms, adjustments, and the signatory blocks:
-
-- **Grid Composition**: Renders as a 3-column layout on medium/large screens using Tailwind: `grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4`
-- **Column 1 (Notes & Remarks)**: Fills `1fr` width. Uses an auto-growing `textarea` to avoid scrollbars.
-- **Column 2 (Terms & Conditions)**: Fills `1fr` width. Includes an "Add/Edit" button opening a side-drawer template picker (`TermsConditionsDrawer`), alongside an auto-growing `textarea` displaying the plain text.
-- **Column 3 (Adjustments & Signatory)**: Fixed `300px` width.
-  - Displays numerical adjustment inputs (Extra Discount %, Extra Discount Amt, Round Off toggle).
-  - Displays Grand Total summary (`15px` font size).
-  - Includes **Authorized Signatory** picker. The signatory dropdown MUST open **upwards** (`position: 'absolute', bottom: '100%'`) to prevent viewport clipping.
-  - If selected, a signature image preview card is displayed containing the signatory's image capped at `max-h-7 max-w-[120px] object-contain`.
-
-### Implementation note
-
-If a future screen says “follow `quoteui`,” it should:
-
-- reuse the same visual composition
-- swap labels and document-specific fields
-- keep the same compact editing style
-- remove quotation-only behavior that does not belong to the target document
-
-## Secondary (Cancel / Close)
-
-Used for the dismiss action next to a primary button.
+### Table Header
 
 ```tsx
-{
-  padding: '6px 14px',
-  border: '1px solid #d1d5db',
-  background: '#fff',
-  color: '#374151',           // zinc-700
-}
-onMouseEnter: background → '#f3f4f6', borderColor → '#9ca3af'
-onMouseLeave: revert
+// Dark header row
+thead.className = "grid-table-header-dark"
+
+// Background: '#1e3a8a' (dark blue)
+// Text: white, fontSize '11px', fontWeight 700
+// Uppercase labels
 ```
 
-## Destructive (Delete)
+### Standard Columns
 
-Used for delete actions in headers, action menus, and confirmation modals. **Icon and text color are black** (neutral, not red) — the danger signal is carried by the *action it triggers* (confirmation modal) and the *icon shape* (`Trash2`), not by red text.
+| Column | Width | Type | Notes |
+|---|---|---|---|
+| ☐ | checkbox | Checkbox | Bulk select |
+| # | auto | Static | Serial number / drag handle |
+| HSN | 80px | Read-only input | Auto from material |
+| Item | flexible | SearchableItemSelect | + InlineDescriptionCell below |
+| Make | 100px | MakeCell dropdown | |
+| Variant | 120px | VariantCell dropdown | |
+| Discount Category | auto | Static text | |
+| Qty | 80px | Editable input | Draft pattern for safe editing |
+| Unit | 80px | UnitDropdownSelect | |
+| Rate | 100px | Editable input | |
+| Disc % | 70px | Editable input | |
+| Rate After Disc | auto | Read-only | Calculated |
+| GST % | 70px | Editable input | |
+| Amount | auto | Read-only | Calculated |
+| Actions | 40px | Delete button | |
+
+### Cell Styling
 
 ```tsx
-// Header delete button (e.g. BOMEditor)
+// Editable cell:
+{ padding: '4px 8px', fontSize: '11px', minHeight: '28px', background: '#fff', border: '1px solid transparent' }
+// hover: borderColor → '#3b82f6'
+
+// Read-only cell:
+{ padding: '4px 8px', fontSize: '11px', background: '#f8fafc' }
+
+// Item description (below item select):
+{ fontSize: '11px', color: '#737373' | '#64748b' }
+```
+
+### Special Row Types
+
+| Row Type | Background | Behavior |
+|---|---|---|
+| **Section Header** | `#f8fafc` | Full-width editable text input, bold |
+| **Subtotal** | `#fef9c3` (yellow tint) | Label + group amount, `borderTop: '2px solid #eab308'` |
+| **Material** | White | Standard editable row |
+| **Erection** | White | Material-linked service row |
+
+### Drag & Drop
+
+- Each row has a drag handle (`#` column).
+- `draggable` + `onDragStart/Over/Drop/End` handlers.
+- Visual feedback: `.row-dragging` class.
+
+### Empty State
+
+```tsx
+<td colSpan={N} style={{ padding: '48px', color: '#94a3b8', fontSize: '14px', textAlign: 'center' }}>
+  No items added. Click "Add Row" or "Add Material".
+</td>
+```
+
+---
+
+## 9. Searchable Item Select (Line Items)
+
+**Component:** `SearchableItemSelect` (already exists in codebase).
+
+### Behavior
+
+- Input shows selected material name when closed.
+- Typing filters materials by name, code, or display name.
+- Dropdown renders with `position: fixed` to avoid clipping.
+- Selecting updates the row with material details (HSN, UOM, rate, tax, variant info).
+- Clear button (×) appears on hover, allowing replacement.
+
+### Dropdown Positioning
+
+```tsx
+// Fixed positioning to escape table container
 {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '4px',                // icon ↔ text
-  padding: '6px 12px',
-  border: '1px solid #d1d5db',   // neutral border (NOT red)
+  position: 'fixed',
+  top: `${rect.bottom + 4}px`,
+  left: `${rect.left}px`,
+  width: `${rect.width}px`,
+  zIndex: 9999,
   background: '#fff',
-  color: '#000000',              // black text + black icon (NOT red)
+  border: '1px solid #d4d4d4',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+  maxHeight: '200px',
+  overflowY: 'auto'
+}
+```
+
+---
+
+## 10. Bottom Panels & Footer
+
+### Grid Layout
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4">
+  {/* Column 1: Notes & Remarks */}
+  {/* Column 2: Terms & Conditions */}
+  {/* Column 3: Adjustments & Signatory */}
+</div>
+```
+
+### Column 1 — Notes & Remarks
+
+- Auto-growing `textarea` to avoid scrollbars.
+- Header: `13px font-semibold text-[#374151]`.
+- Textarea: `13px` font.
+
+### Column 2 — Terms & Conditions
+
+- "Add/Edit" button opening `TermsConditionsDrawer`.
+- Auto-growing `textarea` displaying plain text.
+- Same styling as Notes.
+
+### Column 3 — Adjustments & Signatory
+
+- Fixed `300px` width.
+- Numerical adjustment inputs (Extra Discount %, Extra Discount Amt, Round Off toggle).
+- Grand Total: `15px font-semibold`.
+- **Authorized Signatory** picker — dropdown opens **upwards** (`position: absolute, bottom: '100%'`).
+- Signature preview card: `max-h-7 max-w-[120px] object-contain`.
+
+---
+
+## 11. Summary Footer
+
+Below the bottom panels, showing calculated totals.
+
+| Row | Font Size | Weight | Color |
+|---|---|---|---|
+| Subtotals | 13px | normal | #374151 |
+| Taxes (CGST/SGST/IGST) | 13px | normal | #374151 |
+| Discounts | 13px | normal | #374151 |
+| **Grand Total** | **15px** | **700** | **#111827** |
+| Amount in Words | 12px | 600, italic | #374151 |
+
+---
+
+## 12. Typography & Font Sizes
+
+| Element | Size | Weight | Color | Notes |
+|---|---|---|---|---|
+| Page Title | 16-18px | 700 | #0a0a0a / #111827 | Action bar |
+| Card Header | 12px | 700 | #1e3a8a | Uppercase, 0.05em tracking |
+| Section Header | 11px | 600 | #6b7280 | Uppercase, 0.05em tracking |
+| Metadata Label | 11px | 600 | #374151 | Right-aligned in field row |
+| Metadata Input | 12px | 400 | #1f2937 | Compact, 36px height |
+| Table Header | 11px | 700 | white on #1e3a8a | Uppercase |
+| Line Item Cell | 11-12px | 400 | #1e293b | Editable |
+| Description (below item) | 11px | 400 | #737373 / #64748b | Muted |
+| Make/Variant Cell | 11px | 500 | #0f172a (set) / #94a3b8 (unset) | |
+| Qty/UOM/Rate Input | 12px | 400 | #1f2937 | |
+| Section Header Row | 12px | 700 | #1e293b | Uppercase |
+| Subtotal Row | 13px | 700 | #b45309 | |
+| Bottom Panel Header | 13px | 600 | #374151 | |
+| Textarea | 13px | 400 | #1f2937 | |
+| Grand Total | 15px | 700 | #111827 | |
+| Amount in Words | 12px | 600, italic | #374151 | |
+| Helper/Signatory Label | 9-10px | uppercase | #a1a1aa | Tracked |
+
+---
+
+## 13. Button System
+
+### Primary (Save / Confirm)
+
+```tsx
+{
+  height: '36px',
+  padding: '0 40px',
+  minWidth: '100px',
+  background: '#185FA5',
+  border: '1px solid #185FA5',
+  color: '#fff',
   borderRadius: '6px',
   fontSize: '12px',
   fontWeight: 500,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  cursor: 'pointer',
+  transition: 'all 0.15s'
 }
-onMouseEnter: background → '#f3f4f6', borderColor → '#9ca3af'
-onMouseLeave: revert
+// hover: background → '#0C447C', borderColor → '#0C447C'
+// disabled: opacity 0.6, cursor 'not-allowed'
 ```
+
+### Secondary (Cancel / Close)
 
 ```tsx
-<button>
-  <Trash2 size={13} /> Delete
-</button>
+{
+  height: '36px',
+  padding: '0 40px',
+  minWidth: '100px',
+  border: '1px solid #d4d4d4',
+  background: '#fff',
+  color: '#374151',
+  borderRadius: '6px',
+  fontSize: '12px',
+  fontWeight: 500
+}
+// hover: background → '#f3f4f6', color → '#111827'
 ```
 
-| Token | Value |
-|---|---|
-| Icon | `lucide-react` `Trash2`, **13px** |
-| Gap icon ↔ text | **4px** |
-| Padding | **6px / 12px** |
-| Border | `1px solid #d1d5db` (zinc-300) |
-| Border-radius | **6px** |
-| Text + icon color | `#000000` (black) |
-| Background | `#fff` → `#f3f4f6` on hover |
-| Hover border | `#9ca3af` |
-
-## Action-menu delete item (BOMList row menu)
-
-The delete item inside a dropdown action menu follows the same neutral color rule. It is separated from non-destructive items by a thin divider.
+### Ghost (Toolbar Actions)
 
 ```tsx
-<button
-  className="
-    flex w-full items-center gap-2
-    rounded-lg px-3 py-2
-    text-sm text-zinc-700
-    hover:text-zinc-900 hover:bg-zinc-50
-    transition-all
-  "
->
-  <Trash2 className="w-3.5 h-3.5" /> Delete BOM
-</button>
+{
+  padding: '6px 12px',
+  border: '1px solid transparent',
+  background: 'transparent',
+  color: '#374151',
+  borderRadius: '6px',
+  fontSize: '12px',
+  fontWeight: 500,
+  display: 'flex', alignItems: 'center', gap: '4px'
+}
+// hover: background → '#f3f4f6'
 ```
 
-| Token | Value |
-|---|---|
-| Icon | `Trash2`, **14×14px** |
-| Gap icon ↔ text | **8px** |
-| Padding | **8px / 12px** |
-| Border-radius | **8px** |
-| Text + icon color | `#3f3f46` (zinc-700) — NOT red |
-| Hover bg | `#fafafa` (zinc-50) |
-| Divider above | `my-1 border-t border-zinc-100` |
+### Destructive (Delete in Headers)
 
-## Confirmation modal
+**Icon and text are BLACK (neutral).** The danger signal comes from the confirmation modal, not the button color.
 
-A destructive action always opens a confirmation modal. The modal itself uses **red** for the danger icon badge and the confirm button — this is where the danger signal lives, not on the trigger button.
+```tsx
+{
+  padding: '6px 12px',
+  border: '1px solid #d1d5db',
+  background: '#fff',
+  color: '#000000',
+  borderRadius: '6px',
+  fontSize: '12px',
+  fontWeight: 500
+}
+// hover: background → '#f3f4f6', borderColor → '#9ca3af'
+// Icon: Trash2, 13px
+```
+
+---
+
+## 14. Confirmation Modal (Destructive Actions)
+
+The only place that uses **red** for danger:
 
 | Element | Token |
 |---|---|
 | Backdrop | `bg-black/40` |
-| Card | `bg-white`, `rounded-2xl` (16px), `p-6` (24px), `max-w-[420px]`, `shadow-2xl` |
-| Icon badge | `w-10 h-10`, `rounded-xl` (12px), `bg-rose-50` |
-| Icon | `Trash2`, `w-5 h-5` (20×20), `text-rose-600` |
+| Card | `bg-white rounded-2xl p-6 max-w-[420px] shadow-2xl` |
+| Icon badge | `w-10 h-10 rounded-xl bg-rose-50` |
+| Icon | `Trash2 w-5 h-5 text-rose-600` |
 | Title | `text-[15px] font-semibold text-zinc-900` |
-| Title row gap | `gap-3` (12px) — badge ↔ title |
-| Title ↔ body | `mb-3` (12px) |
-| Body line-height | `leading-[18px]` |
-| Body ↔ buttons | `mb-5` (20px) |
-| Buttons row gap | `gap-2` (8px), `justify-end` |
+| Title ↔ body gap | `12px` |
+| Body ↔ buttons gap | `20px` |
+| Cancel button | White, `border-zinc-200 text-zinc-600 rounded-lg` |
+| Confirm button | `bg-rose-600 text-white rounded-lg font-semibold`, hover `bg-rose-700` |
 | Button height | `h-9` (36px) |
-| Button h-padding | `px-4` (16px) |
-| Cancel button | white, `border-zinc-200`, `text-zinc-600`, `rounded-lg` |
-| Confirm button | `bg-rose-600`, `text-white`, `rounded-lg`, `font-semibold`, hover `bg-rose-700` |
-| Icon in confirm button (while pending) | `Loader2 w-3.5 h-3.5 animate-spin`, gap `1.5` (6px) |
 
-## Rules
+---
 
-1. **Trigger buttons (header / menu) use black text** for destructive actions — no red text on the trigger itself.
-2. **The confirmation modal is the only place that uses red** (icon badge + confirm button).
-3. The danger icon is always `Trash2` from `lucide-react` — never an alternative icon.
-4. Destructive trigger buttons in action menus are separated from non-destructive items with a `border-t border-zinc-100` divider and 4px vertical margin.
-5. Disabled state during in-flight mutation: `opacity: 0.6`, `cursor: 'not-allowed'`, hover handlers guarded.
+## 15. Swappable Document Labels
+
+The structure is identical. Only labels change:
+
+| Document Type | Card 1 Title | Card 2 Doc No Label | Card 2 Date Label | Card 2 Extra Date | Card 3 Title |
+|---|---|---|---|---|---|
+| **Quotation** | Client | Quote No | Date | Valid Till | Project |
+| **Proforma** | Client | Proforma No | Date | Valid Till | Project |
+| **Invoice** | Client | Invoice No | Invoice Date | Due Date | Project |
+| **DC** | Client | DC No | DC Date | — | Project |
+| **Credit Note** | Client | CN No | CN Date | — | Project |
+| **Debit Note** | Vendor | DN No | DN Date | — | — |
+| **Purchase Order** | Vendor | PO No | PO Date | Delivery Date | Project |
+| **Work Order** | Vendor/Sub | WO No | WO Date | Due Date | Project |
+| **Sales Order** | Client | SO No | SO Date | Delivery Date | Project |
+
+---
+
+## 16. Document-Specific Overrides
+
+### Quotation
+
+- May use **negotiation mode** (tracks override flags on discount/rate changes).
+- May use **revision history** tied to quote editing.
+- May use **ARC pricing** toggle.
+- May use **DC allocation** when converting from multiple DCs.
+- May use **erection charges** section.
+- May use **discount categories** with header-level % inputs.
+
+### Proforma
+
+- Reuses quotation-style header and item grid.
+- Relabels document metadata to proforma terms.
+- Uses `ProformaItemsEditor` with drag-and-drop.
+- May use **ARC pricing**.
+
+### Invoice
+
+- May use **payment status**, **due date**, **tax/invoice-specific fields**.
+- Supports **multiple source types** (direct, quotation, challan, PO).
+- May use **revision management** (revision_no, revision_history).
+- May use **ARC pricing**.
+- May use **lot mode** (single-item invoice for PO billing).
+- May use **PO line item selection** (POLineItemsSelector).
+- May use **quotation/proforma line item selection**.
+- Uses **react-hook-form** with `useFieldArray`.
+
+### Delivery Challan (DC)
+
+- May use **dispatch and transport details** (vehicle number, driver, e-way bill).
+- May use **warehouse selection** and **stock tracking**.
+- May use **rate source** selector (base/project/ARC/manual).
+- May use **allow insufficient stock** toggle.
+- Should **not** show quotation-specific pricing rules unless required.
+- Uses **manual state management** (not react-hook-form).
+
+### Credit Note
+
+- May use **adjustment reason**, **reversal values**, and **reference-to-original-doc** fields.
+- May use **stock adjustment** for returned items.
+- Should **not** show quotation-only conversion helpers unless needed.
+- Uses **react-hook-form**.
+
+### Debit Note
+
+- May use **adjustment reason**, **surcharge values**, and **reference-to-original-doc** fields.
+- Party card changes from "Client" to "Vendor".
+
+### Purchase Order
+
+- Party card changes from "Client" to **"Vendor"**.
+- May use **PO-specific approval** and **delivery fields**.
+- May use **delivery schedule**.
+- Uses the Purchase module's existing patterns.
+
+### Work Order (Subcontractor)
+
+- Party card shows **Subcontractor/Vendor**.
+- May use **work scope**, **milestone tracking**, **amendment support**.
+- Uses `SubcontractorWorkOrderCreate` patterns.
+
+### Sales Order
+
+- Party card shows **Client**.
+- May use **MRP requirements**, **stock check panel**.
+- Uses `SalesOrderCreate` patterns.
+
+---
+
+## 17. Do Not Copy Blindly
+
+Do **NOT** copy quotation-only controls into another document type unless explicitly required:
+
+- Negotiation mode
+- Revision history tied to quote editing
+- Quotation-specific approval hooks
+- DC allocation inside quotation creation
+- ARC pricing toggle (only if target document supports it)
+- Erection charges (quotation-specific)
+- Discount categories with header-level inputs (quotation/invoice specific)
+
+---
+
+## 18. Reuse Rule
+
+This document is the source of truth when:
+
+1. **Creating a new document type** — follow this structure exactly.
+2. **Refactoring an existing page** — align to this system.
+3. **Cloning a UI for a new document** — swap labels per §15, keep structure identical.
+
+If a future screen says "follow `quoteui`," it should:
+
+- Reuse the same visual composition.
+- Swap labels and document-specific fields.
+- Keep the same compact editing style.
+- Remove quotation-only behavior that doesn't belong.
+
+---
+
+## 19. Shared Component APIs (document-editor module)
+
+All shared components live in `src/components/document-editor/`.
+
+### DocumentActionBar
+
+```tsx
+import { DocumentActionBar, PrimaryButton, SecondaryButton, GhostButton, ImportButton } from '../document-editor';
+
+<DocumentActionBar
+  title="Create Invoice"
+  subtitle="Auto-generating..."
+  statusBadge={<StatusBadge status="draft" />}
+  fixed={{ top: 32, left: 220 }}  // fixed to viewport
+  isDirty={isDirty}
+  leftActions={<ImportButton onClick={openParser} />}
+  rightActions={
+    <>
+      <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
+      <SecondaryButton onClick={onSaveDraft}>Save as Draft</SecondaryButton>
+      <PrimaryButton onClick={onSave}>Save</PrimaryButton>
+    </>
+  }
+/>
+```
+
+### HeaderFormGrid + HeaderCard + HeaderField
+
+```tsx
+import { HeaderFormGrid, HeaderCard, HeaderField, sharedStyles } from '../document-editor';
+
+<HeaderFormGrid columns={3}>
+  {/* Column 1: Party */}
+  <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Client">
+    <HeaderField label="Client" required labelWidth="95px">
+      <SearchableDropdown ... />
+    </HeaderField>
+    <HeaderField label="Contact">
+      <input className="form-input" style={sharedStyles.inputStyle} />
+    </HeaderField>
+    <HeaderField label="Address" last>
+      <div style={sharedStyles.staticMultilineStyle}>{address}</div>
+    </HeaderField>
+  </HeaderCard>
+
+  {/* Column 2: Document */}
+  <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
+    <HeaderField label="Invoice No">
+      <div style={sharedStyles.staticFieldStyle}>{invoiceNo}</div>
+    </HeaderField>
+    <HeaderField label="Date">
+      <CustomDatePicker value={date} onChange={setDate} inputStyle={sharedStyles.inputStyle} />
+    </HeaderField>
+  </HeaderCard>
+
+  {/* Column 3: Project */}
+  <HeaderCard icon={<Briefcase size={14} style={{ color: '#2563eb' }} />} title="Project">
+    <HeaderField label="Project">
+      <select className="form-select" style={sharedStyles.inputStyle}>...</select>
+    </HeaderField>
+  </HeaderCard>
+</HeaderFormGrid>
+```
+
+### CustomDatePicker
+
+```tsx
+import { CustomDatePicker } from '../document-editor';
+
+<CustomDatePicker
+  value={formData.date}
+  onChange={(val) => setFormData({ ...formData, date: val })}
+  inputStyle={sharedStyles.inputStyle}
+  minDate={formData.date}  // optional: prevent selecting before this date
+  disabled={isLocked}      // optional: disable the picker
+/>
+```
+
+### SummaryFooter
+
+```tsx
+import { SummaryFooter } from '../document-editor';
+
+<SummaryFooter
+  rows={[
+    { label: 'Subtotal', value: subtotal },
+    { label: 'CGST (9%)', value: cgst, indent: true },
+    { label: 'SGST (9%)', value: sgst, indent: true },
+    { label: 'Discount', value: -discount, highlight: true },
+  ]}
+  grandTotal={{ label: 'Grand Total', amount: grandTotal }}
+  amountInWords="Rupees Fifty Thousand Only"
+/>
+```
+
+### Key Files Reference
+
+| Pattern | File |
+|---|---|
+| Shared components | `src/components/document-editor/` |
+| Action bar + buttons | `document-editor/DocumentActionBar.tsx` |
+| Header card grid | `document-editor/HeaderFormGrid.tsx` |
+| Header card | `document-editor/HeaderCard.tsx` |
+| Field row | `document-editor/HeaderField.tsx` |
+| Date picker | `document-editor/CustomDatePicker.tsx` |
+| Summary footer | `document-editor/SummaryFooter.tsx` |
+| Searchable item select | `components/SearchableItemSelect.tsx` |
+| Inline description | `components/InlineDescriptionCell.tsx` |
+| Unit dropdown | `components/UnitDropdownSelect.tsx` |
+| Terms drawer | `components/TermsConditionsDrawer.tsx` |
+| Confirmation dialog | `components/ConfirmDialog.tsx` |
+| Document status badge | `components/DocumentStatusBadge.tsx` |
+
+---
+
+## 20. Template Contract (Clone Checklist)
+
+When creating a new document page from this system:
+
+- [ ] Fixed top action bar with title + status + actions
+- [ ] 3-column header card grid (Client/Vendor, Document, Project/Pricing)
+- [ ] Each card has icon + uppercase header + field rows
+- [ ] Searchable client/vendor dropdown
+- [ ] Custom date picker for document dates
+- [ ] Auto-generating document number
+- [ ] Line item editor table with toolbar
+- [ ] Add Row / Add Material / Add Section buttons
+- [ ] Drag-and-drop row reordering
+- [ ] Inline editing for all fields
+- [ ] SearchableItemSelect for material selection
+- [ ] Bottom panels (Notes, Terms, Adjustments)
+- [ ] Summary footer with totals
+- [ ] Save as Draft + Save (Primary) + Cancel buttons
+- [ ] Empty state messaging
+- [ ] Document-specific controls only (no cross-document pollution)

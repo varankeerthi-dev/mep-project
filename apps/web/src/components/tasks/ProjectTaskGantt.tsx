@@ -9,6 +9,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ProjectTaskGanttProps {
   projectId: string;
@@ -153,13 +154,11 @@ export default function ProjectTaskGantt({ projectId, projectName, organisationI
         <span className="text-[11px] font-medium text-zinc-500">Zoom:</span>
         <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
           {(['day', 'week', 'month', 'quarter'] as ZoomLevel[]).map((z) => (
-            <button
-              key={z}
-              onClick={() => setZoom(z)}
+            <Button variant="default" size="default" key={z} onClick={() => setZoom(z)}
               className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${zoom === z ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'}`}
             >
               {ZOOM_CONFIG[z].label}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="h-5 w-px bg-zinc-200" />

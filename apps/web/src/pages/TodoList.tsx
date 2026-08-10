@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { useAuth } from '../App'
+import { useAppDateFormat } from '../contexts/DateFormatContext'
 
 const STATUSES = [
   { id: 'To Do', label: 'To Do', icon: <Circle size={16} className="text-zinc-400" />, bgColor: 'bg-transparent' },
@@ -49,6 +50,7 @@ const TABS = [
 
 export default function TodoList() {
   const { user, organisation } = useAuth()
+  const { formatDate } = useAppDateFormat()
   const [tasks, setTasks] = useState([])
   const [reminders, setReminders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -556,7 +558,7 @@ export default function TodoList() {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="text-xs text-zinc-900">
-                          {idea.created_at ? new Date(idea.created_at).toLocaleDateString() : 'Today'}
+                          {idea.created_at ? formatDate(idea.created_at) : 'Today'}
                         </span>
                         <span className="text-[10px] text-zinc-400 uppercase">
                           {idea.created_at ? formatDistanceToNow(new Date(idea.created_at), { addSuffix: true }) : ''}

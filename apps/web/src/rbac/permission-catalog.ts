@@ -176,6 +176,18 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'warehouses',
+    label: 'Warehouses',
+    actions: [
+      { key: make('warehouses', 'read'), label: 'View' },
+      { key: make('warehouses', 'create'), label: 'Create' },
+      { key: make('warehouses', 'update'), label: 'Edit Structure' },
+      { key: make('warehouses', 'delete'), label: 'Delete' },
+      { key: make('warehouses', 'design'), label: 'Design / Generate' },
+      { key: make('warehouses', 'capacity'), label: 'Manage Capacity' },
+    ],
+  },
+  {
     id: 'manufacturing',
     label: 'Manufacturing',
     actions: [

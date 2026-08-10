@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../utils/formatters';
 import { AppTable } from '../components/ui/AppTable';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 
 export default function QuickStockCheckList() {
   const { organisation } = useAuth();
@@ -97,9 +98,9 @@ export default function QuickStockCheckList() {
       accessorKey: 'actions',
       cell: ({ row }) => (
         <div style={{ display: 'flex', gap: '4px' }}>
-          <button className="btn btn-sm btn-secondary" onClick={() => navigate(`/quick-stock-check/view?id=${row.original.id}`)}>View</button>
-          <button className="btn btn-sm btn-secondary" onClick={() => navigate(`/quick-stock-check/edit?id=${row.original.id}`)}>Edit</button>
-          <button className="btn btn-sm btn-secondary" style={{ color: '#dc2626' }} onClick={() => handleDelete(row.original.id)}>Delete</button>
+          <Button variant="secondary" size="sm" onClick={() => navigate(`/quick-stock-check/view?id=${row.original.id}`)}>View</Button>
+          <Button variant="secondary" size="sm" onClick={() => navigate(`/quick-stock-check/edit?id=${row.original.id}`)}>Edit</Button>
+          <Button variant="destructive" size="sm" onClick={() => handleDelete(row.original.id)}>Delete</Button>
         </div>
       )
     }
@@ -109,9 +110,9 @@ export default function QuickStockCheckList() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Quick Stock Check</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/quick-stock-check/create')}>
+        <Button onClick={() => navigate('/quick-stock-check/create')}>
           + New Stock Check
-        </button>
+        </Button>
       </div>
 
       <div className="card" style={{ marginBottom: '16px' }}>
@@ -144,12 +145,12 @@ export default function QuickStockCheckList() {
               onChange={(e) => setFilters({ ...filters, clientName: e.target.value })}
             />
           </div>
-          <button className="btn btn-primary" onClick={loadChecks}>
+          <Button onClick={loadChecks}>
             Search
-          </button>
-          <button className="btn btn-secondary" onClick={() => setFilters({ startDate: '', endDate: '', clientName: '' })}>
+          </Button>
+          <Button variant="secondary" onClick={() => setFilters({ startDate: '', endDate: '', clientName: '' })}>
             Clear
-          </button>
+          </Button>
         </div>
       </div>
 

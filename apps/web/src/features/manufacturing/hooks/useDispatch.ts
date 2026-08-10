@@ -136,12 +136,14 @@ export function useConfirmDispatchMutation() {
       dispatchOrderId,
       orgId,
       userId,
+      userName,
     }: {
       dispatchOrderId: string;
       orgId: string;
       userId: string;
+      userName: string;
     }) => {
-      return R.confirmDispatchAggregate(dispatchOrderId, orgId, userId);
+      return R.confirmDispatchAggregate(dispatchOrderId, orgId, userId, userName);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['dispatch-orders', data.organisation_id] });

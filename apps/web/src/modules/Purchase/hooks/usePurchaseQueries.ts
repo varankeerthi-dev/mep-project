@@ -542,6 +542,7 @@ export const useVendorLedger = (
           .select('id, voucher_no, payment_date, amount, reference_no, narration, is_advance, payment_mode, has_vendor_proforma, vendor_proforma_invoice, vendor_proforma_date, vendor_proforma_amount')
           .eq('organisation_id', organisationId)
           .eq('vendor_id', vendorId)
+          .eq('is_deleted', false)
           .order('payment_date', { ascending: true }),
         supabase
           .from('debit_notes')
@@ -766,6 +767,7 @@ export const usePaymentRequests = (organisationId: string | undefined) => {
         .from('payment_requests')
         .select('*, vendor:purchase_vendors(company_name), subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
+        .eq('is_deleted', false)
         .order('request_date', { ascending: false });
       
       if (error) throw error;
@@ -1261,6 +1263,7 @@ export const usePaymentsForApproval = (organisationId: string | undefined) => {
         .select('*, vendor:purchase_vendors(company_name)')
         .eq('organisation_id', organisationId)
         .eq('workflow_step', 'pending_approval')
+        .eq('is_deleted', false)
         .order('payment_date', { ascending: true });
 
       if (error) throw error;
@@ -1292,6 +1295,7 @@ export const useApprovedPaymentRequests = (organisationId: string | undefined) =
         .select('*, vendor:purchase_vendors(company_name), subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
         .eq('status', 'Approved')
+        .eq('is_deleted', false)
         .order('approved_at', { ascending: true });
 
       if (error) throw error;
@@ -1313,6 +1317,7 @@ export const useApprovedPaymentsForAccountant = (organisationId: string | undefi
         .select('*, vendor:purchase_vendors(company_name)')
         .eq('organisation_id', organisationId)
         .not('workflow_step', 'in', '("released","rejected")')
+        .eq('is_deleted', false)
         .or('approval_status.eq.Approved,workflow_step.eq.approved')
         .order('approved_at', { ascending: true });
 
@@ -1337,6 +1342,7 @@ export const useReleasedPayments = (organisationId: string | undefined) => {
         .select('*, vendor:purchase_vendors(company_name)')
         .eq('organisation_id', organisationId)
         .eq('workflow_step', 'released')
+        .eq('is_deleted', false)
         .order('released_at', { ascending: false });
 
       if (error) throw error;
@@ -1357,6 +1363,7 @@ export const usePayments = (organisationId: string | undefined) => {
         .from('purchase_payments')
         .select('*, vendor:purchase_vendors(company_name)')
         .eq('organisation_id', organisationId)
+        .eq('is_deleted', false)
         .order('payment_date', { ascending: false });
 
       if (error) throw error;
@@ -1400,6 +1407,7 @@ export const useReleasedSubcontractorPayments = (organisationId: string | undefi
         .select('*, subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
         .eq('workflow_step', 'released')
+        .eq('is_deleted', false)
         .order('released_at', { ascending: false });
 
       if (error) throw error;
@@ -1593,6 +1601,7 @@ export const useSubcontractorPaymentsForAccountant = (organisationId: string | u
         .select('*, subcontractor:subcontractors(company_name)')
         .eq('organisation_id', organisationId)
         .not('workflow_step', 'in', '("released","rejected")')
+        .eq('is_deleted', false)
         .or('approval_status.eq.Approved,workflow_step.eq.approved')
         .order('approved_at', { ascending: true });
 
@@ -1774,6 +1783,294 @@ export const useReleaseSubcontractorPayment = () => {
     onSuccess: (data) => {
       if (!data) return;
       queryClient.invalidateQueries({ queryKey: ['subcontractor-payments', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    },
+  });
+};
+
+// ============== BULK ACTIONS (Payments Hub) ==============
+
+export type BulkMarkPaidItem = {
+  id: string;
+  type: 'vendor' | 'subcontractor';
+  isRequest?: boolean;
+  paymentDate: string;
+};
+
+export const useBulkMarkPaid = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ items, userId }: { items: BulkMarkPaidItem[]; userId?: string | null }) => {
+      const results: string[] = [];
+      for (const item of items) {
+        if (item.isRequest) {
+          // Payment request → create the payment record and mark request Paid
+          if (item.type === 'vendor') {
+            const { data: request, error: fetchError } = await supabase
+              .from('payment_requests')
+              .select('organisation_id, vendor_id, amount_requested, request_no')
+              .eq('id', item.id)
+              .single();
+            if (fetchError) throw fetchError;
+
+            const { error: paymentError } = await supabase
+              .from('purchase_payments')
+              .insert({
+                organisation_id: request.organisation_id,
+                vendor_id: request.vendor_id,
+                amount: request.amount_requested,
+                payment_date: item.paymentDate,
+                payment_mode: 'Bank Transfer',
+                reference_no: request.request_no,
+                voucher_no: createPaymentVoucherNo(),
+                net_amount: request.amount_requested,
+                created_by: userId,
+                workflow_step: 'released',
+                approval_status: 'Released',
+                approved_at: new Date().toISOString(),
+                released_by: userId,
+                released_at: new Date().toISOString(),
+                released_amount: request.amount_requested,
+              })
+              .select()
+              .single();
+            if (paymentError) throw paymentError;
+
+            await supabase.from('payment_requests').update({ status: 'Paid' }).eq('id', item.id);
+            if (request.vendor_id) await updateVendorBalance(request.vendor_id, request.organisation_id);
+          } else {
+            const { data: request, error: fetchError } = await supabase
+              .from('payment_requests')
+              .select('organisation_id, subcontractor_id, amount_requested, request_no')
+              .eq('id', item.id)
+              .single();
+            if (fetchError) throw fetchError;
+
+            const { error: paymentError } = await supabase
+              .from('subcontractor_payments')
+              .insert({
+                organisation_id: request.organisation_id,
+                subcontractor_id: request.subcontractor_id,
+                amount: request.amount_requested,
+                payment_date: item.paymentDate,
+                payment_mode: 'Bank Transfer',
+                reference_no: request.request_no,
+                created_by: userId,
+                workflow_step: 'released',
+                approval_status: 'Released',
+                approved_at: new Date().toISOString(),
+                released_by: userId,
+                released_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+            if (paymentError) throw paymentError;
+
+            await supabase.from('payment_requests').update({ status: 'Paid' }).eq('id', item.id);
+          }
+        } else {
+          // Already-approved vendor/subcontractor payment → release with chosen date
+          if (item.type === 'vendor') {
+            const { data: payment, error: fetchError } = await supabase
+              .from('purchase_payments')
+              .select('organisation_id, vendor_id, amount')
+              .eq('id', item.id)
+              .single();
+            if (fetchError) throw fetchError;
+
+            const { error } = await supabase
+              .from('purchase_payments')
+              .update({
+                payment_date: item.paymentDate,
+                workflow_step: 'released',
+                approval_status: 'Released',
+                released_by: userId,
+                released_at: new Date().toISOString(),
+                released_amount: payment.amount,
+              })
+              .eq('id', item.id);
+            if (error) throw error;
+
+            if (payment.vendor_id) await updateVendorBalance(payment.vendor_id, payment.organisation_id);
+          } else {
+            const { data: payment, error: fetchError } = await supabase
+              .from('subcontractor_payments')
+              .select('organisation_id, amount')
+              .eq('id', item.id)
+              .single();
+            if (fetchError) throw fetchError;
+
+            const { error } = await supabase
+              .from('subcontractor_payments')
+              .update({
+                payment_date: item.paymentDate,
+                workflow_step: 'released',
+                approval_status: 'Released',
+                released_by: userId,
+                released_at: new Date().toISOString(),
+              })
+              .eq('id', item.id);
+            if (error) throw error;
+          }
+        }
+        results.push(item.id);
+      }
+      return { organisationId: null, ids: results };
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+    },
+  });
+};
+
+export type BulkSoftDeleteItem = {
+  id: string;
+  type: 'vendor' | 'subcontractor';
+  isRequest?: boolean;
+};
+
+export const useBulkSoftDelete = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ items, reason, userId }: { items: BulkSoftDeleteItem[]; reason: string; userId?: string | null }) => {
+      const now = new Date().toISOString();
+      const results: string[] = [];
+      for (const item of items) {
+        const table = item.isRequest ? 'payment_requests' : item.type === 'vendor' ? 'purchase_payments' : 'subcontractor_payments';
+        const { error } = await supabase
+          .from(table)
+          .update({ is_deleted: true, deletion_reason: reason, deleted_at: now, deleted_by: userId })
+          .eq('id', item.id);
+        if (error) throw error;
+        results.push(item.id);
+      }
+      return { organisationId: null, ids: results };
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
+    },
+  });
+};
+
+export const useBulkResendReapproval = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: withSessionCheck(async ({ items }: { items: BulkSoftDeleteItem[] }) => {
+      for (const item of items) {
+        if (item.isRequest) {
+          // Reset payment request to Pending and re-create approval
+          const { data: request, error: fetchError } = await supabase
+            .from('payment_requests')
+            .select('*')
+            .eq('id', item.id)
+            .single();
+          if (fetchError) throw fetchError;
+
+          const { error: resetError } = await supabase
+            .from('payment_requests')
+            .update({ status: 'Pending', approval_id: null, approved_by: null, approved_at: null })
+            .eq('id', item.id);
+          if (resetError) throw resetError;
+
+          try {
+            const payeeName = request.vendor_name || 'Vendor';
+            const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
+              Low: 'LOW',
+              Normal: 'NORMAL',
+              High: 'HIGH',
+              Urgent: 'URGENT',
+            };
+            await ApprovalIntegration.createPaymentApproval(
+              request.id,
+              payeeName,
+              request.payment_mode || 'Payment Request',
+              Number(request.amount_requested || 0),
+              priorityMap[request.priority] || 'NORMAL',
+              item.type === 'subcontractor' ? 'SUBCONTRACTOR_PAYMENT' : 'PAYMENT_REQUEST'
+            );
+          } catch (approvalErr) {
+            console.error('Failed to create approval for resent payment request', approvalErr);
+          }
+        } else if (item.type === 'vendor') {
+          // Reset approved purchase payment back to pending_approval
+          const { data: payment, error: fetchError } = await supabase
+            .from('purchase_payments')
+            .select('*, vendor:purchase_vendors(company_name)')
+            .eq('id', item.id)
+            .single();
+          if (fetchError) throw fetchError;
+
+          const { error: resetError } = await supabase
+            .from('purchase_payments')
+            .update({
+              workflow_step: 'pending_approval',
+              approval_status: 'Pending',
+              approval_id: null,
+              approved_by: null,
+              approved_at: null,
+              released_by: null,
+              released_at: null,
+            })
+            .eq('id', item.id);
+          if (resetError) throw resetError;
+
+          try {
+            await ApprovalIntegration.createPurchasePaymentApproval({
+              paymentId: item.id,
+              payeeName: payment.vendor?.company_name || 'Vendor',
+              totalAmount: Number(payment.amount || 0),
+            });
+          } catch (approvalErr) {
+            console.error('Failed to create approval for resent purchase payment', approvalErr);
+          }
+        } else {
+          // Reset approved subcontractor payment back to pending_approval
+          const { data: payment, error: fetchError } = await supabase
+            .from('subcontractor_payments')
+            .select('*, subcontractor:subcontractors(company_name)')
+            .eq('id', item.id)
+            .single();
+          if (fetchError) throw fetchError;
+
+          const { error: resetError } = await supabase
+            .from('subcontractor_payments')
+            .update({
+              workflow_step: 'pending_approval',
+              approval_status: 'Pending',
+              approval_id: null,
+              approved_by: null,
+              approved_at: null,
+              released_by: null,
+              released_at: null,
+            })
+            .eq('id', item.id);
+          if (resetError) throw resetError;
+
+          try {
+            await ApprovalIntegration.createSubcontractorPaymentApproval({
+              paymentId: item.id,
+              payeeName: payment.subcontractor?.company_name || 'Subcontractor',
+              totalAmount: Number(payment.amount || 0),
+            });
+          } catch (approvalErr) {
+            console.error('Failed to create approval for resent subcontractor payment', approvalErr);
+          }
+        }
+      }
+      return { organisationId: null };
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
     },
   });

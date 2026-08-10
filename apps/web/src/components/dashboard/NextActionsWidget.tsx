@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { NextActionItem } from '../../hooks/useNextActions';
 import { colors, shadows, radii, typography } from '../../design-system';
+import { Button } from '@/components/ui/button';
 
 const SOURCE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any; initials: string }> = {
   communication: { label: 'Comm Log', color: '#1d4ed8', bg: '#eff6ff', icon: MessageSquare, initials: 'CL' },
@@ -186,9 +187,7 @@ export function NextActionsWidget({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {tabs.map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setFilter(tab.key)}
+                <Button variant="default" size="sm" key={tab.key} onClick={() => setFilter(tab.key)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -222,14 +221,13 @@ export function NextActionsWidget({
                       {tab.count}
                     </span>
                   )}
-                </button>
+                </Button>
               ))}
             </div>
 
             {/* View Toggle */}
             <div style={{ display: 'flex', border: `1px solid ${colors.gray[200]}`, borderRadius: radii.sm, overflow: 'hidden' }}>
-              <button
-                onClick={() => setViewMode('list')}
+              <Button variant="default" size="sm" onClick={() => setViewMode('list')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -245,9 +243,8 @@ export function NextActionsWidget({
                 }}
               >
                 <List size={14} /> List
-              </button>
-              <button
-                onClick={() => setViewMode('card')}
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setViewMode('card')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -264,7 +261,7 @@ export function NextActionsWidget({
                 }}
               >
                 <LayoutGrid size={14} /> Card
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -382,8 +379,7 @@ export function NextActionsWidget({
                     {/* Action buttons */}
                     {filter !== 'history' && (
                       <div style={{ display: 'flex', gap: '4px', paddingTop: '4px' }}>
-                        <button
-                          onClick={(e) => {
+                        <Button variant="default" size="sm" onClick={(e) => {
                             e.stopPropagation();
                             acknowledge({ item, comment: actionComments[item.id] });
                             setActionComments(prev => ({ ...prev, [item.id]: '' }));
@@ -400,10 +396,9 @@ export function NextActionsWidget({
                           onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                         >
                           <Check size={10} /> Noted
-                        </button>
+                        </Button>
                         {isComm && (
-                          <button
-                            onClick={(e) => {
+                          <Button variant="default" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               resolve({ itemId: item.id, comment: actionComments[item.id], rawItem: item.rawItem });
                               setActionComments(prev => ({ ...prev, [item.id]: '' }));
@@ -418,11 +413,10 @@ export function NextActionsWidget({
                             }}
                           >
                             <CheckCircle2 size={10} /> Resolve
-                          </button>
+                          </Button>
                         )}
                         {onNavigate && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onNavigate(getSourceRoute(item)); }}
+                          <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onNavigate(getSourceRoute(item)); }}
                             title="Go to Source"
                             style={{
                               flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px', padding: '4px 6px',
@@ -433,7 +427,7 @@ export function NextActionsWidget({
                             onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; }}
                           >
                             <ExternalLink size={10} /> View
-                          </button>
+                          </Button>
                         )}
                       </div>
                     )}
@@ -536,8 +530,7 @@ export function NextActionsWidget({
                       {/* Action Buttons */}
                       {filter !== 'history' && (
                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignSelf: 'center' }}>
-                          <button
-                            onClick={(e) => {
+                          <Button variant="default" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               acknowledge({ item, comment: actionComments[item.id] });
                               setActionComments(prev => ({ ...prev, [item.id]: '' }));
@@ -554,10 +547,9 @@ export function NextActionsWidget({
                             onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.borderColor = colors.gray[300]; }}
                           >
                             <Check size={12} /> Noted
-                          </button>
+                          </Button>
                           {isComm && (
-                            <button
-                              onClick={(e) => {
+                            <Button variant="default" size="sm" onClick={(e) => {
                                 e.stopPropagation();
                                 resolve({ itemId: item.id, comment: actionComments[item.id], rawItem: item.rawItem });
                                 setActionComments(prev => ({ ...prev, [item.id]: '' }));
@@ -572,11 +564,10 @@ export function NextActionsWidget({
                               }}
                             >
                               <CheckCircle2 size={12} /> Resolve
-                            </button>
+                            </Button>
                           )}
                           {onNavigate && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onNavigate(getSourceRoute(item)); }}
+                            <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onNavigate(getSourceRoute(item)); }}
                               title="Go to Source"
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px',
@@ -587,7 +578,7 @@ export function NextActionsWidget({
                               onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; }}
                             >
                               <ExternalLink size={12} /> View
-                            </button>
+                            </Button>
                           )}
                         </div>
                       )}

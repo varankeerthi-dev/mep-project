@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { ChevronLeft, ChevronRight, Calendar, RefreshCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ProjectTaskCalendarProps {
   projectId: string;
@@ -98,21 +99,20 @@ export default function ProjectTaskCalendar({ projectId, organisationId }: Proje
             {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </h2>
           <div className="flex items-center gap-1">
-            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
+            <Button variant="default" size="default" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
               <ChevronLeft size={16} />
-            </button>
-            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
+            </Button>
+            <Button variant="default" size="default" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="rounded p-1 text-zinc-400 hover:bg-zinc-100">
               <ChevronRight size={16} />
-            </button>
+            </Button>
           </div>
         </div>
-        <button
-          onClick={() => setCurrentDate(new Date())}
+        <Button variant="default" size="default" onClick={() => setCurrentDate(new Date())}
           className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
         >
           <Calendar size={14} />
           Today
-        </button>
+        </Button>
       </div>
 
       {/* Day Headers */}

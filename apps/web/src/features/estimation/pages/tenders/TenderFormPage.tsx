@@ -7,6 +7,7 @@ import { useProjects } from '../../../../hooks/useProjects';
 import { useBOQs } from '../../hooks/useBOQ';
 import { TENDER_STATUSES } from '../../constants';
 import { ArrowLeft, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function TenderFormPage() {
   const [searchParams] = useSearchParams();
@@ -90,9 +91,9 @@ export default function TenderFormPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 px-6 py-4 border-b border-zinc-200">
-        <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-zinc-100 rounded">
+        <Button variant="default" size="sm" onClick={() => navigate(-1)} className="p-1.5 hover:bg-zinc-100 rounded">
           <ArrowLeft className="h-5 w-5 text-zinc-600" />
-        </button>
+        </Button>
         <h1 className="text-xl font-semibold text-zinc-800">{isEdit ? 'Edit Tender' : 'New Tender'}</h1>
       </div>
 
@@ -217,21 +218,15 @@ export default function TenderFormPage() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-zinc-200">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
+            <Button variant="default" size="sm" type="button" onClick={() => navigate(-1)}
               className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createTender.isPending || updateTender.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="default" size="icon-xs" type="submit" disabled={createTender.isPending || updateTender.isPending} >
               <Save className="h-4 w-4" />
               {createTender.isPending || updateTender.isPending ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

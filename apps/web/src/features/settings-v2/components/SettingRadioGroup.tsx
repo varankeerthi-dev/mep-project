@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
 
 export interface RadioOption<T = any> {
   label: string;
@@ -32,11 +33,7 @@ export function SettingRadioGroup<T = any>({
         {options.map((opt, idx) => {
           const isSelected = opt.value === value;
           return (
-            <button
-              key={idx}
-              type="button"
-              disabled={disabled}
-              onClick={() => !disabled && onChange(opt.value)}
+            <Button variant="ghost" size="default" key={idx} type="button" disabled={disabled} onClick={() => !disabled && onChange(opt.value)}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-white text-zinc-900 shadow-2xs border border-zinc-200/60'
@@ -45,7 +42,7 @@ export function SettingRadioGroup<T = any>({
               style={{ fontSize: '12px' }}
             >
               {opt.label}
-            </button>
+            </Button>
           );
         })}
       </div>

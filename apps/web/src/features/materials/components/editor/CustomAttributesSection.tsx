@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, Trash2, GripVertical, Search, Settings } from 'lucide-react';
 import { inputFieldSm, addLink } from './formStyles';
 import type { MaterialCustomAttribute, AttributeDefinition } from '../../model/entities/Material';
+import { Button } from '@/components/ui/button';
 
 interface CustomAttributesSectionProps {
   attributes: MaterialCustomAttribute[];
@@ -123,13 +124,9 @@ export function CustomAttributesSection({ attributes, definitions, onChange }: C
         </div>
         <div className="flex items-center gap-2">
           {attributes.length > 0 && (
-            <button
-              type="button"
-              onClick={addRow}
-              className={addLink}
-            >
+            <Button variant="default" size="sm" type="button" onClick={addRow} className={addLink} >
               <Plus size={14} /> Add Attribute
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -177,29 +174,22 @@ export function CustomAttributesSection({ attributes, definitions, onChange }: C
               {showLabelDropdown && filteredLabels.length > 0 && (
                 <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E7EAF1] rounded-xl shadow-[0_8px_24px_rgba(16,24,40,0.08)] max-h-[180px] overflow-y-auto py-1">
                   {filteredLabels.map(def => (
-                    <button
-                      key={def.id}
-                      type="button"
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-[#F8FAFC] transition-colors flex items-center justify-between"
-                      onClick={() => handleLabelSelect(index, def.name, def.default_unit)}
+                    <Button variant="default" size="sm" key={def.id} type="button" onClick={() => handleLabelSelect(index, def.name, def.default_unit)}
                     >
                       <span className="font-medium text-[#111827]">{def.name}</span>
                       {def.default_unit && (
                         <span className="text-[10px] text-[#9CA3AF]">{def.default_unit}</span>
                       )}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
               {showLabelDropdown && filteredLabels.length === 0 && labelSearchText && (
                 <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E7EAF1] rounded-xl shadow-[0_8px_24px_rgba(16,24,40,0.08)] py-1">
-                  <button
-                    type="button"
-                    className="w-full px-3 py-1.5 text-left text-sm text-[#4F46E5] hover:bg-[#F8FAFC] transition-colors"
-                    onClick={() => handleLabelSelect(index, labelSearchText)}
+                  <Button variant="default" size="sm" type="button" onClick={() => handleLabelSelect(index, labelSearchText)}
                   >
                     Use "{labelSearchText}"
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -234,31 +224,24 @@ export function CustomAttributesSection({ attributes, definitions, onChange }: C
               {showUnitDropdown && (
                 <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#E7EAF1] rounded-xl shadow-[0_8px_24px_rgba(16,24,40,0.08)] max-h-[150px] overflow-y-auto py-1">
                   {filteredUnits.length > 0 && filteredUnits.map(unit => (
-                    <button
-                      key={unit}
-                      type="button"
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-[#F8FAFC] transition-colors text-[#374151]"
-                      onClick={() => {
+                    <Button variant="default" size="sm" key={unit} type="button" onClick={() => {
                         updateRow(index, 'attribute_unit', unit);
                         setUnitSearch(prev => ({ ...prev, [index]: '' }));
                         setOpenUnitDropdown(null);
                       }}
                     >
                       {unit}
-                    </button>
+                    </Button>
                   ))}
                   {unitSearchText && !filteredUnits.includes(unitSearchText) && (
-                    <button
-                      type="button"
-                      className="w-full px-3 py-1.5 text-left text-sm text-[#4F46E5] hover:bg-[#F8FAFC] transition-colors"
-                      onClick={() => {
+                    <Button variant="default" size="sm" type="button" onClick={() => {
                         updateRow(index, 'attribute_unit', unitSearchText);
                         setUnitSearch(prev => ({ ...prev, [index]: '' }));
                         setOpenUnitDropdown(null);
                       }}
                     >
                       Use "{unitSearchText}"
-                    </button>
+                    </Button>
                   )}
                   {filteredUnits.length === 0 && !unitSearchText && (
                     <div className="px-3 py-1.5 text-xs text-[#9CA3AF] italic">Type a custom unit</div>
@@ -268,13 +251,11 @@ export function CustomAttributesSection({ attributes, definitions, onChange }: C
             </div>
 
             {/* Delete Button */}
-            <button
-              type="button"
-              onClick={() => removeRow(index)}
+            <Button variant="default" size="sm" type="button" onClick={() => removeRow(index)}
               className="flex items-center justify-center w-9 h-9 rounded-lg text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#EF4444]/10 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Trash2 size={14} />
-            </button>
+            </Button>
           </div>
         );
       })}
@@ -297,13 +278,9 @@ export function CustomAttributesSection({ attributes, definitions, onChange }: C
               <li>• Pressure</li>
             </ul>
           </div>
-          <button
-            type="button"
-            onClick={addRow}
-            className="mt-2 inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] bg-[#6366F1] px-[22px] text-sm font-medium text-white shadow-[0_8px_18px_rgba(79,70,229,0.18)] transition-colors duration-200 hover:bg-[#4F46E5] active:bg-[#4338CA]"
-          >
+          <Button variant="default" size="sm" type="button" onClick={addRow} >
             <Plus size={16} /> Add Attribute
-          </button>
+          </Button>
         </div>
       )}
 

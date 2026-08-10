@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 export interface Column<T> {
   /** Unique identifier for the column */
@@ -657,9 +658,7 @@ function ActionMenuDropdown<T>({
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       {/* Inline "View" Button before three dots */}
       {primaryViewAction && (
-        <button
-          type="button"
-          onClick={(e) => {
+        <Button variant="default" size="sm" type="button" onClick={(e) => {
             e.stopPropagation();
             primaryViewAction.onClick(row, rowIndex);
           }}
@@ -690,28 +689,12 @@ function ActionMenuDropdown<T>({
           }}
         >
           View
-        </button>
+        </Button>
       )}
 
       {/* Horizontal Three Dots Button */}
       {menuActions.length > 0 && (
-        <button
-          type="button"
-          onClick={onToggle}
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            display: 'inline-flex',
-            width: '28px',
-            height: '28px',
-            borderRadius: '6px',
-            border: 'none',
-            backgroundColor: isOpen ? '#F3F4F6' : 'transparent',
-            cursor: 'pointer',
-            color: '#525252',
-            transition: 'background-color 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
+        <Button variant="default" size="sm" type="button" onClick={onToggle} onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#F3F4F6';
           }}
           onMouseLeave={(e) => {
@@ -733,7 +716,7 @@ function ActionMenuDropdown<T>({
             <circle cx="19" cy="12" r="1" />
             <circle cx="5" cy="12" r="1" />
           </svg>
-        </button>
+        </Button>
       )}
 
       {/* Floating Dropdown Menu */}
@@ -772,11 +755,7 @@ function ActionMenuDropdown<T>({
             }
 
             return (
-              <button
-                key={act.key || index}
-                type="button"
-                disabled={isDisabled}
-                onClick={() => {
+              <Button variant="default" size="sm" key={act.key || index} type="button" disabled={isDisabled} onClick={() => {
                   if (!isDisabled) {
                     act.onClick(row, rowIndex);
                     onClose();
@@ -812,7 +791,7 @@ function ActionMenuDropdown<T>({
                   </span>
                 )}
                 <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{act.label}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -874,10 +853,7 @@ export function TablePagination({
       }}
     >
       {/* Previous Button */}
-      <button
-        type="button"
-        disabled={isFirstPage}
-        onClick={() => !isFirstPage && onPageChange(currentPage - 1)}
+      <Button variant="default" size="sm" type="button" disabled={isFirstPage} onClick={() => !isFirstPage && onPageChange(currentPage - 1)}
         style={{
           alignItems: 'center',
           height: '32px',
@@ -933,7 +909,7 @@ export function TablePagination({
         >
           Previous
         </span>
-      </button>
+      </Button>
 
       {/* Page Numbers */}
       <div style={{ alignItems: 'center', display: 'flex', marginInline: '4px' }}>
@@ -952,9 +928,7 @@ export function TablePagination({
                     inset: 0,
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => onPageChange(pageNum)}
+                <Button variant="default" size="sm" type="button" onClick={() => onPageChange(pageNum)}
                   style={{
                     alignItems: 'center',
                     display: 'inline-flex',
@@ -984,16 +958,13 @@ export function TablePagination({
                   >
                     {pageNum}
                   </span>
-                </button>
+                </Button>
               </div>
             );
           }
 
           return (
-            <button
-              key={pageNum}
-              type="button"
-              onClick={() => onPageChange(pageNum)}
+            <Button variant="default" size="sm" key={pageNum} type="button" onClick={() => onPageChange(pageNum)}
               style={{
                 alignItems: 'center',
                 display: 'inline-flex',
@@ -1029,16 +1000,13 @@ export function TablePagination({
               >
                 {pageNum}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>
 
       {/* Next Button */}
-      <button
-        type="button"
-        disabled={isLastPage}
-        onClick={() => !isLastPage && onPageChange(currentPage + 1)}
+      <Button variant="default" size="sm" type="button" disabled={isLastPage} onClick={() => !isLastPage && onPageChange(currentPage + 1)}
         style={{
           alignItems: 'center',
           height: '32px',
@@ -1094,7 +1062,7 @@ export function TablePagination({
             style={{ boxSizing: 'border-box', transformOrigin: '0px 0px' }}
           />
         </svg>
-      </button>
+      </Button>
     </div>
   );
 }

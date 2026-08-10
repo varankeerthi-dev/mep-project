@@ -4,6 +4,7 @@ import { Badge } from '../../../../components/ui/Badge';
 import { formatCurrency } from '../../../../utils/formatters';
 import { ITEM_TABLE_COLUMNS } from '../../constants';
 import type { Material } from '../../model/entities';
+import { Button } from '@/components/ui/button';
 
 const columnHelper = createColumnHelper<any>();
 
@@ -114,27 +115,24 @@ export function buildColumns(
             header: 'Actions',
             cell: ({ row }) => (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => onView(row.original)}
+                <Button variant="default" size="default" onClick={() => onView(row.original)}
                   className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 transition-colors"
                   title="View"
                 >
                   <Eye className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onEdit(row.original)}
+                </Button>
+                <Button variant="default" size="default" onClick={() => onEdit(row.original)}
                   className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 transition-colors"
                   title="Edit"
                 >
                   <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(row.original)}
+                </Button>
+                <Button variant="default" size="default" onClick={() => onDelete(row.original)}
                   className="p-1.5 rounded-md hover:bg-red-50 text-zinc-500 hover:text-red-600 transition-colors"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             ),
           });

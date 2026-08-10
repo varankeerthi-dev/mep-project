@@ -86,7 +86,7 @@ export default function OrganizationManagement() {
             <h1 className="text-2xl font-bold text-zinc-800">Organization Management</h1>
             <Button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              variant="primary"
+              variant="default"
             >
               {showCreateForm ? 'Cancel' : 'Create Organization'}
             </Button>
@@ -144,7 +144,7 @@ export default function OrganizationManagement() {
                     <Button
                       onClick={handleCreateOrg}
                       disabled={loading}
-                      variant="primary"
+                      variant="default"
                     >
                       {loading ? 'Creating...' : 'Create Organization'}
                     </Button>
@@ -195,7 +195,7 @@ export default function OrganizationManagement() {
                     <Button
                       onClick={handleInviteUser}
                       disabled={loading}
-                      variant="primary"
+                      variant="default"
                     >
                       {loading ? 'Sending...' : 'Send Invitation'}
                     </Button>

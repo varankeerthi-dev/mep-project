@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Plus, ArrowLeft, Trash2, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, CheckCircle } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '../../../components/ui/button';
 import {
   useWorkCentersQuery,
   useCreateWorkCenterMutation,
@@ -148,12 +149,9 @@ export default function WorkCenterList({ onCancel }: WorkCenterListProps) {
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Work Centers & Machine Setup</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Define production machines and map product cycle times</span>
@@ -229,23 +227,7 @@ export default function WorkCenterList({ onCancel }: WorkCenterListProps) {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={createWc.isPending}
-              style={{
-                marginTop: '8px',
-                padding: '6px 12px',
-                background: '#185FA5',
-                border: 'none',
-                color: '#fff',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer'
-              }}
-            >
-              {createWc.isPending ? 'Saving...' : 'Add Machine'}
-            </button>
+            <Button type="submit" disabled={createWc.isPending} loading={createWc.isPending} loadingText="Saving..." className="mt-2">Add Machine</Button>
           </form>
         </div>
 
@@ -358,13 +340,7 @@ export default function WorkCenterList({ onCancel }: WorkCenterListProps) {
                   <span>Preferred Machine for this product</span>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={insertLink.isPending}
-                  style={{ padding: '4px 8px', background: '#185FA5', border: 'none', color: '#fff', fontSize: '11px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}
-                >
-                  {insertLink.isPending ? 'Linking...' : 'Map BOM Link'}
-                </button>
+                <Button type="submit" size="xs" disabled={insertLink.isPending} loading={insertLink.isPending} loadingText="Linking...">Map BOM Link</Button>
               </form>
 
               {/* Linked BOM list */}
@@ -390,12 +366,9 @@ export default function WorkCenterList({ onCancel }: WorkCenterListProps) {
                               <CheckCircle size={10} /> Pref
                             </span>
                           )}
-                          <button
-                            onClick={() => deleteLink.mutate({ id: link.id, bomId: link.bom_id })}
-                            style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}
-                          >
+                          <Button variant="ghost" size="icon-xs" onClick={() => deleteLink.mutate({ id: link.id, bomId: link.bom_id })} aria-label="Remove BOM link" className="text-red-500 hover:text-red-600">
                             <Trash2 size={12} />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))}

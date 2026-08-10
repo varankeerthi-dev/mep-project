@@ -10,6 +10,7 @@ import {
   Plus,
   MoreHorizontal,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ProjectTaskBoardProps {
   projectId: string;
@@ -207,9 +208,9 @@ export default function ProjectTaskBoard({ projectId, organisationId, userId }: 
                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: task.color }} />
                           )}
                         </div>
-                        <button className="rounded p-0.5 text-zinc-300 opacity-0 transition-colors hover:bg-zinc-100 group-hover:opacity-100">
+                        <Button variant="secondary" size="icon-xs">
                           <MoreHorizontal size={14} />
-                        </button>
+                        </Button>
                       </div>
 
                       {/* Title */}
@@ -305,28 +306,23 @@ export default function ProjectTaskBoard({ projectId, organisationId, userId }: 
                       autoFocus
                     />
                     <div className="mt-2 flex gap-1">
-                      <button
-                        onClick={handleCreate}
-                        className="rounded bg-blue-600 px-2.5 py-1 text-[11px] font-medium text-white"
-                      >
+                      <Button variant="default" size="default" onClick={handleCreate} >
                         Add
-                      </button>
-                      <button
-                        onClick={() => { setShowCreate(null); setNewTaskName(''); }}
+                      </Button>
+                      <Button variant="default" size="default" onClick={() => { setShowCreate(null); setNewTaskName(''); }}
                         className="rounded px-2 py-1 text-[11px] text-zinc-500"
                       >
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setShowCreate(status)}
+                  <Button variant="default" size="default" onClick={() => setShowCreate(status)}
                     className="flex w-full items-center gap-2 rounded-lg border border-dashed border-zinc-200 p-2 text-[11px] text-zinc-400 transition-colors hover:border-zinc-300 hover:text-zinc-500"
                   >
                     <Plus size={12} />
                     Add task
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

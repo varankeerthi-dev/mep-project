@@ -37,6 +37,9 @@ import IPQCDashboard from './qc/IPQCDashboard';
 import IPQCCheckpointConfig from './qc/IPQCCheckpointConfig';
 import WIPValuationReport from './inventory/WIPValuationReport';
 
+import MachineBoardPage from './machine-board/MachineBoardPage';
+import MouldList from './MouldList';
+
 type Tab = {
   id: string;
   label: string;
@@ -45,7 +48,9 @@ type Tab = {
 };
 
 const TABS: Tab[] = [
-  { id: 'dashboard', label: 'Dashboard', path: '/manufacturing', matchPrefix: '/manufacturing' },
+  { id: 'machines', label: 'Machine Board', path: '/manufacturing', matchPrefix: '/manufacturing/machines' },
+  { id: 'moulds', label: 'Moulds', path: '/manufacturing/moulds', matchPrefix: '/manufacturing/moulds' },
+  { id: 'dashboard', label: 'Dashboard', path: '/manufacturing/dashboard', matchPrefix: '/manufacturing/dashboard' },
   { id: 'inventory', label: 'Inventory', path: '/manufacturing/inventory', matchPrefix: '/manufacturing/inventory' },
   { id: 'boms', label: 'BOMs', path: '/manufacturing/boms', matchPrefix: '/manufacturing/boms' },
   { id: 'schedules', label: 'Schedules', path: '/manufacturing/schedules', matchPrefix: '/manufacturing/schedules' },
@@ -111,7 +116,15 @@ export default function ManufacturingShell() {
       <div className="w-full max-w-[1200px] mx-auto px-4 pt-3">
         <SubTabsNav tabs={TABS} activeTabId={activeTab.id} />
 
-      <Panel active={activeTab.id === 'dashboard' || (!activeTab && pathKey === '/manufacturing')}>
+      <Panel active={activeTab.id === 'machines' || (!activeTab && pathKey === '/manufacturing')}>
+        <MachineBoardPage onNavigate={navigateV2} />
+      </Panel>
+
+      <Panel active={activeTab.id === 'moulds'}>
+        <MouldList onNavigate={navigateV2} />
+      </Panel>
+
+      <Panel active={activeTab.id === 'dashboard'}>
         <ManufacturingDashboard onNavigate={navigateV2} />
       </Panel>
 

@@ -10,6 +10,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { 
   useApprovePurchaseRequisition, 
   useCreatePurchaseRequisition, 
@@ -162,6 +163,7 @@ const requisitionFormSchema = z
 
 export const Requisitions: React.FC = () => {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [searchParams] = useSearchParams();
   const projectIdFromContext = searchParams.get('project_id');
 
@@ -416,7 +418,7 @@ export const Requisitions: React.FC = () => {
           </div>
         ),
         width: '120px',
-        accessor: (r) => (r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '-'),
+        accessor: (r) => (r.created_at ? formatDate(r.created_at) : '-'),
       });
     }
 
@@ -810,37 +812,17 @@ export const Requisitions: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-8"
-            >
-              <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
-                Cancel
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => submit('Draft')}
-              disabled={createReq.isPending || updateReq.isPending}
-              className="[font-synthesis:none] items-center flex justify-center px-3 py-1.5 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer antialiased h-8"
-            >
-              <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-[#0A0A0A]">
-                {(createReq.isPending || updateReq.isPending) ? 'Saving...' : 'Save as Draft'}
-              </span>
-              <Save className="w-4 h-4 text-[#0A0A0A] flex-shrink-0" />
-            </button>
-            <button
-              type="button"
-              onClick={() => submit('Pending')}
-              disabled={createReq.isPending || updateReq.isPending}
-              className="[font-synthesis:none] items-center flex justify-center px-3.5 py-1.5 rounded-lg gap-1.5 bg-[#16A34A] [border-width:0.8px] border-solid border-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer antialiased h-8 shadow-xs"
-            >
-              <span className="inline-block text-[14px] leading-[142.857%] text-center w-max shrink-0 font-['Geist',system-ui,sans-serif] font-medium text-white">
-                {(createReq.isPending || updateReq.isPending) ? 'Saving...' : editingReqId ? 'Update & Submit' : 'Submit Requisition'}
-              </span>
-              <Send className="w-4 h-4 text-white flex-shrink-0" />
-            </button>
+            <Button variant="secondary" onClick={resetForm}>
+              Cancel
+            </Button>
+            <Button variant="secondary" disabled={createReq.isPending || updateReq.isPending} onClick={() => submit('Draft')}>
+              {(createReq.isPending || updateReq.isPending) ? 'Saving...' : 'Save as Draft'}
+              <Save className="w-4 h-4" />
+            </Button>
+            <Button variant="default" disabled={createReq.isPending || updateReq.isPending} onClick={() => submit('Pending')}>
+              {(createReq.isPending || updateReq.isPending) ? 'Saving...' : editingReqId ? 'Update & Submit' : 'Submit Requisition'}
+              <Send className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
@@ -1024,16 +1006,10 @@ export const Requisitions: React.FC = () => {
                 <h2 className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Requested Line Items</h2>
                 <p className="text-[11px] text-zinc-500">Excel-style grid: Select items from master or enter custom materials</p>
               </div>
-              <button
-                type="button"
-                onClick={addLine}
-                className="[font-synthesis:none] items-center flex justify-center px-2.5 py-1 rounded-lg gap-1.5 bg-white [border-width:0.8px] border-solid border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors cursor-pointer antialiased h-7"
-              >
-                <Plus className="w-3.5 h-3.5 text-[#0A0A0A] flex-shrink-0" />
-                <span className="inline-block text-[12px] font-medium text-[#0A0A0A]">
-                  Add Row
-                </span>
-              </button>
+              <Button variant="secondary" size="sm" onClick={addLine}>
+                <Plus className="w-3.5 h-3.5" />
+                Add Row
+              </Button>
             </div>
 
             {formErrors.lines && <p className="text-xs text-red-600">{formErrors.lines}</p>}
@@ -1427,7 +1403,7 @@ export const Requisitions: React.FC = () => {
               </div>
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Required Date</p>
-                <p className="text-sm font-medium text-zinc-800">{viewReq.required_date ? new Date(viewReq.required_date).toLocaleDateString('en-IN') : '-'}</p>
+                <p className="text-sm font-medium text-zinc-800">{viewReq.required_date ? formatDate(viewReq.required_date) : '-'}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Requested By</p>

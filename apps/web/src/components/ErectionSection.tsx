@@ -166,7 +166,7 @@ export function ErectionSection({ quotationId, items, onItemUpdate }: ErectionSe
                 <td className="delete-cell col-shrink">
                   <button
                     onClick={() => deleteErection.mutate(item)}
-                    className="btn-delete"
+                    className="btn-delete-v2"
                     title="Remove erection charge"
                   >
                     ×

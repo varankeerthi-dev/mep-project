@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Package, Calendar, User, List } from 'lucide-react';
 import TransferToolSelectionComponent from './TransferToolSelectionComponent';
+import { Button } from '@/components/ui/button';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -186,22 +187,9 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
           >
             Receive Tools
           </h2>
-          <button
-            onClick={onClose}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-            }}
-          >
+          <Button variant="default" size="icon-xs" onClick={onClose} style={{ width: '32px', height: '32px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: DESIGN_TOKENS.borderRadius.none, }} >
             <X size={20} color={DESIGN_TOKENS.colors.text.secondary} />
-          </button>
+          </Button>
         </div>
 
         {/* Form Content */}
@@ -429,26 +417,10 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
               >
                 TOOLS
               </div>
-              <button
-                onClick={addTool}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  backgroundColor: DESIGN_TOKENS.colors.surface.page,
-                  border: `1px solid ${DESIGN_TOKENS.colors.border}`,
-                  borderRadius: DESIGN_TOKENS.borderRadius.none,
-                  fontSize: DESIGN_TOKENS.typography.button,
-                  fontWeight: 600,
-                  color: DESIGN_TOKENS.colors.text.primary,
-                  cursor: 'pointer',
-                  fontFamily: 'Inter, sans-serif',
-                }}
-              >
+              <Button variant="default" size="sm" onClick={addTool} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: DESIGN_TOKENS.colors.surface.page, border: `1px solid ${DESIGN_TOKENS.colors.border}`, borderRadius: DESIGN_TOKENS.borderRadius.none, fontSize: DESIGN_TOKENS.typography.button, fontWeight: 600, color: DESIGN_TOKENS.colors.text.primary, cursor: 'pointer', fontFamily: 'Inter, sans-serif', }} >
                 <List size={16} />
                 Select Open Tools
-              </button>
+              </Button>
             </div>
 
             {/* Tools Header */}
@@ -594,8 +566,7 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
                 }}>
                   {tool.quantity - tool.returned_quantity}
                 </div>
-                <button
-                  onClick={() => removeTool(tool.id)}
+                <Button variant="default" size="sm" onClick={() => removeTool(tool.id)}
                   style={{
                     width: '32px',
                     height: '32px',
@@ -609,7 +580,7 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
                   }}
                 >
                   <Trash2 size={16} color={DESIGN_TOKENS.colors.text.muted} />
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -628,40 +599,10 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
             gap: '12px',
           }}
         >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: 'transparent',
-              border: `1px solid ${DESIGN_TOKENS.colors.border}`,
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-              fontSize: DESIGN_TOKENS.typography.button,
-              fontWeight: 600,
-              color: DESIGN_TOKENS.colors.text.secondary,
-              cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
-            }}
-          >
+          <Button variant="default" size="sm" onClick={onClose} style={{ padding: '10px 20px', backgroundColor: 'transparent', border: `1px solid ${DESIGN_TOKENS.colors.border}`, borderRadius: DESIGN_TOKENS.borderRadius.none, fontSize: DESIGN_TOKENS.typography.button, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary, cursor: 'pointer', fontFamily: 'Inter, sans-serif', }} >
             Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: loading ? DESIGN_TOKENS.colors.text.muted : DESIGN_TOKENS.colors.accent,
-              border: 'none',
-              borderRadius: DESIGN_TOKENS.borderRadius.none,
-              fontSize: DESIGN_TOKENS.typography.button,
-              fontWeight: 600,
-              color: '#FFFFFF',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: 'Inter, sans-serif',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
+          </Button>
+          <Button variant="default" size="icon-xs" onClick={handleSubmit} disabled={loading} >
             {loading ? (
               <>
                 <div style={{
@@ -680,7 +621,7 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
                 Receive Tools
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

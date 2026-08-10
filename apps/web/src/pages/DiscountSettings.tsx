@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase, getCurrentUser } from '../supabase';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 
 function StandardTab({ organisationId }) {
   const [pricelists, setPricelists] = useState([]);
@@ -66,7 +67,7 @@ function StandardTab({ organisationId }) {
             <label className="form-label">Discount %</label>
             <input type="number" className="form-input" value={newPricelist.discount} onChange={e => setNewPricelist({...newPricelist, discount: e.target.value})} placeholder="0.00" step="0.01" />
           </div>
-          <button type="submit" className="btn btn-primary" disabled={saving}>Add</button>
+          <Button type="submit" disabled={saving}>Add</Button>
         </form>
       </div>
 
@@ -90,7 +91,7 @@ function StandardTab({ organisationId }) {
                   <input type="number" className="form-input" value={p.discount_percent} onBlur={e => handleUpdate(p.id, 'discount_percent', parseFloat(e.target.value) || 0)} step="0.01" />
                 </td>
                 <td>
-                  <button className="btn btn-sm btn-secondary" onClick={() => handleDelete(p.id)}>Delete</button>
+                  <Button variant="secondary" size="sm" onClick={() => handleDelete(p.id)}>Delete</Button>
                 </td>
               </tr>
             ))}
@@ -109,7 +110,7 @@ function VariantGrid({ structure, rows, settings, setSettings, updateSetting, ha
           <h3 style={{ margin: 0, fontSize: '16px' }}>{structure?.structure_name} Settings</h3>
           <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>{structure?.description}</p>
         </div>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+        <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
       </div>
 
       {rows.length === 0 && (

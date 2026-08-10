@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Save, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '../../../components/ui/button';
 import { useMaterials } from '../../../hooks/useMaterials';
 import { useCreateGoodsReceiptNoteMutation } from '../../../features/manufacturing';
 
@@ -194,12 +195,9 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Log Goods Receipt Note (GRN)</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Record incoming raw goods quantities and transport details</span>
@@ -310,13 +308,7 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
-              <button
-                type="button"
-                onClick={addManualItem}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 8px', border: '1px solid #d1d5db', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-              >
-                Add
-              </button>
+              <Button variant="outline" size="xs" type="button" onClick={addManualItem}>Add</Button>
             </div>
           </div>
 
@@ -382,13 +374,9 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
                         />
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => removeGrnItem(idx)}
-                          style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}
-                        >
+                        <Button variant="ghost" size="icon-xs" type="button" onClick={() => removeGrnItem(idx)} aria-label="Remove item" className="text-red-500 hover:text-red-600">
                           <Trash2 size={14} />
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -412,33 +400,10 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
 
         {/* Action buttons */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{ padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={createGrnMutation.isPending}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 16px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: createGrnMutation.isPending ? 'not-allowed' : 'pointer',
-              opacity: createGrnMutation.isPending ? 0.7 : 1
-            }}
-          >
-            <Save size={14} /> {createGrnMutation.isPending ? 'Saving...' : 'Submit GRN checklist'}
-          </button>
+          <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={createGrnMutation.isPending} loading={createGrnMutation.isPending} loadingText="Saving..." leftIcon={<Save size={14} />}>
+            Submit GRN checklist
+          </Button>
         </div>
       </form>
     </div>

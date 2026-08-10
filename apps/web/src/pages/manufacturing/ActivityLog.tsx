@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyPermissions } from '../../rbac/hooks';
+import { Button } from '../../components/ui/button';
 import { Table, ColumnDef } from '../../components/table';
 
 type ActivityLogProps = {
@@ -92,9 +93,9 @@ const columns: ColumnDef<LogEntry>[] = [
     cell: ({ row }) => {
       const entityLink = getEntityLink(row);
       return entityLink ? (
-        <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+        <Button variant="link" size="sm" className="h-auto p-0 text-blue-600 hover:text-blue-700 font-medium">
           {ENTITY_LABELS[row.entity_type] || row.entity_type}
-        </button>
+        </Button>
       ) : (
         <span className="font-medium text-zinc-900 text-sm">
           {ENTITY_LABELS[row.entity_type] || row.entity_type}
@@ -193,23 +194,14 @@ export default function ActivityLog({ onNavigate }: ActivityLogProps) {
         <div className="flex items-center gap-3">
           {canClear && selectedIds.size > 0 && (
             !confirmClear ? (
-              <button onClick={() => setConfirmClear(true)}
-                className="h-10 px-4 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
-                Clear Selected ({selectedIds.size})
-              </button>
+              <Button variant="destructive" onClick={() => setConfirmClear(true)}>Clear Selected ({selectedIds.size})</Button>
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-600">
                   Delete {selectedIds.size} log{selectedIds.size !== 1 ? 's' : ''}?
                 </span>
-                <button onClick={() => clearSelected(Array.from(selectedIds).map(String))} disabled={isClearing}
-                  className="h-10 px-4 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50">
-                  {isClearing ? 'Deleting...' : 'Confirm'}
-                </button>
-                <button onClick={() => { setConfirmClear(false); setSelectedIds(new Set()); }}
-                  className="h-10 px-4 border border-zinc-200 text-sm font-medium text-zinc-700 rounded-lg hover:bg-zinc-50">
-                  Cancel
-                </button>
+                <Button variant="destructive" onClick={() => clearSelected(Array.from(selectedIds).map(String))} disabled={isClearing} loading={isClearing} loadingText="Deleting...">Confirm</Button>
+                <Button variant="secondary" onClick={() => { setConfirmClear(false); setSelectedIds(new Set()); }}>Cancel</Button>
               </div>
             )
           )}

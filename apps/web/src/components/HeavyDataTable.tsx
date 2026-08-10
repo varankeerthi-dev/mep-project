@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePresenceAware } from '../hooks';
 import { supabase } from '../supabase';
+import { Button } from './ui/button';
 
 interface Material {
   id: string;
@@ -93,13 +94,15 @@ export function HeavyDataTable({ organisationId }: HeavyDataTableProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-zinc-800">Materials</h3>
-        <button 
+        <Button 
+          variant="secondary"
           onClick={handleRefresh}
           disabled={loading}
-          className="btn btn-secondary"
+          loading={loading}
+          loadingText="Loading..."
         >
-          {loading ? 'Loading...' : 'Refresh'}
-        </button>
+          Refresh
+        </Button>
       </div>
 
       {error && (

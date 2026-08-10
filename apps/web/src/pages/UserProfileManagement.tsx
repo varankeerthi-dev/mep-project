@@ -184,7 +184,7 @@ export default function UserProfileManagement() {
                 <Button
                   onClick={handleUpdateProfile}
                   disabled={loading}
-                  variant="primary"
+                  variant="default"
                 >
                   {loading ? 'Updating...' : 'Update Profile'}
                 </Button>

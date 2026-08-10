@@ -15,6 +15,7 @@ import {
 } from '@tanstack/react-table';
 import { cn } from '../../lib/utils';
 import { MoreHorizontal, Search, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -193,15 +194,14 @@ function RowActionsCell<T extends Record<string, any>>({
 
   return (
     <div className="relative flex justify-center pr-4 pl-2 py-2">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onToggle(); }}
         className="inline-flex items-center justify-center rounded-lg w-7 h-7 hover:bg-zinc-100 transition-colors"
         aria-label="Open row actions"
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
         <MoreHorizontal className="w-4 h-4 text-[#0A0A0A]" />
-      </button>
+      </Button>
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -215,10 +215,7 @@ function RowActionsCell<T extends Record<string, any>>({
             )}
           >
             {actions.map((action, i) => (
-              <button
-                key={i}
-                role="menuitem"
-                onClick={(e) => {
+              <Button variant="default" size="sm" key={i} role="menuitem" onClick={(e) => {
                   e.stopPropagation();
                   onClose();
                   action.onClick(row.original);
@@ -231,7 +228,7 @@ function RowActionsCell<T extends Record<string, any>>({
                 )}
               >
                 {action.label}
-              </button>
+              </Button>
             ))}
           </div>
         </>
@@ -263,13 +260,12 @@ function ColumnFilterInput({ header }: { header: any }) {
           className={inputClass}
         />
         {value && (
-          <button
-            onClick={() => col.setFilterValue(undefined)}
+          <Button variant="default" size="sm" onClick={() => col.setFilterValue(undefined)}
             className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
             aria-label="Clear filter"
           >
             <X className="w-3 h-3" />
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -327,14 +323,9 @@ function PaginationButton({
   children: ReactNode;
 }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel ?? label}
-      className={cn(PAGE_BTN_BASE, disabled ? PAGE_BTN_DISABLED : PAGE_BTN_ENABLED)}
-    >
+    <Button variant="default" size="icon-xs" onClick={onClick} disabled={disabled} aria-label={ariaLabel ?? label} className={cn(PAGE_BTN_BASE, disabled ? PAGE_BTN_DISABLED : PAGE_BTN_ENABLED)} >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -711,20 +702,14 @@ export function AppTable<T extends Record<string, any>>({
           </div>
           <div className="flex items-center gap-2">
             {bulkActions.onPrint && (
-              <button
-                onClick={bulkActions.onPrint}
-                className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-zinc-100 transition-colors active:scale-[0.98]"
-              >
+              <Button variant="secondary" size="sm" onClick={bulkActions.onPrint} >
                 Print
-              </button>
+              </Button>
             )}
             {bulkActions.onDelete && (
-              <button
-                onClick={bulkActions.onDelete}
-                className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 hover:bg-red-700 transition-colors active:scale-[0.98]"
-              >
+              <Button variant="destructive" size="sm" onClick={bulkActions.onDelete} >
                 Delete
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -762,9 +747,7 @@ export function AppTable<T extends Record<string, any>>({
                 page === '...' ? (
                   <span key={`ellipsis-${idx}`} className="px-1 text-xs text-zinc-400" aria-hidden="true">...</span>
                 ) : (
-                  <button
-                    key={page}
-                    onClick={() => table.setPageIndex(page - 1)}
+                  <Button variant="default" size="sm" key={page} onClick={() => table.setPageIndex(page - 1)}
                     aria-label={`Page ${page}`}
                     aria-current={page === pagination.pageIndex + 1 ? 'page' : undefined}
                     className={cn(
@@ -775,7 +758,7 @@ export function AppTable<T extends Record<string, any>>({
                     )}
                   >
                     {page}
-                  </button>
+                  </Button>
                 ),
               )}
             </div>

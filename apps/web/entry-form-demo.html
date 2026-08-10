@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entry Form Design System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --primary: #6366F1;
+    --primary-dark: #4F46E5;
+    --primary-darkest: #4338CA;
+    --danger: #EF4444;
+    --danger-dark: #DC2626;
+    --text-primary: #111827;
+    --text-secondary: #374151;
+    --text-muted: #6B7280;
+    --text-disabled: #94A3B8;
+    --border-default: #DCE3ED;
+    --border-hover: #C7D2FE;
+    --border-section: #E7EAF1;
+    --border-table-row: #F1F5F9;
+    --bg-white: #FFFFFF;
+    --bg-subtle: #F8FAFC;
+    --bg-hover: #FAFBFC;
+    --focus-ring: rgba(99, 102, 241, 0.10);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #F9FAFB;
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, #4F46E5 0%, #6366F1 50%, #818CF8 100%);
+    color: white;
+    padding: 60px 48px;
+    border-radius: 20px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .hero h1 { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .hero p { font-size: 16px; opacity: 0.85; max-width: 600px; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; margin-bottom: 16px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  /* Section */
+  .section {
+    background: white;
+    border: 1px solid var(--border-section);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .section:hover {
+    box-shadow: 0 8px 24px rgba(15,23,42,0.06);
+    transform: scale(1.005);
+  }
+  .section-header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border-table-row);
+  }
+  .section-header h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+  .section-header p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .section-body { padding: 24px 32px; }
+
+  /* Color Swatches */
+  .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .swatch {
+    border: 1px solid var(--border-section);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .swatch-color { height: 64px; }
+  .swatch-info { padding: 10px 12px; }
+  .swatch-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+  .swatch-hex { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+  /* Form Demo */
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .demo-grid { grid-template-columns: 1fr; } }
+
+  .demo-card {
+    border: 1px solid var(--border-section);
+    border-radius: 12px;
+    padding: 20px;
+    background: white;
+  }
+  .demo-label { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; display: block; }
+
+  /* Input Standard */
+  .input-standard {
+    height: 46px; width: 100%; border-radius: 10px; border: 1px solid var(--border-default);
+    background: white; padding: 0 16px; font-size: 14px; font-weight: 500; font-family: inherit;
+    color: var(--text-primary); outline: none; transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .input-standard::placeholder { color: var(--text-disabled); }
+  .input-standard:hover { border-color: var(--border-hover); }
+  .input-standard:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--focus-ring); }
+
+  /* Input Compact */
+  .input-compact {
+    height: 36px; width: 100%; border-radius: 8px; border: 1px solid var(--border-default);
+    background: white; padding: 0 12px; font-size: 13px; font-weight: 500; font-family: inherit;
+    color: var(--text-primary); outline: none; transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .input-compact::placeholder { color: var(--text-disabled); }
+  .input-compact:hover { border-color: var(--border-hover); }
+  .input-compact:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--focus-ring); }
+
+  /* Select */
+  .select-compact {
+    height: 36px; width: 100%; border-radius: 8px; border: 1px solid var(--border-default);
+    background: white; padding: 0 32px 0 12px; font-size: 13px; font-weight: 500; font-family: inherit;
+    color: var(--text-primary); outline: none; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .select-compact:hover { border-color: var(--border-hover); }
+  .select-compact:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--focus-ring); }
+
+  /* Buttons */
+  .btn-primary {
+    height: 44px; padding: 0 22px; border-radius: 10px; border: none;
+    background: var(--primary); color: white; font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 18px rgba(79,70,229,0.18); transition: background 0.2s ease;
+  }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-primary:active { background: var(--primary-darkest); }
+
+  .btn-secondary {
+    height: 44px; padding: 0 22px; border-radius: 10px; border: 1px solid #D1D5DB;
+    background: white; color: var(--text-primary); font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: background 0.2s ease;
+  }
+  .btn-secondary:hover { background: #F9FAFB; }
+
+  .btn-danger-link {
+    background: none; border: none; color: var(--danger); font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    padding: 0; transition: color 0.15s ease;
+  }
+  .btn-danger-link:hover { color: var(--danger-dark); }
+
+  /* Table Demo */
+  .demo-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border-section); border-radius: 12px; overflow: hidden; }
+  .demo-table th {
+    padding: 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-muted); background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-table-row);
+  }
+  .demo-table td {
+    padding: 16px; font-size: 12px; border-bottom: 1px solid var(--border-table-row);
+  }
+  .demo-table tr:last-child td { border-bottom: none; }
+  .demo-table tr:hover td { background: rgba(248,250,252,0.6); }
+
+  /* Tab Demo */
+  .tab-bar { display: inline-flex; gap: 4px; border-radius: 12px; border: 1px solid var(--border-section); background: var(--bg-subtle); padding: 4px; }
+  .tab-btn {
+    padding: 12px 24px; border-radius: 8px; border: none; background: transparent;
+    font-size: 15px; font-weight: 500; font-family: inherit; cursor: pointer;
+    color: var(--text-muted); transition: all 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--text-primary); }
+  .tab-btn.active { background: white; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  /* Delete button */
+  .btn-delete {
+    width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent;
+    color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center;
+    justify-content: center; transition: all 0.15s ease;
+  }
+  .btn-delete:hover { background: rgba(239,68,68,0.10); color: var(--danger); }
+
+  /* Section Card Demo */
+  .section-card-demo {
+    border: 1px solid var(--border-section); border-radius: 16px; background: white;
+    box-shadow: 0 2px 10px rgba(15,23,42,0.04); overflow: hidden;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .section-card-demo:hover {
+    box-shadow: 0 8px 24px rgba(15,23,42,0.06);
+    transform: scale(1.012);
+  }
+  .section-card-header { padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .section-card-title { font-size: 18px; font-weight: 600; }
+  .section-card-body { padding: 24px 32px; }
+
+  /* Empty State */
+  .empty-state {
+    border: 1px dashed #D6DAE6; border-radius: 12px; background: white;
+    padding: 16px; text-align: center; font-size: 12px; font-style: italic; color: var(--text-muted);
+  }
+
+  /* Badge */
+  .badge-pill {
+    display: inline-block; background: #F3F4F6; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); margin-left: 8px;
+  }
+
+  /* Code block */
+  code {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #F1F5F9;
+    padding: 2px 6px; border-radius: 4px; color: #E11D48;
+  }
+  pre {
+    background: #1E293B; color: #E2E8F0; padding: 16px 20px; border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6;
+    overflow-x: auto; margin: 12px 0;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* Issue Box */
+  .issue-box {
+    background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .issue-box h3 { color: #991B1B; font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .issue-box p { color: #7F1D1D; font-size: 13px; }
+
+  .fix-box {
+    background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .fix-box h3 { color: #166534; font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .fix-box p { color: #14532D; font-size: 13px; }
+
+  .flex-gap { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="badge">Design System</div>
+    <h1>Entry Form</h1>
+    <p>Complete style guide for the Item Editor entry forms — inputs, buttons, tables, sections, and interactions. Copy-paste ready for any junior developer.</p>
+  </div>
+
+  <!-- CSS Issue -->
+  <div class="issue-box">
+    <h3>⚠️ CSS Override Issue — Table Cell Padding</h3>
+    <p>Tailwind classes like <code>py-[16px]</code> on <code>&lt;td&gt;</code> / <code>&lt;th&gt;</code> elements don't always apply because of global CSS resets (<code>* { padding: 0 !important; }</code>) and browser default table styles competing in the cascade.</p>
+  </div>
+  <div class="fix-box">
+    <h3>✅ Fix — Use Inline Styles for Table Cells</h3>
+    <p>Always use <code>style={{ padding: '16px 16px' }}</code> on <code>&lt;th&gt;</code> and <code>&lt;td&gt;</code>. Inline styles have the highest specificity and bypass all CSS class conflicts.</p>
+  </div>
+
+  <!-- Colors -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Color Palette</h2>
+      <p>Every color token used across the entry forms</p>
+    </div>
+    <div class="section-body">
+      <div class="swatch-grid">
+        <div class="swatch"><div class="swatch-color" style="background:#6366F1"></div><div class="swatch-info"><div class="swatch-name">Primary (Indigo)</div><div class="swatch-hex">#6366F1</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#4F46E5"></div><div class="swatch-info"><div class="swatch-name">Primary Dark</div><div class="swatch-hex">#4F46E5</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#4338CA"></div><div class="swatch-info"><div class="swatch-name">Primary Darkest</div><div class="swatch-hex">#4338CA</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#EF4444"></div><div class="swatch-info"><div class="swatch-name">Danger Red</div><div class="swatch-hex">#EF4444</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#DC2626"></div><div class="swatch-info"><div class="swatch-name">Danger Dark</div><div class="swatch-hex">#DC2626</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#111827"></div><div class="swatch-info"><div class="swatch-name">Text Primary</div><div class="swatch-hex">#111827</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#374151"></div><div class="swatch-info"><div class="swatch-name">Text Secondary</div><div class="swatch-hex">#374151</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#6B7280"></div><div class="swatch-info"><div class="swatch-name">Text Muted</div><div class="swatch-hex">#6B7280</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#DCE3ED"></div><div class="swatch-info"><div class="swatch-name">Border Default</div><div class="swatch-hex">#DCE3ED</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#C7D2FE"></div><div class="swatch-info"><div class="swatch-name">Border Hover</div><div class="swatch-hex">#C7D2FE</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#E7EAF1"></div><div class="swatch-info"><div class="swatch-name">Border Section</div><div class="swatch-hex">#E7EAF1</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#F1F5F9"></div><div class="swatch-info"><div class="swatch-name">Border Table Row</div><div class="swatch-hex">#F1F5F9</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Typography -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Typography</h2>
+      <p>Font sizes, weights, and colors for every text element</p>
+    </div>
+    <div class="section-body">
+      <table class="demo-table">
+        <thead><tr><th>Element</th><th>Size</th><th>Weight</th><th>Color</th><th>Preview</th></tr></thead>
+        <tbody>
+          <tr><td>Section Title</td><td>18px</td><td>600</td><td><code>#111827</code></td><td style="font-size:18px;font-weight:600">Purchase & Vendor Mapping</td></tr>
+          <tr><td>Section Description</td><td>13px</td><td>400</td><td><code>#6B7280</code></td><td style="font-size:13px;color:#6B7280">Map client-specific part numbers and pricing.</td></tr>
+          <tr><td>Field Label</td><td>13px</td><td>600</td><td><code>#374151</code></td><td style="font-size:13px;font-weight:600;color:#374151">Vendor Name</td></tr>
+          <tr><td>Input Text</td><td>13px</td><td>500</td><td><code>#111827</code></td><td style="font-size:13px;font-weight:500">Brand A</td></tr>
+          <tr><td>Table Header</td><td>11px</td><td>600</td><td><code>#6B7280</code></td><td style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#6B7280">VARIANT</td></tr>
+          <tr><td>Action Link</td><td>13px</td><td>600</td><td><code>#EF4444</code></td><td style="font-size:13px;font-weight:600;color:#EF4444">+ Add Vendor</td></tr>
+          <tr><td>Tab (Active)</td><td>15px</td><td>500</td><td><code>#4F46E5</code></td><td style="font-size:15px;font-weight:500;color:#4F46E5">Client Code</td></tr>
+          <tr><td>Tab (Inactive)</td><td>15px</td><td>500</td><td><code>#6B7280</code></td><td style="font-size:15px;font-weight:500;color:#6B7280">ARC/Pricing</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Form Inputs -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Form Inputs</h2>
+      <p>Standard and compact input variants with all interactive states</p>
+    </div>
+    <div class="section-body">
+      <div class="demo-grid">
+        <div class="demo-card">
+          <span class="demo-label">Standard Input — 46px height, 10px radius</span>
+          <input class="input-standard" type="text" placeholder="Enter item name...">
+          <div style="margin-top:12px;font-size:11px;color:#6B7280">
+            Hover: border → <code>#C7D2FE</code> &nbsp;|&nbsp; Focus: border → <code>#6366F1</code> + 4px ring
+          </div>
+        </div>
+        <div class="demo-card">
+          <span class="demo-label">Compact Input — 36px height, 8px radius (for tables)</span>
+          <input class="input-compact" type="text" placeholder="Part No">
+          <div style="margin-top:12px;font-size:11px;color:#6B7280">
+            Same transitions as standard. Used inside table cells.
+          </div>
+        </div>
+        <div class="demo-card">
+          <span class="demo-label">Compact Select — 36px height, native dropdown</span>
+          <select class="select-compact">
+            <option>Select vendor</option>
+            <option>Vendor A</option>
+            <option>Vendor B</option>
+          </select>
+        </div>
+        <div class="demo-card">
+          <span class="demo-label">Disabled State</span>
+          <input class="input-standard" type="text" placeholder="Disabled input" disabled style="background:#F8FAFC;color:#94A3B8;cursor:not-allowed">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Buttons</h2>
+      <p>Primary, secondary, action links, and delete buttons</p>
+    </div>
+    <div class="section-body">
+      <div class="demo-grid">
+        <div class="demo-card">
+          <span class="demo-label">Primary Button — 44px height, indigo bg</span>
+          <div class="flex-gap">
+            <button class="btn-primary">Save Item</button>
+            <button class="btn-primary" style="background:#4F46E5">Hover State</button>
+          </div>
+        </div>
+        <div class="demo-card">
+          <span class="demo-label">Secondary Button — 44px height, white bg</span>
+          <div class="flex-gap">
+            <button class="btn-secondary">Cancel</button>
+            <button class="btn-secondary" style="background:#F9FAFB">Hover State</button>
+          </div>
+        </div>
+        <div class="demo-card">
+          <span class="demo-label">Action Link (Red) — next to section title</span>
+          <div class="flex-gap">
+            <button class="btn-danger-link">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Vendor
+            </button>
+            <button class="btn-danger-link" style="color:#DC2626">Hover State</button>
+          </div>
+        </div>
+        <div class="demo-card">
+          <span class="demo-label">Delete Button — table row action</span>
+          <div class="flex-gap">
+            <button class="btn-delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+            <span style="font-size:11px;color:#6B7280">Hover → red bg + red icon</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Tables</h2>
+      <p>Data tables with 16px cell padding (inline style, not Tailwind!)</p>
+    </div>
+    <div class="section-body">
+      <table class="demo-table">
+        <thead>
+          <tr>
+            <th style="width:20%">Variant</th>
+            <th style="width:20%">Client</th>
+            <th style="width:20%">Part No</th>
+            <th style="width:30%">Description</th>
+            <th style="width:10%">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><select class="select-compact"><option>Standard</option></select></td>
+            <td><select class="select-compact"><option>Client A</option></select></td>
+            <td><input class="input-compact" value="VA-1001"></td>
+            <td><input class="input-compact" value="Ball Valve 2inch"></td>
+            <td><button class="btn-delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+          </tr>
+          <tr>
+            <td><select class="select-compact"><option>Premium</option></select></td>
+            <td><select class="select-compact"><option>Client B</option></select></td>
+            <td><input class="input-compact" value="VB-2002"></td>
+            <td><input class="input-compact" value="Gate Valve 4inch"></td>
+            <td><button class="btn-delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;font-size:11px;color:#6B7280">
+        ⚠️ Cell padding is <code>16px 16px</code> via inline <code>style</code> — NOT Tailwind classes. This avoids CSS cascade conflicts.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Tab Bars</h2>
+      <p>Sub-navigation tabs within sections</p>
+    </div>
+    <div class="section-body">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab(this)">Client Code</button>
+        <button class="tab-btn" onclick="switchTab(this)">ARC/Pricing</button>
+      </div>
+      <div style="margin-top:16px;font-size:11px;color:#6B7280">
+        Container: 12px radius, 1px border, 4px padding &nbsp;|&nbsp; Button: 8px radius, 12px 24px padding, 15px font
+      </div>
+    </div>
+  </div>
+
+  <!-- Section Card -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Section Card</h2>
+      <p>Collapsible editor section with hover lift effect</p>
+    </div>
+    <div class="section-body">
+      <div class="section-card-demo">
+        <div class="section-card-header">
+          <div>
+            <span class="section-card-title">Purchase & Vendor Mapping</span>
+            <span class="badge-pill">9</span>
+          </div>
+          <button class="btn-danger-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Vendor
+          </button>
+        </div>
+        <div class="section-card-body" style="padding-top:0">
+          <p style="font-size:13px;color:#6B7280;margin-bottom:16px">Map this item to preferred vendors and set vendor-specific rates.</p>
+          <div class="empty-state">No vendor mappings. Click "Add Vendor" to add one.</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:#6B7280">
+        Card: 16px radius, 1px <code>#E7EAF1</code> border, soft shadow &nbsp;|&nbsp; Hover: <code>scale(1.012)</code> + lifted shadow
+      </div>
+    </div>
+  </div>
+
+  <!-- Spacing Reference -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Spacing Reference</h2>
+      <p>Exact pixel values for all layout spacing</p>
+    </div>
+    <div class="section-body">
+      <table class="demo-table">
+        <thead><tr><th>Element</th><th>Padding</th><th>Margin/Gap</th><th>Radius</th></tr></thead>
+        <tbody>
+          <tr><td>Section Card</td><td>24px 32px (header) / 24px 32px (body)</td><td>24px between cards</td><td>16px</td></tr>
+          <tr><td>Section Header</td><td>24px top, 32px horizontal</td><td>4px to description</td><td>—</td></tr>
+          <tr><td>Table Cell (th/td)</td><td>16px all sides (inline style)</td><td>—</td><td>—</td></tr>
+          <tr><td>Vendor Row Card</td><td>16px all sides</td><td>12px between rows</td><td>12px</td></tr>
+          <tr><td>Input Standard</td><td>0 16px</td><td>—</td><td>10px</td></tr>
+          <tr><td>Input Compact</td><td>0 12px</td><td>—</td><td>8px</td></tr>
+          <tr><td>Tab Container</td><td>4px</td><td>4px between tabs</td><td>12px</td></tr>
+          <tr><td>Tab Button</td><td>12px 24px</td><td>—</td><td>8px</td></tr>
+          <tr><td>Primary Button</td><td>0 22px</td><td>—</td><td>10px</td></tr>
+          <tr><td>Two-Column Grid</td><td>—</td><td>24px gap</td><td>—</td></tr>
+          <tr><td>Label → Field Grid</td><td>—</td><td>16px horizontal, 12px vertical</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Copy-Paste Classes -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Copy-Paste Classes</h2>
+      <p>Ready-to-use Tailwind strings for every component</p>
+    </div>
+    <div class="section-body">
+      <div style="margin-bottom:16px">
+        <span class="demo-label">Input (Standard)</span>
+        <pre><code>h-[46px] w-full min-w-0 !rounded-[10px] !border !border-[#DCE3ED]
+bg-white !px-4 !py-0 text-sm font-medium text-[#111827]
+transition-[border-color,box-shadow] outline-none
+placeholder:text-[#9CA3AF] hover:border-[#C7D2FE]
+focus-visible:border-[#6366F1]
+focus-visible:shadow-[0_0_0_4px_rgba(99,102,241,0.10)]</code></pre>
+      </div>
+      <div style="margin-bottom:16px">
+        <span class="demo-label">Input (Compact / Table)</span>
+        <pre><code>h-9 w-full min-w-0 !rounded-lg !border !border-[#DCE3ED]
+bg-white !px-3 !py-0 text-[13px] font-medium text-[#111827]
+transition-[border-color,box-shadow] outline-none
+placeholder:text-[#9CA3AF] hover:border-[#C7D2FE]
+focus-visible:border-[#6366F1]
+focus-visible:shadow-[0_0_0_4px_rgba(99,102,241,0.10)]</code></pre>
+      </div>
+      <div style="margin-bottom:16px">
+        <span class="demo-label">Section Card</span>
+        <pre><code>overflow-hidden rounded-2xl border border-[#E7EAF1] bg-white
+shadow-[0_2px_10px_rgba(15,23,42,0.04)]
+transition-[box-shadow,transform] duration-150
+hover:z-10 hover:scale-[1.012]
+hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]</code></pre>
+      </div>
+      <div style="margin-bottom:16px">
+        <span class="demo-label">Action Link (Red)</span>
+        <pre><code>inline-flex items-center gap-1.5 text-[13px] font-semibold
+text-[#EF4444] transition-colors hover:text-[#DC2626]</code></pre>
+      </div>
+      <div>
+        <span class="demo-label">Table Cell Padding (inline style)</span>
+        <pre><code>const thStyle: React.CSSProperties = { padding: '16px 16px' };
+const tdStyle: React.CSSProperties = { padding: '16px 16px' };
+
+&lt;th style={thStyle}&gt;Header&lt;/th&gt;
+&lt;td style={tdStyle}&gt;Content&lt;/td&gt;</code></pre>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function switchTab(el) {
+  el.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+
+</body>
+</html>

@@ -385,7 +385,7 @@ export function Table<T extends { id?: string | number }>({
       )}
       <style>{`
         .table-row-item:hover {
-          background-color: #FAFAFA !important;
+          background-color: #F3F4F6 !important;
         }
         .row-view-btn:hover {
           background-color: #F3F4F6 !important;

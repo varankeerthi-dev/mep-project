@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface AddShippingAddressModalProps {
   isOpen: boolean;
@@ -104,25 +105,11 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
           }}>
             Add Shipping Address
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '4px',
-              border: 'none',
-              background: 'transparent',
-              color: '#525252',
-              cursor: 'pointer',
-              borderRadius: '4px',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+          <Button variant="ghost" size="default" type="button" onClick={onClose} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
             <X size={20} />
-          </button>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
@@ -300,47 +287,16 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
             paddingTop: '16px',
             borderTop: '1px solid #e5e5e5',
           }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '10px 16px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                background: '#fff',
-                color: '#525252',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+            <Button variant="outline" size="default" type="button" onClick={onClose} style={{ flex: 1, padding: '10px 16px', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff', color: '#525252', fontSize: '14px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', }} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createShippingAddress.isPending}
-              style={{
-                flex: 1,
-                padding: '10px 16px',
-                border: 'none',
-                borderRadius: '4px',
-                background: '#171717',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: createShippingAddress.isPending ? 'not-allowed' : 'pointer',
-                opacity: createShippingAddress.isPending ? 0.6 : 1,
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => !createShippingAddress.isPending && (e.currentTarget.style.background = '#262626')}
+            </Button>
+            <Button variant="default" size="default" type="submit" disabled={createShippingAddress.isPending} style={{ flex: 1, padding: '10px 16px', border: 'none', borderRadius: '4px', background: '#171717', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: createShippingAddress.isPending ? 'not-allowed' : 'pointer', opacity: createShippingAddress.isPending ? 0.6 : 1, transition: 'all 0.15s', }} onMouseEnter={(e) => !createShippingAddress.isPending && (e.currentTarget.style.background = '#262626')}
               onMouseLeave={(e) => e.currentTarget.style.background = '#171717'}
             >
               {createShippingAddress.isPending ? 'Adding...' : 'Add Address'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

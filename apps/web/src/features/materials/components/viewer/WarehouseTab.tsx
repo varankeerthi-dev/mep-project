@@ -1,4 +1,5 @@
 import type { WarehouseStockRow } from '../../model/aggregates';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 interface WarehouseTabProps {
   rows: WarehouseStockRow[];
@@ -6,6 +7,7 @@ interface WarehouseTabProps {
 }
 
 export function WarehouseTab({ rows, loading }: WarehouseTabProps) {
+  const { formatDate } = useAppDateFormat();
   if (loading) return <div className="p-6 text-sm text-zinc-400">Loading...</div>;
 
   if (rows.length === 0) {
@@ -33,7 +35,7 @@ export function WarehouseTab({ rows, loading }: WarehouseTabProps) {
                 <td className="px-4 py-2 text-xs text-right font-medium text-zinc-700">{row.current_stock}</td>
                 <td className="px-4 py-2 text-xs text-right text-zinc-500">{row.low_stock_level || '-'}</td>
                 <td className="px-4 py-2 text-xs text-right text-zinc-400">
-                  {row.updated_at ? new Date(row.updated_at).toLocaleDateString() : '-'}
+                  {row.updated_at ? formatDate(row.updated_at) : '-'}
                 </td>
               </tr>
             ))}

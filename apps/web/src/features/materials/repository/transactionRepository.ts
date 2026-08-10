@@ -60,14 +60,17 @@ export async function loadItemTransactionData(itemId: string) {
 
     // Normalize warehouse rows
     const normalizedWarehouseRows = (warehouseStockRows || [])
-      .map((row) => ({
-        id: row.id,
-        warehouse: warehouseMap[row.warehouse_id] || 'Unassigned',
-        variant: variantMap[row.company_variant_id] || 'Default',
-        current_stock: parseFloat(row.current_stock) || 0,
-        low_stock_level: parseFloat(row.low_stock_level) || 0,
-        updated_at: row.updated_at,
-      }))
+      .map((row) => {
+        const variantName = variantMap[row.company_variant_id] || 'Default';
+        return {
+          id: row.id,
+          warehouse: warehouseMap[row.warehouse_id] || 'Unassigned',
+          variant: row.make ? `${variantName} — ${row.make}` : variantName,
+          current_stock: parseFloat(row.current_stock) || 0,
+          low_stock_level: parseFloat(row.low_stock_level) || 0,
+          updated_at: row.updated_at,
+        };
+      })
       .sort((a, b) => a.warehouse.localeCompare(b.warehouse));
 
     // Normalize adjustments

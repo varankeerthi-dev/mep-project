@@ -13,6 +13,7 @@ import {
   Calendar,
   RefreshCcw,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TaskCalendarProps {
   projectId?: string;
@@ -87,21 +88,18 @@ export default function TaskCalendar({ projectId, organisationId, onTaskClick }:
             {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </h2>
           <div className="flex items-center gap-1">
-            <button onClick={goToPrevMonth} className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600">
+            <Button variant="secondary" size="icon-sm" onClick={goToPrevMonth}>
               <ChevronLeft size={16} />
-            </button>
-            <button onClick={goToNextMonth} className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600">
+            </Button>
+            <Button variant="secondary" size="icon-sm" onClick={goToNextMonth}>
               <ChevronRight size={16} />
-            </button>
+            </Button>
           </div>
         </div>
-        <button
-          onClick={goToToday}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-        >
+        <Button variant="secondary" size="sm" onClick={goToToday} >
           <Calendar size={14} />
           Today
-        </button>
+        </Button>
       </div>
 
       {/* Day Headers */}

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
 import { X, Check, FileText, Download, Loader2, Star } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Template {
   id: string;
@@ -202,21 +203,7 @@ export default function ProformaTemplateSelector({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              border: 'none',
-              background: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
+          <Button variant="default" size="sm" onClick={onClose} onMouseEnter={(e) => {
               e.currentTarget.style.background = '#f1f5f9';
               e.currentTarget.style.color = '#475569';
             }}
@@ -226,7 +213,7 @@ export default function ProformaTemplateSelector({
             }}
           >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {/* Body — template list */}
@@ -361,9 +348,7 @@ export default function ProformaTemplateSelector({
                         Template
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
+                    <Button variant="default" size="sm" type="button" onClick={(e) => {
                         e.preventDefault();
                         handlePreview(template.id);
                       }}
@@ -398,7 +383,7 @@ export default function ProformaTemplateSelector({
                         <FileText size={12} />
                       )}
                       Preview
-                    </button>
+                    </Button>
                   </label>
                 );
               })}
@@ -457,20 +442,7 @@ export default function ProformaTemplateSelector({
             background: '#f8fafc',
           }}
         >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              background: '#fff',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              color: '#475569',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
+          <Button variant="outline" size="sm" onClick={onClose} onMouseEnter={(e) => {
               e.currentTarget.style.background = '#f1f5f9';
             }}
             onMouseLeave={(e) => {
@@ -478,25 +450,8 @@ export default function ProformaTemplateSelector({
             }}
           >
             Cancel
-          </button>
-          <button
-            onClick={handleDownload}
-            disabled={!selectedTemplateId || downloading}
-            style={{
-              padding: '0.5rem 1.25rem',
-              border: 'none',
-              borderRadius: '8px',
-              background: !selectedTemplateId ? '#cbd5e1' : '#6366f1',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              color: '#fff',
-              cursor: !selectedTemplateId ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
+          </Button>
+          <Button variant="default" size="sm" onClick={handleDownload} disabled={!selectedTemplateId || downloading} onMouseEnter={(e) => {
               if (selectedTemplateId && !downloading) {
                 e.currentTarget.style.background = '#4f46e5';
               }
@@ -518,7 +473,7 @@ export default function ProformaTemplateSelector({
                 Download PDF
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

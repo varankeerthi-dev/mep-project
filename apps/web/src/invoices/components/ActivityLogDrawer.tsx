@@ -3,6 +3,7 @@ import { X, Activity, Loader2 } from 'lucide-react';
 import { useItemHistory } from '../../hooks/use-item-history';
 import { useAuth } from '../../App';
 import { formatCurrency } from '../ui-utils';
+import { Button } from '@/components/ui/button';
 
 interface ActivityLogDrawerProps {
   open: boolean;
@@ -177,25 +178,11 @@ export default function ActivityLogDrawer({ open, onClose, userName, invoice, pa
               Activity History
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              background: 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#6b7280',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+          <Button variant="ghost" size="default" onClick={onClose} onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
             <X size={18} />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}

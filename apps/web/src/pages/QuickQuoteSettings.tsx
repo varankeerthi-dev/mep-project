@@ -10,6 +10,7 @@ import {
   saveQuickQuoteSizeMappings,
 } from '../quotation/quick-quote/api';
 import type { QuickQuoteSettings, QuickQuoteSizeMapping } from '../quotation/quick-quote/types';
+import { Button } from '../components/ui/button';
 
 export default function QuickQuoteSettings() {
   const { data: materials = [] } = useMaterials();
@@ -135,13 +136,13 @@ export default function QuickQuoteSettings() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ fontSize: '14px', margin: 0 }}>Size Mapping Editor</h3>
-          <button
-            className="btn btn-secondary"
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => setSizeMappings((prev) => [...prev, { org_id: orgId, mm_size: '', inch_size: '' }])}
           >
             + Add Mapping
-          </button>
+          </Button>
         </div>
 
         <table className="table">
@@ -178,13 +179,14 @@ export default function QuickQuoteSettings() {
                   />
                 </td>
                 <td>
-                  <button
-                    className="btn btn-sm btn-secondary"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     type="button"
                     onClick={() => setSizeMappings((prev) => prev.filter((_, rowIndex) => rowIndex !== index))}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -192,9 +194,9 @@ export default function QuickQuoteSettings() {
         </table>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-          <button className="btn btn-primary" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
             {saveMutation.isPending ? 'Saving...' : 'Save Quick Quote Settings'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

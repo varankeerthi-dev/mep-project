@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Plus } from 'lucide-react';
 import { useProductionPlansQuery } from '../../../features/manufacturing';
+import { Button } from '../../../components/ui/button';
 import { Table, ColumnDef, RowAction } from '../../../components/table';
 import { ProductionPlan } from '../../../features/manufacturing/model/types';
 
@@ -100,42 +101,8 @@ export default function ProductionPlanList({ onNavigate }: ProductionPlanListPro
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Net customer sales order requirements against active stocks and WIP</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/work-centers')}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d1d5db',
-              color: '#374151',
-              background: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
-            Work Centers Setup
-          </button>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/plans/create')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-          >
-            <Plus size={14} /> New Demand Plan
-          </button>
+          <Button variant="secondary" onClick={() => onNavigate?.('/manufacturing/work-centers')}>Work Centers Setup</Button>
+          <Button onClick={() => onNavigate?.('/manufacturing/plans/create')} leftIcon={<Plus size={14} />}>New Demand Plan</Button>
         </div>
       </div>
 

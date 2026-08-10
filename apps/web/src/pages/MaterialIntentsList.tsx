@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, MoreVertical, Eye, Edit, FileText, Package, ChevronDown, ChevronRight, PackageSearch, FileDown } from 'lucide-react';
 import { getAllIntents, MaterialIntent } from '../material-intents/api';
 import { useHasPermission } from '../rbac/hooks';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 const STATUS_COLORS = {
   'Pending': '#6b7280',
@@ -24,6 +25,7 @@ interface MaterialIntentsListProps {
 
 export default function MaterialIntentsList({ organisationId }: MaterialIntentsListProps) {
   const navigate = useNavigate();
+  const { formatDate } = useAppDateFormat();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -169,7 +171,7 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                 <div style={{ fontWeight: 500 }}>{intent.projects?.project_name || '-'}</div>
                 <div style={{ fontFamily: 'monospace', fontSize: '13px' }}>{intent.indent_number || `IND-${intent.id.slice(0, 8)}`}</div>
                 <div style={{ color: '#6b7280', fontSize: '13px' }}>
-                  {intent.required_date ? new Date(intent.required_date).toLocaleDateString() : '-'}
+                  {intent.required_date ? formatDate(intent.required_date) : '-'}
                 </div>
                 <div>
                   <span style={{

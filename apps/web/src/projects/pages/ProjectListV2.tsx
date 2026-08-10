@@ -455,13 +455,7 @@ export default function ProjectList() {
   // ═══════════════════════════════════════════════════════════════════════════════
   // LOADING STATE
   // ═══════════════════════════════════════════════════════════════════════════════
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-sm text-zinc-500">
-        Loading projects...
-      </div>
-    );
-  }
+  if (isLoading) return <PageSkeleton variant="list" rows={8} />;
 
 
 
@@ -636,37 +630,31 @@ export default function ProjectList() {
       <div className="pl-page">
         <div className="pl-container">
           <div className="pl-detail-header" style={{ padding: '0.5rem 1rem', gap: '0.75rem' }}>
-            <button className="pl-btn-icon" onClick={() => { setViewMode('list'); setSelectedProject(null); }}>
+            <Button variant="default" size="icon-xs" onClick={() => { setViewMode('list'); setSelectedProject(null); }}>
               <ArrowLeft size={18} />
-            </button>
+            </Button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
               <h1 className="pl-detail-title" style={{ fontSize: '18px', margin: 0 }}>{selectedProject.project_name}</h1>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{selectedProject.project_code}</span>
             </div>
             <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
               {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  className={`pl-tab ${activeTab === tab.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
+                <Button variant="default" size="sm" key={tab.id} className={`pl-tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}
                   style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem' }}
                 >
                   {tab.label}
-                </button>
+                </Button>
               ))}
             </div>
             <PermissionGuard permission="projects.update">
-              <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/projects/${selectedProject.id}/edit`)}>
+              <Button variant="default" size="sm" onClick={() => navigate(`/projects/${selectedProject.id}/edit`)}>
                 <Edit size={14} />
                 Edit
-              </button>
+              </Button>
             </PermissionGuard>
             {selectedProject.status === 'Archived' ? (
               <PermissionGuard permission="projects.archive">
-                <button
-                  className="pl-btn"
-                  style={{ border: '1px solid #d4d4d8', color: '#6366f1' }}
-                  onClick={async () => {
+                <Button variant="default" size="sm" onClick={async () => {
                     if (!confirm('Unarchive this project? It will reappear in active views.')) return;
                     const { error } = await supabase.from('projects').update({ status: 'Active' }).eq('id', selectedProject.id);
                     if (error) { alert('Error unarchiving: ' + error.message); return; }
@@ -676,14 +664,11 @@ export default function ProjectList() {
                   }}
                 >
                   Unarchive
-                </button>
+                </Button>
               </PermissionGuard>
             ) : selectedProject.status !== 'Closed' ? (
               <PermissionGuard permission="projects.archive">
-                <button
-                  className="pl-btn"
-                  style={{ border: '1px solid #d4d4d8', color: '#a1a1aa' }}
-                  onClick={async () => {
+                <Button variant="default" size="sm" onClick={async () => {
                     if (!confirm('Archive this project? It will be hidden from active views.')) return;
                     const { error } = await supabase.from('projects').update({ status: 'Archived' }).eq('id', selectedProject.id);
                     if (error) { alert('Error archiving: ' + error.message); return; }
@@ -693,7 +678,7 @@ export default function ProjectList() {
                   }}
                 >
                   Archive
-                </button>
+                </Button>
               </PermissionGuard>
             ) : null}
           </div>
@@ -847,9 +832,9 @@ export default function ProjectList() {
                     <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#0f172a' }}>Testing & Commissioning Certificate</h3>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Protocol Record & Witness Statement</span>
                   </div>
-                  <button onClick={() => setSelectedTcCert(null)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>
+                  <Button variant="default" size="sm" onClick={() => setSelectedTcCert(null)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>
                     <X size={20} />
-                  </button>
+                  </Button>
                 </div>
                 <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   
@@ -942,9 +927,9 @@ export default function ProjectList() {
 
                 </div>
                 <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-                  <button onClick={() => setSelectedTcCert(null)} className="pl-btn pl-btn-primary">
+                  <Button variant="default" size="sm" onClick={() => setSelectedTcCert(null)} className="pl-btn pl-btn-primary">
                     Close Certificate
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1007,9 +992,9 @@ export default function ProjectList() {
               <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
                 <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#1e293b' }}>Enrich & Edit Observation</h3>
-                  <button onClick={() => setIsInsightModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>
+                  <Button variant="default" size="sm" onClick={() => setIsInsightModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}>
                     <X size={20} />
-                  </button>
+                  </Button>
                 </div>
                 <form onSubmit={handleEnrichSave} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1199,12 +1184,12 @@ export default function ProjectList() {
 
                   </div>
                   <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-                    <button type="button" onClick={() => setIsInsightModalOpen(false)} className="pl-btn" style={{ background: '#fff', border: '1px solid #cbd5e1' }}>
+                    <Button variant="default" size="sm" type="button" onClick={() => setIsInsightModalOpen(false)} className="pl-btn" style={{ background: '#fff', border: '1px solid #cbd5e1' }}>
                       Cancel
-                    </button>
-                    <button type="submit" className="pl-btn pl-btn-primary">
+                    </Button>
+                    <Button variant="default" size="sm" type="submit">
                       Save Enrichments
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -1216,9 +1201,7 @@ export default function ProjectList() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 className="pl-summary-title" style={{ margin: 0 }}>Project Milestones</h3>
               <div style={{ display: 'flex', gap: '0.5rem', position: 'relative' }}>
-                <button
-                  className="pl-btn pl-btn-primary"
-                  onClick={() => {
+                <Button variant="default" size="sm" onClick={() => {
                     setEditingMilestone(null);
                     setMilestoneForm({
                       name: '',
@@ -1231,7 +1214,7 @@ export default function ProjectList() {
                   style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                 >
                   <Plus size={14} /> Add Milestone
-                </button>
+                </Button>
                 
                 {/* Milestone Form Popover */}
                 {isMilestonePopoverOpen && (
@@ -1312,18 +1295,12 @@ export default function ProjectList() {
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
-                      <button 
-                        type="button" 
-                        className="pl-btn"
-                        onClick={() => setIsMilestonePopoverOpen(false)}
+                      <Button variant="default" size="sm" type="button" onClick={() => setIsMilestonePopoverOpen(false)}
                         style={{ padding: '0.25rem 0.75rem', fontSize: '12px', background: '#fff', border: '1px solid #d1d5db' }}
                       >
                         Cancel
-                      </button>
-                      <button 
-                        type="button" 
-                        className="pl-btn pl-btn-primary"
-                        onClick={async () => {
+                      </Button>
+                      <Button variant="default" size="sm" type="button" onClick={async () => {
                           if (!milestoneForm.name || !milestoneForm.milestone_date || !selectedProject?.id) return;
                           try {
                             if (editingMilestone) {
@@ -1361,7 +1338,7 @@ export default function ProjectList() {
                         style={{ padding: '0.25rem 0.75rem', fontSize: '12px' }}
                       >
                         Save
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1503,12 +1480,11 @@ export default function ProjectList() {
                   <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>
                     {selectedMilestoneForDetails.name}
                   </div>
-                  <button 
-                    onClick={() => setSelectedMilestoneForDetails(null)}
+                  <Button variant="default" size="sm" onClick={() => setSelectedMilestoneForDetails(null)}
                     style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}
                   >
                     <X size={14} />
-                  </button>
+                  </Button>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', color: '#475569' }}>
                   <span><strong>Date:</strong> {fmtD(selectedMilestoneForDetails.milestone_date)}</span>
@@ -1533,9 +1509,7 @@ export default function ProjectList() {
                   </span>
                   
                   {!selectedMilestoneForDetails.is_completed && (
-                    <button
-                      className="pl-btn pl-btn-primary"
-                      onClick={() => {
+                    <Button variant="default" size="sm" onClick={() => {
                         updateMilestoneMutation.mutate({
                           id: selectedMilestoneForDetails.id,
                           project_id: selectedMilestoneForDetails.project_id,
@@ -1546,7 +1520,7 @@ export default function ProjectList() {
                       style={{ padding: '2px 8px', fontSize: '11px' }}
                     >
                       Mark Complete
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1614,9 +1588,7 @@ export default function ProjectList() {
                           <td style={{ padding: '0.5rem', textAlign: 'right' }}>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.375rem' }}>
                               {!isCompleted && (
-                                <button
-                                  className="pl-btn pl-btn-primary"
-                                  onClick={() => {
+                                <Button variant="default" size="sm" onClick={() => {
                                     updateMilestoneMutation.mutate({
                                       id: m.id,
                                       project_id: m.project_id,
@@ -1626,11 +1598,9 @@ export default function ProjectList() {
                                   style={{ padding: '2px 8px', fontSize: '11px' }}
                                 >
                                   Mark Complete
-                                </button>
+                                </Button>
                               )}
-                              <button
-                                className="pl-btn"
-                                onClick={() => {
+                              <Button variant="default" size="sm" onClick={() => {
                                   setEditingMilestone(m);
                                   setMilestoneForm({
                                     name: m.name,
@@ -1643,10 +1613,8 @@ export default function ProjectList() {
                                 style={{ padding: '2px 8px', fontSize: '11px', background: '#fff', border: '1px solid #cbd5e1' }}
                               >
                                 Edit
-                              </button>
-                              <button
-                                className="pl-btn"
-                                onClick={() => setMilestoneToDelete(m)}
+                              </Button>
+                              <Button variant="default" size="sm" onClick={() => setMilestoneToDelete(m)}
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
@@ -1659,7 +1627,7 @@ export default function ProjectList() {
                                 }}
                               >
                                 <Trash2 size={11} /> Delete
-                              </button>
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -1685,15 +1653,13 @@ export default function ProjectList() {
                   Are you sure you want to delete the milestone "{milestoneToDelete.name}"? This action will unlink any tasks connected to it and cannot be undone.
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                  <button 
-                    onClick={() => setMilestoneToDelete(null)} 
+                  <Button variant="default" size="sm" onClick={() => setMilestoneToDelete(null)} 
                     className="pl-btn"
                     style={{ background: '#fff', border: '1px solid #cbd5e1', color: '#6b7280', height: '36px', padding: '0 16px', borderRadius: '8px' }}
                   >
                     Cancel
-                  </button>
-                  <button 
-                    onClick={async () => {
+                  </Button>
+                  <Button variant="default" size="sm" onClick={async () => {
                       if (milestoneToDelete) {
                         await deleteMilestoneMutation.mutateAsync({ id: milestoneToDelete.id, project_id: milestoneToDelete.project_id });
                         setMilestoneToDelete(null);
@@ -1704,7 +1670,7 @@ export default function ProjectList() {
                     style={{ background: '#e11d48', border: 'none', color: '#fff', height: '36px', padding: '0 16px', borderRadius: '8px', fontWeight: 600 }}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1763,9 +1729,7 @@ export default function ProjectList() {
         style={{ paddingTop: '15px', paddingBottom: '15px' }}>
         <div className="flex items-center gap-2">
           {STATUS_FILTER_OPTIONS.map((status) => (
-            <button
-              key={status}
-              onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
+            <Button variant="default" size="sm" key={status} onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
               className={`w-[130px] h-[26px] px-4 text-sm font-medium transition-colors ${
                 statusFilter === status
                   ? 'bg-blue-600/10 text-blue-600'
@@ -1773,18 +1737,17 @@ export default function ProjectList() {
               }`}
             >
               {status === 'All' ? 'All Projects' : status}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="flex items-center gap-[10px]">
           <PermissionGuard permission="projects.create">
-            <button
-              onClick={() => navigate('/projects/new')}
+            <Button variant="default" size="sm" onClick={() => navigate('/projects/new')}
               className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
               style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
             >
               New Project
-            </button>
+            </Button>
           </PermissionGuard>
         </div>
       </div>
@@ -1937,21 +1900,19 @@ export default function ProjectList() {
                         {/* Actions */}
                         <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
                           <div className="relative inline-block" ref={openMenuId === p.id ? menuRef : null}>
-                            <button
-                              onClick={(e) => {
+                            <Button variant="default" size="sm" onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenMenuId(openMenuId === p.id ? null : p.id);
                               }}
                               className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
                             >
                               <MoreHorizontal className="w-4 h-4 text-zinc-500" />
-                            </button>
+                            </Button>
                           {openMenuId === p.id && (
                             <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
                               index >= currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
                             }`}>
-                              <button
-                                onClick={(e) => {
+                              <Button variant="default" size="sm" onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenMenuId(null);
                                   loadProjectDetails(p);
@@ -1961,10 +1922,9 @@ export default function ProjectList() {
                               >
                                 <Folder className="w-3.5 h-3.5" />
                                 View Details
-                              </button>
+                              </Button>
                               <PermissionGuard permission="projects.update">
-                                <button
-                                  onClick={(e) => {
+                                <Button variant="default" size="sm" onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenMenuId(null);
                                     navigate(`/projects/${p.id}/edit`);
@@ -1974,15 +1934,14 @@ export default function ProjectList() {
                                 >
                                   <Edit className="w-3.5 h-3.5" />
                                   Edit
-                                </button>
+                                </Button>
                               </PermissionGuard>
 
                               <div className="my-1 border-t border-zinc-100" />
 
                               {p.status !== 'Archived' && p.status !== 'Closed' && (
                                 <PermissionGuard permission="projects.archive">
-                                  <button
-                                    onClick={async (e) => {
+                                  <Button variant="default" size="sm" onClick={async (e) => {
                                       e.stopPropagation();
                                       setOpenMenuId(null);
                                       if (!confirm('Archive this project?')) return;
@@ -1995,15 +1954,14 @@ export default function ProjectList() {
                                   >
                                     <Archive className="w-3.5 h-3.5" />
                                     Archive
-                                  </button>
+                                  </Button>
                                 </PermissionGuard>
                               )}
 
                               <div className="my-1 border-t border-zinc-100" />
 
                               <PermissionGuard permission="projects.delete">
-                                <button
-                                  onClick={(e) => {
+                                <Button variant="default" size="sm" onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenMenuId(null);
                                     deleteProject(p.id);
@@ -2013,7 +1971,7 @@ export default function ProjectList() {
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                   Delete
-                                </button>
+                                </Button>
                               </PermissionGuard>
                             </div>
                           )}
@@ -2035,8 +1993,7 @@ export default function ProjectList() {
           Showing {totalCount === 0 ? 0 : startIndex + 1} to {endIndex} of {totalCount} projects
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+          <Button variant="default" size="sm" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
               currentPage > 1
@@ -2045,7 +2002,7 @@ export default function ProjectList() {
             }`}
           >
             Previous
-          </button>
+          </Button>
           <div className="flex items-center gap-1.5">
             {Array.from({ length: Math.max(1, Math.min(5, totalPages)) }, (_, i) => {
               let pageNum: number;
@@ -2059,9 +2016,7 @@ export default function ProjectList() {
                 pageNum = currentPage - 2 + i;
               }
               return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
+                <Button variant="default" size="sm" key={pageNum} onClick={() => setCurrentPage(pageNum)}
                   className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
                     currentPage === pageNum
                       ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
@@ -2069,12 +2024,11 @@ export default function ProjectList() {
                   }`}
                 >
                   {pageNum}
-                </button>
+                </Button>
               );
             })}
           </div>
-          <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+          <Button variant="default" size="sm" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage >= totalPages}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
               currentPage < totalPages
@@ -2083,7 +2037,7 @@ export default function ProjectList() {
             }`}
           >
             Next
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -2093,3 +2047,5 @@ export default function ProjectList() {
 // ─── Subcontractor Work Orders Tab for Project Detail ─────────────────────────
 import { ProjectSubcontractorWorkOrders } from '../../components/projects/ProjectSubcontractorWorkOrders';
 import { KanbanCard } from '../../components/projects/KanbanCard';
+import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/ui/skeleton';

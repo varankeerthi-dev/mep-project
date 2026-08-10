@@ -4,6 +4,7 @@ import { useInvoicePayments, useDeletePayment, useRefundPayment } from '../../le
 import { PAYMENT_MODE_LABELS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '../../ledger/schemas';
 import type { InvoiceWithRelations } from '../api';
 import { formatCurrency, formatDate } from '../ui-utils';
+import { Button } from '@/components/ui/button';
 
 interface PaymentHistoryDrawerProps {
   open: boolean;
@@ -126,25 +127,11 @@ export default function PaymentHistoryDrawer({ open, onClose, invoice, onEdit }:
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#111827' }}>
               Payment History
             </h2>
-            <button
-              onClick={onClose}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#6b7280',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+            <Button variant="ghost" size="sm" onClick={onClose} onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               <X size={18} />
-            </button>
+            </Button>
           </div>
 
           {/* Summary */}
@@ -234,8 +221,7 @@ export default function PaymentHistoryDrawer({ open, onClose, invoice, onEdit }:
                           )}
                         </div>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          <button
-                            onClick={(e) => {
+                          <Button variant="default" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               onEdit({
                                 id: payment.id,
@@ -264,10 +250,9 @@ export default function PaymentHistoryDrawer({ open, onClose, invoice, onEdit }:
                           >
                             <Edit2 size={12} />
                             Edit
-                          </button>
+                          </Button>
                           {payment.status === 'paid' && (
-                            <button
-                              onClick={(e) => {
+                            <Button variant="default" size="sm" onClick={(e) => {
                                 e.stopPropagation();
                                 handleRefund(payment.id);
                               }}
@@ -287,10 +272,9 @@ export default function PaymentHistoryDrawer({ open, onClose, invoice, onEdit }:
                             >
                               <RotateCcw size={12} />
                               Refund
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            onClick={(e) => {
+                          <Button variant="default" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               handleDelete(payment.id);
                             }}
@@ -310,7 +294,7 @@ export default function PaymentHistoryDrawer({ open, onClose, invoice, onEdit }:
                           >
                             <Trash2 size={12} />
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}

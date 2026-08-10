@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Save } from 'lucide-react';
 import type { ColumnDef } from '../../constants/materialColumns';
+import { Button } from '@/components/ui/button';
 
 interface ColumnSettingsDropdownProps {
   columns: ColumnDef[];
@@ -33,12 +34,9 @@ export function ColumnSettingsDropdown({ columns, visibleColumns, onToggleColumn
       <div className="flex items-center justify-between mb-2 px-1">
         <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Columns</span>
         {onSaveDefault && (
-          <button
-            onClick={onSaveDefault}
-            className="flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-zinc-600 border border-zinc-200 rounded hover:bg-green-50 hover:border-green-400 hover:text-green-700 transition-colors"
-          >
+          <Button variant="success" size="sm" onClick={onSaveDefault} >
             <Save className="w-3 h-3" /> Save as Default
-          </button>
+          </Button>
         )}
       </div>
       <div className="grid grid-cols-2 gap-0.5">

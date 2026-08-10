@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../../supabase';
 import { usePartners } from '../hooks/usePartners';
 import { X, Phone, CheckCircle, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type DealerAvailabilityDrawerProps = {
   isOpen: boolean;
@@ -61,9 +62,9 @@ export default function DealerAvailabilityDrawer({ isOpen, onClose, issueId, iss
             <h2 className="text-sm font-semibold text-zinc-800">Dealer Availability</h2>
             <p className="text-xs text-zinc-500 truncate max-w-[280px]">{issueTitle}</p>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-zinc-100 rounded" type="button">
+          <Button variant="secondary" size="default" onClick={onClose} type="button">
             <X className="h-5 w-5 text-zinc-500" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-3 border-b border-zinc-100">
@@ -116,13 +117,13 @@ export default function DealerAvailabilityDrawer({ isOpen, onClose, issueId, iss
 
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     {!called ? (
-                      <button onClick={() => handleCall(partner)}
+                      <Button variant="default" size="default" onClick={() => handleCall(partner)}
                         disabled={callingPartner === partner.id}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
                         type="button">
                         {callingPartner === partner.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Phone className="h-3 w-3" />}
                         Call
-                      </button>
+                      </Button>
                     ) : !confirmed ? (
                       <>
                         <span className="text-xs text-blue-600 font-medium">✓ Called</span>
@@ -131,24 +132,24 @@ export default function DealerAvailabilityDrawer({ isOpen, onClose, issueId, iss
                           onChange={e => setCallLog(prev => ({ ...prev, [partner.id]: e.target.value }))}
                           className="flex-1 px-2 py-1 border border-zinc-200 rounded text-xs focus:ring-1 focus:ring-blue-500 min-w-0"
                         />
-                        <button onClick={() => handleConfirm(partner.id, callLog[partner.id] || partner.contact_person || '')}
+                        <Button variant="default" size="default" onClick={() => handleConfirm(partner.id, callLog[partner.id] || partner.contact_person || '')}
                           disabled={!callLog[partner.id] && !partner.contact_person}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
                           type="button">
                           <CheckCircle className="h-3 w-3" />
                           Confirm
-                        </button>
+                        </Button>
                       </>
                     ) : (
                       <div className="flex items-center gap-2 w-full">
                         <span className="text-xs text-green-700 font-medium">
                           ✓ Confirmed — {confirmedPartners[partner.id]?.contact}
                         </span>
-                        <button onClick={() => handleAssign(partner)}
+                        <Button variant="default" size="default" onClick={() => handleAssign(partner)}
                           className="ml-auto px-3 py-1.5 bg-zinc-800 text-white text-xs font-medium rounded-lg hover:bg-zinc-700"
                           type="button">
                           Assign to {partner.business_name}
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>

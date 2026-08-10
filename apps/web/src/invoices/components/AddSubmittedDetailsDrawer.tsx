@@ -7,6 +7,7 @@ import { useUpdateInvoiceSubmission, useDeleteInvoiceSubmission } from '../hooks
 import type { InvoiceWithRelations } from '../api';
 import { toast } from '../../lib/logger';
 import { useAuth } from '../../App';
+import { Button } from '@/components/ui/button';
 
 const SubmissionSchema = z.object({
   submitted_date: z.string().min(1, 'Submission date is required'),
@@ -168,45 +169,13 @@ export default function AddSubmittedDetailsDrawer({ open, onClose, invoice }: Ad
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {invoice.submitted_date && (
-               <button
-                onClick={handleDelete}
-                disabled={deleteSubmission.isPending}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '36px',
-                  height: '36px',
-                  background: '#fef2f2',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#ef4444',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                title="Clear Details"
-              >
+               <Button variant="default" size="icon-xs" onClick={handleDelete} disabled={deleteSubmission.isPending} title="Clear Details" >
                 {deleteSubmission.isPending ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-              </button>
+              </Button>
             )}
-            <button
-              onClick={onClose}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '36px',
-                height: '36px',
-                background: '#f3f4f6',
-                border: 'none',
-                borderRadius: '10px',
-                color: '#4b5563',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
+            <Button variant="default" size="icon-xs" onClick={onClose} >
               <X size={20} />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -360,9 +329,7 @@ export default function AddSubmittedDetailsDrawer({ open, onClose, invoice }: Ad
                       </div>
                       <div style={{ fontSize: '15px', fontWeight: 600, color: '#065f46' }}>{selectedFile.name}</div>
                       <div style={{ fontSize: '12px', color: '#059669' }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedFile(null); }}
+                      <Button variant="default" size="sm" type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedFile(null); }}
                         style={{ 
                           marginTop: '16px', 
                           fontSize: '12px', 
@@ -378,7 +345,7 @@ export default function AddSubmittedDetailsDrawer({ open, onClose, invoice }: Ad
                         }}
                       >
                         Change File
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -435,46 +402,10 @@ export default function AddSubmittedDetailsDrawer({ open, onClose, invoice }: Ad
           gap: '16px',
           background: '#fff',
         }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              flex: 1,
-              height: '48px',
-              padding: '0 20px',
-              background: '#fff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#4b5563',
-              cursor: 'pointer',
-            }}
-          >
+          <Button variant="outline" size="sm" type="button" onClick={onClose} style={{ flex: 1, height: '48px', padding: '0 20px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', fontSize: '14px', fontWeight: 600, color: '#4b5563', cursor: 'pointer', }} >
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={form.handleSubmit(onSubmit)}
-            disabled={updateSubmission.isPending}
-            style={{
-              flex: 2,
-              height: '48px',
-              padding: '0 20px',
-              background: '#10b981',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: 700,
-              color: '#fff',
-              cursor: updateSubmission.isPending ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.2)'
-            }}
-          >
+          </Button>
+          <Button variant="success" size="icon-xs" type="button" onClick={form.handleSubmit(onSubmit)} disabled={updateSubmission.isPending} style={{ flex: 2, height: '48px', padding: '0 20px', background: '#10b981', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, color: '#fff', cursor: updateSubmission.isPending ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.2)' }} >
             {updateSubmission.isPending ? (
               <>
                 <Loader2 size={20} className="animate-spin" />
@@ -483,7 +414,7 @@ export default function AddSubmittedDetailsDrawer({ open, onClose, invoice }: Ad
             ) : (
               'Save Submission details'
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

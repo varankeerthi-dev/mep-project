@@ -49,7 +49,8 @@ export async function createDispatchOrderAggregate(
 export async function confirmDispatchAggregate(
   dispatchOrderId: string,
   orgId: string,
-  userId: string
+  userId: string,
+  userName: string
 ) {
   // 1. Load dispatch order and items
   const order = await P.fetchDispatchOrderById(dispatchOrderId);
@@ -141,7 +142,7 @@ export async function confirmDispatchAggregate(
       })),
     },
     user_id: userId,
-    user_name: 'System User', // In real app, resolved from user profiles
+    user_name: userName,
     organisation_id: orgId,
   });
 

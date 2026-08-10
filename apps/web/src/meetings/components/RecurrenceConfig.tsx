@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { Calendar, Repeat } from 'lucide-react';
 import type { RecurrenceFrequency } from '../types';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 interface RecurrenceConfigProps {
   onChange?: (config: RecurrenceConfigState) => void;
@@ -25,6 +26,7 @@ export const RecurrenceConfig = memo(function RecurrenceConfig({
   const [frequency, setFrequency] = useState<RecurrenceFrequency>('weekly');
   const [count, setCount] = useState(4);
   const [endDate, setEndDate] = useState('');
+  const { formatDate } = useAppDateFormat();
   
   const handleChange = (updates: Partial<RecurrenceConfigState>) => {
     const newConfig = { frequency, count, endDate, ...updates };
@@ -102,7 +104,7 @@ export const RecurrenceConfig = memo(function RecurrenceConfig({
         <Calendar size={12} />
         <span>
           This will create {count} meeting{count > 1 ? 's' : ''} at {FREQUENCY_OPTIONS.find(f => f.value === frequency)?.label.toLowerCase()} intervals
-          {endDate && ` ending on ${new Date(endDate).toLocaleDateString()}`}
+          {endDate && ` ending on ${formatDate(endDate)}`}
         </span>
       </div>
     </div>

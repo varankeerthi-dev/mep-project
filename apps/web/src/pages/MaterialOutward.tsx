@@ -8,6 +8,9 @@ import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useProjects } from '../hooks/useProjects';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { Button } from '../components/ui/button';
+import { Trash2 } from 'lucide-react';
 
 const createEmptyItem = (id) => ({
   id,
@@ -19,6 +22,7 @@ const createEmptyItem = (id) => ({
 });
 
 export default function MaterialOutward({ onSuccess, onCancel }) {
+  const { formatDate } = useAppDateFormat();
   const { organisation } = useAuth();
   const { data: materials = [] } = useMaterials();
   const { data: warehouses = [] } = useWarehouses();
@@ -37,8 +41,6 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
     },
     enabled: !!organisation?.id,
   });
-
-  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString() : '-';
 
   const handleView = (outward: any) => {
     setSelectedOutward(outward);
@@ -267,8 +269,8 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
           {(initQuery.error instanceof Error && initQuery.error.message) || 'Unable to load outward data.'}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          <button type="button" className="btn btn-primary" onClick={retryAll}>Retry</button>
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Back</button>
+          <Button onClick={retryAll}>Retry</Button>
+          <Button variant="secondary" onClick={onCancel}>Back</Button>
         </div>
       </div>
     );
@@ -281,9 +283,9 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
           <h1 className="page-title">Material Outward {viewMode === 'list' ? '- Past Entries' : ''}</h1>
           <div style={{ display: 'flex', gap: '8px' }}>
             {viewMode !== 'list' && (
-              <button className="btn btn-secondary" onClick={() => { setViewMode('list'); setSelectedOutward(null); }}>Back to List</button>
+              <Button variant="secondary" onClick={() => { setViewMode('list'); setSelectedOutward(null); }}>Back to List</Button>
             )}
-            <button className="btn btn-primary" onClick={() => { setViewMode('form'); setSelectedOutward(null); }}>+ New Outward</button>
+            <Button onClick={() => { setViewMode('form'); setSelectedOutward(null); }}>+ New Outward</Button>
           </div>
         </div>
 
@@ -314,8 +316,8 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
                       <TableCell>{projects.find(p => p.id === outward.project_id)?.project_name || '-'}</TableCell>
                       <TableCell>{outward.items?.length || 0} items</TableCell>
                       <TableCell>
-                        <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleView(outward)}>View</button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => handleDelete(outward.id)}>Delete</button>
+                        <Button variant="secondary" size="sm" onClick={() => handleView(outward)} style={{ marginRight: '4px' }}>View</Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleDelete(outward.id)}>Delete</Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -363,7 +365,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
       <div className="page-header">
         <h1 className="page-title">Material Outward</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-secondary" onClick={() => setViewMode('list')}>View Past Entries</button>
+          <Button variant="secondary" onClick={() => setViewMode('list')}>View Past Entries</Button>
         </div>
       </div>
 
@@ -387,7 +389,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
           }}
         >
           <span>{(stockQuery.error instanceof Error && stockQuery.error.message) || 'Unable to load stock.'}</span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => stockQuery.refetch()}>Retry</button>
+          <Button variant="secondary" size="sm" onClick={() => stockQuery.refetch()}>Retry</Button>
         </div>
       )}
 
@@ -506,29 +508,29 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
                     onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
                     placeholder="Qty"
                   />
-                  <button
-                    type="button"
-                    className="delete-btn"
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => removeItem(item.id)}
-                    style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}
+                    aria-label="Remove item"
                   >
-                    x
-                  </button>
+                    <Trash2 className="size-4 text-red-500" />
+                  </Button>
                 </div>
               ))}
             </div>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={addItem} style={{ marginTop: '12px' }}>
+            <Button variant="secondary" size="sm" onClick={addItem} style={{ marginTop: '12px' }}>
               + Add Item
-            </button>
+            </Button>
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-            <button type="submit" className="btn btn-primary" disabled={saving || stockQuery.isFetching}>
-              {saving ? 'Submitting...' : 'Submit'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
+            <Button type="submit" disabled={saving || stockQuery.isFetching} loading={saving} loadingText="Submitting...">
+              Submit
+            </Button>
+            <Button variant="secondary" onClick={onCancel} disabled={saving}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </div>

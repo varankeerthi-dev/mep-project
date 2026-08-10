@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Button } from './Button';
 
 export interface SubTabItem {
   id: string;
@@ -68,7 +69,7 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
         {tabs.map((tab) => {
           const isActive = currentTabId === tab.id;
           return (
-            <button
+            <Button variant="ghost" size="sm"
               key={tab.id}
               onClick={() => {
                 if (onTabChange) {
@@ -97,7 +98,7 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
                 outline: 'none',
               }}
             >
-              <div
+              <span
                 style={{
                   boxSizing: 'border-box',
                   color: isActive ? '#16A34A' : '#0A0A0A99',
@@ -113,7 +114,7 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
                 }}
               >
                 {tab.label}
-              </div>
+              </span>
               {isActive && (
                 <div
                   style={{
@@ -128,7 +129,7 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
                   }}
                 />
               )}
-            </button>
+            </Button>
           );
         })}
       </div>

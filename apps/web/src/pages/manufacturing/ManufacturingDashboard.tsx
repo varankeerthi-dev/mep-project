@@ -17,6 +17,7 @@ import {
   FileText
 } from 'lucide-react';
 import '../operations/operations.css';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 type DashboardProps = {
   onNavigate: (path: string) => void;
@@ -24,6 +25,7 @@ type DashboardProps = {
 
 export default function ManufacturingDashboard({ onNavigate }: DashboardProps) {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['manufacturing-dashboard', organisation?.id],
@@ -107,7 +109,7 @@ export default function ManufacturingDashboard({ onNavigate }: DashboardProps) {
         pendingAttention.push({
           type: 'schedule_draft',
           title: `Finalise Production Schedule: ${s.schedule_name || s.schedule_no || s.id.slice(0, 8)}`,
-          desc: `Draft schedule starting on ${s.schedule_date ? new Date(s.schedule_date).toLocaleDateString() : 'N/A'}`,
+          desc: `Draft schedule starting on ${s.schedule_date ? formatDate(s.schedule_date) : 'N/A'}`,
           path: '/manufacturing/schedules',
           badge: 'Planned',
           badgeColor: 'var(--purple)',

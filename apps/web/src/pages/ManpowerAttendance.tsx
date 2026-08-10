@@ -3,6 +3,7 @@
 // ============================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button } from '../components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
@@ -812,13 +813,12 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
                 <X size={16} />
               </button>
             ) : (
-              <button
+              <Button
                 onClick={() => setShowForm(true)}
-                className="btn-primary"
-                style={{ width: '100%' }}
+                className="w-full"
               >
                 Add Attendance
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -1224,14 +1224,13 @@ export function ManpowerAttendance({ onNavigate }: ManpowerAttendanceProps) {
               >
                 Cancel
               </button>
-              <button
+              <Button
                 onClick={handleSave}
                 disabled={attendanceEntries.length === 0 || createAttendance.isPending}
-                className="btn-primary"
-                style={{ padding: '12px' }}
+                className="w-full"
               >
                 {createAttendance.isPending ? 'Saving...' : 'Save Attendance'}
-              </button>
+              </Button>
             </div>
           </div>
         )}

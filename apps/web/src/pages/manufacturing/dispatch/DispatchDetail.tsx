@@ -14,6 +14,7 @@ import {
   Trash
 } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '../../../components/ui/button';
 import {
   useDispatchOrderDetailQuery,
   useDispatchOrderItemsQuery,
@@ -24,6 +25,7 @@ import {
   useConfirmDispatchMutation,
   useUpsertDispatchCountVerificationMutation
 } from '../../../features/manufacturing';
+import { useAppDateFormat } from '../../../contexts/DateFormatContext';
 
 type DispatchDetailProps = {
   dispatchOrderId: string;
@@ -32,6 +34,7 @@ type DispatchDetailProps = {
 
 export default function DispatchDetail({ dispatchOrderId, onNavigate }: DispatchDetailProps) {
   const { organisation, user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const queryClient = useQueryClient();
   const [activeSubTab, setActiveSubTab] = useState<'items' | 'packing' | 'verify'>('items');
 
@@ -102,7 +105,8 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
     confirmDispatch.mutate({
       dispatchOrderId,
       orgId: organisation.id,
-      userId: user.id
+      userId: user.id,
+      userName: user.name || user.email || 'Unknown'
     }, {
       onSuccess: () => {
         onNavigate('/manufacturing/dispatch');
@@ -203,12 +207,9 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={() => onNavigate('/manufacturing/dispatch')}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={() => onNavigate('/manufacturing/dispatch')} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>{order.dispatch_no}</h1>
@@ -222,29 +223,23 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
         {/* LifeCycle Control Buttons */}
         <div style={{ display: 'flex', gap: '8px' }}>
           {order.status === 'draft' && (
-            <button
-              onClick={() => handleMoveToStep('picking')}
-              style={{ padding: '6px 12px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
-            >
-              Start Picking
-            </button>
+            <Button size="sm" onClick={() => handleMoveToStep('picking')}>Start Picking</Button>
           )}
           {order.status === 'picking' && (
-            <button
-              onClick={() => handleMoveToStep('packed')}
-              style={{ padding: '6px 12px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
-            >
-              Complete Picking
-            </button>
+            <Button size="sm" onClick={() => handleMoveToStep('packed')}>Complete Picking</Button>
           )}
           {order.status === 'verified' && (
-            <button
+            <Button
+              size="sm"
+              variant="success"
               onClick={handleConfirmDispatch}
               disabled={confirmDispatch.isPending}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: '#10b981', border: '1px solid #10b981', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
+              loading={confirmDispatch.isPending}
+              loadingText="Confirming..."
+              leftIcon={<Truck size={12} />}
             >
-              <Truck size={12} /> {confirmDispatch.isPending ? 'Confirming...' : 'Confirm Dispatch & Ship'}
-            </button>
+              Confirm Dispatch & Ship
+            </Button>
           )}
         </div>
       </div>
@@ -290,24 +285,30 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Sub Navigation Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', gap: '20px' }}>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveSubTab('items')}
-              style={{ padding: '8px 4px', borderBottom: `2px solid ${activeSubTab === 'items' ? '#185FA5' : 'transparent'}`, color: activeSubTab === 'items' ? '#185FA5' : '#4b5563', fontSize: '12px', fontWeight: 500, cursor: 'pointer', background: 'transparent', border: 'none' }}
+              className={`rounded-none px-1 border-b-2 ${activeSubTab === 'items' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
             >
               Dispatch Items
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveSubTab('packing')}
-              style={{ padding: '8px 4px', borderBottom: `2px solid ${activeSubTab === 'packing' ? '#185FA5' : 'transparent'}`, color: activeSubTab === 'packing' ? '#185FA5' : '#4b5563', fontSize: '12px', fontWeight: 500, cursor: 'pointer', background: 'transparent', border: 'none' }}
+              className={`rounded-none px-1 border-b-2 ${activeSubTab === 'packing' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
             >
               Carton Packing ({packing.length})
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setActiveSubTab('verify')}
-              style={{ padding: '8px 4px', borderBottom: `2px solid ${activeSubTab === 'verify' ? '#185FA5' : 'transparent'}`, color: activeSubTab === 'verify' ? '#185FA5' : '#4b5563', fontSize: '12px', fontWeight: 500, cursor: 'pointer', background: 'transparent', border: 'none' }}
+              className={`rounded-none px-1 border-b-2 ${activeSubTab === 'verify' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
             >
               Blind Verification
-            </button>
+            </Button>
           </div>
 
           {/* Panel 1: Dispatch Items */}
@@ -441,12 +442,7 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
                       </div>
                     </div>
 
-                    <button
-                      type="submit"
-                      style={{ alignSelf: 'flex-end', padding: '6px 12px', background: '#185FA5', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
-                    >
-                      Add Carton
-                    </button>
+                    <Button type="submit" size="xs" className="self-end">Add Carton</Button>
                   </form>
                 </div>
               )}
@@ -468,12 +464,9 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
                             Carton #{box.carton_number} ({box.carton_type?.toUpperCase()})
                           </span>
                           {order.status !== 'dispatched' && (
-                            <button
-                              onClick={() => handleRemoveCarton(box.id!)}
-                              style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}
-                            >
+                            <Button variant="ghost" size="icon-xs" onClick={() => handleRemoveCarton(box.id!)} aria-label="Remove carton" className="text-red-500 hover:text-red-600">
                               <Trash size={12} />
-                            </button>
+                            </Button>
                           )}
                         </div>
 
@@ -593,13 +586,14 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
 
                   {order.status !== 'dispatched' && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-                      <button
+                      <Button
                         onClick={handleSaveVerifications}
                         disabled={upsertVerification.isPending}
-                        style={{ padding: '6px 12px', background: '#185FA5', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
+                        loading={upsertVerification.isPending}
+                        loadingText="Saving..."
                       >
-                        {upsertVerification.isPending ? 'Saving...' : 'Verify & Save Count'}
-                      </button>
+                        Verify & Save Count
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -644,7 +638,7 @@ export default function DispatchDetail({ dispatchOrderId, onNavigate }: Dispatch
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', color: '#4b5563' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Created At</span>
-                <span>{new Date(order.created_at || '').toLocaleDateString()}</span>
+                <span>{formatDate(order.created_at || '')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Planned Dispatch</span>

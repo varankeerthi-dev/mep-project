@@ -5,6 +5,7 @@ import { useAllocations, useUpdateAllocationStatus } from '../../hooks/useAlloca
 import type { AllocationFilterParams } from '../../api/allocations';
 import AllocationStatusBadge from '../../components/AllocationStatusBadge';
 import { CheckCircle, XCircle, Play, CheckCircle2, MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const PARTNER_ACTIONS: Record<string, { label: string; nextStatus: string; icon: any; color: string }[]> = {
   'Pending': [
@@ -110,16 +111,14 @@ export default function PartnerInboxPage() {
                   {actions.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
                       {actions.map(action => (
-                        <button
-                          key={action.nextStatus}
-                          onClick={() => handleStatusUpdate(allocation.id, action.nextStatus)}
+                        <Button variant="default" size="default" key={action.nextStatus} onClick={() => handleStatusUpdate(allocation.id, action.nextStatus)}
                           disabled={updateStatus.isPending}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-medium rounded-lg disabled:opacity-50 ${action.color}`}
                           type="button"
                         >
                           <action.icon className="h-3.5 w-3.5" />
                           {action.label}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}

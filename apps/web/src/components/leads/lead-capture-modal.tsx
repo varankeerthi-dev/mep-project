@@ -403,7 +403,7 @@ export function LeadCaptureModal({
           </Button>
           <Button
             type="button"
-            variant="primary"
+            variant="default"
             onClick={handleSubmit}
             disabled={!canSubmit || createLead.isPending}
             leftIcon={<Plus className="h-3.5 w-3.5" />}

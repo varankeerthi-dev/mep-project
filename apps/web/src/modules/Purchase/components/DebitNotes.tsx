@@ -35,6 +35,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '../../../lib/utils';
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote, useDeleteDebitNote, useMaterialOptions } from '../hooks/usePurchaseQueries';
@@ -88,6 +89,7 @@ function calcItemTotals(item: DNItem): DNItem {
 
 export const DebitNotes: React.FC = () => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
@@ -463,7 +465,7 @@ export const DebitNotes: React.FC = () => {
     {
       id: 'dn_date',
       header: 'Date',
-      cell: ({ row }: any) => new Date(row.original.dn_date).toLocaleDateString('en-IN'),
+      cell: ({ row }: any) => formatDate(row.original.dn_date),
     },
     {
       id: 'bill',

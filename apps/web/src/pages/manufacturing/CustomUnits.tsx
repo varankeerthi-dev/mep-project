@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Table, ColumnDef, RowAction } from '../../components/table';
+import { Button } from '../../components/ui/button';
 
 type CustomUnitsProps = {
   onNavigate: (path: string) => void;
@@ -198,12 +199,12 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
           <h1 className="text-2xl font-semibold text-zinc-900">Custom Units</h1>
           <p className="text-zinc-500 mt-1">Manage measurement units for BOMs and inventory</p>
         </div>
-        <button
+        <Button
           onClick={() => { setEditUnit(null); setFormData({ unit_name: '', unit_symbol: '', unit_type: 'custom', conversion_to_base: '', base_unit: '' }); setShowForm(true); }}
-          className="h-10 px-5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          className="h-10 px-5"
         >
           Add Unit
-        </button>
+        </Button>
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-lg">
@@ -256,12 +257,10 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => { setShowForm(false); setEditUnit(null); }}
-                className="flex-1 h-10 px-5 border border-zinc-200 text-zinc-700 rounded-lg font-medium hover:bg-zinc-50 transition-colors">Cancel</button>
-              <button onClick={() => saveUnit.mutate()} disabled={saveUnit.isPending}
-                className="flex-1 h-10 px-5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
-                {saveUnit.isPending ? 'Saving...' : 'Save'}
-              </button>
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowForm(false); setEditUnit(null); }}>Cancel</Button>
+              <Button className="flex-1" onClick={() => saveUnit.mutate()} disabled={saveUnit.isPending} loading={saveUnit.isPending} loadingText="Saving...">
+                Save
+              </Button>
             </div>
           </div>
         </div>

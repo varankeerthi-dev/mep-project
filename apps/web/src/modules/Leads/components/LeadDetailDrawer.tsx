@@ -4,6 +4,7 @@ import type { Lead } from '../../../types/leads';
 import { LeadHistoryTab } from './LeadHistoryTab';
 import { supabase } from '../../../supabase';
 import AllocatePartnerModal from '../../../features/partner-allocation/components/AllocatePartnerModal';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 interface LeadDetailDrawerProps {
   lead: Lead;
@@ -14,6 +15,7 @@ interface LeadDetailDrawerProps {
 type DetailTab = 'details' | 'history' | 'activities';
 
 export const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUpdate }) => {
+  const { formatDate } = useAppDateFormat();
   const [activeTab, setActiveTab] = useState<DetailTab>('details');
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ ...lead });
@@ -220,7 +222,7 @@ export const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClos
                           <StatusBadge status={v.status} />
                         </div>
                         <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
-                          {v.visit_date ? new Date(v.visit_date).toLocaleDateString() : ''}
+                          {v.visit_date ? formatDate(v.visit_date) : ''}
                           {v.engineer ? ` · ${v.engineer}` : ''}
                         </div>
                         {v.site_address && (
@@ -481,6 +483,7 @@ const DetailsTab: React.FC<{
   onSave: () => void;
   saving: boolean;
 }> = ({ lead, editing, editData, setEditData, onToggleEdit, onSave, saving }) => {
+  const { formatDate } = useAppDateFormat();
   if (editing) {
     return (
       <div>
@@ -529,10 +532,10 @@ const DetailsTab: React.FC<{
       <FieldRow icon={<MessageSquare size={14} />} label="Referred By" value={lead.referred_by || '-'} />
       <FieldRow icon={<FileText size={14} />} label="Project" value={lead.project_name || '-'} />
       <FieldRow icon={<DollarSign size={14} />} label="Estimated Value" value={lead.estimated_value ? `₹${(lead.estimated_value / 100000).toFixed(1)}L` : '-'} />
-      <FieldRow icon={<Calendar size={14} />} label="Expected Close" value={lead.expected_close_date ? new Date(lead.expected_close_date).toLocaleDateString() : '-'} />
+      <FieldRow icon={<Calendar size={14} />} label="Expected Close" value={lead.expected_close_date ? formatDate(lead.expected_close_date) : '-'} />
       <FieldRow icon={<User size={14} />} label="Owner" value={lead.owner_name || 'Unassigned'} />
       <FieldRow icon={<MapPin size={14} />} label="Address" value={[lead.city, lead.state, lead.pin].filter(Boolean).join(', ') || '-'} />
-      <FieldRow icon={<Calendar size={14} />} label="Created" value={new Date(lead.created_at).toLocaleDateString()} />
+      <FieldRow icon={<Calendar size={14} />} label="Created" value={formatDate(lead.created_at)} />
       {lead.remarks && (
         <div style={{ marginTop: '8px' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Remarks</div>

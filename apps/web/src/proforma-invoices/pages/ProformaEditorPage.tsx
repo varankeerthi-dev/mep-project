@@ -37,6 +37,7 @@ import { RevisionBadge } from '../../components/RevisionBadge';
 import { RevisionHistoryDialog } from '../../components/RevisionHistoryDialog';
 import { RevisionReasonDialog } from '../../components/RevisionReasonDialog';
 import { PdfFlavorSelector, getFlavorConfig, type PdfFlavor } from '../../components/PdfFlavorSelector';
+import { Button } from '@/components/ui/button';
 
 // Helper to convert number to words for INR
 function numberToWords(num: number) {
@@ -1583,14 +1584,10 @@ export default function ProformaEditorPage() {
               <span className="bg-indigo-50/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">AI Imported</span>
               <span>All line items and header values were filled using the AI Document Parser.</span>
             </div>
-            <button 
-              type="button"
-              onClick={handleUndoImport}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/50 hover:bg-indigo-650 border border-indigo-600 text-white rounded font-bold transition-all cursor-pointer"
-            >
+            <Button variant="default" size="sm" type="button" onClick={handleUndoImport} >
               <RotateCcw className="w-3.5 h-3.5" />
               Undo Import
-            </button>
+            </Button>
           </div>
         )}
         
@@ -1807,29 +1804,12 @@ export default function ProformaEditorPage() {
             {/* Choose PO Line Items button */}
             {!manualPO && poNumber && poDetailsQuery.data && (
               <HeaderField label="" labelWidth="70px">
-                <button
-                  onClick={handleChoosePOLineItems}
-                  disabled={!poDetailsQuery.data?.items?.length}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    background: poDetailsQuery.data?.items?.length ? '#059669' : '#d1d5db',
-                    color: poDetailsQuery.data?.items?.length ? 'white' : '#9ca3af',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: poDetailsQuery.data?.items?.length ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { if (poDetailsQuery.data?.items?.length) { (e.currentTarget as HTMLElement).style.background = '#047857'; } }}
+                <Button variant="default" size="sm" onClick={handleChoosePOLineItems} disabled={!poDetailsQuery.data?.items?.length} onMouseEnter={e => { if (poDetailsQuery.data?.items?.length) { (e.currentTarget as HTMLElement).style.background = '#047857'; } }}
                   onMouseLeave={e => { if (poDetailsQuery.data?.items?.length) { (e.currentTarget as HTMLElement).style.background = '#059669'; } }}
                 >
                   <FileText size={14} />
                   Choose PO Line Items {poDetailsQuery.data?.items?.length ? `(${poDetailsQuery.data.items.length} available)` : ''}
-                </button>
+                </Button>
               </HeaderField>
             )}
 
@@ -1931,8 +1911,7 @@ export default function ProformaEditorPage() {
           {/* Terms Card */}           <div className="cq-card-elevated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Terms & Conditions:</label>
-               <button
-                 onClick={() => setShowTermsDrawer(true)}
+               <Button variant="default" size="sm" onClick={() => setShowTermsDrawer(true)}
                  style={{
                    padding: '6px 12px',
                    border: '1px solid #d4d4d4',
@@ -1949,7 +1928,7 @@ export default function ProformaEditorPage() {
                >
                  <FileText size={12} />
                  {terms ? 'Edit' : 'Add'}
-               </button>
+               </Button>
              </div>
              <textarea
                className="form-input"
@@ -2093,21 +2072,21 @@ export default function ProformaEditorPage() {
               {/* Status workflow actions inside adjustments sidebar */}
               <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {!isNew && status === 'draft' && (
-                  <button type="button" onClick={() => sendMutate()} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded border border-sky-200 transition-all">
+                  <Button variant="default" size="sm" type="button" onClick={() => sendMutate()} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded border border-sky-200 transition-all">
                     <Send size={13} /> Send to Client
-                  </button>
+                  </Button>
                 )}
                 
                 {!isNew && status === 'sent' && (
-                  <button type="button" onClick={() => acceptMutate()} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-green-50 text-green-700 hover:bg-green-100 rounded border border-green-200 transition-all">
+                  <Button variant="default" size="sm" type="button" onClick={() => acceptMutate()} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-green-50 text-green-700 hover:bg-green-100 rounded border border-green-200 transition-all">
                     <CheckCircle size={13} /> Mark Accepted
-                  </button>
+                  </Button>
                 )}
                 
                 {!isNew && status === 'accepted' && !proforma?.converted_invoice_id && (
-                  <button type="button" onClick={handleConvertToInvoice} className="w-full h-8 flex items-center justify-center gap-1.5 text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition-all">
+                  <Button variant="default" size="sm" type="button" onClick={handleConvertToInvoice}>
                     <FileCheck size={13} /> Convert to Invoice
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -2209,7 +2188,7 @@ export default function ProformaEditorPage() {
           <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '90%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#18181b' }}>Column Settings</h3>
-              <button onClick={() => setShowCustomLabelEditor(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>&times;</button>
+              <Button variant="default" size="sm" onClick={() => setShowCustomLabelEditor(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>&times;</Button>
             </div>
             <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
               Toggle columns to show/hide on the printed document. You can also customize their display labels.
@@ -2285,11 +2264,10 @@ export default function ProformaEditorPage() {
               })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button style={{ padding: '6px 14px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
+              <Button variant="default" size="sm" onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
                 onClick={() => setShowCustomLabelEditor(false)}
-              >Done</button>
+              >Done</Button>
             </div>
           </div>
         </div>
@@ -2315,7 +2293,7 @@ export default function ProformaEditorPage() {
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>Add Multiple Items</h3>
-              <button onClick={() => { setShowItemPicker(false); setPickerItems([]); setItemSearch(''); }} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>&times;</button>
+              <Button variant="default" size="sm" onClick={() => { setShowItemPicker(false); setPickerItems([]); setItemSearch(''); }} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>&times;</Button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, minHeight: 0 }}>
@@ -2405,11 +2383,10 @@ export default function ProformaEditorPage() {
                           <span style={{ fontWeight: 600, fontSize: '12px', color: '#1e293b', flex: 1 }}>
                             {pickerItem.name}
                           </span>
-                          <button
-                            onClick={() => setPickerItems((prev: any[]) => prev.filter((_: any, i: number) => i !== idx))}
+                          <Button variant="default" size="sm" onClick={() => setPickerItems((prev: any[]) => prev.filter((_: any, i: number) => i !== idx))}
                             style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '14px', padding: '0 2px', lineHeight: 1 }}
                             title="Remove"
-                          >&times;</button>
+                          >&times;</Button>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <label style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>Qty:</label>
@@ -2443,8 +2420,7 @@ export default function ProformaEditorPage() {
                 {/* Insert button */}
                 {pickerItems.length > 0 && (
                   <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
-                    <button
-                      onClick={() => {
+                    <Button variant="default" size="sm" onClick={() => {
                         // Single-pass batch insert: compute all items at once
                         const newItems = pickerItems.map((pickerItem: any) => {
                           const mat = pickerItem.material;
@@ -2491,7 +2467,7 @@ export default function ProformaEditorPage() {
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#2563eb'; }}
                     >
                       Insert Selected ({pickerItems.length}) Item{pickerItems.length > 1 ? 's' : ''}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>

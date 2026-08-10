@@ -268,14 +268,12 @@ export function BasicInformationSection({
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setShowNewCatInput(true)}
+              <Button variant="default" size="sm" type="button" onClick={() => setShowNewCatInput(true)}
                 title="Create new category"
                 className={addButton}
               >
                 <Plus size={18} />
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -359,41 +357,33 @@ export function BasicInformationSection({
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setShowNewUnitInput(true)}
+              <Button variant="default" size="sm" type="button" onClick={() => setShowNewUnitInput(true)}
                 title="Create new unit"
                 className={addButton}
               >
                 <Plus size={18} />
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Alternative Units link and editor */}
           <div className="pt-1">
             {(!formData.has_alternative_unit || !formData.alternative_units || formData.alternative_units.length === 0) ? (
-              <button
-                type="button"
-                onClick={addAlternativeUnitRow}
-                className={addLink}
-              >
+              <Button variant="default" size="sm" type="button" onClick={addAlternativeUnitRow} className={addLink} >
                 <Plus size={14} /> Add Alternative Unit
-              </button>
+              </Button>
             ) : (
               <div className="mt-2 space-y-2 rounded-xl border border-dashed border-[#D6DAE6] bg-[#F8FAFC] p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-[#6B7280]">Alternative Units</span>
-                  <button
-                    type="button"
-                    onClick={() => {
+                  <Button variant="default" size="sm" type="button" onClick={() => {
                       onChange('has_alternative_unit', false);
                       onChange('alternative_units', []);
                     }}
                     className="text-[10px] font-medium text-[#EF4444] hover:underline"
                   >
                     Clear All
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -421,24 +411,18 @@ export function BasicInformationSection({
                         ))}
                       </select>
 
-                      <button
-                        type="button"
-                        onClick={() => removeAlternativeUnitRow(altIdx)}
+                      <Button variant="default" size="sm" type="button" onClick={() => removeAlternativeUnitRow(altIdx)}
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#EF4444]/40 text-[#EF4444] transition-colors hover:bg-[#EF4444]/10"
                       >
                         ×
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={addAlternativeUnitRow}
-                  className={addLink}
-                >
+                <Button variant="default" size="sm" type="button" onClick={addAlternativeUnitRow} className={addLink} >
                   <Plus size={14} /> Add Another Row
-                </button>
+                </Button>
               </div>
             )}
           </div>

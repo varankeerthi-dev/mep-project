@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery, withTimeout } from '../utils/queryTimeout';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
+import { Button } from '../components/ui/button';
 
 
 const createEmptyItem = (id) => ({
@@ -526,8 +528,8 @@ export default function StockTransfer({ onCancel }) {
             {(transfersQuery.error instanceof Error && transfersQuery.error.message) || 'Unable to load transfers.'}
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-            <button className="btn btn-primary" onClick={() => transfersQuery.refetch()}>Retry</button>
-            <button className="btn btn-secondary" onClick={onCancel}>Back</button>
+            <Button onClick={() => transfersQuery.refetch()}>Retry</Button>
+            <Button variant="secondary" onClick={onCancel}>Back</Button>
           </div>
         </div>
       );
@@ -537,7 +539,7 @@ export default function StockTransfer({ onCancel }) {
         <div style={{ flex: 1, minWidth: 0, maxWidth: viewingTransfer ? 'none' : '1200px', margin: viewingTransfer ? '0' : '0 auto' }}>
           <div className="page-header">
             <h1 className="page-title">Stock Transfers</h1>
-            <button className="btn btn-primary" onClick={openNewForm}>+ New Transfer</button>
+            <Button onClick={openNewForm}>+ New Transfer</Button>
           </div>
           <div className="card">
             <table className="table">
@@ -563,14 +565,14 @@ export default function StockTransfer({ onCancel }) {
                       <td>{warehouses.find(w => w.id === transfer.to_warehouse_id)?.warehouse_name || '-'}</td>
                       <td>{getStatusBadge(transfer.status)}</td>
                       <td style={{ display: 'flex', gap: '6px' }}>
-                        <button className="btn btn-sm btn-secondary" onClick={() => openViewForm(transfer)}>View</button>
+                        <Button variant="secondary" size="sm" onClick={() => openViewForm(transfer)}>View</Button>
                         {(transfer.status === 'DRAFT' || transfer.status === 'ON_TRANSIT') && (
-                          <button className="btn btn-sm btn-secondary" onClick={() => openEditForm(transfer)}>Edit</button>
+                          <Button variant="secondary" size="sm" onClick={() => openEditForm(transfer)}>Edit</Button>
                         )}
                         {(transfer.status === 'ON_TRANSIT') && (
-                          <button className="btn btn-sm btn-primary" onClick={() => openReceiveForm(transfer)}>Receive Stock</button>
+                          <Button size="sm" onClick={() => openReceiveForm(transfer)}>Receive Stock</Button>
                         )}
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(transfer)}>x</button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(transfer)}>x</Button>
                       </td>
                     </tr>
                   ))
@@ -638,12 +640,12 @@ export default function StockTransfer({ onCancel }) {
             </div>
             <div style={{ padding: '10px 14px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '6px', flexShrink: 0 }}>
               {(viewingTransfer.status === 'DRAFT' || viewingTransfer.status === 'ON_TRANSIT') && (
-                <button className="btn btn-secondary btn-sm" onClick={() => { openEditForm(viewingTransfer); setViewingTransfer(null); }}>Edit</button>
+                <Button variant="secondary" size="sm" onClick={() => { openEditForm(viewingTransfer); setViewingTransfer(null); }}>Edit</Button>
               )}
               {viewingTransfer.status === 'ON_TRANSIT' && (
-                <button className="btn btn-primary btn-sm" onClick={() => { openReceiveForm(viewingTransfer); setViewingTransfer(null); }}>Receive</button>
+                <Button size="sm" onClick={() => { openReceiveForm(viewingTransfer); setViewingTransfer(null); }}>Receive</Button>
               )}
-              <button className="btn btn-danger btn-sm" onClick={() => handleDelete(viewingTransfer)}>Delete</button>
+              <Button variant="destructive" size="sm" onClick={() => handleDelete(viewingTransfer)}>Delete</Button>
             </div>
           </div>
         )}
@@ -708,10 +710,10 @@ export default function StockTransfer({ onCancel }) {
             </tbody>
           </table>
           <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '12px' }}>
-            <button className="btn btn-primary" onClick={handleReceiveSubmit} disabled={saving || itemsData.length === 0}>
+            <Button onClick={handleReceiveSubmit} disabled={saving || itemsData.length === 0}>
               {saving ? 'Saving...' : 'Confirm Stock Received'}
-            </button>
-            <button className="btn btn-secondary" onClick={returnToList} disabled={saving}>Back</button>
+            </Button>
+            <Button variant="secondary" onClick={returnToList} disabled={saving}>Back</Button>
           </div>
         </div>
       </div>
@@ -730,7 +732,7 @@ export default function StockTransfer({ onCancel }) {
       {stockQuery.isError && (
         <div style={{ marginBottom: '16px', padding: '12px 16px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
           <span>{(stockQuery.error instanceof Error && stockQuery.error.message) || 'Unable to load warehouse stock.'}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => stockQuery.refetch()}>Retry</button>
+          <Button variant="secondary" size="sm" onClick={() => stockQuery.refetch()}>Retry</Button>
         </div>
       )}
 
@@ -839,16 +841,16 @@ export default function StockTransfer({ onCancel }) {
 
           <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '12px' }}>
             {!isLocked && (
-              <button className="btn btn-primary" type="submit" disabled={saving || stockQuery.isFetching}>
+              <Button type="submit" disabled={saving || stockQuery.isFetching}>
                 {saving ? 'Saving...' : isEditing ? 'Update Transfer' : 'Create Transfer'}
-              </button>
+              </Button>
             )}
             {isLocked && editingTransfer?.status === 'DRAFT' && (
-              <button className="btn btn-primary" type="submit" disabled={saving || stockQuery.isFetching}>
+              <Button type="submit" disabled={saving || stockQuery.isFetching}>
                 {saving ? 'Saving...' : 'Update Transfer'}
-              </button>
+              </Button>
             )}
-            <button className="btn btn-secondary" type="button" onClick={returnToList} disabled={saving}>Back</button>
+            <Button variant="secondary" type="button" onClick={returnToList} disabled={saving}>Back</Button>
           </div>
         </form>
       </div>
@@ -859,7 +861,7 @@ export default function StockTransfer({ onCancel }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '90%', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Add Multiple Items</h3>
-              <button className="btn-close" onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '4px 8px' }}>×</button>
+              <Button variant="ghost" size="icon" onClick={() => setShowItemPicker(false)} style={{ fontSize: '20px' }}>×</Button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -926,10 +928,10 @@ export default function StockTransfer({ onCancel }) {
               </div>
             </div>
             <div className="modal-footer" style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowItemPicker(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAddItemsToTransfer} disabled={pickerItems.length === 0}>
+              <Button variant="secondary" onClick={() => setShowItemPicker(false)}>Cancel</Button>
+              <Button onClick={handleAddItemsToTransfer} disabled={pickerItems.length === 0}>
                 Add to Transfer ({pickerItems.length})
-              </button>
+              </Button>
             </div>
           </div>
         </div>

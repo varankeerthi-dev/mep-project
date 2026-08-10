@@ -12,6 +12,7 @@ import {
   NumberingTab,
   ApprovalsTab,
   PlaceholderTab,
+  TemplatesTab,
 } from './tabs';
 import { SettingsTabDefinition } from './types';
 import {
@@ -325,6 +326,17 @@ export const SettingsV2Page: React.FC = () => {
         );
       case 'approvals':
         return <ApprovalsTab />;
+      case 'document-templates':
+        return (
+          <TemplatesTab
+            onDirtyChange={(isDirty) =>
+              handleDirtyChange('document-templates', isDirty)
+            }
+            onRegisterSave={(saveFn, discardFn) =>
+              handleRegisterSave('document-templates', saveFn, discardFn)
+            }
+          />
+        );
       default:
         return <PlaceholderTab tab={activeTab} />;
     }

@@ -6,6 +6,7 @@ import { usePartners, useDeletePartner } from '../../hooks/usePartners';
 import type { PartnerFilterParams } from '../../api/partners';
 import { partnerTypeEnum } from '../../model';
 import { Plus, Search, Trash2, Edit, Building2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function PartnerListPage() {
   const { organisation } = useAuth();
@@ -94,16 +95,16 @@ export default function PartnerListPage() {
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-1">
                       <PermissionGuard permission="partners.update">
-                        <button onClick={() => navigate(`/partner-allocation/partners/edit?id=${partner.id}`)}
+                        <Button variant="default" size="default" onClick={() => navigate(`/partner-allocation/partners/edit?id=${partner.id}`)}
                           className="p-1 hover:bg-zinc-100 rounded text-zinc-400 hover:text-blue-600" title="Edit" type="button">
                           <Edit className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </PermissionGuard>
                       <PermissionGuard permission="partners.delete">
-                        <button onClick={async () => { if (confirm('Delete this partner?')) await deletePartner.mutateAsync(partner.id); }}
+                        <Button variant="default" size="default" onClick={async () => { if (confirm('Delete this partner?')) await deletePartner.mutateAsync(partner.id); }}
                           className="p-1 hover:bg-zinc-100 rounded text-zinc-400 hover:text-red-600" title="Delete" type="button">
                           <Trash2 className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </PermissionGuard>
                     </div>
                   </td>

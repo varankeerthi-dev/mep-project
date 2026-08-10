@@ -5,6 +5,7 @@
 // Pages
 export { default as MaterialsPage } from './page/MaterialsPage';
 export { ItemsTab } from './page/ItemsTab';
+export { ItemEditorPage } from './page/ItemEditorPage';
 
 // Components
 export { ItemsToolbar, ColumnSettingsDropdown } from './components/toolbar';

@@ -2,21 +2,30 @@ import React from 'react';
 import { SettingSection } from '../components/SettingSection';
 import { SettingRow } from '../components/SettingRow';
 import { SettingInput } from '../components/SettingInput';
+import { SettingSelect } from '../components/SettingSelect';
 import { SettingToggle } from '../components/SettingToggle';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { DocumentNumberSeries } from '../types';
 import { toast } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 export interface NumberingTabProps {
   onDirtyChange: (isDirty: boolean) => void;
   onRegisterSave: (saveFn: () => Promise<void>, discardFn: () => void) => void;
 }
 
+interface FinancialYearState {
+  format: string;
+  start_month: number;
+  current: string;
+}
+
 interface NumberingState {
   prevent_duplicate: boolean;
   series: Record<string, DocumentNumberSeries>;
+  financial_year: FinancialYearState;
 }
 
 const DEFAULT_SERIES: Record<string, DocumentNumberSeries> = {
@@ -29,10 +38,34 @@ const DEFAULT_SERIES: Record<string, DocumentNumberSeries> = {
   VENDOR_CODE: { id: '7', doc_type: 'VENDOR_CODE', label: 'Vendor Code', prefix: 'VEN-', start_number: 1, padding: 4, suffix: '', prevent_duplicate: true },
 };
 
-const DEFAULT_NUMBERING_STATE: NumberingState = {
-  prevent_duplicate: true,
-  series: DEFAULT_SERIES,
-};
+const FY_FORMATS = ['FY24-25', 'FY2024-25', '2024-25', '2024_25'];
+
+function generateFyOptions(format: string, startMonth: number): string[] {
+  const currentYear = new Date().getFullYear();
+  const options: string[] = [];
+  for (let i = -2; i <= 3; i++) {
+    const year = currentYear + i;
+    const nextYear = year + 1;
+    const yearStr = year.toString();
+    const nextYearStr = nextYear.toString().slice(-2);
+    let fy: string;
+    switch (format) {
+      case 'FY24-25':
+        fy = `FY${yearStr.slice(-2)}-${nextYearStr}`;
+        break;
+      case 'FY2024-25':
+        fy = `FY${yearStr}-${nextYearStr}`;
+        break;
+      case '2024_25':
+        fy = `${yearStr}_${nextYearStr}`;
+        break;
+      default:
+        fy = `${yearStr}-${nextYearStr}`;
+    }
+    options.push(fy);
+  }
+  return options;
+}
 
 export const NumberingTab: React.FC<NumberingTabProps> = ({
   onDirtyChange,
@@ -41,10 +74,23 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
   const { organisation } = useAuth();
   const orgId = organisation?.id;
 
+  const orgFy = organisation as any;
+  const DEFAULT_FINANCIAL_YEAR: FinancialYearState = {
+    format: orgFy?.financial_year_format || 'FY24-25',
+    start_month: typeof orgFy?.financial_year_start_month === 'number' ? orgFy.financial_year_start_month : 4,
+    current: orgFy?.current_financial_year || 'FY24-25',
+  };
+
+  const DEFAULT_NUMBERING_STATE: NumberingState = {
+    prevent_duplicate: true,
+    series: DEFAULT_SERIES,
+    financial_year: DEFAULT_FINANCIAL_YEAR,
+  };
+
   const handleSave = async (data: NumberingState) => {
     if (!orgId) return;
 
-    // Save global setting
+    // Save global duplicate-prevention flag
     await supabase.from('settings').upsert({
       organisation_id: orgId,
       key: 'prevent_duplicate_numbers',
@@ -70,6 +116,25 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
       throw error;
     }
 
+    // Save financial year settings on the organisation row
+    try {
+      const { error: orgErr } = await supabase
+        .from('organisations')
+        .update({
+          financial_year_format: data.financial_year.format,
+          financial_year_start_month: data.financial_year.start_month,
+          current_financial_year: data.financial_year.current,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orgId);
+
+      if (orgErr) {
+        toast.error('Saved numbering, but failed to save financial year: ' + orgErr.message);
+      }
+    } catch (e: any) {
+      toast.error('Failed to save financial year: ' + e.message);
+    }
+
     toast.success('Document numbering series saved successfully');
   };
 
@@ -79,7 +144,6 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
     isSaving,
     draftAvailable,
     updateField,
-    updateMultiple,
     discard,
     save,
     restoreDraft,
@@ -111,6 +175,17 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
     updateField('series', updatedSeries);
   };
 
+  const updateFinancialYear = (field: keyof FinancialYearState, val: any) => {
+    const next: FinancialYearState = { ...liveData.financial_year, [field]: val };
+    if (field === 'format' || field === 'start_month') {
+      const opts = generateFyOptions(next.format, next.start_month);
+      if (!opts.includes(next.current)) {
+        next.current = opts[Math.floor(opts.length / 2)] || opts[0];
+      }
+    }
+    updateField('financial_year', next);
+  };
+
   const getPreview = (s: DocumentNumberSeries) => {
     const padded = String(s.start_number || 1).padStart(Number(s.padding || 4), '0');
     return `${s.prefix || ''}${padded}${s.suffix || ''}`;
@@ -122,18 +197,12 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between text-xs text-amber-900">
           <span>We found unsaved changes from your previous session.</span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={restoreDraft}
-              className="px-2.5 py-1 bg-amber-600 text-white rounded font-medium hover:bg-amber-700 transition-colors"
-            >
+            <Button variant="warning" size="default" onClick={restoreDraft} >
               Restore Draft
-            </button>
-            <button
-              onClick={dismissDraft}
-              className="px-2.5 py-1 bg-zinc-200 text-zinc-700 rounded font-medium hover:bg-zinc-300 transition-colors"
-            >
+            </Button>
+            <Button variant="secondary" size="default" onClick={dismissDraft} >
               Discard
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -222,6 +291,54 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
             disabled={isSaving}
           />
         </SettingRow>
+      </SettingSection>
+
+      <SettingSection
+        title="Financial Year Settings"
+        description="Defines how financial years are labelled and which FY is active for ledger and reporting."
+      >
+        <SettingRow
+          label="FY Format"
+          description="Display format for the financial year in reports"
+        >
+          <SettingSelect
+            options={FY_FORMATS}
+            value={liveData.financial_year.format}
+            onChange={(val) => updateFinancialYear('format', val)}
+            disabled={isSaving}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label="FY Start Month"
+          description={liveData.financial_year.start_month === 1 ? 'Jan–Dec (Calendar Year)' : 'Apr–Mar (Indian FY)'}
+        >
+          <SettingSelect
+            options={[
+              { value: '1', label: 'January (Calendar Year)' },
+              { value: '4', label: 'April (Indian FY)' },
+            ]}
+            value={String(liveData.financial_year.start_month)}
+            onChange={(val) => updateFinancialYear('start_month', Number(val))}
+            disabled={isSaving}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label="Current Financial Year"
+          description="Active FY used in ledger calculations"
+        >
+          <SettingSelect
+            options={generateFyOptions(liveData.financial_year.format, liveData.financial_year.start_month)}
+            value={liveData.financial_year.current}
+            onChange={(val) => updateFinancialYear('current', val)}
+            disabled={isSaving}
+          />
+        </SettingRow>
+
+        <p className="text-[11px] text-zinc-500 leading-relaxed">
+          Note: Opening balances are calculated from these settings. Changing the financial year after data entry may affect ledger reports.
+        </p>
       </SettingSection>
     </div>
   );

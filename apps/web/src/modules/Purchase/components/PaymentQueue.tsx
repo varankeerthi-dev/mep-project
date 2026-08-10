@@ -21,10 +21,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui
 import { cn } from '../../../lib/utils';
 
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { usePurchaseBills, usePaymentRequests } from '../hooks/usePurchaseQueries';
 
 export const PaymentQueue: React.FC = () => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
     const t = parseInt(searchParams.get('tab') || '0', 10);
@@ -99,7 +101,7 @@ export const PaymentQueue: React.FC = () => {
     {
       id: 'bill_date',
       header: 'Bill Date',
-      cell: ({ row }: any) => new Date(row.original.bill_date).toLocaleDateString('en-IN'),
+      cell: ({ row }: any) => formatDate(row.original.bill_date),
     },
     {
       id: 'due_date',
@@ -108,7 +110,7 @@ export const PaymentQueue: React.FC = () => {
         const daysOverdue = calculateDaysOverdue(row.original.due_date);
         return (
           <div className="flex flex-col py-1">
-            <span className="text-zinc-800">{new Date(row.original.due_date).toLocaleDateString('en-IN')}</span>
+            <span className="text-zinc-800">{formatDate(row.original.due_date)}</span>
             {daysOverdue > 0 && (
               <span className="text-[10px] font-bold text-rose-600 uppercase flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />

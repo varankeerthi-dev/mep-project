@@ -4,6 +4,7 @@ import { useAuth } from '../../../../App';
 import { usePartner, useCreatePartner, useUpdatePartner } from '../../hooks/usePartners';
 import { partnerTypeEnum } from '../../model';
 import { ArrowLeft, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function PartnerFormPage() {
   const [searchParams] = useSearchParams();
@@ -93,9 +94,9 @@ export default function PartnerFormPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-4 px-6 py-4 border-b border-zinc-200">
-        <button onClick={() => navigate('/partner-allocation/partners')} className="p-1 hover:bg-zinc-100 rounded" type="button">
+        <Button variant="default" size="default" onClick={() => navigate('/partner-allocation/partners')} className="p-1 hover:bg-zinc-100 rounded" type="button">
           <ArrowLeft className="h-5 w-5 text-zinc-600" />
-        </button>
+        </Button>
         <h1 className="text-xl font-semibold text-zinc-800">{isEdit ? 'Edit Partner' : 'New Partner'}</h1>
       </div>
 
@@ -201,15 +202,14 @@ export default function PartnerFormPage() {
           </div>
 
           <div className="flex items-center gap-3 pt-2">
-            <button type="submit" disabled={createPartner.isPending || updatePartner.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
+            <Button variant="default" size="lg" type="submit" disabled={createPartner.isPending || updatePartner.isPending}>
               <Save className="h-4 w-4" />
               {isEdit ? 'Update Partner' : 'Create Partner'}
-            </button>
-            <button type="button" onClick={() => navigate('/partner-allocation/partners')}
+            </Button>
+            <Button variant="default" size="default" type="button" onClick={() => navigate('/partner-allocation/partners')}
               className="px-4 py-2 border border-zinc-300 text-zinc-700 rounded-lg hover:bg-zinc-50 text-sm font-medium">
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </div>

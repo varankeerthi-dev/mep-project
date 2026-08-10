@@ -251,7 +251,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
           <NextActionsWidget
             nextActions={nextActions}
             nextActionsHistory={nextActionsHistory}
-            isLoading={nextActionsLoading}
+            loading={nextActionsLoading}
             overdueCount={overdueCount}
             acknowledge={acknowledge}
             isAcknowledging={isAcknowledging}

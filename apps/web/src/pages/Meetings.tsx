@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { AppTable } from '../components/ui/AppTable';
+import { Button } from '../components/ui/button';
 
 type MeetingsDashboardProps = {
   onNavigate: (path: string) => void
@@ -110,8 +111,8 @@ export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
         const m = row.original
         return m.status === 'upcoming' ? (
           <>
-            <button className="btn btn-sm btn-secondary" onClick={() => updateStatus(m.id, 'completed')}>Mark Complete</button>
-            <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => updateStatus(m.id, 'cancelled')}>Cancel</button>
+            <Button variant="secondary" size="sm" onClick={() => updateStatus(m.id, 'completed')}>Mark Complete</Button>
+            <Button variant="secondary" size="sm" style={{ marginLeft: '4px' }} onClick={() => updateStatus(m.id, 'cancelled')}>Cancel</Button>
           </>
         ) : null
       }
@@ -122,17 +123,17 @@ export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
     <div>
       <div className="page-header">
         <h1 className="page-title">Meetings</h1>
-        <button className="btn btn-primary" onClick={() => onNavigate('/meetings/create')}>+ Create Meeting</button>
+        <Button onClick={() => onNavigate('/meetings/create')}>+ Create Meeting</Button>
       </div>
 
       <div className="card" style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <button className={`btn ${filter === 'upcoming' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('upcoming')}>Upcoming</button>
-          <button className={`btn ${filter === 'completed' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('completed')}>Completed</button>
-          <button className={`btn ${filter === 'cancelled' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('cancelled')}>Cancelled</button>
+          <Button variant={filter === 'upcoming' ? 'default' : 'secondary'} onClick={() => setFilter('upcoming')}>Upcoming</Button>
+          <Button variant={filter === 'completed' ? 'default' : 'secondary'} onClick={() => setFilter('completed')}>Completed</Button>
+          <Button variant={filter === 'cancelled' ? 'default' : 'secondary'} onClick={() => setFilter('cancelled')}>Cancelled</Button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-            <button className={`btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('list')}>List View</button>
-            <button className={`btn ${viewMode === 'calendar' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('calendar')}>Calendar View</button>
+            <Button variant={viewMode === 'list' ? 'default' : 'secondary'} onClick={() => setViewMode('list')}>List View</Button>
+            <Button variant={viewMode === 'calendar' ? 'default' : 'secondary'} onClick={() => setViewMode('calendar')}>Calendar View</Button>
           </div>
         </div>
 
@@ -196,7 +197,7 @@ export function CreateMeeting({ onSuccess, onCancel }: CreateMeetingProps) {
           </div>
           <div className="form-group"><label className="form-label">Participants</label><input type="text" className="form-input" value={formData.participants} onChange={e => setFormData({...formData, participants: e.target.value})} placeholder="Comma separated names" /></div>
           <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
-          <div style={{ display: 'flex', gap: '12px' }}><button type="submit" className="btn btn-primary">Save Meeting</button><button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button></div>
+          <div style={{ display: 'flex', gap: '12px' }}><Button type="submit">Save Meeting</Button><Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button></div>
         </form>
       </div>
     </div>

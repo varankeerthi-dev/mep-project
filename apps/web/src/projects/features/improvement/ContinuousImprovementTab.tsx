@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { KanbanCard } from '../../../components/projects/KanbanCard';
+import { Button } from '@/components/ui/button';
 
 interface ContinuousImprovementTabProps {
   selectedProject: any;
@@ -83,9 +84,7 @@ export function ContinuousImprovementTab({
             
             {/* Add Observation Option (for PM/Admin on desktop) */}
             {(userRole === 'Project Manager' || userRole === 'Admin') && (
-              <button
-                type="button"
-                onClick={() => {
+              <Button variant="default" size="sm" type="button" onClick={() => {
                   const title = prompt('Enter observation title:');
                   if (!title) return;
                   const category = prompt('Enter category (Improvement Opportunity, Best Practice, Client Feedback, Coordination Issue, Safety Observation, Cost Saving Idea):', 'Improvement Opportunity');
@@ -107,7 +106,7 @@ export function ContinuousImprovementTab({
                 style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
               >
                 + Add Log
-              </button>
+              </Button>
             )}
           </div>
 
@@ -122,9 +121,7 @@ export function ContinuousImprovementTab({
               { id: 'Safety Observation', label: 'Safety' },
               { id: 'Cost Saving Idea', label: 'Cost Savings' }
             ].map(chip => (
-              <button
-                key={chip.id}
-                onClick={() => setInsightFilter(chip.id)}
+              <Button variant="default" size="sm" key={chip.id} onClick={() => setInsightFilter(chip.id)}
                 style={{
                   border: 'none',
                   padding: '4px 10px',
@@ -137,7 +134,7 @@ export function ContinuousImprovementTab({
                 }}
               >
                 {chip.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -223,14 +220,12 @@ export function ContinuousImprovementTab({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
                       <span>By: {creatorName}</span>
                       {(userRole === 'Project Manager' || userRole === 'Admin') && (
-                        <button
-                          type="button"
-                          onClick={() => openEnrichmentModal(ins)}
+                        <Button variant="default" size="sm" type="button" onClick={() => openEnrichmentModal(ins)}
                           className="pl-link-btn"
                           style={{ color: 'var(--primary-color, #2563eb)', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
                         >
                           Enrich / Edit
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>

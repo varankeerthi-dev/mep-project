@@ -1,4 +1,6 @@
 import { ReactNode } from 'react';
+import { Button } from './ui/button';
+import { X } from 'lucide-react';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -32,9 +34,14 @@ export function ConfirmDialog({
       >
         <div className="modal-header">
           <h3 className="modal-title">{title}</h3>
-          <button className="btn-close" onClick={onCancel}>
-            ×
-          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCancel}
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </Button>
         </div>
         <div className="modal-body">
           <p style={{ fontSize: '14px', lineHeight: '1.5' }}>{message}</p>
@@ -47,25 +54,22 @@ export function ConfirmDialog({
             }}
           >
             {options.map((option) => (
-              <button
+              <Button
                 key={option}
+                variant="secondary"
                 onClick={() => onConfirm(option)}
-                className="btn btn-secondary"
-                style={{
-                  textAlign: 'left',
-                  padding: '10px 16px',
-                  justifyContent: 'flex-start'
-                }}
+                fullWidth
+                style={{ justifyContent: 'flex-start' }}
               >
                 {option}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -342,7 +342,7 @@ export function ArcConfirmationDialog({
             Cancel
           </Button>
           <Button 
-            variant="primary"
+            variant="default"
             onClick={handleApply}
             disabled={selectMode === 'individual' && selectedCount === 0}
           >

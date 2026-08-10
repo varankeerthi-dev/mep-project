@@ -17,6 +17,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 type ItemHistoryDrawerProps = {
   open: boolean;
@@ -289,14 +290,11 @@ export function ItemHistoryDrawer({
           <p className="text-sm font-semibold text-zinc-900 truncate">{itemLabel}</p>
           <p className="text-xs text-zinc-500 truncate">{clientName}</p>
         </div>
-        <button
-          onClick={onClose}
-          className="ml-2 p-1 rounded-md hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
-        >
+        <Button variant="secondary" size="icon-xs" onClick={onClose} >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 4l8 8M12 4l-8 8" />
           </svg>
-        </button>
+        </Button>
       </div>
 
       {isLogging ? (
@@ -309,9 +307,7 @@ export function ItemHistoryDrawer({
           className="flex-1 flex flex-col min-h-0 bg-white"
         >
           <div className="flex-1 overflow-auto px-4 py-4 space-y-4">
-            <button
-              type="button"
-              onClick={() => setIsLogging(false)}
+            <Button variant="default" size="sm" type="button" onClick={() => setIsLogging(false)}
               onMouseEnter={() => setHoverBack(true)}
               onMouseLeave={() => setHoverBack(false)}
               style={{
@@ -331,7 +327,7 @@ export function ItemHistoryDrawer({
               }}
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to History
-            </button>
+            </Button>
 
             {/* Section 1: Interaction Details */}
             <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -340,10 +336,7 @@ export function ItemHistoryDrawer({
               {renderHeaderField('Type', (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   {CATEGORIES.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setCallCategory(c.value)}
+                    <Button variant="default" size="sm" key={c.value} type="button" onClick={() => setCallCategory(c.value)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -362,7 +355,7 @@ export function ItemHistoryDrawer({
                     >
                       <span className="text-sm shrink-0">{c.icon}</span>
                       <span className="truncate">{c.label}</span>
-                    </button>
+                    </Button>
                   ))}
                 </div>
               ), false, true)}
@@ -448,9 +441,7 @@ export function ItemHistoryDrawer({
 
           {/* Footer Submit */}
           <div className="px-4 py-3 border-t border-zinc-100 bg-[#f8f9fa] flex gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsLogging(false)}
+            <Button variant="default" size="sm" type="button" onClick={() => setIsLogging(false)}
               onMouseEnter={() => setHoverCancel(true)}
               onMouseLeave={() => setHoverCancel(false)}
               style={{
@@ -471,11 +462,8 @@ export function ItemHistoryDrawer({
               }}
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending || !callBrief.trim()}
-              onMouseEnter={() => setHoverSave(true)}
+            </Button>
+            <Button variant="default" size="sm" type="submit" disabled={createMutation.isPending || !callBrief.trim()} onMouseEnter={() => setHoverSave(true)}
               onMouseLeave={() => setHoverSave(false)}
               style={{
                 flex: 1,
@@ -500,7 +488,7 @@ export function ItemHistoryDrawer({
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
                 </>
               ) : 'Save Log'}
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
@@ -552,31 +540,12 @@ export function ItemHistoryDrawer({
           </div>
 
           <div className="px-4 py-3 border-t border-zinc-100 bg-[#f8f9fa] shrink-0 flex gap-2">
-            <button
-              onClick={onClose}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '7px 16px',
-                border: '1px solid #d1d5db',
-                background: '#fff',
-                color: '#374151',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
+            <Button variant="outline" size="sm" onClick={onClose} onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
             >
               Close
-            </button>
-            <button
-              onClick={() => setIsLogging(true)}
+            </Button>
+            <Button variant="default" size="sm" onClick={() => setIsLogging(true)}
               onMouseEnter={() => setHoverLogBtn(true)}
               onMouseLeave={() => setHoverLogBtn(false)}
               style={{
@@ -598,7 +567,7 @@ export function ItemHistoryDrawer({
             >
               <MessageSquare className="w-3.5 h-3.5" />
               Log Communication
-            </button>
+            </Button>
           </div>
         </>
       )}

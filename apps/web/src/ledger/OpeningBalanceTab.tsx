@@ -199,7 +199,7 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
               size="sm"
               variant="secondary"
               onClick={() => autoPopulateMutation.mutate()}
-              isLoading={autoPopulateMutation.isPending}
+              loading={autoPopulateMutation.isPending}
               leftIcon={<Plus size={12} />}
             >
               Auto-populate from Previous FY
@@ -233,7 +233,7 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
             </Button>
             <Button
               size="sm"
-              variant="primary"
+              variant="default"
               onClick={() => {
                 const drafts = Object.values(openingBalanceDrafts);
                 console.log('Saving opening balances:', { drafts, selectedFy });
@@ -244,7 +244,7 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
                   alert('Please select a Financial Year and ensure there are balances to save.');
                 }
               }}
-              isLoading={saveOpeningBalancesMutation.isPending}
+              loading={saveOpeningBalancesMutation.isPending}
               leftIcon={<Save size={12} />}
             >
               Save All

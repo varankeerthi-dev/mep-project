@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Plus } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import { useQCInspectionsListQuery } from '../../../features/manufacturing';
 import { Table, ColumnDef, RowAction } from '../../../components/table';
 import { QCInspection } from '../../../features/manufacturing/model/types';
@@ -120,57 +121,15 @@ export default function QCInspectionList({ onNavigate }: QCInspectionListProps) 
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>Define product test specifications and log quality control outcomes</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/qc/ipqc')}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d1d5db',
-              color: '#374151',
-              background: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
+          <Button variant="secondary" onClick={() => onNavigate?.('/manufacturing/qc/ipqc')}>
             In-Process QC (IPQC)
-          </button>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/qc/parameters')}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d1d5db',
-              color: '#374151',
-              background: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
+          </Button>
+          <Button variant="secondary" onClick={() => onNavigate?.('/manufacturing/qc/parameters')}>
             Manage Parameters
-          </button>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/qc/create')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              background: '#185FA5',
-              border: '1px solid #185FA5',
-              color: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
-          >
-            <Plus size={14} /> New Inspection
-          </button>
+          </Button>
+          <Button onClick={() => onNavigate?.('/manufacturing/qc/create')} leftIcon={<Plus size={14} />}>
+            New Inspection
+          </Button>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface PaginationProps {
   currentPage: number;
@@ -16,23 +17,21 @@ export function Pagination({ currentPage, totalPages, totalItems, onPageChange }
         {totalItems} item{totalItems !== 1 ? 's' : ''} total
       </div>
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
+        <Button variant="default" size="default" onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
           className="p-1.5 rounded-md hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-        </button>
+        </Button>
         <span className="text-sm text-zinc-600">
           Page {currentPage} of {totalPages}
         </span>
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
+        <Button variant="default" size="default" onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
           className="p-1.5 rounded-md hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

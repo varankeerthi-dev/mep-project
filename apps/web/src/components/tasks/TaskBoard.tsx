@@ -40,6 +40,7 @@ import {
   Timer,
   Check,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TaskBoardProps {
   projectId?: string;
@@ -466,13 +467,10 @@ function ContextMenu({
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        onClick={onAssign}
-        className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-zinc-700 hover:bg-zinc-50"
-      >
+      <Button variant="default" size="lg" onClick={onAssign} >
         <UserPlus size={14} className="text-zinc-400" />
         Assign to...
-      </button>
+      </Button>
     </div>
   );
 }
@@ -530,9 +528,7 @@ function QuickAssignDropdown({
             <div className="px-3 py-4 text-center text-[11px] text-zinc-400">No members found</div>
           ) : (
             filtered.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => onSelect(m.id)}
+              <Button variant="default" size="default" key={m.id} onClick={() => onSelect(m.id)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-zinc-700 hover:bg-zinc-50"
               >
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-bold text-zinc-600">
@@ -540,7 +536,7 @@ function QuickAssignDropdown({
                 </div>
                 <span className="truncate">{m.id}</span>
                 <span className="ml-auto text-[10px] text-zinc-400 capitalize">{m.role}</span>
-              </button>
+              </Button>
             ))
           )}
         </div>

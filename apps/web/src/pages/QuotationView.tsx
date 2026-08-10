@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Button } from '../components/ui/button';
 import DOMPurify from 'dompurify';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
@@ -22,10 +23,12 @@ import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw, Share2 } from 'lucide-react';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw, Share2, Settings2 } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
+import DocumentSettingsDrawer from '../components/document-settings/DocumentSettingsDrawer';
 
 
 
@@ -50,6 +53,7 @@ export default function QuotationView() {
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
   const [printLoading, setPrintLoading] = useState(false);
+  const [showDocumentSettings, setShowDocumentSettings] = useState(false);
   
   // Print dropdown ref for click outside
   const printMenuRef = useRef<HTMLDivElement>(null);
@@ -1631,9 +1635,9 @@ export default function QuotationView() {
         <div style={{ fontWeight: 600, color: '#b91c1c', marginBottom: '12px' }}>
           {(quotationQuery.error as Error)?.message || 'Unable to load quotation.'}
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => quotationQuery.refetch()}>
+        <Button onClick={() => quotationQuery.refetch()}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -1673,9 +1677,10 @@ export default function QuotationView() {
 
 
   return (
-    <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
+    <>
+    <ResizablePanelGroup direction="horizontal" autoSaveId="quotation-split" className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden">
       {/* Sidebar List (300px) */}
-      <div className="w-[300px] flex flex-col bg-white shadow-sm">
+      <ResizablePanel defaultSize={22} minSize={16} maxSize={38} className="flex flex-col bg-white shadow-sm">
         <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-zinc-700">All Quotes</h2>
           <button 
@@ -1728,10 +1733,11 @@ export default function QuotationView() {
             </div>
           )}
         </div>
-      </div>
+      </ResizablePanel>
+      <ResizableHandle withHandle />
 
       {/* Main Content (70%) */}
-      <div className="flex-1 bg-zinc-50 overflow-y-auto">
+      <ResizablePanel defaultSize={78} className="bg-zinc-50 overflow-y-auto">
         <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
@@ -1879,6 +1885,20 @@ export default function QuotationView() {
                 </div>
               )}
             </div>
+
+            <button 
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
+              onClick={() => { 
+                setShowDocumentSettings(true); 
+                setShowPrintMenu(false); 
+                setShowConvertMenu(false);
+                setShowTemplateMenu(false);
+                setShowActionsMenu(false);
+              }}
+            >
+              <Settings2 className="w-[14px] h-[14px]" />
+              Document Settings
+            </button>
 
             <div className="relative">
               <button 
@@ -2292,7 +2312,8 @@ export default function QuotationView() {
           )}
 </div>
       </div>
-    </div>
+    </ResizablePanel>
+    </ResizablePanelGroup>
 
     {/* Preview Modal */}
     {previewModalOpen && (
@@ -2524,7 +2545,18 @@ export default function QuotationView() {
         </div>
       </div>
     )}
-    </div>
+
+    <DocumentSettingsDrawer
+      isOpen={showDocumentSettings}
+      onClose={() => setShowDocumentSettings(false)}
+      organisationId={organisation?.id}
+      quotationId={quotationId}
+      onTemplateChanged={() => {
+        quotationQuery.refetch();
+        templatesQuery.refetch();
+      }}
+    />
+    </>
   );
 }
 

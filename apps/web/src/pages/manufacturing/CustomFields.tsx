@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../../components/ui/button';
 
 type CustomFieldsProps = {
   onNavigate: (path: string) => void;
@@ -146,12 +147,12 @@ export default function CustomFields({ onNavigate }: CustomFieldsProps) {
           <h1 className="text-2xl font-semibold text-zinc-900">Custom Fields</h1>
           <p className="text-zinc-500 mt-1">Add custom data fields to manufacturing entities</p>
         </div>
-        <button
+        <Button
           onClick={() => { setEditField(null); setFormData({ field_name: '', field_type: 'text', field_options: '', is_required: false, applies_to: 'all', sort_order: '0' }); setShowForm(true); }}
-          className="h-10 px-5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          className="h-10 px-5"
         >
           Add Field
-        </button>
+        </Button>
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-lg">
@@ -206,20 +207,23 @@ export default function CustomFields({ onNavigate }: CustomFieldsProps) {
                     <td className="px-6 py-4 text-zinc-500 text-sm">{field.sort_order}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="relative inline-block" ref={openMenuId === field.id ? menuRef : undefined}>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
                           onClick={() => setOpenMenuId(openMenuId === field.id ? null : field.id)}
-                          className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
+                          aria-label="Field actions"
+                          className="text-zinc-400 hover:text-zinc-600"
                         >
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <circle cx="10" cy="4" r="1.5" />
                             <circle cx="10" cy="10" r="1.5" />
                             <circle cx="10" cy="16" r="1.5" />
                           </svg>
-                        </button>
+                        </Button>
                         {openMenuId === field.id && (
                           <div className="absolute right-0 mt-1 w-40 bg-white border border-zinc-200 rounded-lg shadow-lg z-10 py-1">
-                            <button onClick={() => openEdit(field)} className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Edit</button>
-                            <button onClick={() => { deleteField.mutate(field.id); setOpenMenuId(null); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Delete</button>
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(field)} className="w-full justify-start rounded-none px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">Edit</Button>
+                            <Button variant="ghost" size="sm" onClick={() => { deleteField.mutate(field.id); setOpenMenuId(null); }} className="w-full justify-start rounded-none px-4 py-2 text-sm text-red-600 hover:bg-red-50">Delete</Button>
                           </div>
                         )}
                       </div>
@@ -237,14 +241,11 @@ export default function CustomFields({ onNavigate }: CustomFieldsProps) {
               Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, fields.length)} of {fields.length} field{fields.length !== 1 ? 's' : ''}
             </span>
             <div className="flex items-center gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="h-8 px-3 border border-zinc-200 rounded text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button key={p} onClick={() => setPage(p)}
-                  className={`h-8 w-8 rounded text-sm font-medium ${p === page ? 'bg-blue-600 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>{p}</button>
+                <Button key={p} variant={p === page ? 'default' : 'ghost'} size="icon-sm" onClick={() => setPage(p)}>{p}</Button>
               ))}
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="h-8 px-3 border border-zinc-200 rounded text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</Button>
             </div>
           </div>
         )}
@@ -293,12 +294,10 @@ export default function CustomFields({ onNavigate }: CustomFieldsProps) {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => { setShowForm(false); setEditField(null); }}
-                className="flex-1 h-10 px-5 border border-zinc-200 text-zinc-700 rounded-lg font-medium hover:bg-zinc-50 transition-colors">Cancel</button>
-              <button onClick={() => saveField.mutate()} disabled={saveField.isPending}
-                className="flex-1 h-10 px-5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
-                {saveField.isPending ? 'Saving...' : 'Save'}
-              </button>
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowForm(false); setEditField(null); }}>Cancel</Button>
+              <Button className="flex-1" onClick={() => saveField.mutate()} disabled={saveField.isPending} loading={saveField.isPending} loadingText="Saving...">
+                Save
+              </Button>
             </div>
           </div>
         </div>

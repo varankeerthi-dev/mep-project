@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../App';
 import { PackageCheck, AlertTriangle, CheckCircle, Clock, ShieldCheck, Warehouse } from 'lucide-react';
+import { useAppDateFormat } from '../contexts/DateFormatContext';
 
 interface MaterialReturnHandshake {
   id: string;
@@ -19,6 +20,7 @@ interface MaterialReturnHandshake {
 
 export const MaterialReturnVerification: React.FC = () => {
   const { user } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [returns, setReturns] = useState<MaterialReturnHandshake[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export const MaterialReturnVerification: React.FC = () => {
                 {returns.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50/80 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="font-medium">{new Date(item.submitted_at).toLocaleDateString()}</div>
+                      <div className="font-medium">{formatDate(item.submitted_at)}</div>
                       <div className="text-xs text-gray-500">{item.site_engineer_name || 'Site Eng'}</div>
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-gray-900">

@@ -3,6 +3,7 @@ import { Minus, Plus } from 'lucide-react';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyMaterial } from '../ui-utils';
 import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
+import { Button } from '@/components/ui/button';
 
 type InvoiceMaterialsEditorProps = {
   fields: FieldArrayWithId<InvoiceEditorFormValues, 'materials', 'id'>[];
@@ -45,9 +46,7 @@ export function InvoiceMaterialsEditor({
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
           Materials Used
         </span>
-        <button
-          type="button"
-          onClick={() => append(createEmptyMaterial())}
+        <Button variant="default" size="default" type="button" onClick={() => append(createEmptyMaterial())}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -64,7 +63,7 @@ export function InvoiceMaterialsEditor({
         >
           <Plus size={12} />
           Add
-        </button>
+        </Button>
       </div>
 
       {/* Table */}
@@ -185,9 +184,7 @@ export function InvoiceMaterialsEditor({
                   </select>
                 </td>
                 <td style={{ padding: '4px 8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
+                  <Button variant="default" size="default" type="button" onClick={() => remove(index)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -211,7 +208,7 @@ export function InvoiceMaterialsEditor({
                     title="Remove"
                   >
                     <Minus size={14} />
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}

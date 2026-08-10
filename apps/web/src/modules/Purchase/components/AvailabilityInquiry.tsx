@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import {
   useAvailabilityInquiries, useConvertAvailabilityResponseToPO,
   useCreateAvailabilityInquiry, usePostGoodsReceipt,
@@ -60,6 +61,7 @@ export default function AvailabilityInquiry() {
 
 function SourcingBoard({ organisationId, userId }: { organisationId?: string; userId?: string | null }) {
   const queryClient = useQueryClient();
+  const { formatDate } = useAppDateFormat();
   const { data: lines = [], isLoading } = useRequisitionLinesForSourcing(organisationId);
   const fulfillStore = useFulfillFromStoreLine();
   const sendPurchase = useSendToPurchaseLine();
@@ -488,13 +490,13 @@ function SourcingBoard({ organisationId, userId }: { organisationId?: string; us
                                     {resp.promise_date && (
                                       <span className="flex items-center gap-0.5">
                                         <Calendar className="w-2.5 h-2.5" />
-                                        {new Date(resp.promise_date).toLocaleDateString('en-IN')}
+                                        {formatDate(resp.promise_date)}
                                       </span>
                                     )}
                                     {resp.inquiry_created_at && (
                                       <span className="flex items-center gap-0.5">
                                         <Clock className="w-2.5 h-2.5" />
-                                        {new Date(resp.inquiry_created_at).toLocaleDateString('en-IN')}
+                                        {formatDate(resp.inquiry_created_at)}
                                       </span>
                                     )}
                                   </div>

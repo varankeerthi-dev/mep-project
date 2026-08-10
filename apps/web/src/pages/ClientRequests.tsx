@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { AppTable } from '../components/ui/AppTable';
 import { useAuth } from '../App';
+import { Button } from '../components/ui/button';
 
 type ClientRequest = {
   id?: string
@@ -86,7 +87,7 @@ export default function ClientRequests() {
       accessorKey: 'actions',
       cell: ({ row }) => (
         row.original.status === 'pending' && row.original.id ? (
-          <button className="btn btn-sm btn-secondary" onClick={() => updateStatus(row.original.id, 'resolved')}>Mark Resolved</button>
+          <Button variant="secondary" size="sm" onClick={() => updateStatus(row.original.id, 'resolved')}>Mark Resolved</Button>
         ) : null
       )
     }
@@ -96,7 +97,7 @@ export default function ClientRequests() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Client Requests</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ New Request'}</button>
+        <Button onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ New Request'}</Button>
       </div>
 
       {showForm && (
@@ -111,7 +112,7 @@ export default function ClientRequests() {
               <div className="form-group"><label className="form-label">Priority</label><select className="form-select" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value as 'low' | 'medium' | 'high'})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
             </div>
             <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
-            <button type="submit" className="btn btn-primary">Submit Request</button>
+            <Button type="submit">Submit Request</Button>
           </form>
         </div>
       )}

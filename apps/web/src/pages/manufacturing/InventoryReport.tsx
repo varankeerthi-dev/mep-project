@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Table, ColumnDef, RowAction } from '../../components/table';
 import { RangeCalendar } from '../../components/ui';
+import { Button } from '../../components/ui/button';
 
 type InventoryReportProps = {
   onNavigate: (path: string) => void;
@@ -601,31 +602,16 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
       {/* Date Range Popover */}
       <div ref={calPopoverRef} style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
         <span style={{ fontSize: '11px', fontWeight: 600, color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Custom Date Range</span>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setShowCalPopover(!showCalPopover)}
-          style={{
-            height: '32px',
-            paddingInline: '10px',
-            borderRadius: '6px',
-            border: '1px solid #E5E7EB',
-            backgroundColor: showCalPopover ? '#F9FAFB' : '#FFFFFF',
-            color: '#374151',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 500,
-            outline: 'none',
-            boxSizing: 'border-box',
-            transition: 'all 150ms ease',
-          }}
-          className="col-customizer-trigger"
+          className={`col-customizer-trigger w-full justify-between ${showCalPopover ? 'bg-gray-50' : 'bg-white'}`}
         >
-          <CalendarIcon size={14} style={{ color: '#6B7280' }} />
+          <CalendarIcon size={14} className="text-gray-500" />
           <span>{dateRangeLabel}</span>
-          <ChevronDown size={14} style={{ color: '#9CA3AF' }} />
-        </button>
+          <ChevronDown size={14} className="text-gray-400" />
+        </Button>
 
         {showCalPopover && (
           <div
@@ -671,33 +657,19 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
 
       {/* Clear/Reset Button */}
       {(startDate !== defaultStartDate || endDate !== defaultEndDate) && (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => {
             setStartDate(defaultStartDate);
             setEndDate(defaultEndDate);
             setMonthlyFilter('current-month');
             setPage(1);
           }}
-          style={{
-            alignSelf: 'flex-end',
-            height: '32px',
-            paddingInline: '12px',
-            fontSize: '12px',
-            fontWeight: 500,
-            color: '#DC2626',
-            backgroundColor: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '6px',
-            transition: 'background-color 150ms ease',
-          }}
-          className="col-show-all-btn"
+          className="col-show-all-btn self-end text-red-600"
         >
           Reset Dates
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -714,21 +686,9 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
           </span>
         </div>
         <div>
-          <button
-            onClick={() => onNavigate?.('/manufacturing/inventory/wip-valuation')}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d1d5db',
-              color: '#374151',
-              background: '#fff',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
+          <Button variant="secondary" onClick={() => onNavigate?.('/manufacturing/inventory/wip-valuation')}>
             WIP Valuation Report
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -772,17 +732,15 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
                   <span className="tabular-nums" style={{ fontWeight: row.productionQty > 0 ? 600 : 400, color: row.productionQty > 0 ? '#185FA5' : '#6b7280' }}>
                     {row.productionQty.toFixed(1).replace('.0', '')} {row.unit}
                   </span>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
                     onClick={(e) => { e.stopPropagation(); setDrawerItemId(row.id); }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '3px 8px',
-                      border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', color: '#185FA5',
-                      fontSize: '10px', fontWeight: 600, cursor: 'pointer', height: '22px', flexShrink: 0
-                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-blue-600"
+                    leftIcon={<Eye size={10} />}
                   >
-                    <Eye size={10} /> Details
-                  </button>
+                    Details
+                  </Button>
                 </div>
               ),
             },
@@ -900,24 +858,9 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
                   <span>Type: <strong>{selectedDrawerItem.item_classification === 'raw_material' ? 'Raw Material' : 'Finished Good'}</strong></span>
                 </div>
               </div>
-              <button
-                onClick={() => setDrawerItemId(null)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#9ca3af',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#111827'; e.currentTarget.style.background = '#f3f4f6'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
-              >
+              <Button variant="ghost" size="icon-sm" onClick={() => setDrawerItemId(null)} aria-label="Close" className="text-slate-400 hover:text-slate-900">
                 <X size={18} />
-              </button>
+              </Button>
             </div>
 
             {/* Drawer Content */}
@@ -1060,24 +1003,7 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
 
             {/* Drawer Footer */}
             <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', background: '#f9fafb' }}>
-              <button
-                onClick={() => setDrawerItemId(null)}
-                style={{
-                  padding: '6px 14px',
-                  border: '1px solid #d1d5db',
-                  background: '#fff',
-                  color: '#374151',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-              >
-                Close
-              </button>
+              <Button variant="secondary" onClick={() => setDrawerItemId(null)}>Close</Button>
             </div>
           </div>
 

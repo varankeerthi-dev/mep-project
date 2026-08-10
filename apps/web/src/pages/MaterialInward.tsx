@@ -8,6 +8,8 @@ import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useProjects } from '../hooks/useProjects';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { Button } from '../components/ui/button';
 
 const createEmptyItem = (id) => ({
   id,
@@ -24,6 +26,7 @@ const createEmptyItem = (id) => ({
 });
 
 export default function MaterialInward({ onSuccess, onCancel }) {
+  const { formatDate } = useAppDateFormat();
   const { organisation } = useAuth();
   const { data: materials = [] } = useMaterials(organisation?.id);
   const { data: warehouses = [] } = useWarehouses(organisation?.id);
@@ -356,8 +359,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
           {(pricingQuery.error instanceof Error && pricingQuery.error.message) || 'Unable to load inward data.'}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          <button type="button" className="btn btn-primary" onClick={() => pricingQuery.refetch()}>Retry</button>
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Back</button>
+          <Button type="button" onClick={() => pricingQuery.refetch()}>Retry</Button>
+          <Button type="button" variant="secondary" onClick={onCancel}>Back</Button>
         </div>
       </div>
     );
@@ -380,8 +383,6 @@ export default function MaterialInward({ onSuccess, onCancel }) {
     }
   };
 
-  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString() : '-';
-
   if (viewMode === 'list' || viewMode === 'view' || viewMode === 'edit') {
     return (
       <div>
@@ -389,9 +390,9 @@ export default function MaterialInward({ onSuccess, onCancel }) {
           <h1 className="page-title">Material Inward {viewMode === 'list' ? ' - Past Entries' : ''}</h1>
           <div style={{ display: 'flex', gap: '8px' }}>
             {viewMode !== 'list' && (
-              <button className="btn btn-secondary" onClick={() => { setViewMode('list'); setSelectedInward(null); }}>Back to List</button>
+              <Button variant="secondary" onClick={() => { setViewMode('list'); setSelectedInward(null); }}>Back to List</Button>
             )}
-            <button className="btn btn-primary" onClick={() => { setViewMode('form'); setSelectedInward(null); }}>+ New Entry</button>
+            <Button onClick={() => { setViewMode('form'); setSelectedInward(null); }}>+ New Entry</Button>
           </div>
         </div>
 
@@ -422,9 +423,9 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                       <TableCell>{warehouses.find(w => w.id === inward.warehouse_id)?.warehouse_name || '-'}</TableCell>
                       <TableCell>{inward.items?.length || 0} items</TableCell>
                       <TableCell>
-                        <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleView(inward)}>View</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleEdit(inward)}>Edit</button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => handleDelete(inward.id)}>Delete</button>
+                        <Button variant="secondary" size="sm" style={{ marginRight: '4px' }} onClick={() => handleView(inward)}>View</Button>
+                        <Button variant="secondary" size="sm" style={{ marginRight: '4px' }} onClick={() => handleEdit(inward)}>Edit</Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleDelete(inward.id)}>Delete</Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -484,8 +485,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
       <div className="page-header">
         <h1 className="page-title">Material Inward</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-secondary" onClick={() => setViewMode('list')}>View Past Entries</button>
-          <button className="btn btn-secondary" onClick={() => setShowPasteModal(true)}>Paste From Excel</button>
+          <Button variant="secondary" onClick={() => setViewMode('list')}>View Past Entries</Button>
+          <Button variant="secondary" onClick={() => setShowPasteModal(true)}>Paste From Excel</Button>
         </div>
       </div>
 
@@ -645,8 +646,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
       </div>
 
       <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-        <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={saving}>{saving ? 'Submitting...' : 'Submit Inward'}</button>
-        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
+        <Button type="button" onClick={handleSubmit} disabled={saving}>{saving ? 'Submitting...' : 'Submit Inward'}</Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
 
       {showPasteModal && (
@@ -666,8 +667,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
               style={{ width: '100%', height: '200px', padding: '12px', fontFamily: 'monospace', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-              <button className="btn btn-primary" onClick={() => setShowPasteModal(false)}>Import</button>
-              <button className="btn btn-secondary" onClick={() => setShowPasteModal(false)}>Cancel</button>
+              <Button onClick={() => setShowPasteModal(false)}>Import</Button>
+              <Button variant="secondary" onClick={() => setShowPasteModal(false)}>Cancel</Button>
             </div>
           </div>
         </div>

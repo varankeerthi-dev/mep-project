@@ -228,7 +228,7 @@ export function CategoryTab() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', padding: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 0' }}>
               <h2 style={{ fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, color: '#0C0A09', margin: 0 }}>{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#79716B', padding: '4px' }}>×</button>
+              <Button variant="ghost" size="default" onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#79716B', padding: '4px' }}>×</Button>
             </div>
             <form onSubmit={handleSubmit} style={{ padding: '20px 24px 24px' }}>
               <div className="flex flex-col w-full gap-5" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
@@ -271,8 +271,8 @@ export function CategoryTab() {
                   <label className="text-[12px] leading-[100%] text-[#0C0A09] cursor-pointer">Active</label>
                 </div>
                 <div className="flex gap-3 justify-end pt-1">
-                  <button type="submit" style={{ height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500, background: 'oklch(52% 0.105 223.1)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{editingCategory ? 'Update' : 'Save'}</button>
-                  <button type="button" onClick={resetForm} style={{ height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500, background: 'transparent', color: '#79716B', border: '1px solid #E7E5E4', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                  <Button variant="default" size="default" type="submit">{editingCategory ? 'Update' : 'Save'}</Button>
+                  <Button variant="ghost" size="default" type="button" onClick={resetForm}>Cancel</Button>
                 </div>
               </div>
             </form>

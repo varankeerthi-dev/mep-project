@@ -27,6 +27,7 @@ import {
   TaskUpdateInput,
 } from './types';
 import { SortableRow, SortableDragHandle } from './SortableRow';
+import { Button } from '@/components/ui/button';
 
 interface ProjectTaskGroupProps {
   group: TaskGroup;
@@ -199,8 +200,7 @@ export default function ProjectTaskGroup({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           {hasSubtasks ? (
                             <>
-                            <button
-                              onClick={(e) => {
+                            <Button variant="default" size="sm" onClick={(e) => {
                                 e.stopPropagation();
                                 setExpandedTasks(prev => {
                                   const next = new Set(prev);
@@ -213,25 +213,23 @@ export default function ProjectTaskGroup({
                             >
                               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                               <span style={{ fontSize: '0.625rem', fontWeight: 600, color: '#94a3b8', marginLeft: '0.125rem' }}>{(task as any).subtasks.length}</span>
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
+                            </Button>
+                            <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', opacity: 0 }}
                               className="ptl-subtask-add-btn"
                               title="Add sub-task"
                             >
                               <CornerDownRight size={13} />
-                            </button>
+                            </Button>
                             </>
                           ) : (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
+                            <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onAddSubTask(task.id); }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', opacity: 0 }}
                               className="ptl-subtask-add-btn"
                               title="Add sub-task"
                             >
                               <CornerDownRight size={13} />
-                            </button>
+                            </Button>
                           )}
                           {task.color && (
                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: task.color, flexShrink: 0 }} />
@@ -255,18 +253,16 @@ export default function ProjectTaskGroup({
                                   outline: 'none',
                                 }}
                               />
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
+                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
                                 style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer' }}
                               >
                                 <Check size={14} style={{ color: '#22c55e' }} />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                              </Button>
+                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
                                 style={{ padding: '0.25rem', background: 'none', border: 'none', cursor: 'pointer' }}
                               >
                                 <X size={14} style={{ color: '#ef4444' }} />
-                              </button>
+                              </Button>
                             </div>
                           ) : (
                             <span
@@ -567,8 +563,7 @@ export default function ProjectTaskGroup({
                     return (
                       <td key={col}>
                         {lastDate ? (
-                          <button
-                            onClick={(e) => {
+                          <Button variant="default" size="sm" onClick={(e) => {
                               e.stopPropagation();
                               if (reportId) {
                                 navigate(`/site-reports?view=view&report_id=${reportId}`);
@@ -592,7 +587,7 @@ export default function ProjectTaskGroup({
                           >
                             <FileText size={10} />
                             {isToday ? 'Today' : lastDate}
-                          </button>
+                          </Button>
                         ) : (
                           <span style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>—</span>
                         )}
@@ -604,8 +599,7 @@ export default function ProjectTaskGroup({
                 })}
                 {/* Delete column */}
                 <td style={{ textAlign: 'center', width: '36px', minWidth: '36px', maxWidth: '36px' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+                  <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
                     title="Delete task"
                     style={{
                       background: 'none',
@@ -623,7 +617,7 @@ export default function ProjectTaskGroup({
                     onMouseLeave={(e) => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
                   >
                     <Trash2 size={13} />
-                  </button>
+                  </Button>
                 </td>
               </SortableRow>
 
@@ -722,15 +716,14 @@ export default function ProjectTaskGroup({
                   })}
                   {/* Sub-task delete column */}
                   <td style={{ textAlign: 'center', width: '36px', minWidth: '36px', maxWidth: '36px' }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDeleteTask(subtask.id); }}
+                    <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onDeleteTask(subtask.id); }}
                       title="Delete sub-task"
                       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', borderRadius: '0.25rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s, background 0.15s' }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.background = 'none'; }}
                     >
                       <Trash2 size={12} />
-                    </button>
+                    </Button>
                   </td>
                 </SortableRow>
               ))}
@@ -815,8 +808,7 @@ export default function ProjectTaskGroup({
       {!isCollapsed && (!group.tasks || group.tasks.length === 0) && (
         <tr>
           <td colSpan={colSpan} style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '0.75rem', fontFamily: "'Inter', system-ui, sans-serif" }}>
-            <button
-              onClick={() => setShowInlineInput(true)}
+            <Button variant="default" size="sm" onClick={() => setShowInlineInput(true)}
               style={{
                 fontFamily: "'Inter', system-ui, sans-serif",
                 fontSize: '0.75rem',
@@ -829,7 +821,7 @@ export default function ProjectTaskGroup({
               }}
             >
               + Add first task
-            </button>
+            </Button>
           </td>
         </tr>
       )}

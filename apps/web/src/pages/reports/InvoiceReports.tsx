@@ -22,6 +22,7 @@ import {
   getHSNSummaryStats,
   getClients
 } from '../../reports/invoiceApi';
+import { useAppDateFormat } from '../../contexts/DateFormatContext';
 
 interface InvoiceData {
   id: string;
@@ -58,6 +59,7 @@ interface HSNData {
 const InvoiceReports = () => {
   const navigate = useNavigate();
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const [activeTab, setActiveTab] = useState('list');
   const [filters, setFilters] = useState({});
   const [reportData, setReportData] = useState<any>(null);
@@ -278,10 +280,10 @@ const InvoiceReports = () => {
                       {invoice.clients?.name || 'Unknown Client'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#18181B]">
-                      {new Date(invoice.invoice_date).toLocaleDateString()}
+                      {formatDate(invoice.invoice_date)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#18181B]">
-                      {new Date(invoice.due_date).toLocaleDateString()}
+                      {formatDate(invoice.due_date)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-[#18181B] font-mono">
                       ₹{invoice.total_amount.toLocaleString()}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface SettingsSearchBarProps {
   query: string;
@@ -24,13 +25,11 @@ export const SettingsSearchBar: React.FC<SettingsSearchBarProps> = ({
         style={{ fontSize: '12px' }}
       />
       {query && (
-        <button
-          type="button"
-          onClick={() => onChange('')}
+        <Button variant="ghost" size="default" type="button" onClick={() => onChange('')}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200/60 transition-colors"
         >
           <X className="w-3.5 h-3.5" />
-        </button>
+        </Button>
       )}
     </div>
   );

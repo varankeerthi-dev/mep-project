@@ -3,8 +3,14 @@ import { Input } from '../../../../components/ui/input';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { EditorSection } from './EditorSection';
 import { inputFieldSm } from './formStyles';
+import { buildStockKey, NO_VARIANT_KEY } from '../../model/aggregates';
 import type { WarehouseStockMap } from '../../model/aggregates';
 import type { Warehouse } from '../../model/entities';
+
+interface StockCombo {
+  variantId: string;
+  make: string;
+}
 
 interface InventorySectionProps {
   color?: 'indigo' | 'blue' | 'green' | 'purple' | 'orange' | 'teal' | 'slate';
@@ -12,7 +18,9 @@ interface InventorySectionProps {
   warehouseStock: WarehouseStockMap;
   warehouses: Warehouse[];
   usesVariant: boolean;
-  variantNames: string[];
+  /** Unique (variant × make) combinations, one stock column each */
+  stockCombos: StockCombo[];
+  variantNameById?: Record<string, string>;
   onToggleInventory: (checked: boolean) => void;
   onStockChange: (key: string, field: 'exclude' | 'current_stock', value: boolean | number) => void;
 }
@@ -23,7 +31,8 @@ export function InventorySection({
   warehouseStock,
   warehouses,
   usesVariant,
-  variantNames,
+  stockCombos,
+  variantNameById,
   onToggleInventory,
   onStockChange,
 }: InventorySectionProps) {
@@ -35,9 +44,9 @@ export function InventorySection({
       sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [collapsed]);
-  const variantIds = usesVariant && variantNames.length > 0
-    ? variantNames
-    : ['no_variant'];
+  const combos = usesVariant && stockCombos.length > 0
+    ? stockCombos
+    : [{ variantId: NO_VARIANT_KEY, make: '' }];
 
   return (
     <div ref={sectionRef}>
@@ -62,9 +71,11 @@ export function InventorySection({
               <thead>
                 <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC]">
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">Warehouse</th>
-                  {variantIds.map((vId) => (
-                    <th key={vId} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                      {vId === 'no_variant' ? 'Default' : vId}
+                  {combos.map((c) => (
+                    <th key={buildStockKey('header', c.variantId, c.make)} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                      {c.variantId === NO_VARIANT_KEY
+                        ? 'Default'
+                        : (variantNameById?.[c.variantId] || c.variantId) + (c.make ? ` — ${c.make}` : '')}
                     </th>
                   ))}
                 </tr>
@@ -73,8 +84,8 @@ export function InventorySection({
                 {warehouses.map((wh) => (
                   <tr key={wh.id} className="border-b border-[#F1F5F9] last:border-b-0 hover:bg-[#F8FAFC]/60">
                     <td className="px-4 py-3 text-[13px] font-medium text-[#111827]">{wh.warehouse_name || wh.name}</td>
-                    {variantIds.map((vId) => {
-                      const key = `${wh.id}_${vId}`;
+                    {combos.map((c) => {
+                      const key = buildStockKey(wh.id, c.variantId, c.make);
                       const stock = warehouseStock[key];
                       return (
                         <td key={key} className="px-4 py-3">

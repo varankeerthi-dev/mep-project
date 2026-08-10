@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Folder, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface EquipmentTabProps {
   selectedProject: any;
@@ -24,13 +25,11 @@ export function EquipmentTab({
     <div className="pl-card" style={{ padding: '1.25rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Equipment & Warranty Register</h3>
-        <button 
-          className="pl-btn pl-btn-primary" 
-          onClick={() => setIsEqModalOpen(true)}
+        <Button variant="default" size="default" onClick={() => setIsEqModalOpen(true)}
           style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8125rem' }}
         >
           <Plus size={14} /> Add Equipment
-        </button>
+        </Button>
       </div>
 
       {/* Alerts Rollup Box */}
@@ -135,8 +134,7 @@ export function EquipmentTab({
                   </td>
                   <td>
                     {tcCert ? (
-                      <button
-                        onClick={() => setSelectedTcCert(tcCert)}
+                      <Button variant="default" size="default" onClick={() => setSelectedTcCert(tcCert)}
                         className="pl-btn"
                         style={{
                           fontSize: '0.75rem',
@@ -152,7 +150,7 @@ export function EquipmentTab({
                       >
                         <FileText size={12} />
                         View Certificate
-                      </button>
+                      </Button>
                     ) : (
                       <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Pending Commissioning</span>
                     )}

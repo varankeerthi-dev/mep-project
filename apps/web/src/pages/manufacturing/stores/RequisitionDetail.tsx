@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Save, AlertCircle } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import { fetchStockByMaterials, fetchWarehouses } from '../../../features/manufacturing/persistence';
 import {
   useMaterialRequisitionDetailQuery,
@@ -101,7 +102,8 @@ export default function RequisitionDetail({ requisitionId, onCancel }: Requisiti
     issueMutation.mutate({
       requisitionId,
       orgId: organisation.id,
-      userId: user.id
+      userId: user.id,
+      userName: user.name || user.email || 'Unknown'
     }, {
       onSuccess: () => {
         onCancel();
@@ -151,12 +153,9 @@ export default function RequisitionDetail({ requisitionId, onCancel }: Requisiti
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Requisition {requisition.requisition_no}</h1>
@@ -233,32 +232,10 @@ export default function RequisitionDetail({ requisitionId, onCancel }: Requisiti
         {/* Action buttons */}
         {requisition.status !== 'issued' && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-            <button
-              onClick={onCancel}
-              style={{ padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirmIssue}
-              disabled={issueMutation.isPending}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 16px',
-                background: '#185FA5',
-                border: '1px solid #185FA5',
-                color: '#fff',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: issueMutation.isPending ? 'not-allowed' : 'pointer',
-                opacity: issueMutation.isPending ? 0.7 : 1
-              }}
-            >
-              <Save size={14} /> {issueMutation.isPending ? 'Issuing...' : 'Confirm Issuance to Production'}
-            </button>
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+            <Button onClick={handleConfirmIssue} disabled={issueMutation.isPending} loading={issueMutation.isPending} loadingText="Issuing..." leftIcon={<Save size={14} />}>
+              Confirm Issuance to Production
+            </Button>
           </div>
         )}
       </div>

@@ -8,6 +8,7 @@ import {
   TagIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
 
 interface FilterOption {
   id: string;
@@ -215,47 +216,39 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
         <div className="flex items-center gap-2">
           {savedFilters.length > 0 && (
             <div className="relative">
-              <button
-                onClick={() => setShowSavedFilters(!showSavedFilters)}
+              <Button variant="default" size="sm" onClick={() => setShowSavedFilters(!showSavedFilters)}
                 className="flex items-center gap-1 px-3 py-1 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
               >
                 Saved
                 <ChevronDownIcon className="w-4 h-4" />
-              </button>
+              </Button>
               {showSavedFilters && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-10">
                   {savedFilters.map(filter => (
-                    <button
-                      key={filter.id}
-                      onClick={() => {
+                    <Button variant="default" size="sm" key={filter.id} onClick={() => {
                         onLoadFilter?.(filter.id);
                         setShowSavedFilters(false);
                       }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 first:rounded-t-md last:rounded-b-md"
                     >
                       {filter.name}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
             </div>
           )}
           {onSaveFilter && (
-            <button
-              onClick={() => setShowSaveModal(true)}
+            <Button variant="default" size="sm" onClick={() => setShowSaveModal(true)}
               className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 transition-colors"
             >
               Save
-            </button>
+            </Button>
           )}
-          <button
-            onClick={handleReset}
-            className="px-3 py-1 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
-          >
+          <Button variant="default" size="sm" onClick={handleReset} >
             Reset
-          </button>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
+          </Button>
+          <Button variant="default" size="sm" onClick={() => setIsExpanded(!isExpanded)}
             className="p-1 hover:bg-zinc-100 rounded transition-colors"
           >
             {isExpanded ? (
@@ -263,7 +256,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
             ) : (
               <ChevronDownIcon className="w-4 h-4 text-zinc-600" />
             )}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -301,22 +294,17 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
               autoFocus
             />
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
+              <Button variant="default" size="sm" onClick={() => {
                   setShowSaveModal(false);
                   setFilterName('');
                 }}
                 className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
               >
                 Cancel
-              </button>
-              <button
-                onClick={handleSaveFilter}
-                disabled={!filterName.trim()}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
+              </Button>
+              <Button variant="default" size="sm" onClick={handleSaveFilter} disabled={!filterName.trim()} >
                 Save Filter
-              </button>
+              </Button>
             </div>
           </div>
         </div>

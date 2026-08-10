@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { formatCurrency } from '../utils/formatters';
+import { formatAppDate } from '@/lib/dateFormat';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -659,7 +660,7 @@ export default function ProjectList() {
   };
 
   const fmt = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
-  const fmtD = (d?: string | null) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
+  const fmtD = (d?: string | null) => formatAppDate(d);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // LOADING STATE

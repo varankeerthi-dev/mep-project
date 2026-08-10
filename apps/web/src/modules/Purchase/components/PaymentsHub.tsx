@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Wallet, BadgeAlert, Timer, X, ChevronLeft, ChevronRight, CalendarDays, Table2 } from 'lucide-react';
+import { CheckCircle2, Wallet, BadgeAlert, Timer, ChevronLeft, ChevronRight, CalendarDays, Table2, Trash2, RotateCcw, CircleDollarSign } from 'lucide-react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { AppTable } from '@/components/ui/AppTable';
+import { Table, ColumnDef, StatusBadge, BulkAction } from '@/components/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApprovedPaymentsForAccountant, useReleasePayment, useReleaseSubcontractorPayment, useSubcontractorPaymentsForAccountant, useApprovedPaymentRequests, useReleasedPayments, useReleasedSubcontractorPayments, useRecordPaymentForRequest } from '../hooks/usePurchaseQueries';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { useApprovedPaymentsForAccountant, useReleasePayment, useReleaseSubcontractorPayment, useSubcontractorPaymentsForAccountant, useApprovedPaymentRequests, useReleasedPayments, useReleasedSubcontractorPayments, useRecordPaymentForRequest, useBulkMarkPaid, useBulkSoftDelete, useBulkResendReapproval } from '../hooks/usePurchaseQueries';
 import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 
@@ -54,11 +55,6 @@ const ACCOUNTANT_ROLES = new Set([
   'Accounts Manager',
 ]);
 
-const TYPE_CONFIG = {
-  vendor: { full: 'Vendor', color: 'text-blue-600' },
-  subcontractor: { full: 'Subcontractor', color: 'text-emerald-600' },
-};
-
 const PAYMENT_MODES: PaymentMode[] = ['Bank Transfer', 'GPAY', 'Cash', 'Cheque'];
 
 const PAYMENT_MODE_CONFIG: Record<PaymentMode, { color: string; activeBg: string }> = {
@@ -70,6 +66,8 @@ const PAYMENT_MODE_CONFIG: Record<PaymentMode, { color: string; activeBg: string
 
 export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' }> = ({ scope = 'all' }) => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
+  const fmtDate = (v?: string | null): string => (v ? formatDate(v) : '—');
   const orgId = organisation?.id as string | undefined;
   const [typeFilter, setTypeFilter] = useState<PaymentType | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,6 +91,25 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     return { year: now.getFullYear(), month: now.getMonth() };
   });
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [hiddenColumnIds, setHiddenColumnIds] = useState<string[]>([]);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string | number>>(new Set());
+
+  // Filter panel state
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | PaymentMode>('all');
+
+  // Bulk actions state
+  const [bulkMarkPaidOpen, setBulkMarkPaidOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<UnifiedRow[]>([]);
+  const [bulkDates, setBulkDates] = useState<Record<string, string>>({});
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteReason, setBulkDeleteReason] = useState('');
+  const [bulkDeleteError, setBulkDeleteError] = useState('');
+  const [bulkResendOpen, setBulkResendOpen] = useState(false);
+
   const { data: vendorPayments = [], isLoading: vendorLoading } = useApprovedPaymentsForAccountant(orgId);
   const { data: subPayments = [], isLoading: subLoading } = useSubcontractorPaymentsForAccountant(orgId);
   const { data: paymentRequests = [], isLoading: reqLoading } = useApprovedPaymentRequests(orgId);
@@ -101,6 +118,9 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const releaseVendor = useReleasePayment();
   const releaseSub = useReleaseSubcontractorPayment();
   const recordPayment = useRecordPaymentForRequest();
+  const bulkMarkPaid = useBulkMarkPaid();
+  const bulkSoftDelete = useBulkSoftDelete();
+  const bulkResend = useBulkResendReapproval();
 
   const role = (organisation?.user?.role as string | undefined) ?? '';
   const canRelease = ACCOUNTANT_ROLES.has(role);
@@ -219,8 +239,147 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         r.payment_mode.toLowerCase().includes(term)
       );
     }
+    if (filterFrom) {
+      const from = new Date(filterFrom);
+      list = list.filter(r => {
+        const d = r.approved_at ? new Date(r.approved_at) : r.payment_date ? new Date(r.payment_date) : null;
+        return d && d >= from;
+      });
+    }
+    if (filterTo) {
+      const to = new Date(filterTo);
+      to.setHours(23, 59, 59, 999);
+      list = list.filter(r => {
+        const d = r.approved_at ? new Date(r.approved_at) : r.payment_date ? new Date(r.payment_date) : null;
+        return d && d <= to;
+      });
+    }
+    if (filterMode !== 'all') {
+      list = list.filter(r => r.payment_mode === filterMode);
+    }
     return list;
-  }, [unified, effectiveTypeFilter, searchTerm, showRecent]);
+  }, [unified, effectiveTypeFilter, searchTerm, showRecent, filterFrom, filterTo, filterMode]);
+
+  const pagedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  const typeFilterOptions = useMemo(() => [
+    { id: 'all', label: `All (${unified.length})` },
+    { id: 'vendor', label: `Vendor (${unified.filter(r => r._type === 'vendor').length})` },
+    { id: 'subcontractor', label: `Subcontractor (${unified.filter(r => r._type === 'subcontractor').length})` },
+  ], [unified]);
+
+  const handleRowSelect = (row: UnifiedRow, checked: boolean) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(row.id);
+      else next.delete(row.id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) setSelectedRowIds(new Set(pagedData.map((r) => r.id)));
+    else setSelectedRowIds(new Set());
+  };
+
+  const openBulkMarkPaid = (rows: UnifiedRow[]) => {
+    const initial: Record<string, string> = {};
+    rows.forEach((r) => {
+      initial[r.id] = new Date().toISOString().split('T')[0];
+    });
+    setBulkRows(rows);
+    setBulkDates(initial);
+    setBulkMarkPaidOpen(true);
+  };
+
+  const openBulkDelete = (rows: UnifiedRow[]) => {
+    setBulkRows(rows);
+    setBulkDeleteReason('');
+    setBulkDeleteError('');
+    setBulkDeleteOpen(true);
+  };
+
+  const openBulkResend = (rows: UnifiedRow[]) => {
+    setBulkRows(rows);
+    setBulkResendOpen(true);
+  };
+
+  const bulkActions: BulkAction<UnifiedRow>[] = useMemo(() => [
+    {
+      label: 'Mark as paid',
+      variant: 'primary',
+      icon: <CircleDollarSign size={13} />,
+      onClick: (rows) => openBulkMarkPaid(rows),
+    },
+    {
+      label: 'Delete',
+      variant: 'danger',
+      icon: <Trash2 size={13} />,
+      onClick: (rows) => openBulkDelete(rows),
+    },
+    {
+      label: 'Send again for reapproval',
+      icon: <RotateCcw size={13} />,
+      onClick: (rows) => openBulkResend(rows),
+    },
+  ], []);
+
+  const confirmBulkMarkPaid = () => {
+    const items = bulkRows.map((r) => ({
+      id: r.id,
+      type: r._type,
+      isRequest: r.isRequest,
+      paymentDate: bulkDates[r.id],
+    }));
+    bulkMarkPaid.mutate(
+      { items, userId: organisation?.user?.id },
+      {
+        onSuccess: () => {
+          toast.success(`${bulkRows.length} payment(s) marked as paid`);
+          setBulkMarkPaidOpen(false);
+          setSelectedRowIds(new Set());
+        },
+        onError: (e: any) => toast.error(e?.message ?? 'Failed to mark payments as paid'),
+      }
+    );
+  };
+
+  const confirmBulkDelete = () => {
+    if (!bulkDeleteReason.trim()) {
+      setBulkDeleteError('Reason is required to delete');
+      return;
+    }
+    const items = bulkRows.map((r) => ({ id: r.id, type: r._type, isRequest: r.isRequest }));
+    bulkSoftDelete.mutate(
+      { items, reason: bulkDeleteReason.trim(), userId: organisation?.user?.id },
+      {
+        onSuccess: () => {
+          toast.success(`${bulkRows.length} payment(s) deleted`);
+          setBulkDeleteOpen(false);
+          setSelectedRowIds(new Set());
+        },
+        onError: (e: any) => toast.error(e?.message ?? 'Failed to delete payments'),
+      }
+    );
+  };
+
+  const confirmBulkResend = () => {
+    const items = bulkRows.map((r) => ({ id: r.id, type: r._type, isRequest: r.isRequest }));
+    bulkResend.mutate(
+      { items },
+      {
+        onSuccess: () => {
+          toast.success(`${bulkRows.length} payment(s) sent for re-approval`);
+          setBulkResendOpen(false);
+          setSelectedRowIds(new Set());
+        },
+        onError: (e: any) => toast.error(e?.message ?? 'Failed to resend for re-approval'),
+      }
+    );
+  };
 
   const totalPayable = useMemo(() => filtered.reduce((s, r) => s + r.amount, 0), [filtered]);
   const vendorCount = filtered.filter(r => r._type === 'vendor').length;
@@ -345,79 +504,80 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
     { label: 'Subcontractor', value: `${subCount} pending`, icon: Timer, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   ];
 
-  const columns = [
+  const columns: ColumnDef<UnifiedRow>[] = [
     {
-      id: 'type',
       header: 'Payment Type',
-      cell: ({ row }: any) => {
-        const cfg = TYPE_CONFIG[row.original._type as PaymentType];
-        return (
-          <span className={cn('text-xs font-semibold', cfg.color)}>{cfg.full}</span>
-        );
-      },
+      accessorKey: '_type',
+      id: 'type',
+      type: 'status',
+      align: 'center',
+      statusType: (r) => (r._type === 'vendor' ? 'blue' : 'success'),
+      cell: ({ getValue }) => (getValue() === 'vendor' ? 'Vendor' : 'Subcontractor'),
     },
     {
-      id: 'voucher_no',
       header: 'Voucher',
-      cell: ({ row }: any) => (
-        <span className="font-semibold text-zinc-800 text-xs">{row.original.voucher_no}</span>
-      ),
+      accessorKey: 'voucher_no',
+      id: 'voucher_no',
+      type: 'id',
+      align: 'left',
     },
     {
-      id: 'payee_name',
       header: 'Payee',
-      cell: ({ row }: any) => (
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-900">{row.original.payee_name}</span>
-        </div>
-      ),
+      accessorKey: 'payee_name',
+      id: 'payee_name',
+      type: 'text',
+      align: 'left',
     },
     {
-      id: 'project_name',
       header: 'Project',
-      cell: ({ row }: any) => (
-        <span className="text-xs text-zinc-500">{row.original.project_name || '—'}</span>
-      ),
+      accessorKey: 'project_name',
+      id: 'project_name',
+      type: 'text',
+      align: 'left',
+      cell: ({ getValue }) => (getValue() as string) || '—',
     },
     {
-      id: 'approved_at',
       header: showRecent ? 'Released' : 'Approved',
-      cell: ({ row }: any) => {
-        if (!row.original.approved_at) return <span className="text-xs text-zinc-400">—</span>;
-        const d = new Date(row.original.approved_at);
+      accessorKey: 'approved_at',
+      id: 'approved_at',
+      type: 'date',
+      align: 'left',
+      cell: ({ getValue }) => {
+        const v = getValue() as string | null;
+        return fmtDate(v);
+      },
+      secondaryText: (r) => {
+        if (!r.approved_at) return '';
+        const d = new Date(r.approved_at);
         const days = Math.ceil((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-        return (
-          <div className="flex flex-col">
-            <span className="text-xs text-zinc-700">{d.toLocaleDateString('en-IN')}</span>
-            <span className="text-[10px] text-zinc-400">{days > 0 ? `${days}d ago` : 'Today'}</span>
-          </div>
-        );
+        return days > 0 ? `${days}d ago` : 'Today';
       },
     },
     {
-      id: 'amount',
       header: 'Amount',
-      cell: ({ row }: any) => (
-        <div className="font-semibold text-zinc-900 tabular-nums text-sm">
-          ₹{row.original.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </div>
-      ),
+      accessorKey: 'amount',
+      id: 'amount',
+      type: 'money',
+      align: 'right',
+      cell: ({ getValue }) => `₹${(getValue() as number).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
     },
     {
-      id: 'payment_mode',
       header: 'Mode',
-      cell: ({ row }: any) => (
-        <span className="inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-600">
-          {row.original.payment_mode}
-        </span>
-      ),
+      accessorKey: 'payment_mode',
+      id: 'payment_mode',
+      type: 'status',
+      align: 'center',
+      statusType: () => 'neutral',
     },
     {
-      id: 'cheque_due_date',
       header: 'Due',
-      cell: ({ row }: any) => {
-        const r = row.original;
-        if (r.payment_mode !== 'Cheque' || !r.cheque_due_date) return <span className="text-[10px] text-zinc-300">—</span>;
+      accessorKey: 'cheque_due_date',
+      id: 'cheque_due_date',
+      type: 'text',
+      align: 'left',
+      cell: ({ row }) => {
+        const r = row;
+        if (r.payment_mode !== 'Cheque' || !r.cheque_due_date) return <span className="text-xs text-zinc-300">—</span>;
         const due = new Date(r.cheque_due_date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -426,15 +586,15 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         const isToday = diffDays === 0;
         const isSoon = diffDays > 0 && diffDays <= 7;
         return (
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-0.5">
             <span className={cn(
-              'text-xs font-medium',
+              'text-[13px] font-medium',
               isOverdue ? 'text-red-600' : isToday ? 'text-amber-600' : isSoon ? 'text-amber-600' : 'text-zinc-700'
             )}>
-              {due.toLocaleDateString('en-IN')}
+              {fmtDate(r.cheque_due_date)}
             </span>
             <span className={cn(
-              'text-[10px]',
+              'text-[11px]',
               isOverdue ? 'text-red-500 font-semibold' : isToday ? 'text-amber-600 font-semibold' : isSoon ? 'text-amber-500' : 'text-zinc-400'
             )}>
               {isOverdue ? `${Math.abs(diffDays)}d overdue` : isToday ? 'Today' : isSoon ? `${diffDays}d left` : `${diffDays}d`}
@@ -444,13 +604,13 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
       },
     },
     {
-      id: 'actions',
       header: '',
-      cell: ({ row }: any) => {
-        if (showRecent) {
-          return <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">Released</span>;
-        }
-        const r = row.original;
+      id: 'actions',
+      type: 'text',
+      align: 'right',
+      cell: ({ row }) => {
+        if (showRecent) return <StatusBadge status="success">Released</StatusBadge>;
+        const r = row;
         if (r.isRequest) {
           return (
             <button
@@ -464,9 +624,9 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         return canRelease ? (
           <Button
             type="button"
-            variant="primary"
+            variant="default"
             size="sm"
-            onClick={() => handleRelease(row.original)}
+            onClick={() => handleRelease(row)}
             disabled={releaseVendor.isPending || releaseSub.isPending}
             className="h-7 px-2.5 text-xs font-semibold gap-1"
           >
@@ -483,7 +643,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
   const isLoading = showRecent ? (releasedVendorLoading || releasedSubLoading) : (vendorLoading || subLoading || reqLoading);
 
   return (
-    <div className="flex flex-col h-full bg-white max-w-[1000px] mx-auto">
+    <div className="flex flex-col h-full bg-white w-full max-w-[1000px] mx-auto" style={{ width: '100%', maxWidth: '1000px' }}>
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div>
           <h1 className="text-base font-semibold text-zinc-900">
@@ -493,16 +653,29 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
             {scope === 'all' ? 'Treasury — pay vendors & subcontractors' : 'Payments approved and ready for release'}
           </p>
         </div>
-        {!canRelease && scope === 'all' && (
-          <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-md font-medium">
-            Accountant access required to release
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {!canRelease && scope === 'all' && (
+            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-md font-medium">
+              Accountant access required to release
+            </span>
+          )}
+          <button
+            onClick={() => { setShowRecent(!showRecent); setTypeFilter('all'); setPage(1); }}
+            className={cn(
+              'px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors',
+              showRecent
+                ? 'bg-zinc-900 text-white border-zinc-900'
+                : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+            )}
+          >
+            Recent Payments
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 px-6 py-4">
         {summaryCards.map((card, i) => (
-          <div key={i} className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+          <div key={i} className="!bg-white !border-zinc-200 border rounded-xl overflow-hidden" style={{ backgroundColor: 'white !important', borderColor: '#E4E4E7 !important' }}>
             <div className="p-4 flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{card.label}</p>
@@ -516,92 +689,62 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
         ))}
       </div>
 
-      {scope === 'all' && (
-        <div className="flex items-center gap-2 px-6 pb-3">
-          {(['all', 'vendor', 'subcontractor'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors',
-                effectiveTypeFilter === t
-                  ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
-              )}
-            >
-              {t === 'all' ? `All (${unified.length})` : `${t.charAt(0).toUpperCase() + t.slice(1)} (${unified.filter(r => r._type === t).length})`}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => { setShowRecent(!showRecent); setTypeFilter('all'); }}
-              className={cn(
-                'px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors',
-                showRecent
-                  ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
-              )}
-            >
-              Recent Payments
-            </button>
-            <div className="relative">
-              <input
-                placeholder="Search payee, voucher..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-3 pr-8 h-8 w-56 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {scope !== 'all' && (
-        <div className="flex items-center justify-between px-6 pb-3">
-          <span className="text-xs text-zinc-500 font-medium">{filtered.length} payment{filtered.length !== 1 ? 's' : ''} awaiting release</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setShowRecent(!showRecent); setTypeFilter('all'); }}
-              className={cn(
-                'px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors',
-                showRecent
-                  ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
-              )}
-            >
-              Recent Payments
-            </button>
-            <div className="relative">
-              <input
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-3 pr-8 h-8 w-56 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex-1 overflow-auto px-1 min-h-0">
-        <AppTable
-          data={filtered}
-          columns={columns as any}
+      <div className="flex-1 overflow-auto min-h-0 px-6 pb-4">
+        <Table<UnifiedRow>
+          data={pagedData}
+          columns={columns}
           loading={isLoading}
-          defaultPageSize={25}
-          emptyMessage={showRecent ? 'No recent payments this week' : scope === 'vendor' ? 'No vendor payments awaiting release' : scope === 'subcontractor' ? 'No subcontractor payments awaiting release' : 'No payments awaiting release. Everything is up to date.'}
-          rowPadding="py-[7px]"
-          className="border-0 border-t border-zinc-100 rounded-none"
+          page={page}
+          pageSize={pageSize}
+          totalRows={filtered.length}
+          searchable
+          selectable
+          sortable
+          pagination
+          onPageChange={setPage}
+          onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+          onSearch={(val) => { setSearchTerm(val); setPage(1); }}
+          selectedRowIds={selectedRowIds}
+          onRowSelectChange={handleRowSelect}
+          onSelectAllChange={handleSelectAll}
+          filterOptions={scope === 'all' ? typeFilterOptions : undefined}
+          selectedFilterId={scope === 'all' ? effectiveTypeFilter : undefined}
+          onFilterSelect={(id) => { setTypeFilter(id as PaymentType | 'all'); setPage(1); }}
+          hiddenColumnIds={hiddenColumnIds}
+          onColumnVisibilityChange={setHiddenColumnIds}
+          mandatoryColumnIds={['voucher_no', 'payee_name', 'amount', 'actions']}
+          bulkActions={bulkActions}
+          filterPanel={
+            <div className="flex flex-wrap items-end gap-3 py-1">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">From</Label>
+                <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-8 text-xs border-zinc-200 rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">To</Label>
+                <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-8 text-xs border-zinc-200 rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Mode</Label>
+                <select
+                  value={filterMode}
+                  onChange={(e) => setFilterMode(e.target.value as 'all' | PaymentMode)}
+                  className="h-8 text-xs border-zinc-200 rounded-lg bg-white px-2"
+                >
+                  <option value="all">All modes</option>
+                  {PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <button
+                onClick={() => { setFilterFrom(''); setFilterTo(''); setFilterMode('all'); setPage(1); }}
+                className="h-8 px-3 text-xs font-medium text-zinc-500 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors"
+              >
+                Clear filters
+              </button>
+            </div>
+          }
+          emptyTitle={showRecent ? 'No recent payments this week' : scope === 'vendor' ? 'No vendor payments awaiting release' : scope === 'subcontractor' ? 'No subcontractor payments awaiting release' : 'No payments awaiting release'}
+          emptySubtitle={scope === 'all' && !showRecent ? 'Everything is up to date.' : undefined}
         />
       </div>
 
@@ -673,7 +816,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
                                   'text-sm font-medium',
                                   isOverdue ? 'text-red-600' : isToday ? 'text-amber-600' : isSoon ? 'text-amber-600' : 'text-zinc-900'
                                 )}>
-                                  {due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  {fmtDate(d.dueDate)}
                                 </span>
                                 <span className={cn(
                                   'text-[11px] mt-0.5',
@@ -924,7 +1067,7 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
                   Reason for early/late payment *
                 </Label>
                 <p className="text-[10px] text-amber-600">
-                  Due date: {selectedRow?.due_date ? new Date(selectedRow.due_date).toLocaleDateString('en-IN') : '—'} but recording for: {recordPaymentDate ? new Date(recordPaymentDate).toLocaleDateString('en-IN') : '—'}
+                  Due date: {fmtDate(selectedRow?.due_date)} but recording for: {fmtDate(recordPaymentDate)}
                 </p>
                 <textarea
                   value={recordReason}
@@ -952,13 +1095,119 @@ export const PaymentsHub: React.FC<{ scope?: 'all' | 'vendor' | 'subcontractor' 
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="default"
               onClick={handleRecordPayment}
               disabled={recordPayment.isPending}
               className="px-5 h-9 text-xs font-semibold gap-1.5"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               {recordPayment.isPending ? 'Recording...' : 'Record Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Mark as Paid Dialog (per-row dates) */}
+      <Dialog open={bulkMarkPaidOpen} onOpenChange={(open) => !open && !bulkMarkPaid.isPending && setBulkMarkPaidOpen(false)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-emerald-50/40">
+            <DialogTitle className="text-base font-bold text-zinc-900">Mark {bulkRows.length} payment(s) as paid</DialogTitle>
+            <p className="text-xs text-zinc-500 mt-1">Set a payment date for each row</p>
+          </DialogHeader>
+          <div className="p-5 space-y-2 max-h-[50vh] overflow-auto">
+            {bulkRows.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-zinc-200 bg-white">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-zinc-800 truncate">{r.payee_name}</p>
+                  <p className="text-[10px] text-zinc-400">
+                    {r.voucher_no} · ₹{r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <Input
+                  type="date"
+                  value={bulkDates[r.id] || ''}
+                  onChange={(e) => setBulkDates((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  className="h-8 w-40 text-xs border-zinc-200 rounded-lg"
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50">
+            <Button variant="outline" onClick={() => setBulkMarkPaidOpen(false)} className="px-5 h-9 text-xs font-semibold border-zinc-200">
+              Cancel
+            </Button>
+            <Button variant="default" onClick={confirmBulkMarkPaid} disabled={bulkMarkPaid.isPending} className="px-5 h-9 text-xs font-semibold gap-1.5 bg-emerald-700 hover:bg-emerald-800">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {bulkMarkPaid.isPending ? 'Updating...' : 'Confirm payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog (soft-delete with reason) */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={(open) => !open && !bulkSoftDelete.isPending && setBulkDeleteOpen(false)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-red-50/40">
+            <DialogTitle className="text-base font-bold text-zinc-900">Delete {bulkRows.length} payment(s)?</DialogTitle>
+            <p className="text-xs text-zinc-500 mt-1">These rows will be hidden from the queue. The record is retained in the database.</p>
+          </DialogHeader>
+          <div className="p-5 space-y-3">
+            <div className="rounded-lg border border-red-100 bg-red-50/50 px-3 py-2 text-[11px] text-red-600">
+              {bulkRows.slice(0, 5).map((r) => r.payee_name).join(', ')}
+              {bulkRows.length > 5 && ` +${bulkRows.length - 5} more`}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-zinc-600">Reason for deletion *</Label>
+              <textarea
+                value={bulkDeleteReason}
+                onChange={(e) => { setBulkDeleteReason(e.target.value); setBulkDeleteError(''); }}
+                placeholder="e.g. Duplicate entry, wrong amount, cancelled by approver..."
+                rows={3}
+                className={cn(
+                  'w-full text-sm border rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none',
+                  bulkDeleteError ? 'border-red-300 bg-red-50' : 'border-zinc-200'
+                )}
+              />
+              {bulkDeleteError && <p className="text-[10px] text-red-500">{bulkDeleteError}</p>}
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50">
+            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)} className="px-5 h-9 text-xs font-semibold border-zinc-200">
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={confirmBulkDelete}
+              disabled={bulkSoftDelete.isPending}
+              className="px-5 h-9 text-xs font-semibold gap-1.5 bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {bulkSoftDelete.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Send again for reapproval Dialog */}
+      <Dialog open={bulkResendOpen} onOpenChange={(open) => !open && !bulkResend.isPending && setBulkResendOpen(false)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-amber-50/40">
+            <DialogTitle className="text-base font-bold text-zinc-900">Send {bulkRows.length} payment(s) for re-approval?</DialogTitle>
+            <p className="text-xs text-zinc-500 mt-1">Rows are reset to pending and routed through the approval flow again.</p>
+          </DialogHeader>
+          <div className="p-5">
+            <div className="rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-700">
+              {bulkRows.slice(0, 5).map((r) => r.payee_name).join(', ')}
+              {bulkRows.length > 5 && ` +${bulkRows.length - 5} more`}
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-4 border-t bg-zinc-50/50">
+            <Button variant="outline" onClick={() => setBulkResendOpen(false)} className="px-5 h-9 text-xs font-semibold border-zinc-200">
+              Cancel
+            </Button>
+            <Button variant="default" onClick={confirmBulkResend} disabled={bulkResend.isPending} className="px-5 h-9 text-xs font-semibold gap-1.5">
+              <RotateCcw className="w-3.5 h-3.5" />
+              {bulkResend.isPending ? 'Sending...' : 'Send for re-approval'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Timer, Square, ExternalLink } from 'lucide-react';
 import { useActiveTimer, useStopTimer } from './hooks';
+import { Button } from '@/components/ui/button';
 
 function formatElapsed(startTime: string): string {
   const diff = Date.now() - new Date(startTime).getTime();
@@ -48,14 +49,13 @@ export default function ActiveTimerBanner({ userId }: { userId: string }) {
         {elapsed}
       </span>
 
-      <button
-        onClick={() => stopTimer.mutate(activeTimer.id)}
+      <Button variant="default" size="default" onClick={() => stopTimer.mutate(activeTimer.id)}
         disabled={stopTimer.isPending}
         className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50 shrink-0"
       >
         <Square size={10} fill="currentColor" />
         Stop
-      </button>
+      </Button>
     </div>
   );
 }

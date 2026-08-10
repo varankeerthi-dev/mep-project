@@ -94,7 +94,7 @@ export default function AcceptInvitation() {
                 <Button
                   onClick={handleAcceptInvitation}
                   disabled={loading}
-                  variant="primary"
+                  variant="default"
                   className="flex-1"
                 >
                   {loading ? 'Accepting...' : 'Accept Invitation'}

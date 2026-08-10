@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import { Button } from '@/components/ui/button';
 
 interface AddEquipmentModalProps {
   isOpen: boolean;
@@ -83,9 +84,9 @@ export function AddEquipmentModal({
       <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '550px', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: '#1e293b' }}>Add Equipment to Project</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }} disabled={submitting}>
+          <Button variant="ghost" size="default" onClick={onClose} disabled={submitting}>
             <X size={20} />
-          </button>
+          </Button>
         </div>
         <form onSubmit={handleEqSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -178,12 +179,12 @@ export function AddEquipmentModal({
             </div>
           </div>
           <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-            <button type="button" onClick={onClose} className="pl-btn" style={{ background: '#fff', border: '1px solid #cbd5e1' }} disabled={submitting}>
+            <Button variant="outline" size="default" type="button" onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1' }} disabled={submitting}>
               Cancel
-            </button>
-            <button type="submit" className="pl-btn pl-btn-primary" disabled={submitting}>
+            </Button>
+            <Button variant="default" size="default" type="submit" disabled={submitting}>
               {submitting ? 'Saving...' : 'Save Equipment'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

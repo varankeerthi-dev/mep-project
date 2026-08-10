@@ -149,7 +149,7 @@ export function WinLossModal({
           >
             Cancel
           </Button>
-          <Button type="button" variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
+          <Button type="button" variant="default" onClick={handleSubmit} disabled={!canSubmit}>
             Save & continue
           </Button>
         </DialogFooter>

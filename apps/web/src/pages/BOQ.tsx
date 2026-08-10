@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import ReactDOM from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '../components/ui/button';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '../supabase';
@@ -1364,7 +1365,7 @@ export function BOQ() {
         <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: '12px' }}>
           {(initQuery.error instanceof Error && initQuery.error.message) || 'Unable to load BOQ data.'}
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => initQuery.refetch()}>Retry</button>
+        <Button onClick={() => initQuery.refetch()}>Retry</Button>
       </div>
     );
   }
@@ -1708,11 +1709,11 @@ export function BOQ() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="btn btn-primary" onClick={() => {
+              <Button onClick={() => {
                 if (boqData.boqNo) localStorage.setItem(`boq_export_${boqData.boqNo}`, JSON.stringify({ columns: exportColumns, sheets: exportSheets, orientation: exportOrientation }));
                 setShowExportSettings(false);
-              }}>Save As Default</button>
-              <button className="btn btn-secondary" onClick={() => setShowExportSettings(false)}>Close</button>
+              }}>Save As Default</Button>
+              <Button variant="secondary" onClick={() => setShowExportSettings(false)}>Close</Button>
             </div>
           </div>
         </div>
@@ -1735,13 +1736,14 @@ export function BOQ() {
               </label>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '14px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowDiscountApplyModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => {
+              <Button variant="secondary" onClick={() => setShowDiscountApplyModal(false)}>Cancel</Button>
+              <Button onClick={() => {
+                if (!pendingDiscountChange) return;
                 const { variantId, discount, prevDiscount } = pendingDiscountChange;
                 setBoqVariantDiscounts(p => ({ ...p, [variantId]: discount }));
                 applyVariantDiscountToRows(variantId, discount, prevDiscount, discountApplyMode);
                 setShowDiscountApplyModal(false); setPendingDiscountChange(null);
-              }}>Apply</button>
+              }}>Apply</Button>
             </div>
           </div>
         </div>

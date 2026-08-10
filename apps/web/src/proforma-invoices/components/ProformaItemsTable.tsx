@@ -5,6 +5,7 @@ import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
 import { UnitDropdownSelect } from '../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../utils/formatters';
 import type { LineItem } from '../pages/ProformaEditorPage';
+import { Button } from '@/components/ui/button';
 
 interface ProformaItemsTableProps {
   items: LineItem[];
@@ -211,43 +212,29 @@ export function ProformaItemsTable({
           </div>
           
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onShowItemPicker}
-              className="h-9 px-3 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm"
-            >
+            <Button variant="secondary" size="sm" type="button" onClick={onShowItemPicker} >
               <List size={14} /> Add Multiple Items
-            </button>
-            <button
-              type="button"
-              onClick={onAddSectionHeader}
-              className="h-9 px-3 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm"
-            >
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={onAddSectionHeader} >
               <Plus size={14} /> Section
-            </button>
-            <button
-              type="button"
-              onClick={onAddSubtotal}
-              className="h-9 px-3 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm"
-            >
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={onAddSubtotal} >
               <Sigma size={14} /> Subtotal
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCustomLabelEditor(true)}
+            </Button>
+            <Button variant="default" size="sm" type="button" onClick={() => setShowCustomLabelEditor(true)}
               className="h-9 px-3 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm"
             >
               <Columns size={14} /> Columns
-            </button>
-            <button type="button" onClick={handleAddItem} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={handleAddItem}>
               <Plus size={14} /> Add Item
-            </button>
-            <button type="button" onClick={() => setShowItemSelectorDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
+            </Button>
+            <Button variant="default" size="sm" type="button" onClick={() => setShowItemSelectorDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
               <Plus size={14} /> Inventory
-            </button>
-            <button type="button" onClick={() => setShowItemCreateDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
+            </Button>
+            <Button variant="default" size="sm" type="button" onClick={() => setShowItemCreateDrawer(true)} className="h-9 px-4 text-xs font-bold text-zinc-600 hover:text-blue-600 transition-all flex items-center justify-center gap-1.5 bg-white border border-zinc-200 rounded shadow-sm">
               <Plus size={14} /> New Material
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -319,7 +306,7 @@ export function ProformaItemsTable({
                             value={item.description}
                             onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                           />
-                          <button type="button" className="btn-delete" onClick={() => handleRemoveItem(index)} style={{ flexShrink: 0, marginLeft: 8, padding: '2px 8px', fontSize: '14px', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>&times;</button>
+                          <Button variant="default" size="sm" type="button" onClick={() => handleRemoveItem(index)} style={{ flexShrink: 0, marginLeft: 8, padding: '2px 8px', fontSize: '14px', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>&times;</Button>
                         </div>
                       </td>
                     </tr>
@@ -357,7 +344,7 @@ export function ProformaItemsTable({
                           <span className="text-right font-bold" style={{ color: '#b45309', whiteSpace: 'nowrap', minWidth: '100px', textAlign: 'right' }}>
                             {formatCurrency(groupAmount)}
                           </span>
-                          <button type="button" className="btn-delete" onClick={() => handleRemoveItem(index)} style={{ padding: '2px 8px', fontSize: '14px', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>&times;</button>
+                          <Button variant="default" size="sm" type="button" onClick={() => handleRemoveItem(index)} style={{ padding: '2px 8px', fontSize: '14px', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>&times;</Button>
                         </div>
                       </td>
                     </tr>
@@ -625,10 +612,7 @@ export function ProformaItemsTable({
                     {/* Actions: Move To + Delete */}
                     <td className="text-center pt-1.5">
                       <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', position: 'relative' }}>
-                        <button
-                          type="button"
-                          className="btn-move-to"
-                          onClick={() => openMoveToDialog(itemId, sno)}
+                        <Button variant="default" size="sm" type="button" onClick={() => openMoveToDialog(itemId, sno)}
                           style={{
                             padding: '2px 4px',
                             fontSize: '11px',
@@ -644,7 +628,7 @@ export function ProformaItemsTable({
                           title="Move to S.No"
                         >
                           <ArrowUpDown size={11} />
-                        </button>
+                        </Button>
 
                         {moveToDialog && moveToDialog.itemId === itemId && (
                           <div
@@ -692,25 +676,10 @@ export function ProformaItemsTable({
                                   color: '#1f2937'
                                 }}
                               />
-                              <button
-                                type="button"
-                                onClick={confirmMoveTo}
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: '11px',
-                                  background: '#2563eb',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  fontWeight: 600
-                                }}
-                              >
+                              <Button variant="default" size="sm" type="button" onClick={confirmMoveTo} >
                                 Go
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setMoveToDialog(null)}
+                              </Button>
+                              <Button variant="default" size="sm" type="button" onClick={() => setMoveToDialog(null)}
                                 style={{
                                   padding: '4px 6px',
                                   fontSize: '11px',
@@ -722,7 +691,7 @@ export function ProformaItemsTable({
                                 }}
                               >
                                 &times;
-                              </button>
+                              </Button>
                             </div>
                             {moveToDialog.error && (
                               <div style={{ color: '#dc2626', fontSize: '9px', fontWeight: 500 }}>{moveToDialog.error}</div>
@@ -730,15 +699,13 @@ export function ProformaItemsTable({
                           </div>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
+                        <Button variant="default" size="sm" type="button" onClick={() => handleRemoveItem(index)}
                           className="text-red-500 hover:bg-red-50 hover:text-red-700 w-5 h-5 rounded flex items-center justify-center transition-all"
                           disabled={items.length === 1}
                           style={{ padding: '2px 4px', border: 'none', cursor: 'pointer', background: 'transparent' }}
                         >
                           <Trash2 size={12} />
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

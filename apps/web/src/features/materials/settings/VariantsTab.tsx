@@ -10,8 +10,10 @@ import { Checkbox } from '../../../components/ui/checkbox';
 import { Table, ColumnDef } from '../../../components/table';
 import type { RowAction } from '../../../components/table';
 import { Plus, Trash2, Pencil } from 'lucide-react';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 
 export function VariantsTab() {
+  const { formatDate } = useAppDateFormat();
   const { data: variants = [], isLoading: loading } = useVariants();
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
@@ -148,7 +150,7 @@ export function VariantsTab() {
       id: 'created_at',
       type: 'date',
       align: 'left',
-      cell: ({ row }) => row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'
+      cell: ({ row }) => row.created_at ? formatDate(row.created_at) : '-'
     },
     {
       header: 'Status',
@@ -239,7 +241,7 @@ export function VariantsTab() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 className="text-sm font-semibold text-zinc-900 m-0">{editingVariant ? 'Edit Category' : 'Add Category'}</h2>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+              <Button variant="ghost" size="default" onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</Button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex flex-col gap-1">

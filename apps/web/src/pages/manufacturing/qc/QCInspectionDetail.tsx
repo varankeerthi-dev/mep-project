@@ -1,10 +1,12 @@
 import React from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ArrowLeft, Loader2, Award, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import {
   useQCInspectionDetailQuery,
   useQCParameterResultsQuery
 } from '../../../features/manufacturing';
+import { useAppDateFormat } from '../../../contexts/DateFormatContext';
 
 type QCInspectionDetailProps = {
   inspectionId: string;
@@ -13,6 +15,7 @@ type QCInspectionDetailProps = {
 
 export default function QCInspectionDetail({ inspectionId, onCancel }: QCInspectionDetailProps) {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
 
   const { data: inspection, isLoading: inspectionLoading } = useQCInspectionDetailQuery(inspectionId);
   const { data: results = [], isLoading: resultsLoading } = useQCParameterResultsQuery(inspectionId);
@@ -45,12 +48,9 @@ export default function QCInspectionDetail({ inspectionId, onCancel }: QCInspect
     <div style={{ minHeight: '100%', background: '#fafafa', paddingBottom: '40px' }}>
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 40 }}>
-        <button
-          onClick={onCancel}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}
-        >
+        <Button variant="secondary" size="icon-sm" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={14} />
-        </button>
+        </Button>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Inspection {inspection.inspection_no}</h1>
@@ -76,7 +76,7 @@ export default function QCInspectionDetail({ inspectionId, onCancel }: QCInspect
             </div>
             <div>
               <span style={{ color: '#6b7280', display: 'block' }}>Inspection Date</span>
-              <span style={{ fontWeight: 600, color: '#374151' }}>{new Date(inspection.inspection_date).toLocaleDateString()}</span>
+              <span style={{ fontWeight: 600, color: '#374151' }}>{formatDate(inspection.inspection_date)}</span>
             </div>
             <div>
               <span style={{ color: '#6b7280', display: 'block' }}>Presented Qty</span>

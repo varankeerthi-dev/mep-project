@@ -15,6 +15,7 @@ import {
   APPROVAL_STATUS_CONFIG,
   APPROVAL_PRIORITY_CONFIG 
 } from '../types/approvals';
+import { Button } from '@/components/ui/button';
 
 interface ApprovalTableProps {
   approvals: Approval[];
@@ -97,24 +98,21 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
               {selectedApprovals.length} approval{selectedApprovals.length > 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
-              <button
-                onClick={() => selectedApprovals.forEach(id => handleAction(id, 'APPROVED'))}
+              <Button variant="default" size="sm" onClick={() => selectedApprovals.forEach(id => handleAction(id, 'APPROVED'))}
                 className="px-3 py-1 text-sm bg-green-600 text-white rounded-none hover:bg-green-700"
               >
                 Approve All
-              </button>
-              <button
-                onClick={() => selectedApprovals.forEach(id => handleAction(id, 'REJECTED'))}
+              </Button>
+              <Button variant="default" size="sm" onClick={() => selectedApprovals.forEach(id => handleAction(id, 'REJECTED'))}
                 className="px-3 py-1 text-sm bg-red-600 text-white rounded-none hover:bg-red-700"
               >
                 Reject All
-              </button>
-              <button
-                onClick={() => setSelectedApprovals([])}
+              </Button>
+              <Button variant="default" size="sm" onClick={() => setSelectedApprovals([])}
                 className="px-3 py-1 text-sm bg-zinc-600 text-white rounded-none hover:bg-zinc-700"
               >
                 Clear Selection
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -234,13 +232,12 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       {/* View Button */}
-                      <button
-                        onClick={() => onView(approval)}
+                      <Button variant="default" size="sm" onClick={() => onView(approval)}
                         className="p-1 text-zinc-400 hover:text-zinc-600"
                         title="View Details"
                       >
                         <EyeIcon className="w-4 h-4" />
-                      </button>
+                      </Button>
 
                       {/* Action Buttons - Only show for pending approvals */}
                       {approval.status === 'PENDING' && (
@@ -260,50 +257,43 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                           </div>
 
                           {/* Approve Button */}
-                          <button
-                            onClick={() => handleAction(approval.id, 'APPROVED')}
+                          <Button variant="default" size="sm" onClick={() => handleAction(approval.id, 'APPROVED')}
                             className="p-1 text-green-600 hover:text-green-800"
                             title="Approve"
                           >
                             <CheckIcon className="w-4 h-4" />
-                          </button>
+                          </Button>
 
                           {/* Reject Button */}
-                          <button
-                            onClick={() => handleAction(approval.id, 'REJECTED')}
+                          <Button variant="default" size="sm" onClick={() => handleAction(approval.id, 'REJECTED')}
                             className="p-1 text-red-600 hover:text-red-800"
                             title="Reject"
                           >
                             <XMarkIcon className="w-4 h-4" />
-                          </button>
+                          </Button>
 
                           {/* Hold Button */}
-                          <button
-                            onClick={() => handleAction(approval.id, 'HOLD')}
+                          <Button variant="default" size="sm" onClick={() => handleAction(approval.id, 'HOLD')}
                             className="p-1 text-yellow-600 hover:text-yellow-800"
                             title="Hold"
                           >
                             <PauseIcon className="w-4 h-4" />
-                          </button>
+                          </Button>
 
                           {/* Forward Button */}
-                          <button
-                            onClick={() => handleAction(approval.id, 'FORWARDED')}
+                          <Button variant="default" size="sm" onClick={() => handleAction(approval.id, 'FORWARDED')}
                             className="p-1 text-purple-600 hover:text-purple-800"
                             title="Forward"
                           >
                             <ArrowRightIcon className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </>
                       )}
 
                       {/* View Document Button */}
-                      <button
-                        className="p-1 text-zinc-400 hover:text-zinc-600"
-                        title="View Document"
-                      >
+                      <Button variant="ghost" size="icon-xs" title="View Document" >
                         <DocumentIcon className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>

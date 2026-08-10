@@ -3,6 +3,7 @@ import { usePartners } from '../hooks/usePartners';
 import { useCreateAllocation, useAllocationsByLead } from '../hooks/useAllocations';
 import { useAuth } from '../../../App';
 import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type PartnerSelectorProps = {
   leadId: string;
@@ -51,9 +52,9 @@ export default function AllocatePartnerModal({ leadId, onClose, onSuccess }: Par
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
           <h2 className="text-lg font-semibold text-zinc-800">Allocate to Partner</h2>
-          <button onClick={onClose} className="p-1 hover:bg-zinc-100 rounded" type="button">
+          <Button variant="secondary" size="default" onClick={onClose} type="button">
             <X className="h-5 w-5 text-zinc-500" />
-          </button>
+          </Button>
         </div>
 
         {hasActiveAllocation ? (
@@ -85,10 +86,9 @@ export default function AllocatePartnerModal({ leadId, onClose, onSuccess }: Par
                 className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
             </div>
 
-            <button type="submit" disabled={createAllocation.isPending}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
+            <Button variant="default" size="lg" type="submit" disabled={createAllocation.isPending}>
               {createAllocation.isPending ? 'Allocating...' : 'Allocate'}
-            </button>
+            </Button>
           </form>
         )}
       </div>

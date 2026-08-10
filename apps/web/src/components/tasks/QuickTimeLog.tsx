@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Clock, X } from 'lucide-react';
 import { useCreateTimeLog } from './hooks';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface QuickTimeLogProps {
   taskId: string;
@@ -41,9 +42,9 @@ export default function QuickTimeLog({ taskId, onClose }: QuickTimeLogProps) {
           <Clock size={14} className="text-zinc-500" />
           <span className="text-xs font-semibold text-zinc-700">Log Time</span>
         </div>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-zinc-100 text-zinc-400">
+        <Button variant="secondary" size="icon-xs" onClick={onClose}>
           <X size={14} />
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-2">
@@ -93,19 +94,12 @@ export default function QuickTimeLog({ taskId, onClose }: QuickTimeLogProps) {
       </div>
 
       <div className="flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="px-3 py-1 text-xs font-medium text-zinc-600 rounded hover:bg-zinc-50"
-        >
+        <Button variant="default" size="xs" onClick={onClose} >
           Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={!hours || createTimeLog.isPending}
-          className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
+        </Button>
+        <Button variant="default" size="xs" onClick={handleSubmit} disabled={!hours || createTimeLog.isPending} >
           {createTimeLog.isPending ? 'Saving...' : 'Log'}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppTable } from '@/components/ui/AppTable';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { useApprovedPaymentsForAccountant, useReleasePayment } from '../hooks/usePurchaseQueries';
 import { toast } from '@/lib/logger';
 import type { ApprovalWorkflow } from '@/types/approvals';
@@ -29,6 +30,7 @@ const ACCOUNTANT_ROLES = new Set([
 
 export const AccountantQueue: React.FC = () => {
   const { organisation } = useAuth();
+  const { formatDate } = useAppDateFormat();
   const orgId = organisation?.id as string | undefined;
   const { data: approvedPayments = [], isLoading } = useApprovedPaymentsForAccountant(orgId);
   const releasePayment = useReleasePayment();
@@ -79,7 +81,7 @@ export const AccountantQueue: React.FC = () => {
     {
       id: 'payment_date',
       header: 'Date',
-      cell: ({ row }: { row: Row }) => new Date(row.payment_date).toLocaleDateString('en-IN'),
+      cell: ({ row }: { row: Row }) => formatDate(row.payment_date),
     },
     {
       id: 'vendor',
@@ -117,7 +119,7 @@ export const AccountantQueue: React.FC = () => {
         canRelease ? (
           <Button
             type="button"
-            variant="primary"
+            variant="default"
             size="sm"
             onClick={() => handleRelease(row.id)}
             disabled={releasePayment.isPending}
