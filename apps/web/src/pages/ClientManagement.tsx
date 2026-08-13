@@ -541,6 +541,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     contact_code: '+91', contact_person_2_contact_code: '+91', purchase_contact_code: '+91',
     use_arc_pricing: false
   });
+  const [additionalContacts, setAdditionalContacts] = useState<any[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -576,6 +578,28 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       return () => clearTimeout(timer);
     }
   }, [clientData]);
+
+  // Load additional contacts (CFT) when editing an existing client
+  useEffect(() => {
+    if (editMode && clientData?.id) {
+      let cancelled = false;
+      setLoadingContacts(true);
+      supabase
+        .from('client_contacts')
+        .select('id, name, designation, phone_code, phone, email, is_primary')
+        .eq('client_id', clientData.id)
+        .order('is_primary', { ascending: false })
+        .then(({ data, error }) => {
+          if (!cancelled) {
+            if (!error) setAdditionalContacts(data || []);
+            setLoadingContacts(false);
+          }
+        });
+      return () => { cancelled = true; };
+    } else {
+      setAdditionalContacts([]);
+    }
+  }, [editMode, clientData?.id]);
 
   useEffect(() => {
     if (formData.client_name) {
@@ -834,6 +858,42 @@ const indianStates = [
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['clients', orgId] });
       queryClient.invalidateQueries({ queryKey: ['invoice-ui', 'clients', orgId] });
+
+      // Sync additional contacts (CFT) for this client
+      if (newId) {
+        const valid = additionalContacts.filter(c => (c.name || '').trim() !== '');
+        const existingIds = valid.filter(c => c.id).map(c => c.id);
+        // Delete contacts that were removed from the list
+        if (editMode && clientData?.id) {
+          const { data: current } = await supabase
+            .from('client_contacts')
+            .select('id')
+            .eq('client_id', clientData.id);
+          const toDelete = (current || []).map((c: any) => c.id).filter((id: string) => !existingIds.includes(id));
+          if (toDelete.length) {
+            await supabase.from('client_contacts').delete().in('id', toDelete);
+          }
+        }
+        for (const c of valid) {
+          const payload = {
+            client_id: newId,
+            organisation_id: orgId,
+            name: c.name.trim(),
+            designation: (c.designation || '').trim() || null,
+            phone_code: (c.phone_code || '+91').trim(),
+            phone: (c.phone || '').trim() || null,
+            email: (c.email || '').trim() || null,
+            is_primary: !!c.is_primary,
+          };
+          if (c.id) {
+            await supabase.from('client_contacts').update(payload).eq('id', c.id);
+          } else {
+            await supabase.from('client_contacts').insert(payload);
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['client_contacts'] });
+      }
+
       setIsDirty(false);
       onSuccess(newId);
     } catch (error: any) {
@@ -1063,6 +1123,45 @@ const indianStates = [
                         </div>
                       </div>
                     </div>
+                  {/* Additional Contacts (CFT) — unlimited */}
+                  <div style={sectionHeadStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <span>Additional Contacts (CFT)</span>
+                      <button type="button" onClick={() => setAdditionalContacts(prev => [...prev, { name: '', designation: '', phone_code: '+91', phone: '', email: '', is_primary: false }])} style={{ ...secondaryBtn, fontSize: '11px', padding: '4px 10px' }}>
+                        + Add Contact
+                      </button>
+                    </div>
+                  </div>
+                  <div style={sectionBgStyle}>
+                    {loadingContacts && <div style={{ fontSize: '12px', color: '#71717a', padding: '4px 0' }}>Loading contacts…</div>}
+                    {!loadingContacts && additionalContacts.length === 0 && (
+                      <div style={{ fontSize: '12px', color: '#71717a', padding: '4px 0' }}>No additional contacts yet. Use “+ Add Contact” to add more people for this client.</div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {additionalContacts.map((c, idx) => (
+                        <div key={c.id || `new-${idx}`} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', background: '#fff' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#185FA5', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Contact {idx + 1}{c.is_primary ? ' · Primary' : ''}</span>
+                            <button type="button" onClick={() => setAdditionalContacts(prev => prev.filter((_, i) => i !== idx))} style={{ border: 'none', background: 'transparent', color: '#e11d48', fontSize: '12px', cursor: 'pointer' }}>Remove</button>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <input style={inputStyle} className="border border-zinc-200 bg-white" placeholder="Name *" value={c.name || ''} onChange={e => setAdditionalContacts(prev => prev.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} />
+                            <input style={inputStyle} className="border border-zinc-200 bg-white" placeholder="Designation" value={c.designation || ''} onChange={e => setAdditionalContacts(prev => prev.map((x, i) => i === idx ? { ...x, designation: e.target.value } : x))} />
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <input style={{ ...inputStyle, width: '64px', flex: 'none' }} className="border border-zinc-200 bg-white" placeholder="+91" value={c.phone_code || '+91'} onChange={e => setAdditionalContacts(prev => prev.map((x, i) => i === idx ? { ...x, phone_code: e.target.value } : x))} />
+                              <input style={{ ...inputStyle, flex: 1 }} className="border border-zinc-200 bg-white" placeholder="Phone" value={c.phone || ''} onChange={e => setAdditionalContacts(prev => prev.map((x, i) => i === idx ? { ...x, phone: e.target.value } : x))} />
+                            </div>
+                            <input style={inputStyle} className="border border-zinc-200 bg-white" type="email" placeholder="Email" value={c.email || ''} onChange={e => setAdditionalContacts(prev => prev.map((x, i) => i === idx ? { ...x, email: e.target.value } : x))} />
+                          </div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', fontSize: '12px', color: '#374151' }}>
+                            <input type="checkbox" checked={!!c.is_primary} onChange={e => setAdditionalContacts(prev => prev.map((x, i) => i === idx ? { ...x, is_primary: e.target.checked } : x))} />
+                            Mark as primary contact
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div style={sectionHeadStyle}>Address Details</div>
                   <div style={sectionBgStyle}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

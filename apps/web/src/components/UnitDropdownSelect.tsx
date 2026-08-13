@@ -39,56 +39,66 @@ export const UnitDropdownSelect: React.FC<UnitDropdownSelectProps> = ({
     ...altUnits.map((u: any) => u.unit_name)
   ].filter((v, i, a) => a.indexOf(v) === i && !!v);
 
+  // Single unit — show static text, no editing
   if (allUnits.length <= 1) {
     return (
-      <input
-        type="text"
-        className="cell-input text-center font-medium"
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', width: '100%', border: 'none', background: 'transparent' }}
-      />
+      <div style={{
+        fontSize: '11px',
+        color: '#64748b',
+        textAlign: 'center',
+        width: '100%',
+        padding: '4px 6px',
+        fontWeight: 500,
+      }}>
+        {value || primaryUnit}
+      </div>
     );
   }
 
+  // Multiple units — dropdown select only, no free text
+  const altInfo = altUnits.find((u: any) => u.unit_name.toLowerCase() === (value || '').toLowerCase());
+  const label = altInfo ? `${value} (1 ${primaryUnit} = ${altInfo.conversion_factor} ${value})` : value;
+
   return (
-    <div ref={ref} style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-      <input
-        type="text"
-        className="cell-input text-center font-medium"
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', width: '100%', border: 'none', background: 'transparent', paddingRight: '12px' }}
-      />
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
       <button
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         style={{
-          position: 'absolute',
-          right: '2px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          color: '#94a3b8',
-          fontSize: '8px',
           display: 'flex',
           alignItems: 'center',
-          userSelect: 'none',
+          justifyContent: 'center',
+          width: '100%',
+          padding: '4px 16px 4px 6px',
+          fontSize: '11px',
+          color: '#64748b',
+          fontWeight: 500,
+          background: 'transparent',
+          border: 'none',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          textAlign: 'center',
+          position: 'relative',
+          whiteSpace: 'nowrap',
         }}
       >
-        ▼
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || primaryUnit}</span>
+        <span style={{
+          position: 'absolute',
+          right: '4px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          fontSize: '7px',
+          color: '#94a3b8',
+          pointerEvents: 'none',
+        }}>▼</span>
       </button>
       {isOpen && (
         <div style={{
           position: 'absolute',
           top: '100%',
-          right: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 9999,
           background: '#fff',
           border: '1px solid #cbd5e1',
@@ -101,8 +111,8 @@ export const UnitDropdownSelect: React.FC<UnitDropdownSelectProps> = ({
         }}>
           {allUnits.map(unit => {
             const isSelected = value?.toLowerCase() === unit.toLowerCase();
-            const altInfo = altUnits.find((u: any) => u.unit_name.toLowerCase() === unit.toLowerCase());
-            const label = altInfo ? `${unit} (1 ${primaryUnit} = ${altInfo.conversion_factor} ${unit})` : unit;
+            const aInfo = altUnits.find((u: any) => u.unit_name.toLowerCase() === unit.toLowerCase());
+            const unitLabel = aInfo ? `${unit} (1 ${primaryUnit} = ${aInfo.conversion_factor} ${unit})` : unit;
 
             return (
               <div
@@ -120,11 +130,12 @@ export const UnitDropdownSelect: React.FC<UnitDropdownSelectProps> = ({
                   borderBottom: '1px solid #f1f5f9',
                   textAlign: 'left',
                   whiteSpace: 'nowrap',
+                  background: isSelected ? '#f1f5f9' : '#fff',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                onMouseLeave={e => e.currentTarget.style.background = isSelected ? '#f1f5f9' : '#fff'}
               >
-                {label}
+                {unitLabel}
               </div>
             );
           })}

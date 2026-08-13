@@ -46,6 +46,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
+import { DateTimePicker } from '../components/ui/DateTimePicker';
+import { PPEMultiSelect } from '../components/ui/PPEMultiSelect';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
@@ -1168,6 +1170,14 @@ export function SiteVisits() {
       return;
     }
 
+    // Zod validation — includes 7-day date range check
+    const result = siteVisitScheduleSchema.safeParse(formData);
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast.error(firstError?.message || 'Please fix the form errors before submitting.');
+      return;
+    }
+
     // Filter out empty string values for date fields to avoid PostgreSQL errors
     const visitData = {
       ...formData,
@@ -2041,60 +2051,41 @@ export function SiteVisits() {
         </DialogContent>
       </Dialog>
 
-      {/* Form Dialog - Revamped with professional aesthetic */}
+      {/* Form Dialog - Design system refactor */}
       {isFormOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-        }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: '12px',
-            width: '95%',
-            maxWidth: '750px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-          }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
+          <div className="bg-card w-[95%] max-w-[750px] max-h-[90vh] overflow-y-auto rounded-xl shadow-lg border border-border">
+
             {/* Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              borderBottom: '1px solid #e5e5e5',
-            }}>
-              <h3 style={{
-                fontSize: '16px',
-                fontWeight: 600,
-                color: '#171717',
-                margin: 0,
-              }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h3 className="text-base font-semibold text-foreground">
                 {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
               </h3>
               <button
                 type="button"
                 onClick={() => { setIsFormOpen(false); resetForm(); }}
-                style={{ padding: '4px', border: 'none', background: 'transparent', color: '#737373', cursor: 'pointer' }}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleFormSubmit} style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
-                {/* Core scheduling fields */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CLIENT *</label>
+
+            <form onSubmit={handleFormSubmit} className="p-6">
+              <div className="flex flex-col gap-4">
+
+                {/* Row 1: Client + Visit Date & Time (combined) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client *</Label>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddClientModalOpen(true)}
+                        className="text-xs text-primary font-semibold hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                      >
+                        + Add new
+                      </button>
+                    </div>
                     <CustomSelect
                       value={formData.client_id}
                       onChange={handleClientChange}
@@ -2102,27 +2093,26 @@ export function SiteVisits() {
                       options={clients?.map((c: any) => ({ value: c.id, label: c.client_name })) || []}
                     />
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT DATE *</label>
-                    <input
-                      type="date"
-                      value={formData.visit_date}
-                      onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                      required
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Visit Date *</Label>
+                    <DateTimePicker
+                      date={formData.visit_date}
+                      time={formData.visit_time}
+                      onDateChange={(d) => setFormData({ ...formData, visit_date: d })}
+                      onTimeChange={(t) => setFormData({ ...formData, visit_time: t })}
+                      placeholder="Select date & time"
                     />
                   </div>
                 </div>
 
-                {/* Project select field */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PROJECT</label>
+                {/* Row 2: Project */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project</Label>
                     <select
                       value={formData.project_id}
                       onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
                       {(!formData.client_id || filteredProjects.length === 0) ? (
                         <option value="" disabled>No active projects for this client</option>
@@ -2138,18 +2128,18 @@ export function SiteVisits() {
                       )}
                     </select>
                   </div>
-                  <div></div>
+                  <div />
                 </div>
 
-                {/* Grid 2 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PURPOSE</label>
-                      <button 
+                {/* Row 3: Purpose + Engineer */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Purpose</Label>
+                      <button
                         type="button"
                         onClick={() => setIsAddPurposeModalOpen(true)}
-                        style={{ fontSize: '11px', color: '#2563eb', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                        className="text-xs text-primary font-semibold hover:underline bg-transparent border-0 p-0 cursor-pointer"
                       >
                         + Add Purpose
                       </button>
@@ -2157,7 +2147,7 @@ export function SiteVisits() {
                     <select
                       value={formData.purpose_of_visit}
                       onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
                       <option value="">Select purpose</option>
                       {purposes?.map((purpose: any) => (
@@ -2165,37 +2155,25 @@ export function SiteVisits() {
                       ))}
                     </select>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ENGINEER / ASSIGNED TO</label>
-                    <input
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Engineer / Assigned To</Label>
+                    <Input
                       type="text"
                       value={formData.engineer}
                       onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
                       placeholder="Engineer name"
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
                 </div>
 
-                {/* Grid 3 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT TIME</label>
-                    <input
-                      type="time"
-                      value={formData.visit_time}
-                      onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>STATUS</label>
+                {/* Row 4: Status + PO/WO */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</Label>
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
                       <option value="scheduled">Scheduled</option>
                       <option value="in_progress">In Progress</option>
@@ -2203,27 +2181,25 @@ export function SiteVisits() {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PO / WO / CONTRACT</label>
-                    <input
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">PO / WO / Contract</Label>
+                    <Input
                       type="text"
                       value={formData.po_wo_contract}
                       onChange={(e) => setFormData({ ...formData, po_wo_contract: e.target.value })}
                       placeholder="PO/WO Number"
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
                 </div>
 
-                {/* Grid 4 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PROJECT MANAGER</label>
+                {/* Row 5: Project Manager + Visit Type + Priority */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project Manager</Label>
                     <select
                       value={formData.project_manager_id}
                       onChange={(e) => setFormData({ ...formData, project_manager_id: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
                       <option value="">Select manager</option>
                       {projectManagers?.map((pm: any) => (
@@ -2231,26 +2207,24 @@ export function SiteVisits() {
                       ))}
                     </select>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT TYPE</label>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Visit Type</Label>
                     <select
                       value={formData.visit_type}
                       onChange={(e) => setFormData({ ...formData, visit_type: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
                       {['Survey','Installation','Maintenance','Inspection','Repair','Handover','Consultation','Other'].map((type) => (
                         <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PRIORITY</label>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Priority</Label>
                     <select
                       value={formData.priority}
                       onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
                       <option value="Standard">Standard</option>
                       <option value="Urgent">Urgent</option>
@@ -2259,88 +2233,81 @@ export function SiteVisits() {
                   </div>
                 </div>
 
-                {/* Site Contact Details */}
-                <div style={{ border: '1px solid #f0f0f0', borderRadius: '8px', padding: '14px', background: '#fafafa' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#404040', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Site Contact Info</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>PERSON NAME</label>
-                      <input
+                {/* Site Contact Info */}
+                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Site Contact Info</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Person Name</Label>
+                      <Input
                         type="text"
                         value={formData.site_contact_person}
                         onChange={(e) => setFormData({ ...formData, site_contact_person: e.target.value })}
                         placeholder="Contact person"
-                        style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
                       />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>PHONE NUMBER</label>
-                      <input
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone Number</Label>
+                      <Input
                         type="text"
                         value={formData.site_contact_phone}
                         onChange={(e) => setFormData({ ...formData, site_contact_phone: e.target.value })}
                         placeholder="Phone number"
-                        style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
                       />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280' }}>DESIGNATION</label>
-                      <input
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Designation</Label>
+                      <Input
                         type="text"
                         value={formData.site_contact_designation}
                         onChange={(e) => setFormData({ ...formData, site_contact_designation: e.target.value })}
                         placeholder="e.g. Site Engineer"
-                        style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Requirements & Restrictions */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PPE REQUIREMENTS</label>
-                    <input
-                      type="text"
+                {/* PPE Requirements + Access Restrictions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">PPE Requirements</Label>
+                    <PPEMultiSelect
                       value={formData.ppe_requirements}
-                      onChange={(e) => setFormData({ ...formData, ppe_requirements: e.target.value })}
-                      placeholder="e.g. Helmet, Safety Shoes"
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      onChange={(val) => setFormData({ ...formData, ppe_requirements: val })}
                     />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ACCESS RESTRICTIONS</label>
-                    <input
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Access Restrictions</Label>
+                    <Input
                       type="text"
                       value={formData.access_restrictions}
                       onChange={(e) => setFormData({ ...formData, access_restrictions: e.target.value })}
                       placeholder="e.g. Work permit required"
-                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
                     />
                   </div>
                 </div>
 
-                {/* Address */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SITE ADDRESS</label>
-                  <textarea
+                {/* Site Address */}
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Site Address</Label>
+                  <Textarea
                     value={formData.site_address}
                     onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
                     placeholder="Enter site address..."
-                    style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', minHeight: '60px', resize: 'vertical' }}
+                    rows={3}
                   />
                 </div>
 
                 {/* Chargeable Checkbox */}
-                <div style={{ display: 'flex', itemsCenter: 'center', gap: '8px', marginTop: '4px' }}>
+                <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     id="is_chargeable"
                     checked={formData.is_chargeable}
                     onChange={(e) => setFormData({ ...formData, is_chargeable: e.target.checked })}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    className="w-4 h-4 cursor-pointer accent-primary"
                   />
-                  <label htmlFor="is_chargeable" style={{ fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                  <label htmlFor="is_chargeable" className="text-sm font-medium text-foreground cursor-pointer">
                     This visit is chargeable to the client
                   </label>
                 </div>
@@ -2348,78 +2315,53 @@ export function SiteVisits() {
               </div>
 
               {/* Action Buttons */}
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                marginTop: '24px',
-                paddingTop: '16px',
-                borderTop: '1px solid #e5e5e5',
-              }}>
-                <button
+              <div className="flex gap-3 mt-6 pt-4 border-t border-border">
+                <Button
                   type="button"
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => { setIsFormOpen(false); resetForm(); }}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '6px',
-                    background: '#fff',
-                    color: '#525252',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
                 >
                   Cancel
-                </button>
+                </Button>
                 {!selectedVisit && (
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    className="flex-1"
                     onClick={handleSaveDraft}
                     disabled={saveVisit.isPending}
-                    style={{
-                      flex: 1,
-                      padding: '10px 16px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '6px',
-                      background: '#f5f5f5',
-                      color: '#525252',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: saveVisit.isPending ? 'not-allowed' : 'pointer',
-                      opacity: saveVisit.isPending ? 0.6 : 1,
-                    }}
                   >
                     {saveVisit.isPending ? 'Saving...' : 'Save as Draft'}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="submit"
+                  className="flex-1"
                   disabled={saveVisit.isPending}
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    border: 'none',
-                    borderRadius: '6px',
-                    background: selectedVisit ? '#171717' : '#2563eb',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: saveVisit.isPending ? 'not-allowed' : 'pointer',
-                    opacity: saveVisit.isPending ? 0.6 : 1,
-                  }}
                 >
                   {saveVisit.isPending
                     ? 'Saving...'
                     : selectedVisit
                     ? 'Update Visit'
                     : 'Create Visit'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Quick Add Client Modal */}
+      <QuickAddClientModal
+        isOpen={isAddClientModalOpen}
+        onClose={() => setIsAddClientModalOpen(false)}
+        onSuccess={(newClient) => {
+          // Auto-select the newly created client in the form
+          handleClientChange(newClient.id);
+          setIsAddClientModalOpen(false);
+        }}
+      />
 
       {/* Add Purpose Dialog */}
       <Dialog open={isAddPurposeModalOpen} onOpenChange={setIsAddPurposeModalOpen}>

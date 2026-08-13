@@ -63,4 +63,10 @@ export type ProjectFormData = {
   site_engineer_id?: string;
   site_address?: string;
   client_po_id?: string; // added to match the initialFormData fields
+  project_code?: string;
+  project_category?: string;
+  is_free_of_cost?: boolean;
+  site_location?: string;
+  budget?: string;
+  description?: string;
 };

@@ -180,3 +180,63 @@ export async function cloneBOM(sourceBomId: string, orgId: string) {
 
   return newHeader.id!;
 }
+
+export async function publishBOM(bomId: string, orgId: string) {
+  const { data, error } = await supabase.rpc('publish_bom', {
+    p_bom_id: bomId,
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to publish BOM');
+  return data;
+}
+
+export async function createBOMRevision(sourceBomId: string, orgId: string) {
+  const { data, error } = await supabase.rpc('create_bom_revision', {
+    p_source_bom_id: sourceBomId,
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to create BOM revision');
+  return data;
+}
+
+export async function explodeBOM(bomId: string, productionQty: number = 1, productionDate?: string) {
+  const { data, error } = await supabase.rpc('explode_bom', {
+    p_bom_id: bomId,
+    p_production_qty: productionQty,
+    p_production_date: productionDate || new Date().toISOString().split('T')[0],
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function calculateRoutingCost(bomId: string, batchQty: number = 1) {
+  const { data, error } = await supabase.rpc('calculate_routing_cost', {
+    p_bom_id: bomId,
+    p_batch_qty: batchQty,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function rollupItemStandardCost(materialId: string, orgId: string, runId?: string, productionDate?: string) {
+  const { data, error } = await supabase.rpc('rollup_item_standard_cost', {
+    p_material_id: materialId,
+    p_org_id: orgId,
+    p_run_id: runId || null,
+    p_production_date: productionDate || new Date().toISOString().split('T')[0],
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function executeStandardCostRollupRun(orgId: string) {
+  const { data, error } = await supabase.rpc('execute_standard_cost_rollup_run', {
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to execute standard cost rollup run');
+  return data;
+}
+

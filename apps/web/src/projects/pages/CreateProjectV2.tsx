@@ -1,11 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { PermissionGuard } from '../../rbac';
-import { ChevronLeft, Plus, Check } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
-import { Modal } from '../../components/ui/Modal';
+import { ChevronLeft, Check, X, ChevronDown } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
 import { useProjectFormDraft } from '../../hooks/useProjectFormDraft';
 import { useAuditLog } from '../../hooks/useAuditLog';
@@ -13,243 +10,120 @@ import { CreateClient } from '../../pages/ClientManagement';
 import CreatePO from '../../pages/CreatePO';
 
 import { ProjectFormData } from '../types';
-import {
-  PROJECT_TEMPLATES,
-  FORM_STATUS_CONFIG as STATUS_CONFIG,
-  BRAND_BLUE,
-} from '../constants';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
-
-
-const headerFieldStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
-const labelColStyle: React.CSSProperties = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '11px', color: '#374151' };
-const fieldColStyle: React.CSSProperties = { flex: 1 };
-const sectionHeaderStyle: React.CSSProperties = { fontWeight: 600, fontSize: '11px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' };
-const inputStyle: React.CSSProperties = { padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid #d4d4d8', background: '#fff', width: '100%', outline: 'none', color: '#1f2937', fontFamily: 'inherit' };
-const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
-const textareaStyle: React.CSSProperties = { ...inputStyle, resize: 'vertical', minHeight: '60px', lineHeight: 1.4 };
-
-const sectionBoxStyle: React.CSSProperties = { background: '#f8f9fa', padding: '12px', borderRadius: '6px' };
+const PROJECT_TEMPLATES: Record<string, { contractor: string, client: string, excluded: string }> = {
+  'Standard MEP Install': {
+    contractor: '1. Supply and installation of HVAC equipment\n2. Electrical wiring and panel installation\n3. Plumbing and piping works',
+    client: '1. Site clearance and access\n2. Uninterrupted power and water supply\n3. Storage space for materials',
+    excluded: '1. Civil works and masonry\n2. Statutory approvals from local authorities'
+  },
+  'Service & Maintenance': {
+    contractor: '1. Routine inspection of AC units\n2. Filter cleaning and replacement\n3. Performance testing and reporting',
+    client: '1. Access to all indoor and outdoor units\n2. Approvals for scheduled downtime',
+    excluded: '1. Replacement of major compressors (billed separately)\n2. Upgrades to existing infrastructure'
+  }
+};
 
 const ClientLabel = ({ onAddClick }: { onAddClick: () => void }) => {
-  const [open, setOpen] = useState(false);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      Client
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="default" size="sm" type="button" onMouseEnter={() => setOpen(true)}
-            onMouseLeave={() => setOpen(false)}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onAddClick(); }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe', cursor: 'pointer' }}
-          >
-            <Plus size={12} strokeWidth={3} />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent 
-          onMouseEnter={() => setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
-          side="top" 
-          align="center" 
-          className="p-2 w-auto text-xs font-normal"
-        >
-          Add new client
-        </PopoverContent>
-      </Popover>
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-semibold text-slate-700">Client *</span>
+      <button 
+        type="button" 
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddClick(); }}
+        className="text-xs italic font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+      >
+        + Add new client
+      </button>
     </div>
   );
 };
 
-const renderHeaderField = (label: React.ReactNode, field: React.ReactNode, isLast = false, alignTop = false) => (
-  <div style={{ ...headerFieldStyle, alignItems: alignTop ? 'flex-start' : 'center', marginBottom: isLast ? 0 : '8px' }}>
-    <span style={{ ...labelColStyle, marginTop: alignTop ? '6px' : '0px' }}>{label}</span>
-    <div style={fieldColStyle}>{field}</div>
-  </div>
-);
-
-const primaryBtnStyle: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: '4px',
-  padding: '6px 14px', border: `1px solid ${BRAND_BLUE}`,
-  background: BRAND_BLUE, color: '#fff',
-  borderRadius: '6px', fontSize: '12px', fontWeight: 500,
-  cursor: 'pointer', transition: 'all 0.15s',
-};
-
-const secondaryBtnStyle: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: '4px',
-  padding: '6px 14px', border: '1px solid #d1d5db',
-  background: '#fff', color: '#374151',
-  borderRadius: '6px', fontSize: '12px', fontWeight: 500,
-  cursor: 'pointer', transition: 'all 0.15s',
-};
-
-function SearchableDropdown({ 
-  items, 
-  value, 
-  onChange, 
-  placeholder = "Search...", 
-  labelKey = "name", 
-  valueKey = "id",
-  renderLabel
-}: { 
-  items: any[]; 
-  value: string; 
-  onChange: (val: string, item?: any) => void; 
+function FormSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select...",
+  required = false
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: { value: string; label: string }[];
   placeholder?: string;
-  labelKey?: string;
-  valueKey?: string;
-  renderLabel?: (item: any) => string;
+  required?: boolean;
 }) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string | null>(null);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.dropdown-container')) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  const selectedOpt = options.find(o => o.value === value);
+  const displayValue = searchTerm !== null ? searchTerm : (selectedOpt ? selectedOpt.label : '');
 
-  const selectedItem = items.find(i => i[valueKey] === value);
-  const getItemName = (i: any) => renderLabel ? renderLabel(i) : i[labelKey];
-  
-  const filteredItems = items.filter(i => 
-    !searchText || getItemName(i).toLowerCase().includes(searchText.toLowerCase())
+  const filteredOptions = options.filter(o => 
+    !searchTerm || o.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const filteredCount = filteredItems.length;
 
   return (
-    <div className="dropdown-container" style={{ position: 'relative' }}>
-      <input
-        value={isDropdownOpen ? searchText : (selectedItem ? getItemName(selectedItem) : '')}
-        onChange={e => { setSearchText(e.target.value); setIsDropdownOpen(true); }}
-        onFocus={() => setIsDropdownOpen(true)}
-        placeholder={placeholder}
-        style={inputStyle}
-        className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md"
-      />
-      {isDropdownOpen && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0,
-          zIndex: 50, background: 'white', border: '1px solid #d1d5db',
-          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-          maxHeight: '200px', overflowY: 'auto'
-        }}>
-          {filteredItems.map(i => (
-            <div key={i[valueKey]} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-              onMouseLeave={e => e.currentTarget.style.background = 'white'}
-              onClick={() => { onChange(i[valueKey], i); setSearchText(''); setIsDropdownOpen(false); }}
-            >{getItemName(i)}</div>
-          ))}
-          {filteredCount === 0 && (
-            <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No items found</div>
+    <div className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={displayValue}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setIsOpen(true);
+          }}
+          onClick={() => setIsOpen(true)}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => {
+            setTimeout(() => {
+              setSearchTerm(null);
+              setIsOpen(false);
+            }, 200);
+          }}
+          placeholder={placeholder}
+          style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '36px' }}
+          className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm text-slate-900 transition-all cursor-pointer rounded-lg"
+          required={required && !value}
+        />
+        <ChevronDown className="absolute right-3 pointer-events-none w-4 h-4 text-slate-400" />
+      </div>
+
+      {isOpen && (
+        <div 
+          style={{ borderRadius: '8px', padding: '6px' }}
+          className="form-dropdown-menu absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-slate-200 shadow-lg max-h-56 overflow-y-auto space-y-1"
+        >
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <div
+                  key={opt.value}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(opt.value);
+                    setSearchTerm(null);
+                    setIsOpen(false);
+                  }}
+                  style={{ paddingLeft: '16px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', borderRadius: '6px' }}
+                  className={`form-dropdown-item text-sm cursor-pointer select-none transition-colors flex items-center justify-between ${
+                    isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0 ml-2" />}
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ paddingLeft: '16px', paddingRight: '16px' }} className="py-2 text-xs text-slate-400 text-center font-normal">No items found</div>
           )}
         </div>
       )}
-    </div>
-  );
-}
-function MultiSelectDropdown({ 
-  items, 
-  value, 
-  onChange, 
-  placeholder = "Search...", 
-  labelKey = "name", 
-  valueKey = "id",
-  renderLabel
-}: { 
-  items: any[]; 
-  value: string[]; 
-  onChange: (val: string[], selectedItems: any[]) => void; 
-  placeholder?: string;
-  labelKey?: string;
-  valueKey?: string;
-  renderLabel?: (item: any) => string;
-}) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchText, setSearchText] = useState('');
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.multi-dropdown-container')) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const getItemName = (i: any) => renderLabel ? renderLabel(i) : i[labelKey];
-  
-  const filteredItems = items.filter(i => 
-    !value.includes(i[valueKey]) && 
-    (!searchText || getItemName(i).toLowerCase().includes(searchText.toLowerCase()))
-  );
-  const filteredCount = filteredItems.length;
-
-  const handleSelect = (item: any) => {
-    const newValues = [...value, item[valueKey]];
-    const newSelectedItems = items.filter(i => newValues.includes(i[valueKey]));
-    onChange(newValues, newSelectedItems);
-    setSearchText('');
-  };
-
-  const handleRemove = (idToRemove: string) => {
-    const newValues = value.filter(id => id !== idToRemove);
-    const newSelectedItems = items.filter(i => newValues.includes(i[valueKey]));
-    onChange(newValues, newSelectedItems);
-  };
-
-  return (
-    <div className="multi-dropdown-container" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {value.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {value.map(id => {
-            const item = items.find(i => i[valueKey] === id);
-            if (!item) return null;
-            return (
-              <div key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', fontWeight: 500 }}>
-                {getItemName(item)}
-                <span style={{ cursor: 'pointer', padding: '0 2px', fontWeight: 'bold' }} onClick={(e) => { e.stopPropagation(); handleRemove(id); }}>×</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <div style={{ position: 'relative' }}>
-        <input
-          value={searchText}
-          onChange={e => { setSearchText(e.target.value); setIsDropdownOpen(true); }}
-          onFocus={() => setIsDropdownOpen(true)}
-          placeholder={value.length > 0 ? "Add another..." : placeholder}
-          style={inputStyle}
-          className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md"
-        />
-        {isDropdownOpen && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0,
-            zIndex: 50, background: 'white', border: '1px solid #d1d5db',
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-            maxHeight: '200px', overflowY: 'auto'
-          }}>
-            {filteredItems.map(i => (
-              <div key={i[valueKey]} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-                onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                onClick={() => handleSelect(i)}
-              >{getItemName(i)}</div>
-            ))}
-            {filteredCount === 0 && (
-              <div style={{ padding: '6px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No available items found</div>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -287,35 +161,40 @@ function DynamicScopeList({ value, onChange, placeholder = "Enter scope..." }: {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div className="flex flex-col gap-2">
       {items.map((text, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: '#6b7280', minWidth: '16px', textAlign: 'right' }}>{i + 1}.</span>
-          <input 
+        <div key={i} className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 w-5 text-right font-medium">{i + 1}.</span>
+          <Input 
             value={text.replace(/^\d+\.\s*/, '')}
             onChange={e => updateItem(i, e.target.value)}
             onKeyDown={e => handleKeyDown(e, i)}
             placeholder={placeholder}
-            style={inputStyle}
-            className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md"
+            style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+            className="flex-1 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs"
           />
-          <Button variant="default" size="sm" type="button" onClick={() => removeItem(i)}
-            style={{ padding: '4px', color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', opacity: items.length === 1 && !text ? 0.3 : 1 }}
+          <button 
+            type="button" 
+            onClick={() => removeItem(i)}
+            className="p-1 text-slate-400 hover:text-red-500 transition-colors"
             disabled={items.length === 1 && !text}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-          </Button>
+            <X size={14} />
+          </button>
         </div>
       ))}
-      <Button variant="ghost" size="sm" type="button" onClick={addItem} >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Add Scope
-      </Button>
+      <button 
+        type="button" 
+        onClick={addItem}
+        className="inline-flex items-center gap-1 text-xs text-blue-600 font-semibold hover:text-blue-700 self-start mt-1"
+      >
+        + Add Scope
+      </button>
     </div>
   );
 }
 
-export default function CreateProject() {
+export default function CreateProjectV2() {
   const { organisation, user } = useAuth();
   const navigate = useNavigate();
   const auditLog = useAuditLog(organisation?.id, user?.id);
@@ -333,16 +212,17 @@ export default function CreateProject() {
   const [currentStep, setCurrentStep] = useState(0);
   const [employees, setEmployees] = useState<any[]>([]);
   const [costCenters, setCostCenters] = useState<any[]>([]);
-  const [fetchedPaymentTerms, setFetchedPaymentTerms] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [addClientModalOpen, setAddClientModalOpen] = useState(false);
   const [addPOModalOpen, setAddPOModalOpen] = useState(false);
+
+  const wizardSteps = ['Identity & Location', 'Commercials & Risk', 'Scope Setup', 'Team & Finalize'];
 
   const initialFormData: ProjectFormData = {
     client_id: '',
     project_name: '',
     parent_project_id: '',
-    project_type: 'Main',
+    project_type: 'new_installation',
     project_estimated_value: '',
     po_required: true,
     po_status: 'Pending',
@@ -352,20 +232,25 @@ export default function CreateProject() {
     expected_end_date: '',
     actual_end_date: '',
     completion_percentage: 0,
-    status: 'Draft',
+    status: 'planning',
     remarks: '',
     contractor_scope: '',
     client_scope: '',
     excluded_scope: '',
     pending_approval: '',
     site_instructions: '',
-    client_po_id: '',
     target_margin_percent: '',
     liquidated_damages: '',
     cost_center_id: '',
     project_manager_id: '',
     site_engineer_id: '',
-    site_address: ''
+    site_address: '',
+    project_code: '',
+    project_category: '',
+    is_free_of_cost: false,
+    site_location: '',
+    budget: '',
+    description: ''
   };
 
   const [formData, setFormData, clearDraft] = useProjectFormDraft(editId, initialFormData);
@@ -373,19 +258,19 @@ export default function CreateProject() {
 
   useEffect(() => {
     if (!editId && draftCleared) {
-      setFormData(initialFormData as any)
+      setFormData(initialFormData as any);
     }
   }, [editId, draftCleared]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = 'Data will be lost. Are you sure you want to leave?'
-      return 'Data will be lost. Are you sure you want to leave?'
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [])
+      e.preventDefault();
+      e.returnValue = 'Data will be lost. Are you sure you want to leave?';
+      return 'Data will be lost. Are you sure you want to leave?';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 
   useEffect(() => {
     loadClients();
@@ -403,14 +288,6 @@ export default function CreateProject() {
     }
   }, [formData.client_id]);
 
-  useEffect(() => {
-    if (formData.client_po_id) {
-      loadPaymentTerms(formData.client_po_id);
-    } else {
-      setFetchedPaymentTerms([]);
-    }
-  }, [formData.client_po_id]);
-
   const loadEmployees = async () => {
     if (!organisation?.id) return;
     const { data } = await supabase.from('employees').select('id, name').order('name');
@@ -421,11 +298,6 @@ export default function CreateProject() {
     if (!organisation?.id) return;
     const { data } = await supabase.from('cost_centers').select('id, name').eq('organisation_id', organisation.id).order('name');
     setCostCenters(data || []);
-  };
-
-  const loadPaymentTerms = async (poId: string) => {
-    const { data, error } = await supabase.from('po_payment_terms').select('*').eq('po_id', poId).order('milestone_percentage');
-    if (!error) setFetchedPaymentTerms(data || []);
   };
 
   const loadClients = async () => {
@@ -471,7 +343,6 @@ export default function CreateProject() {
       if (error) throw error;
       
       if (data) {
-        // Fetch all linked POs for this project
         const { data: linkedPOs } = await supabase
           .from('client_purchase_orders')
           .select('id')
@@ -481,7 +352,7 @@ export default function CreateProject() {
           client_id: data.client_id || '',
           project_name: data.project_name || '',
           parent_project_id: data.parent_project_id || '',
-          project_type: data.project_type || 'Main',
+          project_type: data.project_type || 'new_installation',
           project_estimated_value: data.project_estimated_value || '',
           po_required: data.po_required !== false,
           po_status: data.po_status || 'Pending',
@@ -489,7 +360,7 @@ export default function CreateProject() {
           expected_end_date: data.expected_end_date || '',
           actual_end_date: data.actual_end_date || '',
           completion_percentage: data.completion_percentage || 0,
-          status: data.status || 'Draft',
+          status: data.status || 'planning',
           remarks: data.remarks || '',
           contractor_scope: data.contractor_scope || '',
           client_scope: data.client_scope || '',
@@ -502,7 +373,13 @@ export default function CreateProject() {
           cost_center_id: data.cost_center_id || '',
           project_manager_id: data.project_manager_id || '',
           site_engineer_id: data.site_engineer_id || '',
-          site_address: data.site_address || ''
+          site_address: data.site_address || '',
+          project_code: data.project_code || '',
+          project_category: data.project_category || '',
+          is_free_of_cost: false,
+          site_location: data.site_location || data.site_address || '',
+          budget: data.budget || data.project_estimated_value || '',
+          description: data.description || data.remarks || ''
         });
       }
     } catch (err: any) {
@@ -521,12 +398,8 @@ export default function CreateProject() {
       setFormData((prev: any) => {
         let newStatus = prev.status;
         
-        if (pct === 100 && (prev.status === 'Draft' || prev.status === 'Active')) {
-          newStatus = 'Execution Completed';
-        }
-        
-        if (pct < 100 && (prev.status === 'Execution Completed' || prev.status === 'Closed' || prev.status === 'Financially Closed')) {
-          newStatus = 'Active';
+        if (pct === 100 && (prev.status === 'Draft' || prev.status === 'planning' || prev.status === 'in_progress')) {
+          newStatus = 'completed';
         }
         
         return {
@@ -544,6 +417,43 @@ export default function CreateProject() {
     }));
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'Closed' && editId) {
+      try {
+        const { data, error } = await supabase.rpc('can_close_project', { p_id: editId });
+        if (error) {
+          console.warn('RPC call failed, allowing close:', error);
+        } else if (!data) {
+          alert('Cannot close project: Outstanding invoices exist');
+          return;
+        }
+      } catch (err) {
+        console.warn('Error checking project close status:', err);
+      }
+    }
+    setFormData(prev => {
+      const isCompleted = ['Execution Completed', 'Closed', 'Financially Closed', 'completed'].includes(newStatus);
+      return {
+        ...prev,
+        status: newStatus,
+        completion_percentage: isCompleted ? 100 : prev.completion_percentage
+      };
+    });
+  };
+
+  const handleTemplateChange = (val: string) => {
+    setSelectedTemplate(val);
+    if (PROJECT_TEMPLATES[val]) {
+      const tmpl = PROJECT_TEMPLATES[val];
+      setFormData((prev: any) => ({
+        ...prev,
+        contractor_scope: prev.contractor_scope ? `${prev.contractor_scope}\n${tmpl.contractor}` : tmpl.contractor,
+        client_scope: prev.client_scope ? `${prev.client_scope}\n${tmpl.client}` : tmpl.client,
+        excluded_scope: prev.excluded_scope ? `${prev.excluded_scope}\n${tmpl.excluded}` : tmpl.excluded
+      }));
+    }
+  };
+
   const validateForm = (isDraft: boolean) => {
     if (!formData.project_name.trim()) {
       alert('Project Name is required');
@@ -555,14 +465,7 @@ export default function CreateProject() {
         alert('Please select a client');
         return false;
       }
-      const isCompleted = ['Execution Completed', 'Closed', 'Financially Closed'].includes(formData.status);
-      if (isCompleted && parseFloat(String(formData.completion_percentage)) < 100) {
-        alert('A completed project must have a completion percentage of 100%');
-        setFormData(prev => ({ ...prev, completion_percentage: 100 }));
-        return false;
-      }
     }
-
     return true;
   };
 
@@ -573,12 +476,18 @@ export default function CreateProject() {
 
     setSaving(true);
     try {
-      const finalStatus = isDraft ? 'Draft' : (formData.status === 'Draft' ? 'Active' : formData.status);
+      const finalStatus = isDraft ? 'Draft' : (formData.status || 'planning');
       
       const projectData: Record<string, unknown> = {
         client_id: formData.client_id,
         name: formData.project_name.trim(),
         project_name: formData.project_name.trim(),
+        project_code: formData.project_code || null,
+        project_category: formData.project_category || null,
+        is_free_of_cost: false,
+        site_location: formData.site_location || formData.site_address || null,
+        budget: formData.budget ? parseFloat(String(formData.budget)) : (formData.project_estimated_value ? parseFloat(formData.project_estimated_value) : null),
+        description: formData.description || formData.remarks || null,
         parent_project_id: formData.parent_project_id || null,
         project_type: formData.project_type,
         project_estimated_value: formData.project_estimated_value ? parseFloat(formData.project_estimated_value) : null,
@@ -589,7 +498,7 @@ export default function CreateProject() {
         actual_end_date: formData.actual_end_date || null,
         completion_percentage: parseFloat(String(formData.completion_percentage)) || 0,
         status: finalStatus,
-        remarks: formData.remarks || null,
+        remarks: formData.remarks || formData.description || null,
         organisation_id: organisation.id,
         contractor_scope: formData.contractor_scope || null,
         client_scope: formData.client_scope || null,
@@ -601,7 +510,7 @@ export default function CreateProject() {
         cost_center_id: formData.cost_center_id || null,
         project_manager_id: formData.project_manager_id || null,
         site_engineer_id: formData.site_engineer_id || null,
-        site_address: formData.site_address || null
+        site_address: formData.site_address || formData.site_location || null
       };
 
       let finalProjectId = editId;
@@ -631,17 +540,14 @@ export default function CreateProject() {
         auditLog.log('created', 'project', newProject.id, projectData as Record<string, unknown>);
       }
 
-      // Update PO relationships
       if (finalProjectId && formData.po_required && formData.po_status === 'Received') {
         const selectedPOIds = formData.client_po_ids || [];
-        // First, unlink any POs that are currently linked to this project but were removed
         await supabase
           .from('client_purchase_orders')
           .update({ project_id: null })
           .eq('project_id', finalProjectId)
           .not('id', 'in', `(${selectedPOIds.length > 0 ? selectedPOIds.join(',') : '00000000-0000-0000-0000-000000000000'})`);
         
-        // Then link the newly selected POs
         if (selectedPOIds.length > 0) {
           await supabase
             .from('client_purchase_orders')
@@ -660,416 +566,576 @@ export default function CreateProject() {
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (newStatus === 'Closed' && editId) {
-      try {
-        const { data, error } = await supabase.rpc('can_close_project', { p_id: editId });
-        if (error) {
-          console.warn('RPC call failed, allowing close:', error);
-        } else if (!data) {
-          alert('Cannot close project: Outstanding invoices exist');
-          return;
-        }
-      } catch (err) {
-        console.warn('Error checking project close status:', err);
-      }
-    }
-    setFormData(prev => {
-      const isCompleted = ['Execution Completed', 'Closed', 'Financially Closed'].includes(newStatus);
-      return {
-        ...prev,
-        status: newStatus,
-        completion_percentage: isCompleted ? 100 : prev.completion_percentage
-      };
-    });
-  };
-
-  const handleTemplateChange = (e: any) => {
-    const tmplName = e.target.value;
-    setSelectedTemplate(tmplName);
-    if (PROJECT_TEMPLATES[tmplName]) {
-      const tmpl = PROJECT_TEMPLATES[tmplName];
-      setFormData((prev: any) => ({
-        ...prev,
-        contractor_scope: prev.contractor_scope ? `${prev.contractor_scope}\n${tmpl.contractor}` : tmpl.contractor,
-        client_scope: prev.client_scope ? `${prev.client_scope}\n${tmpl.client}` : tmpl.client,
-        excluded_scope: prev.excluded_scope ? `${prev.excluded_scope}\n${tmpl.excluded}` : tmpl.excluded
-      }));
-    }
-  };
-
-  const wizardSteps = ['Identity & Location', 'Commercials & Risk', 'Scope Setup', 'Team & Finalize'];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-sm text-slate-500 font-medium">Loading project details...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] px-4 pt-4 pb-8 md:px-10 md:pt-6 md:pb-16 font-sans">
-      <div className="mx-auto max-w-[1000px]">
-        <Drawer 
-          isOpen={addClientModalOpen} 
-          onClose={() => setAddClientModalOpen(false)} 
-          title="New Client"
-          size="po"
-          hideHeader
-        >
-          <CreateClient 
-            onSuccess={async (newId) => {
-              if (organisation) {
-                const { data } = await supabase.from('clients').select('id, client_name').eq('organisation_id', organisation.id).order('client_name');
-                if (data) {
-                  setClients(data);
-                  if (newId) {
-                    handleInputChange({ target: { name: 'client_id', value: newId } });
-                  }
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+      <Drawer 
+        isOpen={addClientModalOpen} 
+        onClose={() => setAddClientModalOpen(false)} 
+        title="New Client"
+        size="po"
+        hideHeader
+      >
+        <CreateClient 
+          onSuccess={async (newId) => {
+            if (organisation) {
+              const { data } = await supabase.from('clients').select('id, client_name').eq('organisation_id', organisation.id).order('client_name');
+              if (data) {
+                setClients(data);
+                if (newId) {
+                  setFormData((prev: any) => ({ ...prev, client_id: newId }));
                 }
               }
-              setAddClientModalOpen(false);
-            }}
-            onCancel={() => setAddClientModalOpen(false)}
-          />
-        </Drawer>
+            }
+            setAddClientModalOpen(false);
+          }}
+          onCancel={() => setAddClientModalOpen(false)}
+        />
+      </Drawer>
 
-        <Drawer 
-          isOpen={addPOModalOpen} 
-          onClose={() => setAddPOModalOpen(false)} 
-          title="New Client Purchase Order"
-          size="po"
-          hideHeader
-        >
-          <CreatePO 
-            isModal={true}
-            onSuccess={async (newId, poData) => {
-              if (formData.client_id) {
-                // Refresh POs list
-                await loadClientPOs(formData.client_id);
-              }
-              // Add to selected POs
-              if (newId) {
-                setFormData(prev => ({
-                  ...prev,
-                  client_po_ids: [...(prev.client_po_ids || []), newId],
-                  project_estimated_value: (parseFloat(prev.project_estimated_value || '0') + (poData?.po_total_value ? parseFloat(poData.po_total_value) : 0)).toString()
-                }));
-              }
-              setAddPOModalOpen(false);
-            }}
-            onCancel={() => setAddPOModalOpen(false)}
-          />
-        </Drawer>
+      <Drawer 
+        isOpen={addPOModalOpen} 
+        onClose={() => setAddPOModalOpen(false)} 
+        title="New Client Purchase Order"
+        size="po"
+        hideHeader
+      >
+        <CreatePO 
+          isModal={true}
+          onSuccess={async (newId, poData) => {
+            if (formData.client_id) {
+              await loadClientPOs(formData.client_id);
+            }
+            if (newId) {
+              setFormData(prev => ({
+                ...prev,
+                client_po_ids: [...(prev.client_po_ids || []), newId],
+                project_estimated_value: (parseFloat(prev.project_estimated_value || '0') + (poData?.po_total_value ? parseFloat(poData.po_total_value) : 0)).toString()
+              }));
+            }
+            setAddPOModalOpen(false);
+          }}
+          onCancel={() => setAddPOModalOpen(false)}
+        />
+      </Drawer>
 
+      <div className="max-w-4xl mx-auto space-y-6" style={{ padding: '0 16px' }}>
         {/* Header Block & Navigation Row */}
-        <div className="mb-6 flex items-center justify-between sticky top-0 z-40 bg-[#f8fafc] border-b border-zinc-200 pb-4 pt-4 -mx-4 px-4 md:-mx-10 md:px-10">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ padding: '20px 24px' }}>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" type="button" onClick={() => { 
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => { 
                 if (window.confirm("Data will be lost. Are you sure you want to go back?")) {
                   clearDraft(); setDraftCleared(true); navigate('/projects'); 
                 }
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
-            ><ChevronLeft size={13} /> Back</Button>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold text-zinc-800">{editId ? 'Edit Project' : 'New Project'}</h1>
-              {formData.status === 'Draft' && (
-                <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 text-[10px] font-medium border border-zinc-200">DRAFT</span>
-              )}
-            </div>
-            {!editId && localStorage.getItem('mep-create-project-draft') && (
-              <span style={{ fontSize: '12px', color: BRAND_BLUE, marginLeft: '8px', padding: '2px 8px', background: '#eff6ff', borderRadius: '12px', fontWeight: 500 }}>
-                Draft Restored
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="default" size="sm" type="button" style={{...secondaryBtnStyle, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer'}} onClick={(e) => handleSaveClick(e, true)} disabled={saving}
-              onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.borderColor = '#9ca3af'; }}}
-              onMouseLeave={e => { if (!saving) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}}
-            >{saving ? 'Saving...' : 'Save as Draft'}</Button>
-          </div>
-        </div>
-
-        {/* Wizard Progress */}
-        <div className="mb-6 flex items-center justify-between">
-          {wizardSteps.map((step, idx) => {
-            const isActive = idx === currentStep;
-            const isCompleted = idx < currentStep;
-            
-            return (
-              <div key={step} onClick={() => setCurrentStep(idx)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer', position: 'relative' }}>
-                <div style={{ 
-                  width: isActive ? '28px' : '24px', 
-                  height: isActive ? '28px' : '24px', 
-                  borderRadius: '50%', 
-                  background: isActive ? BRAND_BLUE : (isCompleted ? '#10b981' : '#e2e8f0'), 
-                  color: (isActive || isCompleted) ? '#fff' : '#64748b', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  fontSize: '12px', 
-                  fontWeight: 600, 
-                  transition: 'all 0.2s',
-                  boxShadow: isActive ? `0 0 0 3px rgba(24, 95, 165, 0.2)` : 'none',
-                  zIndex: 2
-                }}>
-                  {isCompleted ? <Check size={14} strokeWidth={3} /> : (idx + 1)}
-                </div>
-                <div style={{ 
-                  fontSize: '11px', 
-                  fontWeight: isActive ? 700 : 500, 
-                  color: isActive ? BRAND_BLUE : (isCompleted ? '#10b981' : '#64748b'), 
-                  textAlign: 'center', 
-                  padding: '0 4px', 
-                  transition: 'all 0.2s' 
-                }}>
-                  {step}
-                </div>
-                {/* Connecting line */}
-                {idx < wizardSteps.length - 1 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: isActive ? '14px' : '12px',
-                    left: '50%',
-                    width: '100%',
-                    height: '2px',
-                    background: isCompleted ? '#10b981' : '#e2e8f0',
-                    zIndex: 1,
-                    transition: 'all 0.2s'
-                  }} />
+              className="border-slate-300 hover:bg-slate-50 text-slate-700 text-xs gap-1.5"
+            >
+              <ChevronLeft className="w-4 h-4 shrink-0" />
+              <span>Back</span>
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
+                {editId ? 'Edit Project' : 'Create New Project'}
+                {formData.status === 'Draft' && (
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">DRAFT</span>
                 )}
-              </div>
-            );
-          })}
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">Step {currentStep + 1} of {wizardSteps.length}: {wizardSteps[currentStep]}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={(e) => handleSaveClick(e, true)} 
+              disabled={saving}
+              className="border-slate-300 hover:bg-slate-50 text-slate-700 text-xs"
+            >
+              {saving ? 'Saving...' : 'Save as Draft'}
+            </Button>
+          </div>
         </div>
 
-        <form onSubmit={e => handleSaveClick(e, false)} className="relative">
-          <div className="border border-zinc-200 bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md shadow-sm">
-            <div className="p-6 space-y-8">
+        {/* Wizard Progress Stepper */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200" style={{ padding: '20px 24px' }}>
+          <div className="flex items-center justify-between">
+            {wizardSteps.map((step, idx) => {
+              const isActive = idx === currentStep;
+              const isCompleted = idx < currentStep;
               
-              {currentStep === 0 && (
-                <>
-                  {/* Identity Section */}
-              <section>
-                <div style={sectionHeaderStyle}>Identity</div>
-                <div style={sectionBoxStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Client & Project</div>
-                      {renderHeaderField(<ClientLabel onAddClick={() => setAddClientModalOpen(true)} />, <SearchableDropdown items={clients} value={formData.client_id} onChange={id => handleInputChange({ target: { name: 'client_id', value: id } })} placeholder="Search client..." labelKey="client_name" />)}
-                      {renderHeaderField('Name', <input name="project_name" value={formData.project_name} onChange={handleInputChange} placeholder="Enter project name" required style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />)}
-                      {renderHeaderField('Site Address', <textarea name="site_address" value={formData.site_address || ''} onChange={handleInputChange} rows={2} placeholder="Physical address of the site..." style={textareaStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />, true, true)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Categorization</div>
-                      {renderHeaderField('Parent', <SearchableDropdown items={projects.filter(p => p.id !== editId)} value={formData.parent_project_id} onChange={id => handleInputChange({ target: { name: 'parent_project_id', value: id } })} placeholder="Select Parent Project" renderLabel={p => `${p.project_code || 'N/A'} - ${p.project_name || 'Unnamed'}`} />)}
-                      {renderHeaderField('Type', <select name="project_type" value={formData.project_type} onChange={handleInputChange} style={selectStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md">
-                        <option value="Main">Main</option>
-                        <option value="Expansion">Expansion</option>
-                        <option value="Service">Service</option>
-                      </select>, true)}
-                    </div>
+              return (
+                <div 
+                  key={step} 
+                  onClick={() => setCurrentStep(idx)} 
+                  className="flex-1 flex flex-col items-center gap-2 cursor-pointer relative group"
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 z-10 ${
+                    isActive 
+                      ? 'bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm' 
+                      : (isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200')
+                  }`}>
+                    {isCompleted ? <Check className="w-4 h-4 stroke-[3]" /> : (idx + 1)}
+                  </div>
+                  <span className={`text-xs text-center px-1 font-medium transition-colors ${
+                    isActive ? 'text-blue-700 font-bold' : (isCompleted ? 'text-emerald-600' : 'text-slate-500')
+                  }`}>
+                    {step}
+                  </span>
+                  {idx < wizardSteps.length - 1 && (
+                    <div className={`absolute top-4 left-1/2 w-full h-[2px] z-0 transition-colors ${
+                      isCompleted ? 'bg-emerald-500' : 'bg-slate-200'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Form Main Container */}
+        <form onSubmit={e => handleSaveClick(e, false)} className="bg-white rounded-xl shadow-lg border border-slate-200 space-y-6" style={{ padding: '28px 32px' }}>
+          
+          {/* STEP 0: Identity & Location */}
+          {currentStep === 0 && (
+            <div className="space-y-6">
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <ClientLabel onAddClick={() => setAddClientModalOpen(true)} />
+                    <FormSelect
+                      value={formData.client_id}
+                      onChange={(v) => setFormData((prev: any) => ({ ...prev, client_id: v }))}
+                      placeholder="Search or select client..."
+                      required
+                      options={clients.map(c => ({ value: c.id, label: c.client_name }))}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Project Name *</Label>
+                    <Input
+                      name="project_name"
+                      value={formData.project_name}
+                      onChange={handleInputChange}
+                      placeholder="Enter project name"
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Project Code *</Label>
+                    <Input
+                      name="project_code"
+                      value={formData.project_code || ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. PRJ-2026-001"
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Project Type *</Label>
+                    <FormSelect
+                      value={formData.project_type || 'new_installation'}
+                      onChange={(v) => handleInputChange({ target: { name: 'project_type', value: v } })}
+                      placeholder="Select Type..."
+                      options={[
+                        { value: 'new_installation', label: 'New Installation' },
+                        { value: 'maintenance', label: 'Maintenance' },
+                        { value: 'service', label: 'Service' },
+                        { value: 'small_work', label: 'Small Work' },
+                        { value: 'repair', label: 'Repair' },
+                        { value: 'modification', label: 'Modification' }
+                      ]}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Project Category</Label>
+                    <FormSelect
+                      value={formData.project_category || ''}
+                      onChange={(v) => handleInputChange({ target: { name: 'project_category', value: v } })}
+                      placeholder="Select Category..."
+                      options={[
+                        { value: 'oil_gas_piping', label: 'Oil & Gas Piping' },
+                        { value: 'water_treatment', label: 'Water Treatment' },
+                        { value: 'chemical_process', label: 'Chemical Process' },
+                        { value: 'industrial', label: 'Industrial' },
+                        { value: 'commercial', label: 'Commercial' },
+                        { value: 'hvac', label: 'HVAC' },
+                        { value: 'fire_protection', label: 'Fire Protection' },
+                        { value: 'other', label: 'Other' }
+                      ]}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Parent Project</Label>
+                    <FormSelect
+                      value={formData.parent_project_id || ''}
+                      onChange={(v) => handleInputChange({ target: { name: 'parent_project_id', value: v } })}
+                      placeholder="Select Parent Project..."
+                      options={projects.filter(p => p.id !== editId).map(p => ({
+                        value: p.id,
+                        label: p.project_code ? `${p.project_code} - ${p.project_name}` : p.project_name
+                      }))}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Site Location / Address</Label>
+                    <Textarea
+                      name="site_location"
+                      value={formData.site_location || formData.site_address || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, site_location: e.target.value, site_address: e.target.value }))}
+                      rows={2}
+                      placeholder="Physical address or site location..."
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900 resize-y"
+                    />
                   </div>
                 </div>
-              </section>
-
-                </>
-              )}
-              {currentStep === 1 && (
-                <>
-                  {/* Commercial Section */}
-              <section>
-                <div style={sectionHeaderStyle}>Commercial</div>
-                <div style={sectionBoxStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Value & Margins</div>
-                      {renderHeaderField('Est. Value', <input type="number" name="project_estimated_value" value={formData.project_estimated_value} onChange={handleInputChange} placeholder="0.00" min="0" step="0.01" style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />)}
-                      {renderHeaderField('Target Margin %', <input type="number" name="target_margin_percent" value={formData.target_margin_percent || ''} onChange={handleInputChange} placeholder="e.g. 15" min="0" step="0.1" style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />)}
-                      {renderHeaderField('Cost Center', <SearchableDropdown items={costCenters} value={formData.cost_center_id || ''} onChange={id => handleInputChange({ target: { name: 'cost_center_id', value: id } })} placeholder="Select Cost Center" />)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Purchase Order</div>
-                      {renderHeaderField('PO Req\'d', <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
-                        <input type="radio" name="po_required" checked={formData.po_required === true} onChange={() => setFormData(prev => ({ ...prev, po_required: true }))} /> Yes
-                        <input type="radio" name="po_required" checked={formData.po_required === false} onChange={() => setFormData(prev => ({ ...prev, po_required: false, po_status: 'Not Required' }))} /> No
-                      </label>)}
-                      {formData.po_required && (
-                        <>
-                          {renderHeaderField('Status', <select name="po_status" value={formData.po_status} onChange={handleInputChange} style={selectStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md">
-                            <option value="Not Required">Not Required</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Received">Received</option>
-                          </select>)}
-                          {formData.po_status === 'Received' && (
-                            <>
-                              {renderHeaderField(
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  Select PO(s)
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button variant="default" size="sm" type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAddPOModalOpen(true); }}
-                                        disabled={!formData.client_id}
-                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '4px', background: formData.client_id ? '#eff6ff' : '#f3f4f6', color: formData.client_id ? '#3b82f6' : '#9ca3af', border: formData.client_id ? '1px solid #bfdbfe' : '1px solid #d1d5db', cursor: formData.client_id ? 'pointer' : 'not-allowed' }}
-                                      >
-                                        <Plus size={12} strokeWidth={3} />
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent side="top" align="center" className="p-2 w-auto text-xs font-normal">
-                                      {formData.client_id ? "Create new PO" : "Select a Client first"}
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>,
-                                <MultiSelectDropdown items={clientPOs} value={formData.client_po_ids || []} onChange={(vals, pos) => {
-                                  const totalVal = pos.reduce((sum, po) => sum + (parseFloat(po.po_total_value) || 0), 0);
-                                  setFormData(prev => ({ 
-                                    ...prev, 
-                                    client_po_ids: vals,
-                                    project_estimated_value: vals.length > 0 ? totalVal.toString() : prev.project_estimated_value
-                                  }));
-                                }} placeholder="Search existing POs..." valueKey="id" renderLabel={po => `${po.po_number || 'No #'} - ${po.po_date || 'No Date'} (₹${po.po_total_value})`} />, false, true)}
-                            </>
-                          )}
-                        </>
-                      )}
-                      {fetchedPaymentTerms.length > 0 && (
-                        <div style={{ marginTop: '12px', padding: '10px', background: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 600, color: '#1e40af', marginBottom: '6px' }}>PO Payment Terms</div>
-                          {fetchedPaymentTerms.map((term, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#1e3a8a', padding: '2px 0' }}>
-                              <span>{term.milestone_name}</span>
-                              <span style={{ fontWeight: 600 }}>{term.milestone_percentage}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div style={{ marginTop: '10px' }}>
-                        {renderHeaderField('Penalties (LDs)', <textarea name="liquidated_damages" value={formData.liquidated_damages || ''} onChange={handleInputChange} rows={2} placeholder="e.g., 1% per week of delay..." style={textareaStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />, true, true)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Timeline Section */}
-              <section>
-                <div style={sectionHeaderStyle}>Timeline</div>
-                <div style={sectionBoxStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Dates</div>
-                      {renderHeaderField('Start', <input type="date" name="start_date" value={formData.start_date} onChange={handleInputChange} style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />)}
-                      {renderHeaderField('Expected', <input type="date" name="expected_end_date" value={formData.expected_end_date} onChange={handleInputChange} style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />)}
-                      {renderHeaderField('Actual', <input type="date" name="actual_end_date" value={formData.actual_end_date} onChange={handleInputChange} style={inputStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Progress</div>
-                      {renderHeaderField('Completion', <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input type="number" name="completion_percentage" value={formData.completion_percentage} onChange={handleInputChange} min="0" max="100" step="0.01" style={{ ...inputStyle, width: '80px', fontFamily: "'JetBrains Mono', monospace" }} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />
-                        <span style={{ fontSize: '12px', color: '#6b7280' }}>%</span>
-                      </div>, true)}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-                </>
-              )}
-              {currentStep === 2 && (
-                <>
-                  {/* Scope & Instructions Section */}
-              <section>
-                <div style={sectionHeaderStyle}>Project Scope & Site Engineer Instructions</div>
-                <div style={sectionBoxStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Scope</div>
-                      {renderHeaderField('Template', <select value={selectedTemplate} onChange={handleTemplateChange} style={selectStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md">
-                        <option value="">-- Start from Blank --</option>
-                        {Object.keys(PROJECT_TEMPLATES).map(k => <option key={k} value={k}>{k}</option>)}
-                      </select>)}
-                      {renderHeaderField('Contractor', <DynamicScopeList value={formData.contractor_scope} onChange={val => handleInputChange({ target: { name: 'contractor_scope', value: val }})} placeholder="Subcontractor scope/deliverables..." />, false, true)}
-                      {renderHeaderField('Client', <DynamicScopeList value={formData.client_scope} onChange={val => handleInputChange({ target: { name: 'client_scope', value: val }})} placeholder="Client responsibilities/inputs..." />, false, true)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Exclusions</div>
-                      {renderHeaderField('Excluded', <DynamicScopeList value={formData.excluded_scope} onChange={val => handleInputChange({ target: { name: 'excluded_scope', value: val }})} placeholder="Items outside contract..." />, false, true)}
-                      {renderHeaderField('Pending', <DynamicScopeList value={formData.pending_approval} onChange={val => handleInputChange({ target: { name: 'pending_approval', value: val }})} placeholder="Variations awaiting sign-off..." />, false, true)}
-                    </div>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    {renderHeaderField('Instructions', <textarea name="site_instructions" value={formData.site_instructions} onChange={handleInputChange} rows={3} placeholder="Operational instructions for onsite engineers..." style={textareaStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />, true, true)}
-                  </div>
-                </div>
-              </section>
-
-                </>
-              )}
-              {currentStep === 3 && (
-                <>
-                  <section>
-                    <div style={sectionHeaderStyle}>Team Allocation</div>
-                    <div style={sectionBoxStyle}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={sectionHeaderStyle}>Project Manager</div>
-                          {renderHeaderField('Manager', <SearchableDropdown items={employees} value={formData.project_manager_id || ''} onChange={id => handleInputChange({ target: { name: 'project_manager_id', value: id } })} placeholder="Assign Project Manager" />)}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={sectionHeaderStyle}>Site Engineer</div>
-                          {renderHeaderField('Engineer', <SearchableDropdown items={employees} value={formData.site_engineer_id || ''} onChange={id => handleInputChange({ target: { name: 'site_engineer_id', value: id } })} placeholder="Assign Site Engineer" />)}
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                  {/* Status & Notes Section */}
-              <section>
-                <div style={sectionHeaderStyle}>Status & Notes</div>
-                <div style={sectionBoxStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Status</div>
-                      {renderHeaderField('Status', <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {['Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed', 'Archived'].map(status => {
-                          const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
-                          const isActive = formData.status === status;
-                          const isCloseStatus = ['Execution Completed', 'Financially Closed', 'Closed'].includes(status);
-                          const chip = (
-                            <Button variant="default" size="sm" key={status} type="button" onClick={() => handleStatusChange(status)}
-                              style={{
-                                padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 500,
-                                cursor: 'pointer', border: isActive ? `1px solid ${cfg.color}` : '1px solid #d1d5db',
-                                background: isActive ? cfg.bg : '#fff',
-                                color: isActive ? cfg.color : '#6b7280',
-                                transition: 'all 0.15s',
-                              }}
-                            >{status}</Button>
-                          );
-                          if (isCloseStatus) {
-                            return <PermissionGuard key={status} permission="projects.close" fallback={null}>{chip}</PermissionGuard>;
-                          }
-                          return chip;
-                        })}
-                      </div>)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={sectionHeaderStyle}>Notes</div>
-                      {renderHeaderField('Remarks', <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={4} placeholder="Additional notes..." style={textareaStyle} className="border border-zinc-200 w-full bg-white hover:border-zinc-400 focus:ring-2 focus:ring-[#185FA5]/20 focus:border-[#185FA5] rounded-md" />, true)}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-
-                </>
-              )}
+              </div>
             </div>
-            
-            {/* Footer Navigation */}
-            <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-between rounded-b-md">
-              <Button variant="default" size="sm" type="button" style={secondaryBtnStyle} onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0}>Previous</Button>
-              {currentStep < wizardSteps.length - 1 ? (
-                <Button variant="default" size="sm" type="button" style={primaryBtnStyle} onClick={() => setCurrentStep(Math.min(wizardSteps.length - 1, currentStep + 1))}>Next Step</Button>
-              ) : (
-                <Button variant="default" size="sm" type="button" style={primaryBtnStyle} onClick={(e) => handleSaveClick(e, false)} disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update Project' : 'Save Project')}</Button>
-              )}
+          )}
+
+          {/* STEP 1: Commercials & Risk */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Commercials & Value</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Est. Value / Budget (₹)</Label>
+                    <Input
+                      type="number"
+                      name="project_estimated_value"
+                      value={formData.project_estimated_value || formData.budget || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, project_estimated_value: e.target.value, budget: e.target.value }))}
+                      placeholder="0.00"
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-mono transition-all text-slate-900"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Target Margin %</Label>
+                    <Input
+                      type="number"
+                      name="target_margin_percent"
+                      value={formData.target_margin_percent || ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 15"
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-mono transition-all text-slate-900"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Cost Center</Label>
+                    <FormSelect
+                      value={formData.cost_center_id || ''}
+                      onChange={(v) => handleInputChange({ target: { name: 'cost_center_id', value: v } })}
+                      placeholder="Select Cost Center..."
+                      options={costCenters.map(cc => ({ value: cc.id, label: cc.name }))}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">PO Required?</Label>
+                    <div className="flex items-center gap-6 pt-1">
+                      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="radio" name="po_required" checked={formData.po_required === true} onChange={() => setFormData(prev => ({ ...prev, po_required: true }))} className="text-blue-600" /> Yes
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="radio" name="po_required" checked={formData.po_required === false} onChange={() => setFormData(prev => ({ ...prev, po_required: false, po_status: 'Not Required' }))} className="text-blue-600" /> No
+                      </label>
+                    </div>
+                  </div>
+
+                  {formData.po_required && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-semibold text-slate-700">PO Status</Label>
+                        <FormSelect
+                          value={formData.po_status || 'Pending'}
+                          onChange={(v) => handleInputChange({ target: { name: 'po_status', value: v } })}
+                          placeholder="PO Status..."
+                          options={[
+                            { value: 'Not Required', label: 'Not Required' },
+                            { value: 'Pending', label: 'Pending' },
+                            { value: 'Received', label: 'Received' }
+                          ]}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Penalties (Liquidated Damages)</Label>
+                    <Textarea
+                      name="liquidated_damages"
+                      value={formData.liquidated_damages || ''}
+                      onChange={handleInputChange}
+                      rows={2}
+                      placeholder="e.g. 1% per week of delay up to max 10%..."
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900 resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Timeline & Completion</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Start Date</Label>
+                    <Input
+                      type="date"
+                      name="start_date"
+                      value={formData.start_date || ''}
+                      onChange={handleInputChange}
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Target / Expected End Date</Label>
+                    <Input
+                      type="date"
+                      name="expected_end_date"
+                      value={formData.expected_end_date || ''}
+                      onChange={handleInputChange}
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Actual End Date</Label>
+                    <Input
+                      type="date"
+                      name="actual_end_date"
+                      value={formData.actual_end_date || ''}
+                      onChange={handleInputChange}
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                    />
+                  </div>
+
+                  <div className="md:col-span-3 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Completion Percentage (%)</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="number"
+                        name="completion_percentage"
+                        value={formData.completion_percentage}
+                        onChange={handleInputChange}
+                        min="0"
+                        max="100"
+                        step="1"
+                        style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                        className="w-32 h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-mono transition-all text-slate-900"
+                      />
+                      <span className="text-sm text-slate-500 font-semibold">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* STEP 2: Scope Setup & Instructions */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Scope of Work & Deliverables</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Scope Template</Label>
+                    <FormSelect
+                      value={selectedTemplate}
+                      onChange={handleTemplateChange}
+                      placeholder="-- Start from Blank --"
+                      options={Object.keys(PROJECT_TEMPLATES).map(k => ({ value: k, label: k }))}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Contractor / Subcontractor Scope</Label>
+                    <DynamicScopeList 
+                      value={formData.contractor_scope} 
+                      onChange={val => handleInputChange({ target: { name: 'contractor_scope', value: val }})} 
+                      placeholder="Subcontractor scope item..." 
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Client Responsibilities</Label>
+                    <DynamicScopeList 
+                      value={formData.client_scope} 
+                      onChange={val => handleInputChange({ target: { name: 'client_scope', value: val }})} 
+                      placeholder="Client responsibility item..." 
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Excluded Scope</Label>
+                    <DynamicScopeList 
+                      value={formData.excluded_scope} 
+                      onChange={val => handleInputChange({ target: { name: 'excluded_scope', value: val }})} 
+                      placeholder="Items outside contract..." 
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Pending Variations / Approvals</Label>
+                    <DynamicScopeList 
+                      value={formData.pending_approval} 
+                      onChange={val => handleInputChange({ target: { name: 'pending_approval', value: val }})} 
+                      placeholder="Variations awaiting sign-off..." 
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Site Engineer Instructions</Label>
+                    <Textarea
+                      name="site_instructions"
+                      value={formData.site_instructions}
+                      onChange={handleInputChange}
+                      rows={3}
+                      placeholder="Operational instructions for onsite engineers..."
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900 resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Team & Finalize */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Team Allocation</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Project Manager</Label>
+                    <FormSelect
+                      value={formData.project_manager_id || ''}
+                      onChange={(v) => handleInputChange({ target: { name: 'project_manager_id', value: v } })}
+                      placeholder="Assign Project Manager..."
+                      options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Site Engineer</Label>
+                    <FormSelect
+                      value={formData.site_engineer_id || ''}
+                      onChange={(v) => handleInputChange({ target: { name: 'site_engineer_id', value: v } })}
+                      placeholder="Assign Site Engineer..."
+                      options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Status & Final Notes</h2>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Project Status</Label>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {['planning', 'in_progress', 'on_hold', 'completed', 'cancelled'].map(statusKey => {
+                        const labelMap: Record<string, string> = {
+                          planning: 'Planning',
+                          in_progress: 'In Progress',
+                          on_hold: 'On Hold',
+                          completed: 'Completed',
+                          cancelled: 'Cancelled'
+                        };
+                        const isActive = (formData.status || 'planning') === statusKey;
+                        return (
+                          <button
+                            key={statusKey}
+                            type="button"
+                            onClick={() => handleStatusChange(statusKey)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                              isActive 
+                                ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-200' 
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {labelMap[statusKey]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-slate-700">Description / Remarks</Label>
+                    <Textarea
+                      name="remarks"
+                      value={formData.remarks || formData.description || ''}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, remarks: e.target.value, description: e.target.value }))}
+                      rows={4}
+                      placeholder="Additional project notes or remarks..."
+                      style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
+                      className="w-full bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900 resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Wizard Footer Navigation */}
+          <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+              disabled={currentStep === 0}
+              className="px-5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-medium text-sm transition-all shadow-xs disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            >
+              Previous Step
+            </button>
+
+            {currentStep < wizardSteps.length - 1 ? (
+              <Button
+                type="button"
+                onClick={() => setCurrentStep(Math.min(wizardSteps.length - 1, currentStep + 1))}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 cursor-pointer"
+              >
+                Next Step
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 shadow-md cursor-pointer"
+              >
+                {saving ? 'Saving Project...' : (editId ? 'Update Project' : 'Save Project')}
+              </Button>
+            )}
           </div>
         </form>
       </div>

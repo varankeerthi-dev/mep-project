@@ -29,6 +29,7 @@
     "@fontsource-variable/merriweather": "^5.3.0",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.3.4",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.96.0",
@@ -74,7 +75,6 @@
     "@storybook/react": "8.6.14",
     "@storybook/react-vite": "8.6.14",
     "@storybook/test": "8.6.14",
-    "vitest": "^3.2.4",
     "@tailwindcss/postcss": "^4.2.2",
     "@tanstack/router-vite-plugin": "^1.166.37",
     "@types/dompurify": "^3.0.5",
@@ -93,7 +93,8 @@
     "storybook": "8.6.14",
     "tailwindcss": "^4.2.2",
     "typescript": "6.0.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^3.2.4"
   },
   "overrides": {
     "vite": {

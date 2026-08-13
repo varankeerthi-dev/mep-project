@@ -103,9 +103,11 @@ ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lead_allocations ENABLE ROW LEVEL SECURITY;
 
 -- Partners RLS
+DROP POLICY IF EXISTS "partners_org_access" ON partners;
 CREATE POLICY "partners_org_access" ON partners
   FOR ALL USING (organisation_id IN (SELECT get_user_organisations()));
 
 -- Lead allocations RLS
+DROP POLICY IF EXISTS "lead_allocations_org_access" ON lead_allocations;
 CREATE POLICY "lead_allocations_org_access" ON lead_allocations
   FOR ALL USING (organisation_id IN (SELECT get_user_organisations()));

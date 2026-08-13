@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from './button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface SubTabItem {
   id: string;
   label: string;
   path: string;
+  matchPrefix?: string;
 }
 
 export interface SubTabsNavProps {
@@ -15,9 +17,14 @@ export interface SubTabsNavProps {
   className?: string;
 }
 
+const SCROLL_STEP = 220;
+
 /**
  * SubTabsNav - Reusable Sub-Tabs Navigation Bar Component
  * Based on Paper 2.0 Design System Specifications
+ *
+ * Adds left/right chevron scroll buttons when the tab bar overflows
+ * horizontally, so every tab remains reachable without a native scrollbar.
  */
 export const SubTabsNav: React.FC<SubTabsNavProps> = ({
   tabs,
@@ -27,11 +34,65 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const currentTabId =
     activeTabId ||
-    tabs.find((t) => location.pathname === t.path || location.pathname.startsWith(t.path))?.id ||
+    tabs.find((t) => location.pathname === t.path || location.pathname.startsWith(t.matchPrefix ?? t.path))?.id ||
     tabs[0]?.id;
+
+  const updateScrollButtons = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const atStart = scrollLeft <= 1;
+    const atEnd = scrollLeft >= scrollWidth - clientWidth - 1;
+    setCanScrollLeft(!atStart);
+    setCanScrollRight(!atEnd);
+  }, []);
+
+  const scrollBy = useCallback((deltaX: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: deltaX, behavior: 'smooth' });
+    setTimeout(updateScrollButtons, 300);
+  }, [updateScrollButtons]);
+
+  const scrollLeft = useCallback(() => scrollBy(-SCROLL_STEP), [scrollBy]);
+  const scrollRight = useCallback(() => scrollBy(SCROLL_STEP), [scrollBy]);
+
+  useEffect(() => {
+    updateScrollButtons();
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => updateScrollButtons();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [updateScrollButtons, tabs]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const activeIndex = tabs.findIndex((t) => t.id === currentTabId);
+    if (activeIndex < 0) return;
+    el.querySelectorAll<HTMLButtonElement>('[data-tab-index]').forEach((btn, i) => {
+      btn.style.opacity = String(i === activeIndex ? 1 : 0.7);
+    });
+    const activeBtn = el.querySelector<HTMLElement>('[data-tab-index="' + activeIndex + '"]');
+    if (activeBtn) {
+      const containerRect = el.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      if (btnRect.right > containerRect.right - 40) {
+        activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      }
+    }
+  }, [currentTabId, tabs]);
 
   return (
     <div
@@ -50,7 +111,60 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
       }}
       className={className}
     >
+      {canScrollLeft && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={scrollLeft}
+          aria-label="Scroll tabs left"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '36px',
+            width: '36px',
+            minWidth: '36px',
+            padding: '4px',
+            borderRadius: '6px',
+            background: 'rgba(255,255,255,0.85)',
+            backdropFilter: 'blur(4px)',
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            zIndex: 2,
+            cursor: 'pointer',
+          }}
+        >
+          <ChevronLeft size={16} />
+        </Button>
+      )}
+      {canScrollRight && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={scrollRight}
+          aria-label="Scroll tabs right"
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            height: '36px',
+            width: '36px',
+            minWidth: '36px',
+            padding: '4px',
+            borderRadius: '6px',
+            background: 'rgba(255,255,255,0.85)',
+            backdropFilter: 'blur(4px)',
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            zIndex: 2,
+            cursor: 'pointer',
+          }}
+        >
+          <ChevronRight size={16} />
+        </Button>
+      )}
       <div
+        ref={scrollRef}
         style={{
           alignItems: 'center',
           boxSizing: 'border-box',
@@ -59,18 +173,22 @@ export const SubTabsNav: React.FC<SubTabsNavProps> = ({
           gap: '8px',
           height: '36px',
           justifyContent: 'flex-start',
-          padding: '3px',
+          padding: '3px 6px',
           width: '100%',
           overflowX: 'auto',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
+          scrollBehavior: 'smooth',
+          maskImage: 'linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent)',
         }}
       >
-        {tabs.map((tab) => {
+        {tabs.map((tab, idx) => {
           const isActive = currentTabId === tab.id;
           return (
             <Button variant="ghost" size="sm"
               key={tab.id}
+              data-tab-index={String(idx)}
               onClick={() => {
                 if (onTabChange) {
                   onTabChange(tab);

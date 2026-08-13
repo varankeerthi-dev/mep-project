@@ -106,3 +106,13 @@ export async function issueMaterialRequisitionAggregate(
 
   return updatedRequisition;
 }
+
+export async function acceptGRN(grnId: string, orgId: string) {
+  const { data, error } = await P.supabase.rpc('accept_grn', {
+    p_grn_id: grnId,
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to accept GRN');
+  return data;
+}

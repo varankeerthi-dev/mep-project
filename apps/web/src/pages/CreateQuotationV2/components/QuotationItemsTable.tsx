@@ -344,7 +344,6 @@ export function QuotationItemsTable({
             {(templateSettings?.column_settings?.optional?.variant !== false) && (
               <th style={{ ...headerStyle, width: '100px' }}>{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
             )}
-            <th style={{ ...headerStyle, width: '72px', textAlign: 'center', fontSize: '9px' }}>Discount<br />category</th>
             <th style={{ ...headerStyle, width: '55px', textAlign: 'right' }}>QTY</th>
             <th style={{ ...headerStyle, width: '45px', textAlign: 'center' }}>UNIT</th>
             <th style={{ ...headerStyle, width: '75px', textAlign: 'right' }}>RATE</th>
@@ -531,6 +530,18 @@ export function QuotationItemsTable({
                           onSave={(desc) => updateItem(item.id, 'description', desc)}
                         />
                       )}
+                      {item.item_id && (() => {
+                        const mat = item.material || materials.find(m => m.id === item.item_id);
+                        const dcId = item.discount_category_id || mat?.discount_category_id;
+                        if (!dcId) return null;
+                        const dcName = discountCategoryMap[dcId]?.name;
+                        if (!dcName) return null;
+                        return (
+                          <div style={{ padding: '1px 6px', fontSize: '9px', color: '#6366f1', background: '#eef2ff', borderRadius: '3px', margin: '2px 6px 3px', display: 'inline-block', lineHeight: '1.4' }}>
+                            {dcName}
+                          </div>
+                        );
+                      })()}
                     </td>
                   )}
                   {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
@@ -602,14 +613,6 @@ export function QuotationItemsTable({
                       />
                     </td>
                   )}
-                  <td style={{ ...cell, textAlign: 'center', color: '#475569', fontSize: '10px', width: '72px' }}>
-                    {(() => {
-                      const mat = item.material || materials.find(m => m.id === item.item_id);
-                      const dcId = item.discount_category_id || mat?.discount_category_id;
-                      if (!dcId) return '-';
-                      return discountCategoryMap[dcId]?.name || '-';
-                    })()}
-                  </td>
                   <td style={{ ...cell, padding: '0', width: '55px' }}>
                     <input
                       type="text"

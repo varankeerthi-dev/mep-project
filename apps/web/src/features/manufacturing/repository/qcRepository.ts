@@ -171,3 +171,13 @@ export async function createFGQCInspectionAggregate(
 
   return createdInspection;
 }
+
+export async function releaseFGAfterQC(inspectionId: string, orgId: string) {
+  const { data, error } = await supabase.rpc('release_fg_after_qc', {
+    p_inspection_id: inspectionId,
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to release QC inspection stock');
+  return data;
+}

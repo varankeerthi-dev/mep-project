@@ -538,10 +538,7 @@ html, body {
 }
 
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
-  border-radius: 0 !important;
 }
 
 /* settings-v2 content area: 5px default padding baseline.
@@ -1760,12 +1757,6 @@ body {
   max-width: 60px;
 }
 
-.grid-table th.col-disc-cat,
-.grid-table .col-disc-cat {
-  width: 72px;
-  min-width: 60px;
-}
-
 .grid-table th.col-make {
   width: 80px;
 }
@@ -2067,13 +2058,37 @@ body {
   border-radius: 9999px !important;
 }
 
-/* Item editor form inputs — override global border-radius:0 reset */
+/* Item editor & form inputs — override global border-radius:0 reset */
 [data-slot="input"],
 [data-slot="select"],
-[data-slot="textarea"] {
-  border-radius: 10px !important;
-  border: 1px solid #DCE3ED !important;
+[data-slot="textarea"],
+input.bg-white,
+select.bg-white,
+textarea.bg-white {
+  border-radius: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
 }
+
+.form-dropdown-menu {
+  border-radius: 8px !important;
+  padding: 6px !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.form-dropdown-item {
+  border-radius: 6px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+
+
 
 [data-slot="input"]:focus,
 [data-slot="select"]:focus,
@@ -2831,6 +2846,8 @@ form > div:first-child > [data-slot="editor-section"]:first-child {
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    margin: 0;
+    padding: 0;
   }
 
   button[role="switch"] {
@@ -4059,4 +4076,56 @@ td:hover .inline-description-cell-container:not(.has-description):not(.is-editin
     animation: none !important;
     transform: none !important;
   }
+}
+
+/* ===== PipePro Visual Theme & Container Utility Styles ===== */
+:root {
+  --neutral-50: 210 40% 98%;
+  --neutral-100: 210 40% 96%;
+  --neutral-200: 214 32% 91%;
+  --neutral-300: 213 27% 84%;
+  --neutral-400: 215 20% 65%;
+  --neutral-500: 215 16% 47%;
+  --neutral-600: 215 19% 35%;
+  --neutral-700: 217 19% 27%;
+  --neutral-800: 217 19% 17%;
+  --neutral-900: 222 47% 11%;
+
+  --brand-50: 214 100% 97%;
+  --brand-100: 214 95% 93%;
+  --brand-200: 213 97% 87%;
+  --brand-500: 217 91% 60%;
+  --brand-600: 221 83% 53%;
+  --brand-700: 224 76% 48%;
+  --brand-800: 226 71% 40%;
+}
+
+.surface-card {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.page-shell {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.page-container {
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 1rem;
+}
+
+.icon-chip {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }

@@ -77,3 +77,24 @@ export async function createJobCardAggregate(
 
   return inserted;
 }
+
+export async function releaseJobCard(jobCardId: string, orgId: string) {
+  const { data, error } = await supabase.rpc('release_job_card', {
+    p_job_card_id: jobCardId,
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to release job card');
+  return data;
+}
+
+export async function calculateJobCardVariances(jobCardId: string, orgId: string) {
+  const { data, error } = await supabase.rpc('calculate_job_card_variances', {
+    p_job_card_id: jobCardId,
+    p_org_id: orgId,
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || 'Failed to calculate job card variances');
+  return data;
+}
+

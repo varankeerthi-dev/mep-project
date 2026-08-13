@@ -40,6 +40,7 @@ import {
   ArrowLeft,
   Edit,
   Trash2,
+  Check,
 } from 'lucide-react';
 import {
   format,
@@ -415,7 +416,7 @@ export function ClientCommunication() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, client_name')
+        .select('id, client_name, contact, contact_person, contact_person_2, purchase_person, contact_code, contact_person_2_contact, purchase_contact, contact_person_2_contact_code, purchase_contact_code')
         .eq('organisation_id', organisation?.id)
         .order('client_name');
       if (error) throw error;
@@ -673,6 +674,7 @@ export function ClientCommunication() {
         assigned_to: data.assigned_to && data.assigned_to !== '' ? data.assigned_to : currentUserProfileId,
         parent_communication_id: data.parent_communication_id && data.parent_communication_id !== '' ? data.parent_communication_id : null,
         referred_to_partner_id: data.referred_to_partner_id && data.referred_to_partner_id !== '' ? data.referred_to_partner_id : null,
+        contacted_contact_id: data.contacted_contact_id && data.contacted_contact_id !== '' ? data.contacted_contact_id : null,
       };
       const { data: result, error } = await supabase
         .from('client_communication')
@@ -840,7 +842,50 @@ export function ClientCommunication() {
     assigned_to: '',
     parent_communication_id: '',
     referred_to_partner_id: '',
+    contacted_contact_id: '',
   });
+
+  // Additional client contacts (CFT) for the selected client — used in "Spoke With"
+  const { data: clientContacts = [] } = useQuery({
+    queryKey: ['client_contacts', formData.client_id],
+    queryFn: async () => {
+      if (!formData.client_id) return [];
+      const { data, error } = await supabase
+        .from('client_contacts')
+        .select('id, client_id, name, designation, phone_code, phone, email, is_primary')
+        .eq('client_id', formData.client_id)
+        .order('is_primary', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!formData.client_id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Build the unified list of contacts for the selected client:
+  // the 3 fixed client contacts + any additional client_contacts rows.
+  const selectedClient = clients.find((c: any) => c.id === formData.client_id);
+  const spokeWithOptions = (() => {
+    const opts: { id: string; label: string; phone?: string }[] = [];
+    if (selectedClient) {
+      const fixed: { name?: string; phone?: string; code?: string }[] = [
+        { name: selectedClient.contact_person, phone: selectedClient.contact, code: selectedClient.contact_code },
+        { name: selectedClient.contact_person_2, phone: selectedClient.contact_person_2_contact, code: selectedClient.contact_person_2_contact_code },
+        { name: selectedClient.purchase_person, phone: selectedClient.purchase_contact, code: selectedClient.purchase_contact_code },
+      ];
+      fixed.forEach((f, i) => {
+        if (f.name) {
+          const phone = f.phone ? `${f.code || ''}${f.phone}`.trim() : undefined;
+          opts.push({ id: `fixed-${i}`, label: f.name, phone });
+        }
+      });
+    }
+    (clientContacts as any[]).forEach((c) => {
+      const phone = c.phone ? `${c.phone_code || ''}${c.phone}`.trim() : undefined;
+      opts.push({ id: c.id, label: `${c.name}${c.designation ? ` (${c.designation})` : ''}`, phone });
+    });
+    return opts;
+  })();
 
   const [siteVisitData, setSiteVisitData] = useState({
     client_id: '',
@@ -983,6 +1028,7 @@ export function ClientCommunication() {
       assigned_to: '',
       parent_communication_id: '',
       referred_to_partner_id: '',
+      contacted_contact_id: '',
     });
     setRequireSiteVisit(false);
     setIssueSiteVisitDate('');
@@ -2277,7 +2323,13 @@ export function ClientCommunication() {
       {/* ════ CREATE MODAL ════ */}
       {showCreateModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(3px)' }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.22)' }}>
+          <div className="form-root" style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.22)' }}>
+            <style>{`
+              .form-root input, .form-root select, .form-root textarea { border-radius: 5px !important; }
+              .form-root label { margin-bottom: 8px !important; }
+              @keyframes partyTickZoom { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+              .party-tick-box { border-radius: 4px !important; }
+            `}</style>
 
             {/* Modal Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F1F5F9', position: 'sticky', top: 0, background: '#fff', zIndex: 1, borderRadius: '16px 16px 0 0' }}>
@@ -2315,6 +2367,7 @@ export function ClientCommunication() {
                     call_received_by: formData.call_received_by || null,
                     assigned_to: formData.assigned_to || null,
                     parent_communication_id: formData.parent_communication_id || null,
+                    contacted_contact_id: formData.contacted_contact_id || null,
                   };
                   updateMutation.mutate({ id: editingCommunication.id, data: updatedData });
                 } else {
@@ -2334,13 +2387,18 @@ export function ClientCommunication() {
                   {PARTY_CHIPS.map(t => (
                     <label key={t.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', border: `2px solid ${formData.party_type === t.value ? t.color : '#E2E8F0'}`, borderRadius: '8px', background: formData.party_type === t.value ? t.bg : '#fff', cursor: 'pointer', transition: 'all 150ms' }}>
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="party_type"
                         value={t.value}
                         checked={formData.party_type === t.value}
                         onChange={() => setFormData(f => ({ ...f, party_type: t.value, client_id: '', vendor_id: '', lead_id: '', subcontractor_id: '' }))}
-                        style={{ accentColor: t.color }}
+                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
                       />
+                      <span className="party-tick-box" style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${formData.party_type === t.value ? t.color : '#CBD5E1'}`, background: formData.party_type === t.value ? t.color : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 150ms ease, border-color 150ms ease', flexShrink: 0 }}>
+                        {formData.party_type === t.value && (
+                          <Check size={13} color="#fff" style={{ animation: 'partyTickZoom 180ms ease-out' }} />
+                        )}
+                      </span>
                       <span style={{ fontSize: '14px', fontWeight: 500, color: formData.party_type === t.value ? t.color : '#334155' }}>{t.label}</span>
                     </label>
                   ))}
@@ -2353,7 +2411,7 @@ export function ClientCommunication() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {formData.party_type === 'client' && (
                     <>
-                      <select value={formData.client_id} onChange={e => setFormData(f => ({ ...f, client_id: e.target.value }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                      <select value={formData.client_id} onChange={e => setFormData(f => ({ ...f, client_id: e.target.value, contacted_contact_id: '' }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                         <option value="">Select a client...</option>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
                       </select>
@@ -2397,6 +2455,32 @@ export function ClientCommunication() {
                   )}
                 </div>
               </div>
+
+              {/* Spoke With — choose the specific contact (CFT) for the selected client */}
+              {formData.party_type === 'client' && hasPartySelected && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={labelStyle}>Spoke With (Contact)</label>
+                  <select
+                    value={formData.contacted_contact_id}
+                    onChange={e => setFormData(f => ({ ...f, contacted_contact_id: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}
+                  >
+                    <option value="">— Select contact —</option>
+                    {spokeWithOptions.map(o => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}{o.phone ? ` · ${o.phone}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.contacted_contact_id && (
+                    <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#64748b' }}>
+                      {spokeWithOptions.find(o => o.id === formData.contacted_contact_id)?.phone
+                        ? `Contact number: ${spokeWithOptions.find(o => o.id === formData.contacted_contact_id)?.phone}`
+                        : 'No phone recorded for this contact'}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* In Reply To */}
               {hasPartySelected && recentPartyComms.length > 0 && (
@@ -2446,13 +2530,6 @@ export function ClientCommunication() {
                   <label style={labelStyle}>Priority</label>
                   <select value={formData.priority} onChange={e => setFormData(f => ({ ...f, priority: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                     {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                  </select>
-                </div>
-                {/* Status */}
-                <div>
-                  <label style={labelStyle}>Status</label>
-                  <select value={formData.status} onChange={e => setFormData(f => ({ ...f, status: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
-                    {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
                 {/* Follow Up Date */}

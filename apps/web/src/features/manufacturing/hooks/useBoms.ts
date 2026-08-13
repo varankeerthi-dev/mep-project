@@ -146,3 +146,49 @@ export function useBomItemsQuery(bomId: string | null) {
     enabled: !!bomId,
   });
 }
+
+export function usePublishBOMMutation(onSuccessCallback?: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ bomId, orgId }: { bomId: string; orgId: string }) => {
+      return R.publishBOM(bomId, orgId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      queryClient.invalidateQueries({ queryKey: ['bom-detail'] });
+      toast.success('BOM published and locked as immutable');
+      if (onSuccessCallback) onSuccessCallback();
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to publish BOM');
+    },
+  });
+}
+
+export function useCreateBOMRevisionMutation(onSuccessCallback?: (newBomId: string) => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sourceBomId, orgId }: { sourceBomId: string; orgId: string }) => {
+      return R.createBOMRevision(sourceBomId, orgId);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      toast.success(`New draft BOM revision ${data.new_revision} created`);
+      if (onSuccessCallback && data.new_bom_id) onSuccessCallback(data.new_bom_id);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to create BOM revision');
+    },
+  });
+}
+
+export function useBOMExplosionQuery(bomId: string | null, productionQty: number = 1, productionDate?: string) {
+  return useQuery({
+    queryKey: ['bom-explosion', bomId, productionQty, productionDate],
+    queryFn: async () => {
+      if (!bomId) return [];
+      return R.explodeBOM(bomId, productionQty, productionDate);
+    },
+    enabled: !!bomId,
+  });
+}

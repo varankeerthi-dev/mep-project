@@ -314,7 +314,6 @@ export function ErectionItemsSection({
             {(templateSettings?.column_settings?.optional?.variant !== false) && (
               <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
             )}
-            <th className="col-disc-cat" style={{ fontSize: '10px', padding: '6px', textAlign: 'center', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap', lineHeight: '1.3' }}>Discount<br/>category</th>
             <th className="col-qty">QTY</th>
             <th className="col-unit">UNIT</th>
             <th className="col-rate">RATE</th>
@@ -560,6 +559,18 @@ export function ErectionItemsSection({
                           onSave={(desc) => updateItem(item.id, 'description', desc)}
                         />
                       )}
+                      {item.item_id && (() => {
+                        const mat = item.material || materials.find(m => m.id === item.item_id);
+                        const dcId = item.discount_category_id || mat?.discount_category_id;
+                        if (!dcId) return null;
+                        const dcName = discountCategoryMap[dcId]?.name;
+                        if (!dcName) return null;
+                        return (
+                          <div style={{ padding: '1px 6px', fontSize: '9px', color: '#6366f1', background: '#eef2ff', borderRadius: '3px', margin: '2px 6px 3px', display: 'inline-block', lineHeight: '1.4' }}>
+                            {dcName}
+                          </div>
+                        );
+                      })()}
                     </td>
                   )}
                   {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
@@ -635,16 +646,6 @@ export function ErectionItemsSection({
                       />
                     </td>
                   )}
-                  <td className="col-disc-cat cell-static">
-                    <div style={{ fontSize: '11px', color: '#475569', textAlign: 'center', wordBreak: 'break-all' }}>
-                      {(() => {
-                        const mat = item.material || materials.find(m => m.id === item.item_id);
-                        const dcId = item.discount_category_id || mat?.discount_category_id;
-                        if (!dcId) return '-';
-                        return discountCategoryMap[dcId]?.name || '-';
-                      })()}
-                    </div>
-                  </td>
                   <td className="col-qty">
                     <input
                       type="text"

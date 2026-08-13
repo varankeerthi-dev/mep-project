@@ -2,12 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Eye, Loader2, Mail, Plus, Printer, Save, X, FileText, RotateCcw } from 'lucide-react';
+import { Download, Eye, Loader2, Mail, Plus, Printer, Save, X, FileText, RotateCcw, User, Briefcase } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AiDocumentParserModal } from '@/components/AiDocumentParserModal';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/supabase';
+import {
+  DocumentActionBar,
+  HeaderFormGrid,
+  HeaderCard,
+  HeaderField,
+  CustomDatePicker,
+  sharedStyles,
+} from '@/components/document-editor';
 import { mapInvoiceSourceToDraft, generateInvoiceNumber, loadClientPOs, incrementInvoiceNumber } from '../api';
 import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
 import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
@@ -1572,91 +1580,48 @@ export default function InvoiceEditorPage() {
   }
 
   return (
-    <div style={{ 
-      fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: '16px'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        marginBottom: '16px',
-        paddingBottom: '12px',
-        borderBottom: '1px solid #e5e5e5'
-      }}>        <div style={{
-          fontSize: '20px',
-          fontWeight: 600,
-          color: '#0a0a0a',
-          margin: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          {isEditMode ? 'Edit Invoice' : isDuplicating ? 'Create Invoice from Existing' : 'New Invoice'}
-          <RevisionBadge revisionNo={invoiceRevisionNo} onClick={() => setInvoiceRevisionDialogOpen(true)} />
+    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+      <DocumentActionBar
+        title={isEditMode ? `Edit ${invoiceQuery.data?.invoice_no || 'Invoice'}` : isDuplicating ? 'Create Invoice from Existing' : 'New Invoice'}
+        statusBadge={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <InvoiceStatusBadge status={getValues('status')} />
+            <RevisionBadge revisionNo={invoiceRevisionNo} onClick={() => setInvoiceRevisionDialogOpen(true)} />
           </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-          <InvoiceStatusBadge status={getValues('status')} />
-          
-          <Button variant="outline" size="icon-xs" type="button" onClick={handlePreviewPdf} disabled={!isEditMode || pdfAction !== null} title="Preview PDF" >
-            {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Eye size={14} />}
-          </Button>
-          
-          <Button variant="outline" size="icon-xs" type="button" onClick={handleDownloadPdf} disabled={!isEditMode || pdfAction !== null} title="Download PDF" >
-            {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Download size={14} />}
-          </Button>
-          
-          <Button variant="outline" size="icon-xs" type="button" onClick={handlePrintPdf} disabled={!isEditMode || pdfAction !== null} title="Print" >
-            {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Printer size={14} />}
-          </Button>
-          
-          <Button variant="outline" size="icon-xs" type="button" onClick={handleEmailPdf} disabled={!isEditMode || pdfAction !== null} title="Email" >
-            {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Mail size={14} />}
-          </Button>
-          
-          <Button variant="default" size="sm" type="button" onClick={() => setIsParserOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              border: '1px solid #e2e8f0',
-              borderRadius: '4px',
-              background: '#eef2ff',
-              color: '#4f46e5',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-          >
-            <FileText size={14} />
-            Import PDF/Image
-          </Button>
-          
-          <Button variant="default" size="sm" type="button" onClick={() => navigate('/invoices')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              color: '#525252',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s'
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
+        }
+        fixed={{ top: 32, left: 220 }}
+        leftActions={
+          <>
+            <Button variant="outline" size="icon-xs" type="button" onClick={() => setIsParserOpen(true)} title="Import PDF/Image">
+              <FileText size={14} />
+            </Button>
+            {invoiceId && (
+              <DocumentConversionChain documentType="invoice" documentId={invoiceId} />
+            )}
+          </>
+        }
+        rightActions={
+          <>
+            <Button variant="outline" size="icon-xs" type="button" onClick={handlePreviewPdf} disabled={!isEditMode || pdfAction !== null} title="Preview PDF">
+              {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Eye size={14} />}
+            </Button>
+            <Button variant="outline" size="icon-xs" type="button" onClick={handleDownloadPdf} disabled={!isEditMode || pdfAction !== null} title="Download PDF">
+              {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Download size={14} />}
+            </Button>
+            <Button variant="outline" size="icon-xs" type="button" onClick={handlePrintPdf} disabled={!isEditMode || pdfAction !== null} title="Print">
+              {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Printer size={14} />}
+            </Button>
+            <Button variant="outline" size="icon-xs" type="button" onClick={handleEmailPdf} disabled={!isEditMode || pdfAction !== null} title="Email">
+              {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Mail size={14} />}
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={() => navigate('/invoices')}>Cancel</Button>
+            <Button variant="default" size="sm" type="button" onClick={() => document.getElementById('invoice-form')?.requestSubmit()} disabled={isSaving}>
+              {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
+              {isEditMode ? 'Update' : 'Create'}
+            </Button>
+          </>
+        }
+      />
 
       <form id="invoice-form" onSubmit={onSubmit} style={{ marginBottom: '16px' }}>
         {activeImportSessionId && (
@@ -1679,48 +1644,58 @@ export default function InvoiceEditorPage() {
           </div>
         )}
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Client
-              </label>
+        <HeaderFormGrid columns={3}>
+          {/* Card 1: Client */}
+          <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Client">
+            <HeaderField label="Client" required labelWidth="90px">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <select
+                  {...register('client_id')}
+                  style={{
+                    width: '100%',
+                    padding: sharedStyles.inputStyle.padding,
+                    fontSize: sharedStyles.inputStyle.fontSize,
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '4px',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">Select client</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+                {errors.client_id && (
+                  <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 500 }}>
+                    {errors.client_id.message}
+                  </span>
+                )}
+              </div>
+            </HeaderField>
+            <HeaderField label="Source" labelWidth="90px">
               <select
-                {...register('client_id')}
+                {...register('source_type')}
                 style={{
                   width: '100%',
-                  padding: '6px 10px',
+                  padding: sharedStyles.inputStyle.padding,
+                  fontSize: sharedStyles.inputStyle.fontSize,
                   border: '1px solid #d4d4d4',
                   borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
                   background: '#fff',
                   cursor: 'pointer'
                 }}
               >
-                <option value="">Select client</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
+                <option value="direct">Direct</option>
+                <option value="quotation">Quotation</option>
+                <option value="challan">Challan</option>
+                <option value="po">PO</option>
+                <option value="proforma">Proforma</option>
               </select>
-              {errors.client_id && (
-                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.client_id.message}
-                </span>
-              )}
-              {selectedClientId && (
-                <div style={{ marginTop: '6px' }}>
+            </HeaderField>
+            {selectedClientId && (
+              <HeaderField label="" labelWidth="90px" last>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <ArcPricingToggle
                     clientId={selectedClientId}
                     enabled={useArcPricing}
@@ -1729,9 +1704,7 @@ export default function InvoiceEditorPage() {
                         setArcPricingConfirmOpen(true);
                       } else {
                         setUseArcPricing(enabled);
-                        if (!enabled) {
-                          setArcPricingMap({});
-                        }
+                        if (!enabled) setArcPricingMap({});
                       }
                     }}
                   />
@@ -1740,464 +1713,191 @@ export default function InvoiceEditorPage() {
                     itemsWithArcRate={Object.values(arcPricingMap).filter(Boolean).length}
                     itemsWithoutArcRate={watchedItems.length - Object.values(arcPricingMap).filter(Boolean).length}
                   />
-                  {useArcPricing && arcPricingQuery.isLoading && (
-                    <span style={{ fontSize: '11px', color: '#737373', display: 'block', marginTop: '2px' }}>Loading ARC rates...</span>
-                  )}
                 </div>
-              )}
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  color: '#737373'
-                }}>
-                  Billing
-                </label>
-                <div style={{
-                  padding: '8px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  color: '#525252',
-                  background: '#f9fafb',
-                  minHeight: '100px',
-                  whiteSpace: 'pre-line'
-                }}>
-                  {clientDetailsQuery.data ? (
-                    <>
-                      {clientDetailsQuery.data.gst_number && (
-                        <span style={{ display: 'block', fontSize: '10px', color: '#737373', marginBottom: '4px' }}>
-                          GSTIN: {clientDetailsQuery.data.gst_number}
-                        </span>
-                      )}
-                      {clientDetailsQuery.data.address1 && (
-                        <span style={{ display: 'block' }}>
-                          Address: {clientDetailsQuery.data.address1}
-                          {clientDetailsQuery.data.address2 && `, ${clientDetailsQuery.data.address2}`}
-                        </span>
-                      )}
-                      {clientDetailsQuery.data.city && clientDetailsQuery.data.state && clientDetailsQuery.data.pincode && (
-                        <span style={{ display: 'block' }}>
-                          {clientDetailsQuery.data.city}, {clientDetailsQuery.data.state} - {clientDetailsQuery.data.pincode}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span style={{ color: '#a3a3a3', fontSize: '10px' }}>Select client</span>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  color: '#737373'
-                }}>
-                  Shipping
-                </label>
-                <div style={{
-                  padding: '8px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  color: '#525252',
-                  background: '#f9fafb',
-                  minHeight: '100px',
-                  whiteSpace: 'pre-line'
-                }}>
-                  {selectedShippingAddress ? (
-                    <>
-                      {selectedShippingAddress.address_line1 && (
-                        <span style={{ display: 'block' }}>
-                          {selectedShippingAddress.address_line1}
-                          {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
-                        </span>
-                      )}
-                      {selectedShippingAddress.city && selectedShippingAddress.state && selectedShippingAddress.pincode && (
-                        <span style={{ display: 'block' }}>
-                          {selectedShippingAddress.city}, {selectedShippingAddress.state} - {selectedShippingAddress.pincode}
-                        </span>
-                      )}
-                      {selectedShippingAddress.contact_person && (
-                        <span style={{ display: 'block', marginTop: '4px' }}>
-                          Contact: {selectedShippingAddress.contact_person}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span style={{ color: '#a3a3a3', fontSize: '10px' }}>Same as billing</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Invoice Date
-            </label>
-            <input
-              type="date"
-              {...register('invoice_date')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-            {errors.invoice_date && (
-              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                {errors.invoice_date.message}
-              </span>
+              </HeaderField>
             )}
-          </div>
+          </HeaderCard>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Due Date
-            </label>
-            <input
-              type="date"
-              {...register('due_date')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
+          {/* Card 2: Document */}
+          <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
+            <HeaderField label="Invoice No" labelWidth="90px">
+              <div style={{ ...sharedStyles.staticFieldStyle, background: '#f3f4f6' }}>
+                {getValues('invoice_no') || 'Auto-generating...'}
+              </div>
+            </HeaderField>
+            <HeaderField label="Date" labelWidth="90px">
+              <CustomDatePicker
+                value={watch('invoice_date') || ''}
+                onChange={(val) => setValue('invoice_date', val, { shouldDirty: true })}
+                inputStyle={sharedStyles.inputStyle}
+              />
+            </HeaderField>
+            {errors.invoice_date && (
+              <div style={{ paddingLeft: '90px', marginTop: '-6px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 500 }}>{errors.invoice_date.message}</span>
+              </div>
+            )}
+            <HeaderField label="Due Date" labelWidth="90px">
+              <CustomDatePicker
+                value={watch('due_date') || ''}
+                onChange={(val) => setValue('due_date', val, { shouldDirty: true })}
+                inputStyle={sharedStyles.inputStyle}
+              />
+            </HeaderField>
+            <HeaderField label="Template" labelWidth="90px">
+              <select
+                {...register('template_id')}
+                style={{
+                  width: '100%',
+                  padding: sharedStyles.inputStyle.padding,
+                  fontSize: sharedStyles.inputStyle.fontSize,
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select template</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>{template.name}</option>
+                ))}
+              </select>
+            </HeaderField>
+            <HeaderField label="Prepared By" labelWidth="90px" last>
+              <input
+                type="text"
+                {...register('prepared_by')}
+                placeholder="Name"
+                style={{ ...sharedStyles.inputStyle, width: '100%', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff' }}
+              />
+            </HeaderField>
+          </HeaderCard>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Prepared By
-            </label>
-            <input
-              type="text"
-              {...register('prepared_by')}
-              placeholder="Name of the person preparing this"
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Template
-            </label>
-            <select
-              {...register('template_id')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">Select template</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Discounts (By Category)
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {variantRows.length > 0 ? variantRows.map((variant: any) => (
-                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e5e5e5', background: '#fff', borderRadius: '4px', height: '36px' }}>
-                  <div style={{ padding: '0 8px', flex: 1, borderLeft: '2px solid #3b82f6', height: '100%', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#1d4ed8' }}>
-                      {variant.variant_name}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid #e5e5e5' }}>
-                    <input
-                      type="number"
-                      style={{ width: '60px', padding: '0 8px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#1d4ed8', border: 'none', background: 'transparent', height: '100%', outline: 'none' }}
-                      value={headerDiscounts[variant.id] || 0}
-                      onChange={(e) => {
-                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                        setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                      }}
-                      onBlur={(e) => {
-                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                        handleHeaderDiscountChange(variant.id, val);
-                      }}
-                      min="0" max="100" step="0.01"
-                    />
-                    <div style={{ padding: '0 8px', fontSize: '11px', fontWeight: 700, color: '#2563eb', borderLeft: '1px solid #e5e5e5', height: '100%', display: 'flex', alignItems: 'center' }}>
-                      %
+          {/* Card 3: Project & Pricing */}
+          <HeaderCard icon={<Briefcase size={14} style={{ color: '#2563eb' }} />} title="Project & Pricing">
+            <HeaderField label="Mode" labelWidth="90px">
+              <select
+                {...register('mode')}
+                style={{
+                  width: '100%',
+                  padding: sharedStyles.inputStyle.padding,
+                  fontSize: sharedStyles.inputStyle.fontSize,
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="itemized">Itemized</option>
+                <option value="lot">Lot</option>
+              </select>
+            </HeaderField>
+            <HeaderField label="Warehouse" labelWidth="90px">
+              <select
+                {...register('default_warehouse_id')}
+                style={{
+                  width: '100%',
+                  padding: sharedStyles.inputStyle.padding,
+                  fontSize: sharedStyles.inputStyle.fontSize,
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select warehouse</option>
+                {warehousesQuery.data?.map((warehouse: any) => (
+                  <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                ))}
+              </select>
+            </HeaderField>
+            <HeaderField label="PO Number" labelWidth="90px">
+              <input
+                type="text"
+                {...register('po_number')}
+                placeholder="PO number"
+                style={{ ...sharedStyles.inputStyle, width: '100%', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff' }}
+              />
+            </HeaderField>
+            <HeaderField label="PO Date" labelWidth="90px">
+              <CustomDatePicker
+                value={watch('po_date') || ''}
+                onChange={(val) => setValue('po_date', val, { shouldDirty: true })}
+                inputStyle={sharedStyles.inputStyle}
+              />
+            </HeaderField>
+            <HeaderField label="Discounts" labelWidth="90px" last>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {variantRows.length > 0 ? variantRows.map((variant: any) => (
+                  <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e5e5e5', background: '#fff', borderRadius: '4px', height: '30px' }}>
+                    <div style={{ padding: '0 6px', flex: 1, borderLeft: '2px solid #3b82f6', height: '100%', display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#1d4ed8' }}>
+                        {variant.variant_name}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid #e5e5e5' }}>
+                      <input
+                        type="number"
+                        style={{ width: '48px', padding: '0 4px', textAlign: 'right', fontSize: '10px', fontWeight: 700, color: '#1d4ed8', border: 'none', background: 'transparent', height: '100%', outline: 'none' }}
+                        value={headerDiscounts[variant.id] || 0}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                          setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                        }}
+                        onBlur={(e) => {
+                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                          handleHeaderDiscountChange(variant.id, val);
+                        }}
+                        min="0" max="100" step="0.01"
+                      />
+                      <span style={{ padding: '0 4px', fontSize: '10px', fontWeight: 700, color: '#2563eb', borderLeft: '1px solid #e5e5e5', height: '100%', display: 'flex', alignItems: 'center' }}>%</span>
                     </div>
                   </div>
-                </div>
-              )) : (
-                <div style={{ fontSize: '11px', color: '#737373', fontStyle: 'italic', padding: '8px', border: '1px solid #e5e5e5', background: '#fafafa' }}>
-                  No categories available.
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Source
-            </label>
-            <select
-              {...register('source_type')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="direct">Direct</option>
-              <option value="quotation">Quotation</option>
-              <option value="challan">Challan</option>
-              <option value="po">PO</option>
-              <option value="proforma">Proforma</option>
-            </select>
-          </div>
-
-          {selectedSourceType !== 'direct' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                {getSourceLabel(selectedSourceType)} Number
-              </label>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <select
-                  {...register('source_id')}
-                  style={{
-                    flex: 1,
-                    padding: '6px 10px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    fontSize: '13px',
-                    color: '#171717',
-                    background: '#fff',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Select {getSourceLabel(selectedSourceType)}</option>
-                  {sourceOptionsQuery.data?.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
-                {(selectedSourceType === 'po' || selectedSourceType === 'quotation' || selectedSourceType === 'proforma') && selectedSourceId && (
-                  <Button variant="default" size="sm" type="button" onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection} >
-                    Select Lines
-                  </Button>
+                )) : (
+                  <div style={{ fontSize: '10px', color: '#737373', fontStyle: 'italic', padding: '4px' }}>
+                    No categories
+                  </div>
                 )}
               </div>
-              {sourceDraftQuery.isLoading && (
-                <span style={{ fontSize: '11px', color: '#737373' }}>Loading {getSourceLabel(selectedSourceType)} details...</span>
+            </HeaderField>
+          </HeaderCard>
+        </HeaderFormGrid>
+
+        {selectedSourceType !== 'direct' && (
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>
+                {getSourceLabel(selectedSourceType)}:
+              </label>
+              <select
+                {...register('source_id')}
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#171717',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select {getSourceLabel(selectedSourceType)}</option>
+                {sourceOptionsQuery.data?.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+              {(selectedSourceType === 'po' || selectedSourceType === 'quotation' || selectedSourceType === 'proforma') && selectedSourceId && (
+                <Button variant="default" size="sm" type="button" onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection}>
+                  Select Lines
+                </Button>
               )}
             </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Mode
-            </label>
-            <select
-              {...register('mode')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="itemized">Itemized</option>
-              <option value="lot">Lot</option>
-            </select>
+            {sourceDraftQuery.isLoading && (
+              <span style={{ fontSize: '11px', color: '#737373' }}>Loading {getSourceLabel(selectedSourceType)} details...</span>
+            )}
           </div>
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              PO Number
-            </label>
-            <input
-              type="text"
-              {...register('po_number')}
-              placeholder="Enter PO number"
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              PO Date
-            </label>
-            <input
-              type="date"
-              {...register('po_date')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Default Warehouse
-            </label>
-            <select
-              {...register('default_warehouse_id')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">Select warehouse</option>
-              {warehousesQuery.data?.map((warehouse: any) => (
-                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        )}
 
         {errors.root && (
           <div style={{

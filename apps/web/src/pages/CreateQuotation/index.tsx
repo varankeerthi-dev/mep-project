@@ -1129,7 +1129,7 @@ export default function CreateQuotation() {
   }, []);
 
   const getTableMinWidth = useCallback(() => {
-    let width = 750;
+    let width = 678;
     if (templateSettings?.column_settings?.optional?.hsn_code !== false) width += 80;
     if (templateSettings?.column_settings?.optional?.make !== false) width += 100;
     if (templateSettings?.column_settings?.optional?.variant !== false) width += 120;
@@ -1141,7 +1141,7 @@ export default function CreateQuotation() {
   }, [templateSettings]);
 
   const getVisibleColumnCount = useCallback(() => {
-    let count = 10;
+    let count = 9;
     if (templateSettings?.column_settings?.optional?.hsn_code !== false) count++;
     if (templateSettings?.column_settings?.optional?.make !== false) count++;
     if (templateSettings?.column_settings?.optional?.variant !== false) count++;

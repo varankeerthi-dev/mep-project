@@ -6,7 +6,17 @@ export const priorityEnum = z.enum(['Standard', 'Urgent', 'Emergency']);
 
 export const siteVisitScheduleSchema = z.object({
   client_id: z.string().min(1, 'Client is required'),
-  visit_date: z.string().min(1, 'Visit date is required'),
+  visit_date: z.string()
+    .min(1, 'Visit date is required')
+    .refine((val) => {
+      if (!val) return false;
+      const selected = new Date(val);
+      selected.setHours(0, 0, 0, 0);
+      const minAllowed = new Date();
+      minAllowed.setDate(minAllowed.getDate() - 7);
+      minAllowed.setHours(0, 0, 0, 0);
+      return selected >= minAllowed;
+    }, { message: 'Visit date cannot be more than 7 days in the past' }),
   purpose_of_visit: z.string().optional().default(''),
   engineer: z.string().optional().default(''),
   visited_by: z.string().optional().default(''),

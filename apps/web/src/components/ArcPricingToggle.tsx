@@ -207,8 +207,8 @@ export function ArcRateBadge({
       `}
       title={
         showComparison
-          ? `ARC: Rs.${arcRate.toFixed(2)} | Std: Rs.${originalRate.toFixed(2)}`
-          : `ARC: Rs.${arcRate.toFixed(2)}`
+          ? `ARC: ₹${arcRate.toFixed(2)} | Std: ₹${originalRate.toFixed(2)}`
+          : `ARC: ₹${arcRate.toFixed(2)}`
       }
     >
       ARC
