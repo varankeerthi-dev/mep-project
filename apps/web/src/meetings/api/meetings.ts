@@ -2,12 +2,21 @@ import { supabase } from '../../supabase';
 import type {
   Meeting,
   MeetingMinutesItem,
+  MeetingTopic,
+  MeetingDecision,
+  MeetingLink,
+  MeetingWorkOption,
   MeetingAttendee,
   MeetingActionItem,
   MeetingAttachment,
   CreateMeetingInput,
   UpdateMeetingInput,
   MeetingFilter,
+  MeetingSearchFilters,
+  MeetingSearchResult,
+  MeetingHistoryEntry,
+  MeetingVersion,
+  MeetingAuditEvent,
   Client,
   Project,
 } from '../types';
@@ -18,15 +27,83 @@ import type {
 export type {
   Meeting,
   MeetingMinutesItem,
+  MeetingTopic,
+  MeetingDecision,
+  MeetingLink,
+  MeetingWorkOption,
   MeetingAttendee,
   MeetingActionItem,
   MeetingAttachment,
   CreateMeetingInput,
   UpdateMeetingInput,
   MeetingFilter,
+  MeetingSearchFilters,
+  MeetingSearchResult,
+  MeetingHistoryEntry,
+  MeetingVersion,
+  MeetingAuditEvent,
   Client,
   Project,
 } from '../types';
+
+export async function getMeetingHistoryForEntity(
+  entityType: 'task' | 'milestone' | 'project',
+  entityId: string,
+): Promise<MeetingHistoryEntry[]> {
+  const { data, error } = await supabase
+    .from('meeting_links')
+    .select(`
+      id,
+      meeting_id,
+      source_type,
+      source_id,
+      source_title,
+      snippet,
+      meetings!inner(id, meeting_date, meeting_type, minutes_status, client_name)
+    `)
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .eq('meetings.minutes_status', 'finalized')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    meeting_id: row.meeting_id,
+    meeting_date: row.meetings?.meeting_date,
+    meeting_type: row.meetings?.meeting_type,
+    minutes_status: row.meetings?.minutes_status,
+    client_name: row.meetings?.client_name,
+    source_type: row.source_type,
+    source_id: row.source_id,
+    source_title: row.source_title,
+    snippet: row.snippet,
+  })) as MeetingHistoryEntry[];
+}
+
+export async function searchMeetingText(filters: MeetingSearchFilters): Promise<MeetingSearchResult[]> {
+  const normalizedQuery = filters.query.trim();
+  if (!normalizedQuery) return [];
+
+  let query = supabase
+    .from('meeting_search_documents')
+    .select('id, meeting_id, meeting_date, meeting_type, client_name, project_id, project_name, source_type, source_id, source_title, snippet')
+    .ilike('search_text', `%${normalizedQuery}%`)
+    .order('meeting_date', { ascending: false })
+    .range(filters.offset || 0, (filters.offset || 0) + (filters.limit || 20) - 1);
+
+  if (filters.projectId) query = query.eq('project_id', filters.projectId);
+  if (filters.clientId) query = query.eq('client_id', filters.clientId);
+  if (filters.meetingType) query = query.eq('meeting_type', filters.meetingType);
+  if (filters.startDate) query = query.gte('meeting_date', filters.startDate);
+  if (filters.endDate) query = query.lte('meeting_date', filters.endDate);
+  if (!filters.includeDrafts) query = query.eq('is_finalized', true);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as MeetingSearchResult[];
+}
 
 // Get all meetings for an organisation with filtering
 export async function getMeetings(
@@ -142,7 +219,7 @@ export async function duplicateMeeting(
   const original = await getMeetingById(meetingId);
   if (!original) throw new Error('Meeting not found');
 
-  const { minutesItems, attendees, attachments } = await loadMeetingRelations(meetingId);
+  const { minutesItems, attendees, attachments, topics, decisions, links, actionItems } = await loadMeetingRelations(meetingId);
 
   // Create new meeting
   const newMeeting = await createMeeting({
@@ -174,18 +251,34 @@ export async function duplicateMeeting(
   if (attachments.length > 0) {
     await saveMeetingAttachments(newMeeting.id, attachments);
   }
+  if (topics.length > 0) {
+    await saveMeetingTopics(newMeeting.id, topics.map((item) => ({ ...item, id: '', meeting_id: newMeeting.id })));
+  }
+  if (decisions.length > 0) {
+    await saveMeetingDecisions(newMeeting.id, decisions.map((item) => ({ ...item, id: '', meeting_id: newMeeting.id })));
+  }
+  if (links.length > 0) {
+    await saveMeetingLinks(newMeeting.id, links.map((item) => ({ ...item, id: '', meeting_id: newMeeting.id })));
+  }
+  if (actionItems.length > 0) {
+    await saveMeetingActionItems(newMeeting.id, actionItems.map((item) => ({ ...item, id: '', meeting_id: newMeeting.id })));
+  }
 
   return newMeeting;
 }
 
 // Load all meeting relations
 async function loadMeetingRelations(meetingId: string) {
-  const [minutesItems, attendees, attachments] = await Promise.all([
+  const [minutesItems, attendees, attachments, topics, decisions, links, actionItems] = await Promise.all([
     getMeetingMinutesItems(meetingId),
     getMeetingAttendees(meetingId),
     getMeetingAttachments(meetingId),
+    getMeetingTopics(meetingId),
+    getMeetingDecisions(meetingId),
+    getMeetingLinks(meetingId),
+    getMeetingActionItems(meetingId),
   ]);
-  return { minutesItems, attendees, attachments };
+  return { minutesItems, attendees, attachments, topics, decisions, links, actionItems };
 }
 
 // Get meeting minutes items
@@ -198,6 +291,107 @@ export async function getMeetingMinutesItems(meetingId: string): Promise<Meeting
 
   if (error) throw error;
   return data as MeetingMinutesItem[];
+}
+
+export async function getMeetingTopics(meetingId: string): Promise<MeetingTopic[]> {
+  const { data, error } = await supabase
+    .from('meeting_topics')
+    .select('*')
+    .eq('meeting_id', meetingId)
+    .order('serial_number', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as MeetingTopic[];
+}
+
+export async function saveMeetingTopics(
+  meetingId: string,
+  topics: MeetingTopic[],
+): Promise<void> {
+  const { data: existing, error: existingError } = await supabase
+    .from('meeting_topics')
+    .select('id')
+    .eq('meeting_id', meetingId);
+
+  if (existingError) throw existingError;
+
+  const existingIds = new Set(existing?.map((item) => item.id) || []);
+  const newIds = new Set(topics.map((item) => item.id).filter(Boolean));
+  const toDelete = [...existingIds].filter((topicId) => !newIds.has(topicId));
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase.from('meeting_topics').delete().in('id', toDelete);
+    if (error) throw error;
+  }
+
+  if (topics.length === 0) return;
+
+  const { error } = await supabase.from('meeting_topics').upsert(
+    topics.map((topic, index) => ({
+      id: topic.id || crypto.randomUUID(),
+      meeting_id: meetingId,
+      serial_number: index + 1,
+      title: topic.title.trim(),
+      notes: topic.notes?.trim() || null,
+      status: topic.status || 'open',
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: 'id' },
+  );
+
+  if (error) throw error;
+}
+
+export async function getMeetingDecisions(meetingId: string): Promise<MeetingDecision[]> {
+  const { data, error } = await supabase
+    .from('meeting_decisions')
+    .select('*')
+    .eq('meeting_id', meetingId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as MeetingDecision[];
+}
+
+export async function saveMeetingDecisions(
+  meetingId: string,
+  decisions: MeetingDecision[],
+): Promise<void> {
+  const { data: existing, error: existingError } = await supabase
+    .from('meeting_decisions')
+    .select('id')
+    .eq('meeting_id', meetingId);
+
+  if (existingError) throw existingError;
+
+  const existingIds = new Set(existing?.map((item) => item.id) || []);
+  const newIds = new Set(decisions.map((item) => item.id).filter(Boolean));
+  const toDelete = [...existingIds].filter((decisionId) => !newIds.has(decisionId));
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase.from('meeting_decisions').delete().in('id', toDelete);
+    if (error) throw error;
+  }
+
+  if (decisions.length === 0) return;
+
+  const { error } = await supabase.from('meeting_decisions').upsert(
+    decisions.map((decision) => ({
+      id: decision.id || crypto.randomUUID(),
+      meeting_id: meetingId,
+      topic_id: decision.topic_id || null,
+      decision: decision.decision.trim(),
+      rationale: decision.rationale?.trim() || null,
+      owner_id: decision.owner_id || null,
+      owner_name: decision.owner_name?.trim() || null,
+      status: decision.status || 'proposed',
+      decided_at: decision.decided_at || null,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: 'id' },
+  );
+
+  if (error) throw error;
 }
 
 // Save meeting minutes items (upsert - preserves existing with changes)
@@ -320,6 +514,7 @@ export async function saveMeetingActionItems(
       title: item.title,
       description: item.description || null,
       assigned_to: item.assigned_to || null,
+      assigned_to_name: item.assigned_to_name || null,
       due_date: item.due_date || null,
       priority: item.priority || 'medium',
       status: item.status || 'pending',
@@ -417,37 +612,183 @@ export async function deleteMeetingAttachment(attachmentId: string): Promise<voi
   if (error) throw error;
 }
 
-// Finalize minutes
+async function getNextMeetingVersionNumber(meetingId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('meeting_versions')
+    .select('version_number')
+    .eq('meeting_id', meetingId)
+    .order('version_number', { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return (data?.[0]?.version_number || 0) + 1;
+}
+
+export async function createMeetingVersion(
+  meetingId: string,
+  userId: string,
+  status: 'draft' | 'finalized' | 'superseded',
+  snapshot: Record<string, unknown>,
+  supersedesVersionId?: string,
+): Promise<MeetingVersion> {
+  const { data, error } = await supabase
+    .from('meeting_versions')
+    .insert({
+      meeting_id: meetingId,
+      version_number: await getNextMeetingVersionNumber(meetingId),
+      status,
+      snapshot,
+      created_by: userId,
+      finalized_at: status === 'finalized' ? new Date().toISOString() : null,
+      supersedes_version_id: supersedesVersionId || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as MeetingVersion;
+}
+
+export async function getMeetingVersions(meetingId: string): Promise<MeetingVersion[]> {
+  const { data, error } = await supabase
+    .from('meeting_versions')
+    .select('*')
+    .eq('meeting_id', meetingId)
+    .order('version_number', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as MeetingVersion[];
+}
+
+export async function getMeetingAuditEvents(meetingId: string): Promise<MeetingAuditEvent[]> {
+  const { data, error } = await supabase
+    .from('meeting_audit_events')
+    .select('*')
+    .eq('meeting_id', meetingId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as MeetingAuditEvent[];
+}
+
+export async function recordMeetingAuditEvent(event: Omit<MeetingAuditEvent, 'id' | 'created_at'>): Promise<void> {
+  const { error } = await supabase.from('meeting_audit_events').insert({
+    ...event,
+    created_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+}
+
+// Finalize minutes by writing an immutable snapshot before updating the meeting status.
 export async function finalizeMinutes(
   meetingId: string,
   userId: string
 ): Promise<Meeting> {
-  return updateMeeting(meetingId, {
+  const meeting = await getMeetingById(meetingId);
+  if (!meeting) throw new Error('Meeting not found');
+
+  const relations = await loadMeetingRelations(meetingId);
+  await createMeetingVersion(meetingId, userId, 'finalized', {
+    meeting,
+    ...relations,
+  });
+
+  const finalized = await updateMeeting(meetingId, {
     minutes_status: 'finalized',
     minutes_created_at: new Date().toISOString(),
     minutes_created_by: userId,
     status: 'completed',
   });
+  await recordMeetingAuditEvent({
+    meeting_id: meetingId,
+    event_type: 'finalized',
+    actor_id: userId,
+    entity_type: 'meeting_version',
+  });
+  return finalized;
 }
 
-// Reopen finalized minutes
-export async function reopenMinutes(meetingId: string): Promise<Meeting> {
-  return updateMeeting(meetingId, {
-    minutes_status: 'draft',
-    minutes_created_at: null,
-    minutes_created_by: null,
+export async function createMeetingAmendment(meetingId: string, userId: string): Promise<Meeting> {
+  const original = await getMeetingById(meetingId);
+  if (!original) throw new Error('Meeting not found');
+  if (original.minutes_status !== 'finalized') throw new Error('Only finalized meetings can create amendments.');
+
+  const relations = await loadMeetingRelations(meetingId);
+  const amendment = await createMeeting({
+    organisation_id: original.organisation_id,
+    client_id: original.client_id,
+    client_name: original.client_name,
+    vendor_name: original.vendor_name,
+    project_id: original.project_id,
+    parent_meeting_id: original.id,
+    meeting_date: original.meeting_date,
+    meeting_time: original.meeting_time,
+    duration_minutes: original.duration_minutes,
+    location: original.location,
+    location_type: original.location_type,
+    meeting_link: original.meeting_link,
+    description: original.description,
+    meeting_type: original.meeting_type,
+    is_site_visit_meeting: original.is_site_visit_meeting,
+    site_visit_id: original.site_visit_id,
+    participants: original.participants,
+    tags: [...(original.tags || []), `amends:${original.id}`],
     status: 'upcoming',
+    minutes_status: 'draft',
   });
+
+  if (relations.minutesItems.length > 0) await saveMeetingMinutesItems(amendment.id, relations.minutesItems.map((item) => ({ ...item, id: '', meeting_id: amendment.id })));
+  if (relations.attendees.length > 0) await saveMeetingAttendees(amendment.id, relations.attendees.map((item) => ({ ...item, id: '', meeting_id: amendment.id })));
+  if (relations.topics.length > 0) await saveMeetingTopics(amendment.id, relations.topics.map((item) => ({ ...item, id: '', meeting_id: amendment.id })));
+  if (relations.decisions.length > 0) await saveMeetingDecisions(amendment.id, relations.decisions.map((item) => ({ ...item, id: '', meeting_id: amendment.id })));
+  if (relations.links.length > 0) await saveMeetingLinks(amendment.id, relations.links.map((item) => ({ ...item, id: '', meeting_id: amendment.id })));
+  if (relations.actionItems.length > 0) await saveMeetingActionItems(amendment.id, relations.actionItems.map((item) => ({ ...item, id: '', meeting_id: amendment.id })));
+
+  await createMeetingVersion(amendment.id, userId, 'draft', {
+    parent_meeting_id: original.id,
+    meeting: amendment,
+    ...relations,
+  });
+  await recordMeetingAuditEvent({
+    meeting_id: original.id,
+    event_type: 'amended',
+    actor_id: userId,
+    entity_type: 'meeting',
+    entity_id: amendment.id,
+    after_value: { amendment_meeting_id: amendment.id },
+  });
+
+  return amendment;
+}
+
+// Kept for compatibility; callers should use createMeetingAmendment instead.
+export async function reopenMinutes(meetingId: string): Promise<Meeting> {
+  throw new Error(`Finalized meeting ${meetingId} is immutable; create an amendment for ${meetingId} instead.`);
 }
 
 // Sync action items with unified tasks
-export async function syncActionItemsWithTasks(meetingId: string): Promise<void> {
+export async function syncActionItemsWithTasks(meetingId: string): Promise<{
+  created: number;
+  skipped: number;
+  failed: number;
+}> {
   const actionItems = await getMeetingActionItems(meetingId);
   const meeting = await getMeetingById(meetingId);
-  if (!meeting) return;
+  if (!meeting) {
+    throw new Error('Meeting not found');
+  }
+
+  let created = 0;
+  let skipped = 0;
+  let failed = 0;
 
   for (const item of actionItems) {
-    if (item.due_date && !item.task_id) {
+    if (!item.due_date || item.task_id) {
+      skipped += 1;
+      continue;
+    }
+
+    try {
       const { data: taskData, error: taskError } = await supabase
         .from('tasks')
         .insert({
@@ -466,14 +807,28 @@ export async function syncActionItemsWithTasks(meetingId: string): Promise<void>
         .select()
         .single();
 
-      if (!taskError && taskData) {
-        await supabase
-          .from('meeting_action_items')
-          .update({ task_id: taskData.id })
-          .eq('id', item.id);
+      if (taskError || !taskData) {
+        failed += 1;
+        continue;
       }
+
+      const { error: linkError } = await supabase
+        .from('meeting_action_items')
+        .update({ task_id: taskData.id })
+        .eq('id', item.id);
+
+      if (linkError) {
+        failed += 1;
+      } else {
+        created += 1;
+      }
+    } catch (error) {
+      console.error(`Failed to sync meeting action item ${item.id}:`, error);
+      failed += 1;
     }
   }
+
+  return { created, skipped, failed };
 }
 
 // Get meeting templates
@@ -607,6 +962,75 @@ export async function searchProjects(
 
   if (error) throw error;
   return data as Project[];
+}
+
+export async function getMeetingLinks(meetingId: string): Promise<MeetingLink[]> {
+  const { data, error } = await supabase
+    .from('meeting_links')
+    .select('*')
+    .eq('meeting_id', meetingId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as MeetingLink[];
+}
+
+export async function saveMeetingLinks(meetingId: string, links: MeetingLink[]): Promise<void> {
+  const { data: existing, error: existingError } = await supabase
+    .from('meeting_links')
+    .select('id')
+    .eq('meeting_id', meetingId);
+
+  if (existingError) throw existingError;
+
+  const existingIds = new Set(existing?.map((link) => link.id) || []);
+  const newIds = new Set(links.map((link) => link.id).filter(Boolean));
+  const toDelete = [...existingIds].filter((linkId) => !newIds.has(linkId));
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase.from('meeting_links').delete().in('id', toDelete);
+    if (error) throw error;
+  }
+
+  if (links.length === 0) return;
+
+  const { error } = await supabase.from('meeting_links').upsert(
+    links.map((link) => ({
+      id: link.id || crypto.randomUUID(),
+      meeting_id: meetingId,
+      entity_type: link.entity_type,
+      entity_id: link.entity_id,
+      entity_name: link.entity_name || null,
+      source_type: link.source_type || 'meeting',
+      source_id: link.source_id || null,
+      created_by: link.created_by || null,
+      created_at: link.created_at || new Date().toISOString(),
+    })),
+    { onConflict: 'id' },
+  );
+
+  if (error) throw error;
+}
+
+export async function searchProjectWork(
+  organisationId: string,
+  search: string,
+  projectId?: string,
+): Promise<MeetingWorkOption[]> {
+  let query = supabase
+    .from('tasks')
+    .select('id, title, project_id, task_type, status')
+    .eq('organisation_id', organisationId)
+    .in('task_type', ['task', 'milestone'])
+    .eq('is_archived', false)
+    .limit(25);
+
+  if (projectId) query = query.eq('project_id', projectId);
+  if (search) query = query.ilike('title', `%${search}%`);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as MeetingWorkOption[];
 }
 
 // Get meeting statistics

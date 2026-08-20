@@ -453,6 +453,10 @@ export const CreateMeeting = memo(function CreateMeeting({
                   <option value="project">Project Meeting</option>
                   <option value="internal">Internal Meeting</option>
                   <option value="vendor">Vendor Meeting</option>
+                  <option value="development">Development Meeting</option>
+                  <option value="subcontractor">Subcontractor Meeting</option>
+                  <option value="site">Site Meeting</option>
+                  <option value="other">Other Meeting</option>
                 </select>
               </div>
               

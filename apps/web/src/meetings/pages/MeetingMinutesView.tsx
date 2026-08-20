@@ -2,7 +2,15 @@ import { useState, useEffect, memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Edit, FileText, Users, Printer } from 'lucide-react';
 import { useAuth } from '../../App';
-import { getMeetingById, getMeetingMinutesItems, getMeetingAttendees } from '../api/meetings';
+import {
+  getMeetingById,
+  getMeetingMinutesItems,
+  getMeetingTopics,
+  getMeetingDecisions,
+  getMeetingLinks,
+  getMeetingAuditEvents,
+  getMeetingAttendees,
+} from '../api/meetings';
 import { MinutesTable } from '../components/MinutesTable';
 import { AttendeeList } from '../components/AttendeeList';
 import { toast } from 'sonner';
@@ -17,6 +25,10 @@ export const MeetingMinutesView = memo(function MeetingMinutesView({ meetingId }
   
   const [meeting, setMeeting] = useState<any>(null);
   const [minutesItems, setMinutesItems] = useState<any[]>([]);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [decisions, setDecisions] = useState<any[]>([]);
+  const [links, setLinks] = useState<any[]>([]);
+  const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -30,14 +42,22 @@ export const MeetingMinutesView = memo(function MeetingMinutesView({ meetingId }
     
     try {
       setLoading(true);
-      const [meetingData, minutesData, attendeesData] = await Promise.all([
+      const [meetingData, minutesData, topicsData, decisionsData, linksData, auditData, attendeesData] = await Promise.all([
         getMeetingById(id),
         getMeetingMinutesItems(id),
+        getMeetingTopics(id),
+        getMeetingDecisions(id),
+        getMeetingLinks(id),
+        getMeetingAuditEvents(id),
         getMeetingAttendees(id)
       ]);
       
       setMeeting(meetingData);
       setMinutesItems(minutesData);
+      setTopics(topicsData);
+      setDecisions(decisionsData);
+      setLinks(linksData);
+      setAuditEvents(auditData);
       setAttendees(attendeesData);
     } catch (error) {
       console.error('Error loading meeting data:', error);
@@ -279,6 +299,74 @@ export const MeetingMinutesView = memo(function MeetingMinutesView({ meetingId }
             </div>
           </div>
         </div>
+
+        {/* Audit History */}
+        {auditEvents.length > 0 && (
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold mb-4">Document History</h2>
+            <div className="space-y-2">
+              {auditEvents.map((event) => (
+                <div key={event.id} className="flex items-center justify-between gap-3 rounded bg-slate-50 px-3 py-2 text-sm">
+                  <span className="capitalize text-slate-700">{String(event.event_type).replace('_', ' ')}</span>
+                  <span className="text-xs text-slate-500">{new Date(event.created_at).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Project Work Links */}
+        {links.length > 0 && (
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold mb-4">Linked Project Work</h2>
+            <div className="flex flex-wrap gap-2">
+              {links.map((link) => (
+                <span key={link.id} className="rounded-full bg-indigo-50 px-3 py-1.5 text-sm text-indigo-800">
+                  <span className="font-medium capitalize">{link.entity_type}:</span> {link.entity_name || link.entity_id}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Discussion Topics */}
+        {topics.length > 0 && (
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold mb-4">Discussion Topics</h2>
+            <div className="space-y-3">
+              {topics.map((topic) => (
+                <div key={topic.id} className="rounded-lg border border-slate-200 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-medium text-slate-900">{topic.title}</h3>
+                    <span className="rounded bg-slate-100 px-2 py-1 text-xs capitalize text-slate-600">{topic.status}</span>
+                  </div>
+                  {topic.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{topic.notes}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Decisions */}
+        {decisions.length > 0 && (
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold mb-4">Decisions</h2>
+            <div className="space-y-3">
+              {decisions.map((decision) => (
+                <div key={decision.id} className="rounded-lg border border-slate-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="whitespace-pre-wrap font-medium text-slate-900">{decision.decision}</p>
+                    <span className={`rounded px-2 py-1 text-xs capitalize ${
+                      decision.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>{decision.status}</span>
+                  </div>
+                  {decision.owner_name && <p className="mt-2 text-sm text-slate-600">Owner: {decision.owner_name}</p>}
+                  {decision.rationale && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{decision.rationale}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Attendees */}
         <div className="card p-6">

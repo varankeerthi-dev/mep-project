@@ -2,11 +2,34 @@
 
 export type MeetingStatus = 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
 export type MinutesStatus = 'pending' | 'draft' | 'finalized';
-export type MeetingType = 'client' | 'project' | 'internal' | 'vendor';
+export type MeetingType =
+  | 'client'
+  | 'project'
+  | 'internal'
+  | 'development'
+  | 'vendor'
+  | 'subcontractor'
+  | 'site'
+  | 'other';
 export type ActionItemStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type ActionItemPriority = 'low' | 'medium' | 'high' | 'critical';
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly';
 export type LocationType = 'physical' | 'virtual' | 'hybrid';
+export type MeetingTopicStatus = 'open' | 'covered' | 'deferred';
+export type DecisionStatus = 'proposed' | 'confirmed' | 'superseded' | 'rejected';
+export type MeetingLinkEntityType = 'client' | 'vendor' | 'project' | 'task' | 'milestone' | 'site_visit';
+export type MeetingVersionStatus = 'draft' | 'in_review' | 'finalized' | 'superseded';
+export type MeetingAuditEventType =
+  | 'created'
+  | 'updated'
+  | 'review_requested'
+  | 'reviewed'
+  | 'finalized'
+  | 'amended'
+  | 'shared'
+  | 'linked'
+  | 'unlinked'
+  | 'archived';
 
 // Client and Project types for relationship linking
 export interface Client {
@@ -56,6 +79,7 @@ export interface Meeting {
   site_visit_id?: string;
   reference_file_path?: string;
   is_archived?: boolean;
+  parent_meeting_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +102,31 @@ export interface MeetingMinutesItem {
   target_date?: string;
   remarks?: string;
   requirement?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingTopic {
+  id: string;
+  meeting_id: string;
+  serial_number: number;
+  title: string;
+  notes?: string;
+  status: MeetingTopicStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingDecision {
+  id: string;
+  meeting_id: string;
+  topic_id?: string;
+  decision: string;
+  rationale?: string;
+  owner_id?: string;
+  owner_name?: string;
+  status: DecisionStatus;
+  decided_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -108,6 +157,8 @@ export type AttendeeRole =
 export interface MeetingActionItem {
   id: string;
   meeting_id: string;
+  topic_id?: string;
+  decision_id?: string;
   minutes_item_id?: string;
   title: string;
   description?: string;
@@ -123,6 +174,51 @@ export interface MeetingActionItem {
 }
 
 // Attachment interface
+export interface MeetingWorkOption {
+  id: string;
+  title: string;
+  project_id?: string | null;
+  task_type: 'task' | 'milestone';
+  status?: string;
+}
+
+export interface MeetingLink {
+  id: string;
+  meeting_id: string;
+  entity_type: MeetingLinkEntityType;
+  entity_id: string;
+  entity_name?: string;
+  source_type?: 'meeting' | 'topic' | 'decision' | 'action_item';
+  source_id?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface MeetingVersion {
+  id: string;
+  meeting_id: string;
+  version_number: number;
+  status: MeetingVersionStatus;
+  snapshot: Record<string, unknown>;
+  created_by: string;
+  created_at: string;
+  finalized_at?: string;
+  supersedes_version_id?: string;
+}
+
+export interface MeetingAuditEvent {
+  id: string;
+  meeting_id: string;
+  event_type: MeetingAuditEventType;
+  actor_id?: string;
+  actor_name?: string;
+  entity_type?: string;
+  entity_id?: string;
+  before_value?: Record<string, unknown>;
+  after_value?: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface MeetingAttachment {
   id: string;
   meeting_id: string;
@@ -153,6 +249,46 @@ export interface MeetingTemplate {
 }
 
 // Filter types for queries
+export interface MeetingSearchFilters {
+  query: string;
+  projectId?: string;
+  clientId?: string;
+  meetingType?: MeetingType;
+  startDate?: string;
+  endDate?: string;
+  includeDrafts?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface MeetingHistoryEntry {
+  id: string;
+  meeting_id: string;
+  meeting_date: string;
+  meeting_type: MeetingType;
+  minutes_status: MinutesStatus;
+  client_name?: string;
+  source_type?: 'meeting' | 'topic' | 'decision' | 'action_item';
+  source_id?: string;
+  source_title?: string;
+  snippet?: string;
+}
+
+export interface MeetingSearchResult {
+  id: string;
+  meeting_id: string;
+  meeting_date: string;
+  meeting_type: MeetingType;
+  client_name?: string;
+  project_id?: string;
+  project_name?: string;
+  source_type: 'meeting' | 'topic' | 'decision' | 'action_item' | 'attachment';
+  source_id?: string;
+  source_title?: string;
+  snippet: string;
+  rank?: number;
+}
+
 export interface MeetingFilter {
   projectId?: string;
   meetingType?: MeetingType;
@@ -186,6 +322,7 @@ export interface CreateMeetingInput {
   recurrence?: RecurrencePattern;
   status?: MeetingStatus;
   minutes_status?: MinutesStatus;
+  parent_meeting_id?: string;
 }
 
 export interface UpdateMeetingInput {
@@ -213,6 +350,7 @@ export interface UpdateMeetingInput {
   site_visit_id?: string;
   reference_file_path?: string;
   is_archived?: boolean;
+  parent_meeting_id?: string;
 }
 
 // Form data types
@@ -269,8 +407,27 @@ export interface LocalAttendee {
   isDirty?: boolean;
 }
 
+export interface LocalTopic {
+  id: string;
+  title: string;
+  notes: string;
+  status: MeetingTopicStatus;
+}
+
+export interface LocalDecision {
+  id: string;
+  topic_id: string;
+  decision: string;
+  rationale: string;
+  owner_id: string;
+  owner_name: string;
+  status: DecisionStatus;
+}
+
 export interface LocalActionItem {
   id: string;
+  topic_id?: string;
+  decision_id?: string;
   minutes_item_id?: string;
   title: string;
   description: string;

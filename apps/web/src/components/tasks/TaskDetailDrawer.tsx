@@ -8,6 +8,7 @@ import type { TaskStatus, TaskPriority, TaskDiscipline } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, DISCIPLINE_CONFIG, TASK_TYPE_CONFIG } from './types';
 import { cn } from '../../lib/utils';
 import { useAppDateFormat } from '@/contexts/DateFormatContext';
+import { MeetingHistoryPanel } from '../../meetings/components/MeetingHistoryPanel';
 import {
   X,
   Check,
@@ -338,6 +339,12 @@ function TaskDetailsTab({
           </Button>
         </div>
       </Field>
+
+      <MeetingHistoryPanel
+        entityType={task.task_type === 'milestone' ? 'milestone' : 'task'}
+        entityId={task.id}
+        compact
+      />
 
       {/* Meta */}
       <div className="mt-4 rounded-lg bg-zinc-50 p-3 text-[11px] text-zinc-400">

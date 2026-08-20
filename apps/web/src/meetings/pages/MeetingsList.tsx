@@ -11,6 +11,7 @@ import {
   useDuplicateMeeting,
 } from '../hooks/useMeetings';
 import { AppTable } from '../../components/ui/AppTable';
+import { MeetingSearchPanel } from '../components/MeetingSearchPanel';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { toast } from 'sonner';
@@ -30,6 +31,10 @@ const TYPE_OPTIONS: { value: MeetingType | 'all'; label: string }[] = [
   { value: 'project', label: 'Project Meeting' },
   { value: 'internal', label: 'Internal Meeting' },
   { value: 'vendor', label: 'Vendor Meeting' },
+  { value: 'development', label: 'Development Meeting' },
+  { value: 'subcontractor', label: 'Subcontractor Meeting' },
+  { value: 'site', label: 'Site Meeting' },
+  { value: 'other', label: 'Other Meeting' },
 ];
 
 export const MeetingsList = memo(function MeetingsList() {
@@ -267,6 +272,8 @@ export const MeetingsList = memo(function MeetingsList() {
         </button>
       </div>
       
+      <MeetingSearchPanel />
+
       <div className="card">
         {/* Stats */}
         {stats && (

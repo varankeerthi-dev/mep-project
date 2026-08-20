@@ -11,20 +11,30 @@ import {
   getMeetingStats,
   searchClients,
   searchProjects,
+  searchMeetingText,
   getMeetingTemplates,
   createMeetingFromTemplate,
   createRecurringMeetings,
   getMeetingActionItems,
   getMeetingAttachments,
   getMeetingMinutesItems,
+  getMeetingTopics,
+  getMeetingDecisions,
+  getMeetingLinks,
+  getMeetingHistoryForEntity,
+  saveMeetingLinks,
+  searchProjectWork,
   getMeetingAttendees,
   saveMeetingMinutesItems,
+  saveMeetingTopics,
+  saveMeetingDecisions,
   saveMeetingAttendees,
   saveMeetingActionItems,
   saveMeetingAttachments,
   uploadMeetingAttachment,
   deleteMeetingAttachment,
   finalizeMinutes,
+  createMeetingAmendment,
   reopenMinutes,
   syncActionItemsWithTasks,
   updateActionItemStatus,
@@ -39,6 +49,13 @@ import type {
   MeetingAttendee,
   MeetingActionItem,
   MeetingAttachment,
+  MeetingTopic,
+  MeetingDecision,
+  MeetingLink,
+  MeetingWorkOption,
+  MeetingSearchFilters,
+  MeetingSearchResult,
+  MeetingHistoryEntry,
   Client,
   Project,
   MeetingStats,
@@ -65,6 +82,24 @@ export const meetingKeys = {
   attachments: (meetingId: string) => [...meetingKeys.all, 'attachments', meetingId] as const,
   actionItems: (meetingId: string) => [...meetingKeys.all, 'action-items', meetingId] as const,
 };
+
+export function useMeetingHistory(entityType: 'task' | 'milestone' | 'project', entityId?: string) {
+  return useQuery<MeetingHistoryEntry[]>({
+    queryKey: ['meetings', 'history', entityType, entityId || ''],
+    queryFn: () => entityId ? getMeetingHistoryForEntity(entityType, entityId) : [],
+    enabled: !!entityId,
+    staleTime: 30000,
+  });
+}
+
+export function useSearchMeetingText(filters: MeetingSearchFilters) {
+  return useQuery<MeetingSearchResult[]>({
+    queryKey: ['meetings', 'search', filters],
+    queryFn: () => searchMeetingText(filters),
+    enabled: filters.query.trim().length >= 2,
+    staleTime: 15000,
+  });
+}
 
 // Fetch all meetings for organisation
 export function useMeetings(filters?: MeetingFilter) {
@@ -243,6 +278,24 @@ export function useFinalizeMinutes() {
   });
 }
 
+// Create an amendment draft from a finalized MOM
+export function useCreateMeetingAmendment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ meetingId, userId }: { meetingId: string; userId: string }) =>
+      createMeetingAmendment(meetingId, userId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: meetingKeys.lists() });
+      queryClient.setQueryData(meetingKeys.detail(data.id), data);
+      toast.success('Amendment draft created');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to create amendment: ${error.message}`);
+    },
+  });
+}
+
 // Reopen minutes mutation
 export function useReopenMinutes() {
   const queryClient = useQueryClient();
@@ -264,10 +317,15 @@ export function useReopenMinutes() {
 
 // Sync action items with tasks
 export function useSyncActionItems() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: syncActionItemsWithTasks,
+    onSuccess: (_, meetingId) => {
+      queryClient.invalidateQueries({ queryKey: meetingKeys.actionItems(meetingId) });
+    },
     onError: (error: Error) => {
-      toast.warning(`Some action items could not be synced: ${error.message}`);
+      toast.error(`Failed to sync action items: ${error.message}`);
     },
   });
 }
@@ -383,6 +441,24 @@ export function useMeetingRelations(meetingId: string) {
     queryFn: () => getMeetingAttendees(meetingId),
     enabled: !!meetingId,
   });
+
+  const topics = useQuery({
+    queryKey: [...meetingKeys.all, 'topics', meetingId],
+    queryFn: () => getMeetingTopics(meetingId),
+    enabled: !!meetingId,
+  });
+
+  const decisions = useQuery({
+    queryKey: [...meetingKeys.all, 'decisions', meetingId],
+    queryFn: () => getMeetingDecisions(meetingId),
+    enabled: !!meetingId,
+  });
+
+  const links = useQuery({
+    queryKey: [...meetingKeys.all, 'links', meetingId],
+    queryFn: () => getMeetingLinks(meetingId),
+    enabled: !!meetingId,
+  });
   
   const actionItems = useQuery({
     queryKey: meetingKeys.actionItems(meetingId),
@@ -399,6 +475,9 @@ export function useMeetingRelations(meetingId: string) {
   return {
     minutesItems,
     attendees,
+    topics,
+    decisions,
+    links,
     actionItems,
     attachments,
   };
@@ -415,6 +494,60 @@ export function useSaveMinutes() {
     onSuccess: (_, { meetingId }) => {
       queryClient.invalidateQueries({ queryKey: [...meetingKeys.all, 'minutes', meetingId] });
     },
+  });
+}
+
+// Save topics mutation
+export function useSaveTopics() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ meetingId, topics }: { meetingId: string; topics: MeetingTopic[] }) =>
+      saveMeetingTopics(meetingId, topics),
+    onSuccess: (_, { meetingId }) => {
+      queryClient.invalidateQueries({ queryKey: [...meetingKeys.all, 'topics', meetingId] });
+    },
+  });
+}
+
+// Save decisions mutation
+export function useSaveDecisions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ meetingId, decisions }: { meetingId: string; decisions: MeetingDecision[] }) =>
+      saveMeetingDecisions(meetingId, decisions),
+    onSuccess: (_, { meetingId }) => {
+      queryClient.invalidateQueries({ queryKey: [...meetingKeys.all, 'decisions', meetingId] });
+    },
+  });
+}
+
+// Save meeting links mutation
+export function useSaveMeetingLinks() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ meetingId, links }: { meetingId: string; links: MeetingLink[] }) =>
+      saveMeetingLinks(meetingId, links),
+    onSuccess: (_, { meetingId }) => {
+      queryClient.invalidateQueries({ queryKey: [...meetingKeys.all, 'links', meetingId] });
+    },
+  });
+}
+
+// Search project tasks and milestones
+export function useSearchProjectWork(search: string, projectId?: string) {
+  const { organisation } = useAuth();
+
+  return useQuery<MeetingWorkOption[]>({
+    queryKey: ['meetings', 'project-work', organisation?.id || '', projectId || '', search],
+    queryFn: () => {
+      if (!organisation?.id) return [];
+      return searchProjectWork(organisation.id, search, projectId);
+    },
+    enabled: !!organisation?.id,
+    staleTime: 30000,
   });
 }
 
@@ -478,6 +611,7 @@ export function useDeleteAttachment() {
 
 // Custom hook for form validation and submission
 export function useMeetingForm(onSuccess?: (meeting: Meeting) => void) {
+  const { organisation } = useAuth();
   const createMeetingMutation = useCreateMeeting();
   const updateMeetingMutation = useUpdateMeeting();
   
@@ -508,7 +642,6 @@ export function useMeetingForm(onSuccess?: (meeting: Meeting) => void) {
       return;
     }
     
-    const { organisation } = useAuth();
     if (!organisation?.id) {
       toast.error('No organisation found');
       return;
@@ -562,7 +695,7 @@ export function useMeetingForm(onSuccess?: (meeting: Meeting) => void) {
     } catch (error) {
       // Error handled by mutation
     }
-  }, [validateForm, createMeetingMutation, updateMeetingMutation, onSuccess]);
+  }, [validateForm, createMeetingMutation, updateMeetingMutation, onSuccess, organisation?.id]);
   
   return {
     submitForm,
