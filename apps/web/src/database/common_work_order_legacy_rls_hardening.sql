@@ -114,7 +114,7 @@ as $$
   );
 $$;
 
-create or replace function public.app_has_org_permission(p_organisation_id uuid, p_permission text)
+create or replace function public.app_has_org_permission(p_organisation_id uuid, p_permission_key text)
 returns boolean
 language sql
 stable
@@ -140,7 +140,7 @@ as $$
           select 1
           from public.role_permissions rp
           where rp.role_id = om.role_id
-            and rp.permission_key = p_permission
+            and rp.permission_key = p_permission_key
         )
       )
   );
