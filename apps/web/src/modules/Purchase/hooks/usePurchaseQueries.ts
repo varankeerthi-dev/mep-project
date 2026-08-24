@@ -1,11 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/logger';
 import { supabase } from '../../../supabase';
+import { currentOrgId } from '../../../lib/supabase';
+import { approvalTransition } from '../../../approvals/rpc';
 import { withSessionCheck } from '../../../queryClient';
 import { createPurchaseRequisition, deletePurchaseRequisition, listPurchaseAuditLogs, listPurchaseInvoiceVerifications, listPurchaseIVSettings, listPurchaseRequisitions, processPurchaseRequisitionApproval, submitPurchaseRequisitionForApproval, type CreateRequisitionInput, updatePurchaseRequisition, verifyPurchaseBill3Way } from '../../../purchase-requisitions/api';
 import { convertAvailabilityResponseToPO, createAvailabilityInquiry, listAvailabilityInquiries, listProcureRequisitionLines, listRequisitionLinesForSourcing, fulfillFromStoreLine, sendToPurchaseLine, postGoodsReceipt, upsertAvailabilityResponse } from '../../../purchase-inquiries/api';
 import { ApprovalIntegration } from '../../../approvals/integration';
 import { ApprovalAPI } from '../../../approvals/api';
+import { paymentRequestRpc } from '../../../payment-requests';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -826,32 +829,36 @@ export const useCreatePaymentRequest = () => {
         payload.request_date = new Date().toISOString().slice(0, 10);
       }
 
-      if (!payload.request_no) {
-        const now = new Date();
-        const yy = String(now.getFullYear()).slice(-2);
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const prefix = `PMR-${yy}${mm}-`;
-
-        const { data: existing, error: lookupError } = await supabase
-          .from('payment_requests')
-          .select('request_no')
-          .eq('organisation_id', payload.organisation_id)
-          .ilike('request_no', `${prefix}%`);
-
-        if (lookupError) throw lookupError;
-        const next = (existing?.length || 0) + 1;
-        payload.request_no = `${prefix}${String(next).padStart(4, '0')}`;
+      const sourceBillId = payload.source_bill_id || payload.sourceBillId || payload.bill_id || payload.bill_ids?.[0] || null;
+      if (!sourceBillId) {
+        throw new Error('A source vendor bill or subcontractor invoice is required. Purchase-order-only Payment Requests are temporarily blocked until their secure source adapter is available.');
       }
-
-      const { data, error } = await supabase
-        .from('payment_requests')
-        .insert(payload)
-        .select('*, vendor:purchase_vendors(company_name), subcontractor:subcontractors(company_name)')
-        .single();
-      
-      if (error) throw error;
+      const sourceType = payload.source_type === 'subcontractor_invoice' || payload.subcontractor_id ? 'subcontractor_invoice' : 'purchase_bill';
+      const priorityMap: Record<string, 'Low' | 'Normal' | 'High' | 'Urgent'> = {
+        Low: 'Low', Normal: 'Normal', High: 'High', Urgent: 'Urgent',
+      };
+      const rpcResult = await paymentRequestRpc.create({
+        organisationId: payload.organisation_id,
+        clientRequestId: crypto.randomUUID(),
+        sourceType,
+        sourceBillId,
+        workOrderId: payload.work_order_id || null,
+        amountRequested: Number(payload.amount_requested || 0),
+        priority: priorityMap[payload.priority] || 'Normal',
+        dueDate: payload.due_date || null,
+        paymentMode: payload.payment_mode || null,
+        bankAccountId: payload.bank_account_id || null,
+        reason: payload.reason || payload.payment_mode || 'Payment Request',
+      });
+      if (rpcResult.error || !rpcResult.data) throw new Error(rpcResult.error?.message || 'Payment Request could not be created.');
 
       try {
+        const data = {
+          ...payload,
+          id: String((rpcResult.data as any).id),
+          organisation_id: payload.organisation_id,
+          amount_requested: Number(payload.amount_requested || 0),
+        } as any;
         const record = data as any;
         const payeeName = record?.vendor?.company_name || record?.subcontractor?.company_name || 'Payee';
         const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
@@ -870,7 +877,13 @@ export const useCreatePaymentRequest = () => {
           isSubcontractor ? 'SUBCONTRACTOR_PAYMENT' : 'PAYMENT_REQUEST'
         );
         if (approvalResult.success && approvalResult.error === 'No approval required for this amount') {
-          await supabase.from('payment_requests').update({ status: 'Approved', approved_at: new Date().toISOString() }).eq('id', data.id);
+          const approval = await paymentRequestRpc.approve({
+            organisationId: payload.organisation_id,
+            paymentRequestId: data.id,
+            clientRequestId: crypto.randomUUID(),
+            note: 'Automatically approved under organization threshold.',
+          });
+          if (approval.error) throw new Error(approval.error.message);
         } else if (!approvalResult.success) {
           console.error('Approval creation failed:', approvalResult.error);
           toast.error('Approval flow failed: ' + JSON.stringify(approvalResult.error));
@@ -893,20 +906,15 @@ export const useApprovePaymentRequest = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: withSessionCheck(async ({ requestId, approverId }: any) => {
-      const { data, error } = await supabase
-        .from('payment_requests')
-        .update({
-          status: 'Approved',
-          approved_by: approverId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('id', requestId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+    mutationFn: withSessionCheck(async ({ requestId, organisationId }: any) => {
+      if (!organisationId) throw new Error('Organisation is required for Payment Request approval.');
+      const result = await paymentRequestRpc.approve({
+        organisationId,
+        paymentRequestId: requestId,
+        clientRequestId: crypto.randomUUID(),
+      });
+      if (result.error || !result.data) throw new Error(result.error?.message || 'Payment Request approval failed.');
+      return { ...(result.data as any), organisation_id: organisationId };
     }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
@@ -1423,48 +1431,8 @@ export const useCreatePaymentWithApproval = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ paymentData, billAllocations, createdBy }: any) => {
-      const normalizedPaymentData = {
-        ...paymentData,
-        voucher_no: paymentData.voucher_no || createPaymentVoucherNo(),
-        net_amount: paymentData.net_amount ?? paymentData.amount,
-        advance_remaining: paymentData.is_advance ? (paymentData.advance_remaining ?? paymentData.amount) : 0,
-        created_by: createdBy ?? null,
-        workflow_step: 'pending_approval',
-        approval_status: 'Pending',
-      };
-
-      const { data: payment, error: paymentError } = await supabase
-        .from('purchase_payments')
-        .insert(normalizedPaymentData)
-        .select()
-        .single();
-
-      if (paymentError) throw paymentError;
-
-      if (billAllocations && billAllocations.length > 0) {
-        const allocations = billAllocations.map((alloc: any) => ({
-          ...alloc,
-          payment_id: payment.id,
-          organisation_id: payment.organisation_id,
-        }));
-
-        const { error: allocError } = await supabase
-          .from('purchase_payment_bills')
-          .insert(allocations);
-
-        if (allocError) throw allocError;
-      }
-
-      const { ApprovalIntegration } = await import('@/approvals/integration');
-      await ApprovalIntegration.createPurchasePaymentApproval({
-        paymentId: payment.id,
-        payeeName: paymentData.vendor_name || 'Vendor',
-        paymentType: 'PURCHASE_PAYMENT',
-        totalAmount: paymentData.amount,
-      });
-
-      return payment;
+    mutationFn: withSessionCheck(async () => {
+      throw new Error('Direct browser payment creation is disabled. Use the source-specific payment posting RPC after Payment Request approval.');
     }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
@@ -1477,19 +1445,19 @@ export const useApprovePayment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ paymentId, approvalId, actorId }: { paymentId: string; approvalId: string; actorId?: string | null }) => {
-      const { error } = await supabase
-        .from('purchase_payments')
-        .update({
-          workflow_step: 'approved',
-          approval_status: 'Approved',
-          approval_id: approvalId,
-          approved_by: actorId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('id', paymentId);
-
-      if (error) throw error;
+    mutationFn: withSessionCheck(async ({ paymentId, approvalId }: { paymentId: string; approvalId: string; actorId?: string | null }) => {
+      const { data: authData } = await supabase.auth.getUser();
+      const organisationId = authData.user?.id ? await currentOrgId(authData.user.id) : null;
+      if (!organisationId) throw new Error('Organisation is required for payment approval.');
+      const result = await approvalTransition({
+        organisationId,
+        referenceType: 'purchase_payments',
+        referenceId: paymentId,
+        action: 'approve',
+        clientRequestId: approvalId,
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
@@ -1502,57 +1470,8 @@ export const useReleasePayment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ paymentId, releasedBy, releasedAmount }: { paymentId: string; releasedBy?: string | null; releasedAmount?: number | null }) => {
-      const releasedAt = new Date().toISOString();
-
-      const { data: payment, error: paymentError } = await supabase
-        .from('purchase_payments')
-        .select('vendor_id, organisation_id, amount, is_advance, advance_remaining')
-        .eq('id', paymentId)
-        .single();
-
-      if (paymentError) throw paymentError;
-
-      const { error } = await supabase
-        .from('purchase_payments')
-        .update({
-          workflow_step: 'released',
-          approval_status: 'Released',
-          released_by: releasedBy,
-          released_at: releasedAt,
-          released_amount: releasedAmount ?? payment.amount,
-          ...(payment.is_advance ? { advance_remaining: 0 } : {}),
-        })
-        .eq('id', paymentId);
-
-      if (error) throw error;
-
-      const billIds: string[] = [];
-      const { data: links } = await supabase
-        .from('purchase_payment_bills')
-        .select('bill_id')
-        .eq('payment_id', paymentId);
-
-      if (links && links.length > 0) {
-        links.forEach((link: any) => {
-          const billId = link.bill_id as string;
-          if (billId && !billIds.includes(billId)) billIds.push(billId);
-        });
-      }
-
-      const balancePromise = payment?.vendor_id && payment?.organisation_id ? updateVendorBalance(payment.vendor_id, payment.organisation_id) : null;
-      const results = await Promise.allSettled([
-        ...billIds.map((billId) => updateBillPaymentStatus(billId)),
-        ...(balancePromise ? [balancePromise] : []),
-      ]);
-      if (balancePromise) {
-        const balanceResult = results[results.length - 1];
-        if (balanceResult.status === 'rejected') {
-          toast.warning('Payment saved, but vendor balance may be out of date — refresh to retry');
-        }
-      }
-
-      return payment;
+    mutationFn: withSessionCheck(async () => {
+      throw new Error('Direct browser payment release is disabled. Use the source-specific payment posting RPC after Payment Request approval.');
     }),
     onSuccess: (data) => {
       if (!data) return;
@@ -1801,122 +1720,8 @@ export const useBulkMarkPaid = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ items, userId }: { items: BulkMarkPaidItem[]; userId?: string | null }) => {
-      const results: string[] = [];
-      for (const item of items) {
-        if (item.isRequest) {
-          // Payment request → create the payment record and mark request Paid
-          if (item.type === 'vendor') {
-            const { data: request, error: fetchError } = await supabase
-              .from('payment_requests')
-              .select('organisation_id, vendor_id, amount_requested, request_no')
-              .eq('id', item.id)
-              .single();
-            if (fetchError) throw fetchError;
-
-            const { error: paymentError } = await supabase
-              .from('purchase_payments')
-              .insert({
-                organisation_id: request.organisation_id,
-                vendor_id: request.vendor_id,
-                amount: request.amount_requested,
-                payment_date: item.paymentDate,
-                payment_mode: 'Bank Transfer',
-                reference_no: request.request_no,
-                voucher_no: createPaymentVoucherNo(),
-                net_amount: request.amount_requested,
-                created_by: userId,
-                workflow_step: 'released',
-                approval_status: 'Released',
-                approved_at: new Date().toISOString(),
-                released_by: userId,
-                released_at: new Date().toISOString(),
-                released_amount: request.amount_requested,
-              })
-              .select()
-              .single();
-            if (paymentError) throw paymentError;
-
-            await supabase.from('payment_requests').update({ status: 'Paid' }).eq('id', item.id);
-            if (request.vendor_id) await updateVendorBalance(request.vendor_id, request.organisation_id);
-          } else {
-            const { data: request, error: fetchError } = await supabase
-              .from('payment_requests')
-              .select('organisation_id, subcontractor_id, amount_requested, request_no')
-              .eq('id', item.id)
-              .single();
-            if (fetchError) throw fetchError;
-
-            const { error: paymentError } = await supabase
-              .from('subcontractor_payments')
-              .insert({
-                organisation_id: request.organisation_id,
-                subcontractor_id: request.subcontractor_id,
-                amount: request.amount_requested,
-                payment_date: item.paymentDate,
-                payment_mode: 'Bank Transfer',
-                reference_no: request.request_no,
-                created_by: userId,
-                workflow_step: 'released',
-                approval_status: 'Released',
-                approved_at: new Date().toISOString(),
-                released_by: userId,
-                released_at: new Date().toISOString(),
-              })
-              .select()
-              .single();
-            if (paymentError) throw paymentError;
-
-            await supabase.from('payment_requests').update({ status: 'Paid' }).eq('id', item.id);
-          }
-        } else {
-          // Already-approved vendor/subcontractor payment → release with chosen date
-          if (item.type === 'vendor') {
-            const { data: payment, error: fetchError } = await supabase
-              .from('purchase_payments')
-              .select('organisation_id, vendor_id, amount')
-              .eq('id', item.id)
-              .single();
-            if (fetchError) throw fetchError;
-
-            const { error } = await supabase
-              .from('purchase_payments')
-              .update({
-                payment_date: item.paymentDate,
-                workflow_step: 'released',
-                approval_status: 'Released',
-                released_by: userId,
-                released_at: new Date().toISOString(),
-                released_amount: payment.amount,
-              })
-              .eq('id', item.id);
-            if (error) throw error;
-
-            if (payment.vendor_id) await updateVendorBalance(payment.vendor_id, payment.organisation_id);
-          } else {
-            const { data: payment, error: fetchError } = await supabase
-              .from('subcontractor_payments')
-              .select('organisation_id, amount')
-              .eq('id', item.id)
-              .single();
-            if (fetchError) throw fetchError;
-
-            const { error } = await supabase
-              .from('subcontractor_payments')
-              .update({
-                payment_date: item.paymentDate,
-                workflow_step: 'released',
-                approval_status: 'Released',
-                released_by: userId,
-                released_at: new Date().toISOString(),
-              })
-              .eq('id', item.id);
-            if (error) throw error;
-          }
-        }
-        results.push(item.id);
-      }
-      return { organisationId: null, ids: results };
+    mutationFn: withSessionCheck(async () => {
+      throw new Error('Bulk payment posting is disabled. Use the source-specific idempotent payment posting RPC.');
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
@@ -1937,19 +1742,8 @@ export const useBulkSoftDelete = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ items, reason, userId }: { items: BulkSoftDeleteItem[]; reason: string; userId?: string | null }) => {
-      const now = new Date().toISOString();
-      const results: string[] = [];
-      for (const item of items) {
-        const table = item.isRequest ? 'payment_requests' : item.type === 'vendor' ? 'purchase_payments' : 'subcontractor_payments';
-        const { error } = await supabase
-          .from(table)
-          .update({ is_deleted: true, deletion_reason: reason, deleted_at: now, deleted_by: userId })
-          .eq('id', item.id);
-        if (error) throw error;
-        results.push(item.id);
-      }
-      return { organisationId: null, ids: results };
+    mutationFn: withSessionCheck(async () => {
+      throw new Error('Bulk financial-record deletion is disabled. Use an audited, server-authorized archival RPC.');
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
@@ -1963,109 +1757,8 @@ export const useBulkResendReapproval = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: withSessionCheck(async ({ items }: { items: BulkSoftDeleteItem[] }) => {
-      for (const item of items) {
-        if (item.isRequest) {
-          // Reset payment request to Pending and re-create approval
-          const { data: request, error: fetchError } = await supabase
-            .from('payment_requests')
-            .select('*')
-            .eq('id', item.id)
-            .single();
-          if (fetchError) throw fetchError;
-
-          const { error: resetError } = await supabase
-            .from('payment_requests')
-            .update({ status: 'Pending', approval_id: null, approved_by: null, approved_at: null })
-            .eq('id', item.id);
-          if (resetError) throw resetError;
-
-          try {
-            const payeeName = request.vendor_name || 'Vendor';
-            const priorityMap: Record<string, 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'> = {
-              Low: 'LOW',
-              Normal: 'NORMAL',
-              High: 'HIGH',
-              Urgent: 'URGENT',
-            };
-            await ApprovalIntegration.createPaymentApproval(
-              request.id,
-              payeeName,
-              request.payment_mode || 'Payment Request',
-              Number(request.amount_requested || 0),
-              priorityMap[request.priority] || 'NORMAL',
-              item.type === 'subcontractor' ? 'SUBCONTRACTOR_PAYMENT' : 'PAYMENT_REQUEST'
-            );
-          } catch (approvalErr) {
-            console.error('Failed to create approval for resent payment request', approvalErr);
-          }
-        } else if (item.type === 'vendor') {
-          // Reset approved purchase payment back to pending_approval
-          const { data: payment, error: fetchError } = await supabase
-            .from('purchase_payments')
-            .select('*, vendor:purchase_vendors(company_name)')
-            .eq('id', item.id)
-            .single();
-          if (fetchError) throw fetchError;
-
-          const { error: resetError } = await supabase
-            .from('purchase_payments')
-            .update({
-              workflow_step: 'pending_approval',
-              approval_status: 'Pending',
-              approval_id: null,
-              approved_by: null,
-              approved_at: null,
-              released_by: null,
-              released_at: null,
-            })
-            .eq('id', item.id);
-          if (resetError) throw resetError;
-
-          try {
-            await ApprovalIntegration.createPurchasePaymentApproval({
-              paymentId: item.id,
-              payeeName: payment.vendor?.company_name || 'Vendor',
-              totalAmount: Number(payment.amount || 0),
-            });
-          } catch (approvalErr) {
-            console.error('Failed to create approval for resent purchase payment', approvalErr);
-          }
-        } else {
-          // Reset approved subcontractor payment back to pending_approval
-          const { data: payment, error: fetchError } = await supabase
-            .from('subcontractor_payments')
-            .select('*, subcontractor:subcontractors(company_name)')
-            .eq('id', item.id)
-            .single();
-          if (fetchError) throw fetchError;
-
-          const { error: resetError } = await supabase
-            .from('subcontractor_payments')
-            .update({
-              workflow_step: 'pending_approval',
-              approval_status: 'Pending',
-              approval_id: null,
-              approved_by: null,
-              approved_at: null,
-              released_by: null,
-              released_at: null,
-            })
-            .eq('id', item.id);
-          if (resetError) throw resetError;
-
-          try {
-            await ApprovalIntegration.createSubcontractorPaymentApproval({
-              paymentId: item.id,
-              payeeName: payment.subcontractor?.company_name || 'Subcontractor',
-              totalAmount: Number(payment.amount || 0),
-            });
-          } catch (approvalErr) {
-            console.error('Failed to create approval for resent subcontractor payment', approvalErr);
-          }
-        }
-      }
-      return { organisationId: null };
+    mutationFn: withSessionCheck(async () => {
+      throw new Error('Bulk reapproval is disabled. Use the audited approval-transition RPC.');
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });

@@ -1,6 +1,8 @@
 import { supabase, currentOrgId } from '../lib/supabase';
 import { ApprovalAPI } from './api';
 import { ApprovalRequest } from '../types/approvals';
+import { workOrderRpc } from '../work-orders';
+import { paymentRequestRpc } from '../payment-requests';
 
 export class ApprovalIntegration {
   static async createPurchaseOrderApproval(
@@ -136,13 +138,23 @@ export class ApprovalIntegration {
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
 
       if (response.success && response.data) {
-        await supabase
-          .from('subcontractor_work_orders')
-          .update({
-            status: 'PENDING_APPROVAL',
-            approval_id: response.data.id
-          })
-          .eq('id', workOrderId);
+        const { data: authData } = await supabase.auth.getUser();
+        const organisationId = authData.user?.id ? await currentOrgId(authData.user.id) : null;
+        if (!organisationId) return { success: false, error: 'No organisation available for Work Order approval.' };
+
+        const submitResult = await workOrderRpc.submitForApproval({
+          organisationId,
+          workOrderId,
+          clientRequestId: crypto.randomUUID(),
+        });
+        if (submitResult.error) return { success: false, error: submitResult.error.message };
+
+        const bindResult = await workOrderRpc.bindApproval({
+          organisationId,
+          workOrderId,
+          approvalId: response.data.id,
+        });
+        if (bindResult.error) return { success: false, error: bindResult.error.message };
 
         return {
           success: true,
@@ -413,14 +425,15 @@ export class ApprovalIntegration {
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
 
       if (response.success && response.data) {
-        await supabase
-          .from('payment_requests')
-          .update({
-            status: 'PENDING_APPROVAL',
-            approval_id: response.data.id
-          })
-          .eq('id', paymentId);
-
+        const { data: authData } = await supabase.auth.getUser();
+        const organisationId = authData.user?.id ? await currentOrgId(authData.user.id) : null;
+        if (!organisationId) return { success: false, error: 'No organisation available for Payment Request approval.' };
+        const bindResult = await paymentRequestRpc.bindApproval({
+          organisationId,
+          paymentRequestId: paymentId,
+          approvalId: response.data.id,
+        });
+        if (bindResult.error) return { success: false, error: bindResult.error.message };
         return { success: true, approvalId: response.data.id };
       }
 
@@ -1186,28 +1199,13 @@ export class ApprovalIntegration {
   }
 
   private static async createPaymentRequestForPO(purchaseOrderId: string): Promise<void> {
-    try {
-      const { data: po } = await supabase
-        .from('purchase_orders')
-        .select('*')
-        .eq('id', purchaseOrderId)
-        .single();
-
-      if (po && po.total_amount && po.total_amount > 0) {
-        await supabase
-          .from('payment_requests')
-          .insert({
-            vendor_id: po.vendor_id,
-            amount: po.total_amount,
-            reference_type: 'PURCHASE_ORDER',
-            reference_id: purchaseOrderId,
-            status: 'PENDING',
-            created_at: new Date().toISOString()
-          });
-      }
-    } catch (error) {
-      console.error('Error creating payment request for PO:', error);
-    }
+    // Intentionally fail closed. A PO is a procurement commitment, not a payable
+    // source bill. Creating an unlinked Payment Request here would bypass the common
+    // bill bridge and could authorize payment without a source-bill balance check.
+    console.warn('Payment Request for PO was not created:', {
+      purchaseOrderId,
+      reason: 'SOURCE_BILL_REQUIRED',
+    });
   }
 
   private static async notifySubcontractor(workOrderId: string): Promise<void> {

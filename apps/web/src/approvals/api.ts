@@ -1,5 +1,6 @@
 import { supabase, currentOrgId } from '../lib/supabase';
 import { ApprovalNotificationService } from './notifications';
+import { approvalTransition } from './rpc';
 import {
   Approval,
   ApprovalRequest,
@@ -545,38 +546,28 @@ export class ApprovalAPI {
         case 'purchase_orders':
           await supabase.from('purchase_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
           break;
-        case 'work_orders':
-          await supabase.from('subcontractor_work_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
+        case 'work_orders': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'approve', clientRequestId: approval.id });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'invoices':
           await supabase.from('invoices').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
           break;
         case 'quotations':
           await supabase.from('quotation_header').update({ status: 'Approved' }).eq('id', approval.reference_id);
           break;
-        case 'payment_requests':
-          await supabase.from('payment_requests').update({
-            status: 'Approved',
-            approved_at: new Date().toISOString(),
-            ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
-          }).eq('id', approval.reference_id);
+        case 'payment_requests': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'approve', clientRequestId: approval.id });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'purchase_payments':
-          await supabase.from('purchase_payments').update({
-            workflow_step: 'approved',
-            approval_status: 'Approved',
-            approved_at: new Date().toISOString(),
-            ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
-          }).eq('id', approval.reference_id);
+        case 'subcontractor_payments': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'approve', clientRequestId: approval.id });
+          if (result.error) throw new Error(result.error.message);
           break;
-        case 'subcontractor_payments':
-          await supabase.from('subcontractor_payments').update({
-            workflow_step: 'approved',
-            approval_status: 'Approved',
-            approved_at: new Date().toISOString(),
-            ...(amountApproved !== undefined ? { amount_approved: amountApproved } : {})
-          }).eq('id', approval.reference_id);
-          break;
+        }
         case 'expense_entries':
           await supabase.from('expense_entries').update({
             status: 'APPROVED',
@@ -793,21 +784,25 @@ export class ApprovalExtensions {
         case 'purchase_orders':
           await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
           break;
-        case 'work_orders':
-          await supabase.from('subcontractor_work_orders').update(updateData).eq('id', approval.reference_id);
+        case 'work_orders': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'invoices':
           await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
           break;
-        case 'payment_requests':
-          await supabase.from('payment_requests').update(updateData).eq('id', approval.reference_id);
+        case 'payment_requests': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'purchase_payments':
-          await supabase.from('purchase_payments').update(updateData).eq('id', approval.reference_id);
+        case 'subcontractor_payments': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
           break;
-        case 'subcontractor_payments':
-          await supabase.from('subcontractor_payments').update(updateData).eq('id', approval.reference_id);
-          break;
+        }
       }
     } catch (error) {
       console.error('Error marking source document as returned:', error);
@@ -825,21 +820,25 @@ export class ApprovalExtensions {
         case 'purchase_orders':
           await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
           break;
-        case 'work_orders':
-          await supabase.from('subcontractor_work_orders').update(updateData).eq('id', approval.reference_id);
+        case 'work_orders': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'invoices':
           await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
           break;
-        case 'payment_requests':
-          await supabase.from('payment_requests').update(updateData).eq('id', approval.reference_id);
+        case 'payment_requests': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'purchase_payments':
-          await supabase.from('purchase_payments').update(updateData).eq('id', approval.reference_id);
+        case 'subcontractor_payments': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
           break;
-        case 'subcontractor_payments':
-          await supabase.from('subcontractor_payments').update(updateData).eq('id', approval.reference_id);
-          break;
+        }
       }
     } catch (error) {
       console.error('Error marking source document as pending:', error);
