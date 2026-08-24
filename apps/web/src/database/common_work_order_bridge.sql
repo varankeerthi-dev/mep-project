@@ -466,11 +466,20 @@ security definer
 set search_path = public
 as $$
   select auth.uid() is not null
-     and exists (
-       select 1
-       from public.org_members m
-       where m.user_id = auth.uid()
-         and m.organisation_id = p_organisation_id
+     and (
+       exists (
+         select 1
+         from public.user_organisations uo
+         where uo.user_id = auth.uid()
+           and uo.organisation_id = p_organisation_id
+           and lower(coalesce(uo.status, 'active')) = 'active'
+       )
+       or exists (
+         select 1
+         from public.org_members m
+         where m.user_id = auth.uid()
+           and m.organisation_id = p_organisation_id
+       )
      );
 $$;
 
@@ -482,20 +491,30 @@ security definer
 set search_path = public
 as $$
   select auth.uid() is not null
-     and exists (
-       select 1
-       from public.org_members m
-       where m.user_id = auth.uid()
-         and m.organisation_id = p_organisation_id
-         and (
-           m.role = 'admin'
-           or exists (
-             select 1
-             from public.role_permissions rp
-             where rp.role_id = m.role_id
-               and rp.permission_key = p_permission_key
+     and (
+       exists (
+         select 1
+         from public.user_organisations uo
+         where uo.user_id = auth.uid()
+           and uo.organisation_id = p_organisation_id
+           and lower(coalesce(uo.status, 'active')) = 'active'
+           and lower(coalesce(uo.role, 'member')) = 'admin'
+       )
+       or exists (
+         select 1
+         from public.org_members m
+         where m.user_id = auth.uid()
+           and m.organisation_id = p_organisation_id
+           and (
+             lower(coalesce(m.role, 'member')) = 'admin'
+             or exists (
+               select 1
+               from public.role_permissions rp
+               where rp.role_id = m.role_id
+                 and rp.permission_key = p_permission_key
+             )
            )
-         )
+       )
      );
 $$;
 
@@ -515,6 +534,9 @@ begin
   end if;
 end;
 $$;
+
+grant execute on function public.app_is_org_member(uuid) to authenticated;
+grant execute on function public.app_has_org_permission(uuid, text) to authenticated;
 
 create or replace function public.app_next_number(p_organisation_id uuid, p_series_key text)
 returns text
@@ -1735,8 +1757,9 @@ revoke all on function public.payment_request_release(jsonb) from public;
 revoke all on function public.document_snapshot_get(jsonb) from public;
 revoke all on function public.approval_transition(jsonb) from public;
 
--- No helper EXECUTE grants are added. The security-definer RPC owner may invoke these
--- functions internally, while browser roles cannot call them directly.
+-- Membership and permission helpers are intentionally executable only by authenticated
+-- callers because RLS policies invoke them in the caller's query context. Numbering and
+-- canonicalization helpers remain internal to the security-definer RPC owner.
 
 -- The RPC grants above remain the intended caller surface.
 
