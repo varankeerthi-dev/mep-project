@@ -633,46 +633,43 @@ export const useCreatePurchaseBill = () => {
 
   return useMutation({
     mutationFn: withSessionCheck(async ({ billData, items }: { billData: any; items: any[] }) => {
-      const { data: bill, error: billError } = await supabase
-        .from('purchase_bills')
-        .insert(billData)
-        .select()
-        .single();
+      const payloadItems = (items || []).map((item: any) => ({
+        item_name: item.item_name,
+        batch_no: item.batch_no || null,
+        quantity: item.quantity,
+        unit: item.unit || 'Nos',
+        rate: item.rate,
+        discount_amount: item.discount_amount || 0,
+        tax_percent: (item.cgst_percent || 0) + (item.sgst_percent || 0) + (item.igst_percent || 0),
+      }));
 
-      if (billError) throw billError;
+      const { data, error } = await supabase.rpc('record_purchase_bill', {
+        p_organisation_id: billData.organisation_id,
+        p_vendor_id: billData.vendor_id,
+        p_po_id: billData.po_id || null,
+        p_bill_number: billData.bill_number || null,
+        p_vendor_invoice_no: billData.vendor_invoice_no || null,
+        p_bill_date: billData.bill_date || null,
+        p_due_date: billData.due_date || null,
+        p_currency: billData.currency || 'INR',
+        p_exchange_rate: billData.exchange_rate || 1.0,
+        p_warehouse_id: billData.warehouse_id || null,
+        p_project_site_id: billData.project_site_id || null,
+        p_direct_supply_to_site: !!billData.direct_supply_to_site,
+        p_site_address: billData.site_address || null,
+        p_idempotency_key: billData.idempotency_key || null,
+        p_items: payloadItems,
+      });
 
-      if (items && items.length > 0) {
-        const billItems = items.map((item: any) => ({
-          bill_id: bill.id,
-          organisation_id: bill.organisation_id,
-          item_name: item.item_name,
-          batch_no: item.batch_no || null,
-          quantity: item.quantity,
-          unit: item.unit || 'Nos',
-          rate: item.rate,
-          discount_amount: item.discount_amount || 0,
-          taxable_value: item.taxable_value,
-          cgst_percent: item.cgst_percent || 0,
-          cgst_amount: item.cgst_amount || 0,
-          sgst_percent: item.sgst_percent || 0,
-          sgst_amount: item.sgst_amount || 0,
-          igst_percent: item.igst_percent || 0,
-          igst_amount: item.igst_amount || 0,
-          total_amount: item.total_amount,
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('purchase_bill_items')
-          .insert(billItems);
-
-        if (itemsError) throw itemsError;
-      }
-
-      return bill;
+      if (error) throw error;
+      return data;
     }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
+    onSuccess: (_, variables) => {
+      const orgId = variables.billData?.organisation_id;
+      if (orgId) {
+        queryClient.invalidateQueries({ queryKey: ['purchase-bills', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['purchase-vendors', orgId] });
+      }
     },
   });
 };
@@ -700,60 +697,35 @@ export const useCreatePayment = () => {
   
   return useMutation({
     mutationFn: withSessionCheck(async ({ paymentData, billAllocations }: any) => {
-      const normalizedPaymentData = {
-        ...paymentData,
-        voucher_no: paymentData.voucher_no || createPaymentVoucherNo(),
-        net_amount: paymentData.net_amount ?? paymentData.amount,
-        advance_remaining: paymentData.is_advance ? (paymentData.advance_remaining ?? paymentData.amount) : 0,
-        created_by: paymentData.created_by ?? null,
-      };
+      const allocations = (billAllocations || []).map((alloc: any) => ({
+        bill_id: alloc.bill_id,
+        adjusted_amount: alloc.adjusted_amount,
+      }));
 
-      // Insert payment
-      const { data: payment, error: paymentError } = await supabase
-        .from('purchase_payments')
-        .insert(normalizedPaymentData)
-        .select()
-        .single();
-      
-      if (paymentError) throw paymentError;
-      
-      // Insert bill allocations
-      if (billAllocations && billAllocations.length > 0) {
-        const allocations = billAllocations.map((alloc: any) => ({
-          ...alloc,
-          payment_id: payment.id,
-          organisation_id: payment.organisation_id,
-        }));
-        
-        const { error: allocError } = await supabase
-          .from('purchase_payment_bills')
-          .insert(allocations);
-        
-        if (allocError) throw allocError;
-      }
-
-      // These follow-up updates should not block the UI save action.
-      void Promise.allSettled([
-        ...(billAllocations || []).map((alloc: any) => updateBillPaymentStatus(alloc.bill_id)),
-        updateVendorBalance(payment.vendor_id, payment.organisation_id),
-      ]).then((results) => {
-        const balanceResult = results[results.length - 1];
-        if (balanceResult.status === 'rejected') {
-          toast.warning('Payment saved, but vendor balance may be out of date — refresh to retry');
-        }
-        void queryClient.invalidateQueries({ queryKey: ['purchase-payments', payment.organisation_id] });
-        void queryClient.invalidateQueries({ queryKey: ['purchase-bills', payment.organisation_id] });
-        void queryClient.invalidateQueries({ queryKey: ['purchase-vendors', payment.organisation_id] });
-        void queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', payment.organisation_id] });
+      const { data, error } = await supabase.rpc('record_vendor_payment', {
+        p_organisation_id: paymentData.organisation_id,
+        p_vendor_id: paymentData.vendor_id,
+        p_amount: paymentData.amount,
+        p_payment_date: paymentData.payment_date || null,
+        p_payment_mode: paymentData.payment_mode || 'Bank Transfer',
+        p_reference_no: paymentData.reference_no || null,
+        p_narration: paymentData.narration || null,
+        p_is_advance: !!paymentData.is_advance,
+        p_idempotency_key: paymentData.idempotency_key || null,
+        p_bill_allocations: allocations,
       });
-      
-      return payment;
+
+      if (error) throw error;
+      return data;
     }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
+    onSuccess: (_, variables) => {
+      const orgId = variables.paymentData?.organisation_id;
+      if (orgId) {
+        queryClient.invalidateQueries({ queryKey: ['purchase-payments', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['purchase-bills', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['purchase-vendors', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', orgId] });
+      }
     },
   });
 };
@@ -1079,38 +1051,35 @@ export const useCreateDebitNote = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: withSessionCheck(async ({ dnData, items }: any) => {
-      const { data: dn, error: dnError } = await supabase
-        .from('debit_notes')
-        .insert(dnData)
-        .select()
-        .single();
-      
-      if (dnError) throw dnError;
-      
-      if (items && items.length > 0) {
-        const itemsWithDN = items.map((item: any) => ({
-          ...item,
-          dn_id: dn.id,
-          organisation_id: dn.organisation_id,
-        }));
-        
-        const { error: itemsError } = await supabase
-          .from('debit_note_items')
-          .insert(itemsWithDN);
-        
-        if (itemsError) throw itemsError;
-      }
-      
-      // Update vendor balance
-      await updateVendorBalance(dn.vendor_id, dn.organisation_id);
-      
-      return dn;
+    mutationFn: withSessionCheck(async ({ dnData, items, idempotency_key }: any) => {
+      const idempotencyKey = idempotency_key || `dn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const preparedItems = (items || []).map((item: any) => ({
+        item_name: item.item_name || 'Item',
+        hsn_code: item.hsn_code || null,
+        quantity: item.quantity || item.return_qty || 1,
+        rate: item.rate || 0,
+        tax_percent: (item.cgst_percent || 0) + (item.sgst_percent || 0) + (item.igst_percent || 0),
+      }));
+
+      const { data, error } = await supabase.rpc('record_debit_note', {
+        p_organisation_id: dnData.organisation_id,
+        p_vendor_id: dnData.vendor_id,
+        p_bill_id: dnData.bill_id || null,
+        p_dn_date: dnData.dn_date || new Date().toISOString().split('T')[0],
+        p_dn_type: dnData.dn_type || 'Return',
+        p_reason: dnData.reason || 'Purchase Return',
+        p_idempotency_key: idempotencyKey,
+        p_items: preparedItems,
+      });
+
+      if (error) throw error;
+      return data;
     }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['debit-notes', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
+    onSuccess: (data: any) => {
+      const orgId = data?.p_organisation_id || data?.organisation_id;
+      queryClient.invalidateQueries({ queryKey: ['debit-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-bills'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger'] });
     },
   });
 };
@@ -1575,30 +1544,18 @@ export const useRecordPaymentForRequest = () => {
         if (paymentMode === 'Cheque' && issuedToClient) narrationParts.push('Issued to client');
         if ((paymentMode === 'Bank Transfer' || paymentMode === 'GPAY') && referenceNo) narrationParts.push(`Ref: ${referenceNo}`);
 
-        const paymentData = {
-          organisation_id: request.organisation_id,
-          vendor_id: request.vendor_id,
-          amount: request.amount_requested,
-          payment_date: paymentDate,
-          payment_mode: paymentMode,
-          reference_no: referenceNo || request.request_no || null,
-          voucher_no: createPaymentVoucherNo(),
-          net_amount: request.amount_requested,
-          created_by: createdBy,
-          workflow_step: 'released',
-          approval_status: 'Released',
-          approved_at: new Date().toISOString(),
-          released_by: createdBy,
-          released_at: new Date().toISOString(),
-          released_amount: request.amount_requested,
-          cheque_due_date: chequeDueDate || null,
-        };
-
-        const { data: payment, error: paymentError } = await supabase
-          .from('purchase_payments')
-          .insert(paymentData)
-          .select()
-          .single();
+        const { data: payment, error: paymentError } = await supabase.rpc('record_vendor_payment', {
+          p_organisation_id: request.organisation_id,
+          p_vendor_id: request.vendor_id,
+          p_amount: request.amount_requested,
+          p_payment_date: paymentDate || null,
+          p_payment_mode: paymentMode || 'Bank Transfer',
+          p_reference_no: referenceNo || request.request_no || null,
+          p_narration: narrationParts.join(' | ') || null,
+          p_is_advance: true,
+          p_idempotency_key: `pmr-${requestId}`,
+          p_bill_allocations: [],
+        });
 
         if (paymentError) throw paymentError;
 
@@ -1606,8 +1563,6 @@ export const useRecordPaymentForRequest = () => {
           .from('payment_requests')
           .update({ status: 'Paid' })
           .eq('id', requestId);
-
-        await updateVendorBalance(request.vendor_id, request.organisation_id);
 
         return payment;
       } else {
@@ -1619,42 +1574,23 @@ export const useRecordPaymentForRequest = () => {
 
         if (fetchError) throw fetchError;
 
-        const narrationParts: string[] = [];
-        if (paymentMode === 'Cheque' && chequeNo) narrationParts.push(`Chq: ${chequeNo}`);
-        if (paymentMode === 'Cheque' && chequeDate) narrationParts.push(`Dated: ${chequeDate}`);
-        if (paymentMode === 'Cheque' && issuedToClient) narrationParts.push('Issued to client');
-        if ((paymentMode === 'Bank Transfer' || paymentMode === 'GPAY') && referenceNo) narrationParts.push(`Ref: ${referenceNo}`);
+        const { data: rpcRes, error: rpcError } = await supabase.rpc('record_subcontractor_payment', {
+          p_organisation_id: request.organisation_id,
+          p_subcontractor_id: request.subcontractor_id,
+          p_amount: request.amount_requested,
+          p_payment_date: paymentDate,
+          p_payment_mode: paymentMode,
+          p_reference_no: referenceNo || request.request_no || null,
+        });
 
-        const paymentData = {
-          organisation_id: request.organisation_id,
-          subcontractor_id: request.subcontractor_id,
-          amount: request.amount_requested,
-          payment_date: paymentDate,
-          payment_mode: paymentMode,
-          reference_no: referenceNo || request.request_no || null,
-          created_by: createdBy,
-          workflow_step: 'released',
-          approval_status: 'Released',
-          approved_at: new Date().toISOString(),
-          released_by: createdBy,
-          released_at: new Date().toISOString(),
-          cheque_due_date: chequeDueDate || null,
-        };
-
-        const { data: payment, error: paymentError } = await supabase
-          .from('subcontractor_payments')
-          .insert(paymentData)
-          .select()
-          .single();
-
-        if (paymentError) throw paymentError;
+        if (rpcError) throw rpcError;
 
         await supabase
           .from('payment_requests')
           .update({ status: 'Paid' })
           .eq('id', requestId);
 
-        return { ...payment, _subcontractorId: request.subcontractor_id };
+        return { id: rpcRes.payment_id, reference_no: rpcRes.reference_no, _subcontractorId: request.subcontractor_id, organisation_id: request.organisation_id };
       }
     }),
     onSuccess: (data) => {

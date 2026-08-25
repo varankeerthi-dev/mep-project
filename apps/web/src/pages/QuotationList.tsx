@@ -9,6 +9,7 @@ import { PermissionGuard } from '../rbac';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
+import { duplicateQuotation } from '../api';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { generateQuotationTally } from './QuotationTallyTemplate';
@@ -1084,119 +1085,14 @@ export default function QuotationList() {
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 setOpenMenuId(null);
-                                
                                 try {
-                                  // Get default series from document_series table
-                                  const { data: seriesRow } = await supabase
-                                    .from('document_series')
-                                    .select('id, configs, current_number')
-                                    .eq('is_default', true)
-                                    .eq('organisation_id', organisation?.id)
-                                    .limit(1)
-                                    .maybeSingle();
-
-                                  let quotationNo = 'QT-0001';
-                                  let newSeriesNumber = 1;
-                                  
-                                  if (seriesRow) {
-                                    const cfg = seriesRow?.configs?.quote || {};
-                                    const prefix = cfg.prefix || 'QT-';
-                                    const suffix = cfg.suffix || '';
-                                    newSeriesNumber = (seriesRow.current_number || 0) + 1;
-                                    const padded = String(newSeriesNumber).padStart(4, '0');
-                                    quotationNo = `${prefix}${padded}${suffix}`;
-                                    
-                                    // Update series number
-                                    await supabase
-                                      .from('document_series')
-                                      .update({ current_number: newSeriesNumber })
-                                      .eq('id', seriesRow.id);
-                                  } else {
-                                    // Fallback: get existing quotations to generate new number
-                                    const { data: existing } = await supabase
-                                      .from('quotation_header')
-                                      .select('quotation_no')
-                                      .eq('organisation_id', organisation?.id)
-                                      .order('created_at', { ascending: false })
-                                      .limit(1);
-
-                                    if (existing && existing.length > 0) {
-                                      const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-                                      quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-                                    }
-                                  }
-
-                                  // Duplicate quotation
-                                  const { data: newQuote, error } = await supabase
-                                    .from('quotation_header')
-                                    .insert({
-                                      organisation_id: organisation?.id,
-                                      quotation_no: quotationNo,
-                                      client_id: q.client_id,
-                                      project_id: q.project_id,
-                                      billing_address: q.billing_address,
-                                      gstin: q.gstin,
-                                      state: q.state,
-                                      date: new Date().toISOString().split('T')[0],
-                                      valid_till: q.valid_till,
-                                      payment_terms: q.payment_terms,
-                                      contact_no: q.contact_no,
-                                      remarks: q.remarks || q.reference,
-                                      reference: q.reference,
-                                      subtotal: q.subtotal,
-                                      total_item_discount: q.total_item_discount,
-                                      extra_discount_percent: q.extra_discount_percent,
-                                      extra_discount_amount: q.extra_discount_amount,
-                                      total_tax: q.total_tax,
-                                      round_off: q.round_off,
-                                      grand_total: q.grand_total,
-                                      status: 'Draft',
-                                      negotiation_mode: false,
-                                      revised_from_id: q.id
-                                    })
-                                    .select()
-                                    .single();
-
-                                  if (error) {
-                                    console.error('Duplicate error:', error);
-                                    alert('Failed to duplicate: ' + error.message);
-                                    return;
-                                  }
-
-                                  console.log('Duplicated quote:', newQuote);
-
-                                  // Duplicate items if any
-                                  if (q.items && q.items.length > 0) {
-                                    const itemsToInsert = q.items.map(item => ({
-                                      quotation_id: newQuote.id,
-                                      item_id: item.item_id,
-                                      variant_id: item.variant_id,
-                                      description: item.description,
-                                      qty: item.qty,
-                                      uom: item.uom,
-                                      rate: item.rate,
-                                      original_discount_percent: item.original_discount_percent,
-                                      discount_percent: item.discount_percent,
-                                      discount_amount: item.discount_amount,
-                                      tax_percent: item.tax_percent,
-                                      tax_amount: item.tax_amount,
-                                      line_total: item.line_total,
-                                      override_flag: false
-                                    }));
-
-                                    const { error: itemsError } = await supabase.from('quotation_items').insert(itemsToInsert);
-                                    if (itemsError) {
-                                      console.error('Items error:', itemsError);
-                                    }
-                                  }
-
-                                  // Refresh list with exact query key
+                                  await duplicateQuotation(q.id);
                                   await queryClient.invalidateQueries({ 
                                     queryKey: ['quotations', statusFilter, organisation?.id] 
                                   });
-                                } catch (err) {
+                                } catch (err: any) {
                                   console.error('Duplicate exception:', err);
-                                  alert('Error: ' + err.message);
+                                  alert('Error duplicating quotation: ' + (err?.message || err));
                                 }
                               }}
                               className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   getMeetings,
   getMeetingById,
@@ -278,17 +278,18 @@ export function useFinalizeMinutes() {
   });
 }
 
-// Create an amendment draft from a finalized MOM
-export function useCreateMeetingAmendment() {
+// Create amendment mutation
+export function useCreateAmendment() {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: ({ meetingId, userId }: { meetingId: string; userId: string }) =>
-      createMeetingAmendment(meetingId, userId),
+    mutationFn: async ({ meetingId, userId }: { meetingId: string; userId: string }) => {
+      return createMeetingAmendment(meetingId, userId);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: meetingKeys.lists() });
       queryClient.setQueryData(meetingKeys.detail(data.id), data);
-      toast.success('Amendment draft created');
+      toast.success('Amendment created successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to create amendment: ${error.message}`);
@@ -756,6 +757,3 @@ export function useOptimisticMeeting(onMutate?: () => void) {
   
   return { getOptimisticUpdate, rollback };
 }
-
-// Import useState
-import { useState } from 'react';

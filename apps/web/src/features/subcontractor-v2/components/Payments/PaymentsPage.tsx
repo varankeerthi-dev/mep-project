@@ -278,40 +278,42 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
     e.preventDefault();
     if (!organisation?.id) return;
 
+    // Editing a posted payment is not permitted — payments are immutable once recorded.
+    if (editingPayment) {
+      toast.error('Posted payments cannot be modified. Please contact your administrator.');
+      return;
+    }
+
     const grossAmount = parseFloat(formData.gross_amount) || parseFloat(formData.amount) || 0;
     const tdsPercent = parseFloat(formData.tds_percentage) || 0;
-    const tdsAmount = (grossAmount * tdsPercent) / 100;
-    const netAmount = grossAmount - tdsAmount;
 
-    const paymentData = {
-      organisation_id: organisation.id,
-      subcontractor_id: formData.subcontractor_id,
-      work_order_id: formData.work_order_id || null,
-      gross_amount: grossAmount,
-      tds_percentage: tdsPercent,
-      tds_amount: tdsAmount,
-      net_amount: netAmount,
-      amount: netAmount,
-      payment_date: formData.payment_date,
-      payment_mode: formData.payment_mode,
-      reference_no: formData.reference_no,
-      description: formData.description
-    };
+    if (grossAmount <= 0) {
+      toast.error('Payment amount must be greater than zero.');
+      return;
+    }
 
     try {
-      if (editingPayment) {
-        await supabase.from('subcontractor_payments').update(paymentData).eq('id', editingPayment.id);
-        toast.success('Payment updated successfully.');
-      } else {
-        await supabase.from('subcontractor_payments').insert(paymentData);
-        toast.success('Payment recorded successfully.');
-      }
+      // Route through authoritative SECURITY DEFINER RPC.
+      // The RPC is responsible for: TDS calculation, GL posting, sequence number,
+      // idempotency, retention tracking, and balance updates.
+      const { data, error } = await supabase.rpc('record_subcontractor_payment', {
+        p_organisation_id: organisation.id,
+        p_subcontractor_id: formData.subcontractor_id,
+        p_amount: grossAmount,
+        p_payment_date: formData.payment_date,
+        p_payment_mode: formData.payment_mode,
+        p_reference_no: formData.reference_no || null,
+        p_tds_percent: tdsPercent,
+        p_idempotency_key: null
+      });
+      if (error) throw error;
+      toast.success('Payment recorded successfully.');
       setShowModal(false);
       setEditingPayment(null);
       resetForm();
       loadData();
     } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to save payment.');
+      toast.error(err?.message ?? 'Failed to record payment.');
     }
   };
 
@@ -319,54 +321,60 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
     e.preventDefault();
     if (!organisation?.id) return;
 
-    const invoiceData = {
-      organisation_id: organisation.id,
-      subcontractor_id: invoiceFormData.subcontractor_id,
-      work_order_id: invoiceFormData.work_order_id || null,
-      invoice_no: invoiceFormData.invoice_no,
-      invoice_date: invoiceFormData.invoice_date,
-      amount: parseFloat(invoiceFormData.amount),
-      description: invoiceFormData.description,
-      status: invoiceFormData.status
-    };
+    // Editing an approved/posted bill is not permitted — bills are immutable once recorded.
+    if (editingInvoice) {
+      toast.error('Approved subcontractor bills cannot be modified. Please contact your administrator.');
+      return;
+    }
+
+    const amount = parseFloat(invoiceFormData.amount);
+    if (!amount || amount <= 0) {
+      toast.error('Bill amount must be greater than zero.');
+      return;
+    }
 
     try {
-      if (editingInvoice) {
-        await supabase.from('subcontractor_invoices').update(invoiceData).eq('id', editingInvoice.id);
-        toast.success('Invoice updated successfully.');
-      } else {
-        await supabase.from('subcontractor_invoices').insert(invoiceData);
-        toast.success('Invoice created successfully.');
-      }
+      // Route through authoritative SECURITY DEFINER RPC.
+      // The RPC is responsible for: retention calculation, GL posting, sequence number,
+      // idempotency, status enforcement, and balance updates.
+      const { data, error } = await supabase.rpc('record_subcontractor_bill', {
+        p_organisation_id: organisation.id,
+        p_subcontractor_id: invoiceFormData.subcontractor_id,
+        p_work_order_id: invoiceFormData.work_order_id || null,
+        p_amount: amount,
+        p_invoice_date: invoiceFormData.invoice_date,
+        p_remarks: invoiceFormData.description || null,
+        p_idempotency_key: null
+      });
+      if (error) throw error;
+      toast.success('Subcontractor bill recorded successfully.');
       setShowInvoiceModal(false);
       setEditingInvoice(null);
       resetInvoiceForm();
       loadData();
     } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to save invoice.');
+      toast.error(err?.message ?? 'Failed to record bill.');
     }
   };
 
-  const handleDeletePayment = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this payment?')) return;
-    try {
-      await supabase.from('approvals').delete().eq('reference_id', id);
-      await supabase.from('subcontractor_payments').delete().eq('id', id);
-      toast.success('Payment deleted successfully.');
-      loadData();
-    } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to delete payment.');
-    }
+  const handleDeletePayment = async (_id: string) => {
+    // Financial payments are immutable records once posted.
+    // Direct hard-delete of subcontractor payments is prohibited.
+    // Contact your administrator to process a reversal through the approval workflow.
+    toast.error('Posted payments cannot be deleted. Please raise a reversal request through the administrator.');
   };
 
   const handleDeleteInvoice = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    // Only draft/pending invoices may be deleted.
+    // Approved/posted bills are immutable; deletion will be blocked by the database.
+    if (!confirm('Delete this subcontractor bill? Approved or posted bills cannot be deleted.')) return;
     try {
-      await supabase.from('subcontractor_invoices').delete().eq('id', id);
-      toast.success('Invoice deleted successfully.');
+      const { error } = await supabase.from('subcontractor_invoices').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Bill removed.');
       loadData();
     } catch (err: any) {
-      toast.error(err?.message ?? 'Failed to delete invoice.');
+      toast.error(err?.message ?? 'Failed to remove bill. Approved or posted bills cannot be deleted.');
     }
   };
 

@@ -231,6 +231,7 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
                 <option value="Main">Main</option>
                 <option value="Expansion">Expansion</option>
                 <option value="Service">Service</option>
+                <option value="Job Work">Job Work</option>
               </select>
             </div>
             <div>

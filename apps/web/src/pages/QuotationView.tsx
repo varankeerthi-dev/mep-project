@@ -3,6 +3,7 @@ import { Button } from '../components/ui/button';
 import DOMPurify from 'dompurify';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { duplicateQuotation } from '../api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -259,79 +260,14 @@ export default function QuotationView() {
   };
 
   const handleDuplicate = async () => {
-    if (!quotation) return;
+    if (!quotation || !quotationId) return;
     try {
-      const { data: existing } = await supabase
-        .from('quotation_header')
-        .select('quotation_no')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      let quotationNo = 'QT-0001';
-      if (existing && existing.length > 0) {
-        const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-        quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-      }
-
-      const newQuotation = {
-        quotation_no: quotationNo,
-        client_id: quotation.client_id,
-        project_id: quotation.project_id,
-        billing_address: quotation.billing_address,
-        gstin: quotation.gstin,
-        state: quotation.state,
-        date: new Date().toISOString().split('T')[0],
-        valid_till: quotation.valid_till,
-        payment_terms: quotation.payment_terms,
-        contact_no: quotation.contact_no || null,
-        remarks: quotation.remarks || quotation.reference || null,
-        reference: quotation.reference,
-        subtotal: quotation.subtotal,
-        total_item_discount: quotation.total_item_discount,
-        extra_discount_percent: quotation.extra_discount_percent,
-        extra_discount_amount: quotation.extra_discount_amount,
-        total_tax: quotation.total_tax,
-        round_off: quotation.round_off,
-        grand_total: quotation.grand_total,
-        status: 'Draft',
-        negotiation_mode: false,
-        revised_from_id: quotationId
-      };
-
-      const { data, error } = await supabase
-        .from('quotation_header')
-        .insert(newQuotation)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (quotation.items && quotation.items.length > 0) {
-        const itemsToInsert = quotation.items.map(item => ({
-          quotation_id: data.id,
-          item_id: item.item_id,
-          variant_id: item.variant_id,
-          description: item.description,
-          qty: item.qty,
-          uom: item.uom,
-          rate: item.rate,
-          original_discount_percent: item.original_discount_percent,
-          discount_percent: item.discount_percent,
-          discount_amount: item.discount_amount,
-          tax_percent: item.tax_percent,
-          tax_amount: item.tax_amount,
-          line_total: item.line_total,
-          override_flag: false
-        }));
-
-        await supabase.from('quotation_items').insert(itemsToInsert);
-      }
-
+      const newQuote = await duplicateQuotation(quotationId);
       alert('Quotation duplicated!');
-      navigate(`/quotation/edit?id=${data.id}`);
-    } catch (err) {
+      navigate(`/quotation/edit?id=${newQuote.id}`);
+    } catch (err: any) {
       console.error('Error duplicating quotation:', err);
-      alert('Error: ' + err.message);
+      alert('Error duplicating quotation: ' + (err?.message || err));
     }
   };
 

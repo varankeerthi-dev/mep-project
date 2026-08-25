@@ -313,13 +313,14 @@ export function ItemsTab() {
         // Insert inventory if > 0
         if (row.inventory > 0 && warehouses.length > 0) {
           const defaultWh = warehouses.find((w: any) => w.is_default) || warehouses[0];
-          const { error: stockError } = await supabase.from('item_stock').insert({
-            item_id: materialId,
-            warehouse_id: defaultWh.id,
-            company_variant_id: row.uses_variant ? row.variant_id : null,
-            current_stock: row.inventory,
-            organisation_id: orgId,
-            updated_at: new Date().toISOString(),
+          const { error: stockError } = await supabase.rpc('adjust_item_stock', {
+            p_item_id: materialId,
+            p_warehouse_id: defaultWh.id,
+            p_quantity_change: row.inventory,
+            p_movement_type: 'INITIAL_STOCK',
+            p_reference: 'ITEM_CREATION',
+            p_remarks: 'Initial stock on item creation',
+            p_project_id: null,
           });
           if (stockError) throw stockError;
         }

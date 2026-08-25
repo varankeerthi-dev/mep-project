@@ -51,7 +51,7 @@ export function Drawer({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+        className="absolute inset-0 bg-black/40 animate-in fade-in duration-200"
       />
 
       {/* Drawer Panel */}

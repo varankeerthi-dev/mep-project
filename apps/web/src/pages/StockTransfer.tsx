@@ -428,39 +428,29 @@ export default function StockTransfer({ onCancel }) {
 
         // Update stock at destination warehouse
         if (receivedQty > 0) {
-          const { data: destStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', item.item_id)
-            .eq('company_variant_id', item.company_variant_id)
-            .eq('warehouse_id', receivingTransfer.to_warehouse_id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
+          // Add to destination warehouse via RPC
+          const { error: destErr } = await supabase.rpc('adjust_item_stock', {
+            p_item_id: item.item_id,
+            p_warehouse_id: receivingTransfer.to_warehouse_id,
+            p_quantity_change: receivedQty,
+            p_movement_type: 'STOCK_TRANSFER_IN',
+            p_reference: receivingTransfer.transfer_no || receivingTransfer.id,
+            p_remarks: `Stock transfer received from warehouse ${receivingTransfer.from_warehouse_id}`,
+            p_project_id: null,
+          });
+          if (destErr) throw new Error(destErr.message);
 
-          if (destStock?.id) {
-            await supabase.from('item_stock').update({ current_stock: (parseFloat(destStock.current_stock) || 0) + receivedQty }).eq('id', destStock.id);
-          } else {
-            await supabase.from('item_stock').insert({
-              item_id: item.item_id,
-              company_variant_id: item.company_variant_id,
-              warehouse_id: receivingTransfer.to_warehouse_id,
-              current_stock: receivedQty,
-              organisation_id: organisation.id,
-            });
-          }
-
-          // Deduct from source warehouse
-          const { data: srcStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', item.item_id)
-            .eq('company_variant_id', item.company_variant_id)
-            .eq('warehouse_id', receivingTransfer.from_warehouse_id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-          if (srcStock?.id) {
-            await supabase.from('item_stock').update({ current_stock: Math.max(0, (parseFloat(srcStock.current_stock) || 0) - transferredQty) }).eq('id', srcStock.id);
-          }
+          // Deduct from source warehouse via RPC
+          const { error: srcErr } = await supabase.rpc('adjust_item_stock', {
+            p_item_id: item.item_id,
+            p_warehouse_id: receivingTransfer.from_warehouse_id,
+            p_quantity_change: -transferredQty,
+            p_movement_type: 'STOCK_TRANSFER_OUT',
+            p_reference: receivingTransfer.transfer_no || receivingTransfer.id,
+            p_remarks: `Stock transfer sent to warehouse ${receivingTransfer.to_warehouse_id}`,
+            p_project_id: null,
+          });
+          if (srcErr) throw new Error(srcErr.message);
         }
 
         if (receivedQty !== transferredQty) {

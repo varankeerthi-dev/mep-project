@@ -270,41 +270,29 @@ async function ensureClientState(clientId: string, organisationId: string): Prom
 export async function createProforma(input: ProformaInput & { organisation_id: string }): Promise<ProformaWithRelations> {
   const parsed = ProformaSchema.parse(input);
   const organisationId = input.organisation_id;
-  const clientState = await ensureClientState(parsed.client_id, organisationId);
-  
-  const validated = ProformaSchema.parse({
-    ...parsed,
-    client_state: clientState,
-    company_state: parsed.company_state ?? null,
+  const idempotencyKey = (input as any).idempotency_key ?? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined);
+
+  const formattedItems = parsed.items.map((item) => ({
+    description: item.description,
+    qty: item.qty,
+    rate: item.rate,
+    discount_percent: item.discount_percent ?? 0,
+    tax_percent: item.tax_percent ?? 18,
+  }));
+
+  const { data, error } = await supabase.rpc('record_proforma_invoice', {
+    p_organisation_id: organisationId,
+    p_client_id: parsed.client_id,
+    p_items: formattedItems,
+    p_notes: parsed.notes ?? null,
+    p_terms: parsed.terms ?? null,
+    p_po_number: parsed.po_number ?? null,
+    p_po_date: parsed.po_date ?? null,
+    p_idempotency_key: idempotencyKey,
   });
 
-  const { proformaRow, itemRows } = buildProformaPayload(validated);
-
-  let proformaId: string | null = null;
-
-  try {
-    const { data: inserted, error } = await supabase
-      .from('proforma_invoices')
-      .insert({ ...proformaRow, organisation_id: organisationId })
-      .select('id')
-      .single();
-    if (error) throw error;
-    proformaId = inserted.id;
-
-    if (itemRows.length > 0) {
-      const { error: itemError } = await supabase
-        .from('proforma_items')
-        .insert(itemRows.map((item) => ({ ...item, proforma_id: proformaId, organisation_id: organisationId })));
-      if (itemError) throw itemError;
-    }
-
-    return getProformaById(proformaId, organisationId);
-  } catch (error) {
-    if (proformaId) {
-      await supabase.from('proforma_invoices').delete().eq('id', proformaId);
-    }
-    throw error;
-  }
+  if (error) throw error;
+  return getProformaById(data.proforma_id, organisationId);
 }
 
 export async function updateProforma(
@@ -312,35 +300,30 @@ export async function updateProforma(
   input: ProformaInput & { organisation_id: string },
 ): Promise<ProformaWithRelations> {
   const parsed = ProformaSchema.parse({ ...input, id });
-  const clientState = await ensureClientState(parsed.client_id, input.organisation_id);
-  
-  const validated = ProformaSchema.parse({
-    ...parsed,
-    client_state: clientState,
+  const organisationId = input.organisation_id;
+
+  const formattedItems = parsed.items.map((item) => ({
+    description: item.description,
+    qty: item.qty,
+    rate: item.rate,
+    discount_percent: item.discount_percent ?? 0,
+    tax_percent: item.tax_percent ?? 18,
+    item_id: item.item_id ?? null,
+  }));
+
+  const { data, error } = await supabase.rpc('update_proforma_invoice', {
+    p_proforma_id: id,
+    p_organisation_id: organisationId,
+    p_client_id: parsed.client_id,
+    p_items: formattedItems,
+    p_notes: parsed.notes ?? null,
+    p_terms: parsed.terms ?? null,
+    p_po_number: parsed.po_number ?? null,
+    p_po_date: parsed.po_date ?? null,
   });
 
-  const { proformaRow, itemRows } = buildProformaPayload(validated);
-
-  const { error: proformaError } = await supabase
-    .from('proforma_invoices')
-    .update({ ...proformaRow, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (proformaError) throw proformaError;
-
-  const { error: deleteItemsError } = await supabase
-    .from('proforma_items')
-    .delete()
-    .eq('proforma_id', id);
-  if (deleteItemsError) throw deleteItemsError;
-
-  if (itemRows.length > 0) {
-    const { error: itemError } = await supabase
-      .from('proforma_items')
-      .insert(itemRows.map((item) => ({ ...item, proforma_id: id, organisation_id: input.organisation_id })));
-    if (itemError) throw itemError;
-  }
-
-  return getProformaById(id, input.organisation_id);
+  if (error) throw error;
+  return getProformaById(id, organisationId);
 }
 
 export async function getProformaById(id: string, organisationId?: string): Promise<ProformaWithRelations> {
@@ -437,15 +420,10 @@ export async function sendProforma(id: string, organisationId: string, validDays
 }
 
 export async function markAccepted(id: string, organisationId: string): Promise<ProformaWithRelations> {
-  const { error } = await supabase
-    .from('proforma_invoices')
-    .update({
-      status: 'accepted',
-      accepted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .eq('organisation_id', organisationId);
+  const { error } = await supabase.rpc('accept_proforma_invoice', {
+    p_proforma_id: id,
+    p_organisation_id: organisationId,
+  });
 
   if (error) throw error;
   return getProformaById(id, organisationId);
@@ -468,48 +446,14 @@ export async function markRejected(id: string, organisationId: string): Promise<
 export async function convertToInvoice(
   proformaId: string,
   organisationId: string,
-): Promise<InvoiceWithRelations> {
-  const proforma = await getProformaById(proformaId, organisationId);
+): Promise<any> {
+  const { data, error } = await supabase.rpc('convert_proforma_to_invoice', {
+    p_proforma_id: proformaId,
+    p_organisation_id: organisationId,
+  });
 
-  const itemInputs = proforma.items.map((item) => ({
-    description: item.description,
-    hsn_code: item.hsn_code,
-    qty: item.qty,
-    rate: item.rate,
-    amount: item.amount,
-    meta_json: item.meta_json,
-  }));
-
-  const sourceType = proforma.source_type === 'manual' ? 'quotation' : proforma.source_type;
-
-  const invoiceInput = {
-    client_id: proforma.client_id,
-    source_type: sourceType as 'quotation' | 'challan' | 'po',
-    source_id: proforma.source_id,
-    template_type: 'standard' as const,
-    mode: 'itemized' as const,
-    subtotal: proforma.subtotal,
-    cgst: proforma.cgst,
-    sgst: proforma.sgst,
-    igst: proforma.igst,
-    total: proforma.total,
-    status: 'draft' as const,
-    company_state: proforma.company_state,
-    client_state: proforma.client_state,
-    items: itemInputs,
-  };
-
-  const invoice = await createInvoice({ ...invoiceInput, organisation_id: organisationId });
-
-  await supabase
-    .from('proforma_invoices')
-    .update({
-      converted_invoice_id: invoice.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', proformaId);
-
-  return invoice;
+  if (error) throw error;
+  return data;
 }
 
 export async function cloneProforma(

@@ -140,19 +140,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const isDisabled = disabled || loading
-    const padding = sizePaddingMap[size || 'default'] || sizePaddingMap.default
-
-    // Build inline styles to ensure padding works
-    const inlineStyles: React.CSSProperties = {
-      paddingLeft: padding.horizontal,
-      paddingRight: padding.horizontal,
-      paddingTop: 0,
-      paddingBottom: 0,
-      height: padding.height,
-      lineHeight: `${padding.height}px`,
-      ...style,
-    }
-
     return (
       <ButtonPrimitive
         ref={ref}
@@ -162,7 +149,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           buttonVariants({ variant, size, fullWidth, className }),
           loading && "cursor-wait"
         )}
-        style={inlineStyles}
+        style={style}
         disabled={isDisabled}
         aria-disabled={isDisabled || undefined}
         aria-busy={loading || undefined}
@@ -177,7 +164,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           <>
             {leftIcon && <span className="shrink-0 [&_svg]:size-4">{leftIcon}</span>}
-            {children && <span>{children}</span>}
+            {children}
             {rightIcon && <span className="shrink-0 [&_svg]:size-4">{rightIcon}</span>}
           </>
         )}

@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { ChevronLeft, Check, X, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Check, X, ChevronDown, Pencil, Building2, DollarSign, Layers, Users } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
 import { useProjectFormDraft } from '../../hooks/useProjectFormDraft';
 import { useAuditLog } from '../../hooks/useAuditLog';
-import { CreateClient } from '../../pages/ClientManagement';
+import { CreateClientDrawer } from '../../components/CreateClientDrawer';
 import CreatePO from '../../pages/CreatePO';
 
 import { ProjectFormData } from '../types';
@@ -194,7 +194,332 @@ function DynamicScopeList({ value, onChange, placeholder = "Enter scope..." }: {
   );
 }
 
-export default function CreateProjectV2() {
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  Main: 'Main Project',
+  Expansion: 'Expansion',
+  Service: 'Service / Job Work',
+  new_installation: 'Main Project',
+  job_work: 'Service / Job Work',
+  maintenance: 'Service / Job Work',
+  service: 'Service / Job Work'
+};
+
+const PROJECT_CATEGORY_LABELS: Record<string, string> = {
+  oil_gas_piping: 'Oil & Gas Piping',
+  water_treatment: 'Water Treatment',
+  chemical_process: 'Chemical Process',
+  industrial: 'Industrial',
+  commercial: 'Commercial',
+  hvac: 'HVAC',
+  fire_protection: 'Fire Protection',
+  other: 'Other'
+};
+
+const STATUS_LABELS: Record<string, { label: string; bg: string; text: string }> = {
+  Draft: { label: 'Draft', bg: 'bg-slate-100', text: 'text-slate-700' },
+  Active: { label: 'Active', bg: 'bg-blue-50', text: 'text-blue-700' },
+  'Execution Completed': { label: 'Execution Completed', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'Financially Closed': { label: 'Financially Closed', bg: 'bg-purple-50', text: 'text-purple-700' },
+  Closed: { label: 'Closed', bg: 'bg-slate-100', text: 'text-slate-700' },
+  planning: { label: 'Active', bg: 'bg-blue-50', text: 'text-blue-700' },
+  in_progress: { label: 'Active', bg: 'bg-blue-50', text: 'text-blue-700' }
+};
+
+function ProjectCreationLiveSummary({
+  formData,
+  clients,
+  projects,
+  employees,
+  costCenters,
+  currentStep,
+  onEditStep
+}: {
+  formData: ProjectFormData;
+  clients: any[];
+  projects: any[];
+  employees: any[];
+  costCenters: any[];
+  currentStep: number;
+  onEditStep: (step: number) => void;
+}) {
+  const selectedClient = clients.find(c => c.id === formData.client_id);
+  const selectedParentProject = projects.find(p => p.id === formData.parent_project_id);
+  const selectedCostCenter = costCenters.find(cc => cc.id === formData.cost_center_id);
+  const selectedPM = employees.find(e => e.id === formData.project_manager_id);
+  const selectedSE = employees.find(e => e.id === formData.site_engineer_id);
+
+  const typeLabel = PROJECT_TYPE_LABELS[formData.project_type] || formData.project_type || 'New Installation';
+  const categoryLabel = PROJECT_CATEGORY_LABELS[formData.project_category || ''] || formData.project_category;
+  const statusInfo = STATUS_LABELS[formData.status] || STATUS_LABELS.planning;
+
+  const parseLines = (text?: string) => {
+    if (!text) return [];
+    return text
+      .split('\n')
+      .map(l => l.replace(/^\d+\.\s*/, '').trim())
+      .filter(Boolean);
+  };
+
+  const contractorScopeItems = parseLines(formData.contractor_scope);
+  const clientScopeItems = parseLines(formData.client_scope);
+
+  const estValNum = parseFloat(formData.project_estimated_value || formData.budget || '0');
+  const formattedVal = !isNaN(estValNum) && estValNum > 0 ? `₹${estValNum.toLocaleString('en-IN')}` : null;
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden divide-y divide-slate-100">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-5">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.text}`}>
+            {statusInfo.label}
+          </span>
+        </div>
+        <h3 className="text-lg font-bold text-white tracking-tight truncate">
+          {formData.project_name || <span className="text-slate-400 italic">Untitled Project</span>}
+        </h3>
+        <div className="flex items-center gap-2 mt-2 flex-wrap text-xs text-slate-300">
+          {formData.project_code && (
+            <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 text-slate-200">
+              {formData.project_code}
+            </span>
+          )}
+          <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium border border-blue-400/30">
+            {typeLabel}
+          </span>
+          {categoryLabel && (
+            <span className="px-2 py-0.5 rounded bg-slate-700/60 text-slate-300">
+              {categoryLabel}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto">
+        {/* Step 1 Preview Card: Identity & Location */}
+        <div className="bg-slate-50/80 border border-slate-200/80 rounded-lg p-3.5 space-y-2.5 transition-all">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+              <Building2 className="w-3.5 h-3.5 text-blue-600" />
+              <span>1. Identity & Location</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onEditStep(0)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+            >
+              <Pencil className="w-3 h-3" />
+              <span>Edit</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="col-span-2">
+              <span className="text-slate-500 font-medium block">Client</span>
+              <span className="font-semibold text-slate-900">
+                {selectedClient?.client_name || <span className="text-slate-400 italic">Not selected</span>}
+              </span>
+            </div>
+            {selectedParentProject && (
+              <div className="col-span-2">
+                <span className="text-slate-500 font-medium block">Parent Project</span>
+                <span className="font-medium text-slate-800">{selectedParentProject.project_name}</span>
+              </div>
+            )}
+            {(formData.site_location || formData.site_address) && (
+              <div className="col-span-2">
+                <span className="text-slate-500 font-medium block">Site Location</span>
+                <span className="text-slate-700 line-clamp-2">{formData.site_location || formData.site_address}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Step 2 Preview Card: Commercials & Timeline */}
+        {currentStep >= 1 && (
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-lg p-3.5 space-y-2.5 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                <span>2. Commercials & Timeline</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onEditStep(1)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+              >
+                <Pencil className="w-3 h-3" />
+                <span>Edit</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-slate-500 font-medium block">Est. Value / Budget</span>
+                <span className="font-bold text-slate-900 font-mono text-sm text-emerald-700">
+                  {formattedVal || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium block">Target Margin</span>
+                <span className="font-semibold text-slate-900">
+                  {formData.target_margin_percent ? `${formData.target_margin_percent}%` : '—'}
+                </span>
+              </div>
+              {selectedCostCenter && (
+                <div>
+                  <span className="text-slate-500 font-medium block">Cost Center</span>
+                  <span className="font-medium text-slate-800">{selectedCostCenter.name}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-slate-500 font-medium block">PO Requirement</span>
+                <span className="font-medium text-slate-800">
+                  {formData.po_required ? `Required (${formData.po_status || 'Pending'})` : 'Not Required'}
+                </span>
+              </div>
+              {(formData.start_date || formData.expected_end_date) && (
+                <div className="col-span-2">
+                  <span className="text-slate-500 font-medium block">Schedule Dates</span>
+                  <span className="font-medium text-slate-800">
+                    {formData.start_date || 'Start TBD'} → {formData.expected_end_date || 'End TBD'}
+                  </span>
+                </div>
+              )}
+              <div className="col-span-2 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-medium text-slate-600 mb-1">
+                  <span>Initial Completion</span>
+                  <span className="font-mono font-bold text-slate-800">{formData.completion_percentage || 0}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, formData.completion_percentage || 0))}%` }}
+                  />
+                </div>
+              </div>
+              {formData.liquidated_damages && (
+                <div className="col-span-2">
+                  <span className="text-slate-500 font-medium block">Liquidated Damages</span>
+                  <span className="text-slate-700 text-[11px] italic">{formData.liquidated_damages}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 Preview Card: Scope Setup */}
+        {currentStep >= 2 && (
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-lg p-3.5 space-y-2.5 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                <span>3. Scope & Deliverables</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onEditStep(2)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+              >
+                <Pencil className="w-3 h-3" />
+                <span>Edit</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div>
+                <span className="text-slate-500 font-medium block mb-1">
+                  Contractor Scope ({contractorScopeItems.length} items)
+                </span>
+                {contractorScopeItems.length > 0 ? (
+                  <ul className="space-y-0.5 text-slate-700 pl-3.5 list-disc text-[11px]">
+                    {contractorScopeItems.slice(0, 3).map((item, i) => (
+                      <li key={i} className="line-clamp-1">{item}</li>
+                    ))}
+                    {contractorScopeItems.length > 3 && (
+                      <li className="text-slate-400 italic list-none">+{contractorScopeItems.length - 3} more items</li>
+                    )}
+                  </ul>
+                ) : (
+                  <span className="text-slate-400 italic">No scope items added</span>
+                )}
+              </div>
+
+              {clientScopeItems.length > 0 && (
+                <div>
+                  <span className="text-slate-500 font-medium block mb-1">
+                    Client Responsibilities ({clientScopeItems.length} items)
+                  </span>
+                  <ul className="space-y-0.5 text-slate-700 pl-3.5 list-disc text-[11px]">
+                    {clientScopeItems.slice(0, 2).map((item, i) => (
+                      <li key={i} className="line-clamp-1">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {formData.site_instructions && (
+                <div>
+                  <span className="text-slate-500 font-medium block">Site Instructions</span>
+                  <span className="text-slate-700 line-clamp-2 text-[11px]">{formData.site_instructions}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 Preview Card: Team & Status */}
+        {currentStep >= 3 && (
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-lg p-3.5 space-y-2.5 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                <Users className="w-3.5 h-3.5 text-amber-600" />
+                <span>4. Team & Finalize</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onEditStep(3)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+              >
+                <Pencil className="w-3 h-3" />
+                <span>Edit</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-slate-500 font-medium block">Project Manager</span>
+                <span className="font-semibold text-slate-900">{selectedPM?.name || '—'}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium block">Site Engineer</span>
+                <span className="font-semibold text-slate-900">{selectedSE?.name || '—'}</span>
+              </div>
+              {formData.remarks && (
+                <div className="col-span-2">
+                  <span className="text-slate-500 font-medium block">Remarks</span>
+                  <span className="text-slate-700 text-[11px] line-clamp-2">{formData.remarks}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-slate-50 p-3.5 text-center text-xs text-slate-500 border-t border-slate-200">
+        Review details in real-time as you complete each step.
+      </div>
+    </div>
+  );
+}
+
+export default function CreateProject({
+  onSuccess,
+  onCancel
+}: {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+} = {}) {
   const { organisation, user } = useAuth();
   const navigate = useNavigate();
   const auditLog = useAuditLog(organisation?.id, user?.id);
@@ -222,7 +547,7 @@ export default function CreateProjectV2() {
     client_id: '',
     project_name: '',
     parent_project_id: '',
-    project_type: 'new_installation',
+    project_type: 'Main',
     project_estimated_value: '',
     po_required: true,
     po_status: 'Pending',
@@ -232,7 +557,7 @@ export default function CreateProjectV2() {
     expected_end_date: '',
     actual_end_date: '',
     completion_percentage: 0,
-    status: 'planning',
+    status: 'Active',
     remarks: '',
     contractor_scope: '',
     client_scope: '',
@@ -253,14 +578,19 @@ export default function CreateProjectV2() {
     description: ''
   };
 
-  const [formData, setFormData, clearDraft] = useProjectFormDraft(editId, initialFormData);
-  const [draftCleared, setDraftCleared] = useState(false);
+  const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem('mep-create-project-draft');
+    } catch {}
+  }, []);
 
   useEffect(() => {
-    if (!editId && draftCleared) {
-      setFormData(initialFormData as any);
+    if (!editId) {
+      setFormData(initialFormData);
+      clearDraft();
     }
-  }, [editId, draftCleared]);
+  }, [editId]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -476,7 +806,30 @@ export default function CreateProjectV2() {
 
     setSaving(true);
     try {
-      const finalStatus = isDraft ? 'Draft' : (formData.status || 'planning');
+      const mapProjectType = (type?: string): 'Main' | 'Expansion' | 'Service' => {
+        if (!type) return 'Main';
+        if (type === 'Expansion') return 'Expansion';
+        if (['Service', 'service', 'job_work', 'Job Work', 'maintenance', 'repair', 'modification', 'small_work'].includes(type)) {
+          return 'Service';
+        }
+        return 'Main';
+      };
+
+      const mapProjectStatus = (status?: string, draftMode = false): 'Draft' | 'Active' | 'Execution Completed' | 'Financially Closed' | 'Closed' => {
+        if (draftMode) return 'Draft';
+        if (!status || status === 'Draft') return 'Draft';
+        if (status === 'in_progress' || status === 'planning' || status === 'Active') return 'Active';
+        if (status === 'completed' || status === 'Execution Completed') return 'Execution Completed';
+        if (status === 'Financially Closed') return 'Financially Closed';
+        if (status === 'cancelled' || status === 'on_hold' || status === 'Closed') return 'Closed';
+        return 'Active';
+      };
+
+      const finalStatus = mapProjectStatus(formData.status, isDraft);
+      const finalProjectType = mapProjectType(formData.project_type);
+      const finalPoStatus = formData.po_required
+        ? (['Not Required', 'Pending', 'Received'].includes(formData.po_status || '') ? formData.po_status : 'Pending')
+        : 'Not Required';
       
       const projectData: Record<string, unknown> = {
         client_id: formData.client_id,
@@ -489,10 +842,10 @@ export default function CreateProjectV2() {
         budget: formData.budget ? parseFloat(String(formData.budget)) : (formData.project_estimated_value ? parseFloat(formData.project_estimated_value) : null),
         description: formData.description || formData.remarks || null,
         parent_project_id: formData.parent_project_id || null,
-        project_type: formData.project_type,
+        project_type: finalProjectType,
         project_estimated_value: formData.project_estimated_value ? parseFloat(formData.project_estimated_value) : null,
         po_required: formData.po_required,
-        po_status: formData.po_required ? formData.po_status : 'Not Required',
+        po_status: finalPoStatus,
         start_date: formData.start_date || null,
         expected_end_date: formData.expected_end_date || null,
         actual_end_date: formData.actual_end_date || null,
@@ -557,7 +910,11 @@ export default function CreateProjectV2() {
       }
 
       alert(`Project ${editId ? 'updated' : 'created'} successfully!`);
-      navigate('/projects');
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/projects');
+      }
     } catch (err: any) {
       console.error('Error saving project:', err);
       alert('Error: ' + err.message);
@@ -576,29 +933,26 @@ export default function CreateProjectV2() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <Drawer 
+      <CreateClientDrawer 
         isOpen={addClientModalOpen} 
         onClose={() => setAddClientModalOpen(false)} 
-        title="New Client"
-        size="po"
-        hideHeader
-      >
-        <CreateClient 
-          onSuccess={async (newId) => {
-            if (organisation) {
-              const { data } = await supabase.from('clients').select('id, client_name').eq('organisation_id', organisation.id).order('client_name');
-              if (data) {
-                setClients(data);
-                if (newId) {
-                  setFormData((prev: any) => ({ ...prev, client_id: newId }));
-                }
+        onSuccess={async (newId) => {
+          if (organisation) {
+            const { data } = await supabase
+              .from('clients')
+              .select('id, client_name')
+              .eq('organisation_id', organisation.id)
+              .order('client_name');
+            if (data) {
+              setClients(data);
+              if (newId) {
+                setFormData((prev: any) => ({ ...prev, client_id: newId }));
               }
             }
-            setAddClientModalOpen(false);
-          }}
-          onCancel={() => setAddClientModalOpen(false)}
-        />
-      </Drawer>
+          }
+          setAddClientModalOpen(false);
+        }}
+      />
 
       <Drawer 
         isOpen={addPOModalOpen} 
@@ -626,23 +980,24 @@ export default function CreateProjectV2() {
         />
       </Drawer>
 
-      <div className="max-w-4xl mx-auto space-y-6" style={{ padding: '0 16px' }}>
+      <div className={`mx-auto space-y-6 transition-all duration-300 ${currentStep >= 1 ? 'max-w-7xl' : 'max-w-4xl'}`} style={{ padding: '0 16px' }}>
         {/* Header Block & Navigation Row */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ padding: '20px 24px' }}>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="sm"
+            <button 
+              type="button"
               onClick={() => { 
                 if (window.confirm("Data will be lost. Are you sure you want to go back?")) {
-                  clearDraft(); setDraftCleared(true); navigate('/projects'); 
+                  clearDraft();
+                  if (onCancel) onCancel();
+                  else navigate('/projects'); 
                 }
               }}
-              className="border-slate-300 hover:bg-slate-50 text-slate-700 text-xs gap-1.5"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors shrink-0"
             >
-              <ChevronLeft className="w-4 h-4 shrink-0" />
+              <ChevronLeft className="w-4 h-4 text-slate-500 shrink-0" />
               <span>Back</span>
-            </Button>
+            </button>
             <div>
               <h1 className="text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
                 {editId ? 'Edit Project' : 'Create New Project'}
@@ -702,8 +1057,14 @@ export default function CreateProjectV2() {
           </div>
         </div>
 
-        {/* Form Main Container */}
-        <form onSubmit={e => handleSaveClick(e, false)} className="bg-white rounded-xl shadow-lg border border-slate-200 space-y-6" style={{ padding: '28px 32px' }}>
+        {/* Content Area with Split Layout for Step 2+ */}
+        <div className={currentStep >= 1 ? "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" : ""}>
+          {/* Form Main Container */}
+          <form
+            onSubmit={e => handleSaveClick(e, false)}
+            className={`bg-white rounded-xl shadow-lg border border-slate-200 space-y-6 ${currentStep >= 1 ? 'lg:col-span-7' : ''}`}
+            style={{ padding: '28px 32px' }}
+          >
           
           {/* STEP 0: Identity & Location */}
           {currentStep === 0 && (
@@ -750,16 +1111,13 @@ export default function CreateProjectV2() {
                   <div className="flex flex-col gap-2">
                     <Label className="text-sm font-semibold text-slate-700">Project Type *</Label>
                     <FormSelect
-                      value={formData.project_type || 'new_installation'}
+                      value={formData.project_type || 'Main'}
                       onChange={(v) => handleInputChange({ target: { name: 'project_type', value: v } })}
                       placeholder="Select Type..."
                       options={[
-                        { value: 'new_installation', label: 'New Installation' },
-                        { value: 'maintenance', label: 'Maintenance' },
-                        { value: 'service', label: 'Service' },
-                        { value: 'small_work', label: 'Small Work' },
-                        { value: 'repair', label: 'Repair' },
-                        { value: 'modification', label: 'Modification' }
+                        { value: 'Main', label: 'Main Project' },
+                        { value: 'Expansion', label: 'Expansion' },
+                        { value: 'Service', label: 'Service / Job Work' }
                       ]}
                     />
                   </div>
@@ -1138,6 +1496,22 @@ export default function CreateProjectV2() {
             )}
           </div>
         </form>
+
+        {/* Right Split Screen / Live Summary (Step 1+ until save) */}
+        {currentStep >= 1 && (
+          <div className="lg:col-span-5 sticky top-6 space-y-4">
+            <ProjectCreationLiveSummary
+              formData={formData}
+              clients={clients}
+              projects={projects}
+              employees={employees}
+              costCenters={costCenters}
+              currentStep={currentStep}
+              onEditStep={(stepIdx) => setCurrentStep(stepIdx)}
+            />
+          </div>
+        )}
+        </div>
       </div>
     </div>
   );

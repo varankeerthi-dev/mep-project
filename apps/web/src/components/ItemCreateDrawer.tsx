@@ -200,28 +200,25 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
         const rawCombos = formData.uses_variant ? variantStockCombos(variantPricing) : [];
         const stockCombos = rawCombos.length > 0 ? rawCombos : [{ variantId: NO_VARIANT_KEY, make: '' }];
 
-        const stockInsertions = [];
         for (const combo of stockCombos) {
           const dbVariantId = combo.variantId === NO_VARIANT_KEY ? null : combo.variantId;
           const dbMake = combo.make || null;
           for (const wh of warehouses) {
              const key = buildStockKey(wh.id, dbVariantId, dbMake);
              const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
-             if (!ws.exclude) {
-                 stockInsertions.push({
-                     item_id: itemId,
-                     warehouse_id: wh.id,
-                     company_variant_id: dbVariantId,
-                     make: dbMake,
-                     current_stock: ws.current_stock || 0,
-                     updated_at: nowIso
+             if (!ws.exclude && ws.current_stock > 0) {
+                 const { error: stockError } = await supabase.rpc('adjust_item_stock', {
+                     p_item_id: itemId,
+                     p_warehouse_id: wh.id,
+                     p_quantity_change: ws.current_stock,
+                     p_movement_type: 'INITIAL_STOCK',
+                     p_reference: 'ITEM_DRAWER',
+                     p_remarks: 'Initial stock allocation on item creation',
+                     p_project_id: null,
                  });
+                 if (stockError) console.error('Error saving warehouse stock via RPC:', stockError);
              }
           }
-        }
-        if (stockInsertions.length > 0) {
-            const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, make, warehouse_id' });
-            if (stockError) console.error('Error saving warehouse stock:', stockError);
         }
       }
 

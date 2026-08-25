@@ -1140,9 +1140,13 @@ export default function ProjectTaskListView({
             <>
               <div className="ptl-divider" />
               <div style={{ position: 'relative' }}>
-                <Button variant="default" size="icon-xs" onClick={(e) => { e.stopPropagation(); setShowStatusFilter(!showStatusFilter); setShowGroupByDropdown(false); setShowColumnDropdown(false); }}>
+                <button
+                  type="button"
+                  className="ptl-filter-btn"
+                  onClick={(e) => { e.stopPropagation(); setShowStatusFilter(!showStatusFilter); setShowGroupByDropdown(false); setShowColumnDropdown(false); }}
+                >
                   {statusFilter === 'all' ? 'All Open' : STATUS_LABELS_TABLE[statusFilter] || statusFilter} <ChevronDown size={12} />
-                </Button>
+                </button>
                 {showStatusFilter && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
                     <div
@@ -1170,10 +1174,14 @@ export default function ProjectTaskListView({
                 )}
               </div>
               <div style={{ position: 'relative' }}>
-                <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); setShowGroupByDropdown(!showGroupByDropdown); setShowStatusFilter(false); setShowColumnDropdown(false); }}>
+                <button
+                  type="button"
+                  className="ptl-group-btn"
+                  onClick={(e) => { e.stopPropagation(); setShowGroupByDropdown(!showGroupByDropdown); setShowStatusFilter(false); setShowColumnDropdown(false); }}
+                >
                   <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>Group By:</span>
                   {groupByField === 'task_list' ? 'Task List' : groupByField === 'status' ? 'Status' : groupByField === 'priority' ? 'Priority' : 'None'} <ChevronDown size={12} />
-                </Button>
+                </button>
                 {showGroupByDropdown && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 60, minWidth: '160px', padding: '0.25rem' }}>
                     {[
@@ -1204,23 +1212,30 @@ export default function ProjectTaskListView({
             <>
               <div style={{ display: 'flex', gap: '0.25rem', marginRight: '0.5rem' }}>
                 {(['table', 'board', 'gantt', 'calendar'] as TaskViewType[]).map(view => (
-                  <Button variant="default" size="sm" key={view} className={`ptl-view-btn ${currentView === view ? 'active' : ''}`} onClick={() => setCurrentView(view)}
+                  <button
+                    type="button"
+                    key={view}
+                    className={`ptl-view-btn ${currentView === view ? 'active' : ''}`}
+                    onClick={() => setCurrentView(view)}
                   >
                     {view === 'table' && <LayoutList size={14} />}
                     {view === 'board' && <Grid3X3 size={14} />}
                     {view === 'gantt' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="12" width="12" height="4" rx="1"/></svg>}
                     {view === 'calendar' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
                     {view.charAt(0).toUpperCase() + view.slice(1)}
-                  </Button>
+                  </button>
                 ))}
               </div>
               <div className="ptl-divider" />
               <div style={{ position: 'relative' }}>
-                <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); setShowColumnDropdown(!showColumnDropdown); setShowStatusFilter(false); setShowGroupByDropdown(false); }}
+                <button
+                  type="button"
+                  className="ptl-view-btn"
+                  onClick={(e) => { e.stopPropagation(); setShowColumnDropdown(!showColumnDropdown); setShowStatusFilter(false); setShowGroupByDropdown(false); }}
                 >
                   <Eye size={14} />
                   Columns
-                </Button>
+                </button>
                 {showColumnDropdown && (
                   <div className="ptl-col-dropdown" style={{ maxHeight: '320px', overflowY: 'auto' }}>
                     {Object.keys(COLUMN_LABELS).map(col => (
@@ -1238,23 +1253,45 @@ export default function ProjectTaskListView({
                   </div>
                 )}
               </div>
-              <Button variant="default" size="sm">
+              <button
+                type="button"
+                className="ptl-view-btn"
+              >
                 <Download size={14} />
                 Export
-              </Button>
-              <Button variant="default" size="sm" onClick={() => handleCreateTask()}
+              </button>
+              <button
+                type="button"
+                className="ptl-primary-btn"
+                style={{
+                  background: '#2563eb',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  cursor: 'pointer'
+                }}
+                onClick={() => handleCreateTask()}
               >
                 <Plus size={14} />
                 Add Task
-              </Button>
+              </button>
             </>
           )}
-          <Button variant="default" size="sm" onClick={() => setToolbarCollapsed(!toolbarCollapsed)}
+          <button
+            type="button"
+            className="ptl-view-btn"
+            onClick={() => setToolbarCollapsed(!toolbarCollapsed)}
             style={{ padding: '0.25rem 0.375rem' }}
             title={toolbarCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}
           >
             <ChevronDown size={14} style={{ transform: toolbarCollapsed ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -1288,11 +1325,27 @@ export default function ProjectTaskListView({
                 }}
               />
             </div>
-            <Button variant="default" size="sm" onClick={() => setShowGroupModal(true)}
+            <button
+              type="button"
+              className="ptl-primary-btn"
+              style={{
+                background: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '0.375rem',
+                padding: '0.35rem 0.75rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                cursor: 'pointer'
+              }}
+              onClick={() => setShowGroupModal(true)}
             >
-            <Plus size={12} />
-            Add List
-          </Button>
+              <Plus size={12} />
+              Add List
+            </button>
           </div>
         )}
       </div>
@@ -1311,11 +1364,14 @@ export default function ProjectTaskListView({
               </div>
               <p className="ptl-empty-text">No tasks yet. Create your first task to get started.</p>
               <div className="flex items-center gap-2">
-                <Button variant="default" size="sm" onClick={() => handleCreateTask()}
+                <button
+                  type="button"
+                  className="ptl-empty-cta"
+                  onClick={() => handleCreateTask()}
                 >
                   <Plus size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
                   Create Task
-                </Button>
+                </button>
               </div>
             </div>
           ) : (

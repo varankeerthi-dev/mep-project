@@ -23,56 +23,30 @@ export async function adjustCNStock(
   for (const item of items) {
     if (!item.material_id || !item.warehouse_id) continue;
 
-    const { data: stockRec, error: stockError } = await supabase
-      .from('item_stock')
-      .select('id, current_stock')
-      .eq('item_id', item.material_id)
-      .eq('warehouse_id', item.warehouse_id)
-      .eq('organisation_id', orgId)
-      .single();
+    const qtyChange = action === 'restore' ? item.quantity : -item.quantity;
 
-    if (stockError && stockError.code !== 'PGRST116') {
-      console.error('Stock lookup error:', stockError);
+    const { data: rpcRes, error: rpcError } = await supabase.rpc('adjust_item_stock', {
+      p_item_id: item.material_id,
+      p_warehouse_id: item.warehouse_id,
+      p_quantity_change: qtyChange,
+      p_movement_type: 'CREDIT_NOTE_RETURN',
+      p_reference: cnId || 'CREDIT_NOTE',
+      p_remarks: `Credit note ${action} for CN ${cnId}`,
+      p_project_id: null,
+    });
+
+    if (rpcError) {
+      console.error('Stock adjustment error via RPC:', rpcError);
       continue;
     }
 
-    const currentStock = stockRec?.current_stock ?? 0;
-    const newStock = action === 'restore'
-      ? currentStock + item.quantity
-      : Math.max(0, currentStock - item.quantity);
-
-    if (stockRec) {
-      const { error: updateError } = await supabase
-        .from('item_stock')
-        .update({ current_stock: newStock, updated_at: new Date().toISOString() })
-        .eq('id', stockRec.id);
-
-      if (updateError) {
-        console.error('Stock update error:', updateError);
-        continue;
-      }
-    } else {
-      const { error: insertError } = await supabase
-        .from('item_stock')
-        .insert({
-          item_id: item.material_id,
-          warehouse_id: item.warehouse_id,
-          organisation_id: orgId,
-          current_stock: newStock,
-        });
-
-      if (insertError) {
-        console.error('Stock insert error:', insertError);
-        continue;
-      }
-    }
-
+    const resObj = rpcRes as any;
     results.push({
       item_id: item.material_id,
       warehouse_id: item.warehouse_id,
       qty: item.quantity,
-      previous_stock: currentStock,
-      new_stock,
+      previous_stock: resObj?.previous_stock ?? 0,
+      new_stock: resObj?.new_stock ?? 0,
     });
   }
 

@@ -87,6 +87,7 @@ export type ReceiptInput = {
   reference_no?: string | null;
   status?: string | null;
   notes?: string | null;
+  idempotency_key?: string | null;
 };
 
 export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> {
@@ -180,43 +181,44 @@ export async function listLedgerReceipts(orgId: string, range?: LedgerDateRange)
 }
 
 export async function createReceipt(input: ReceiptInput): Promise<LedgerReceipt> {
-  const { data, error } = await supabase
-    .from('receipts')
-    .insert({
-      org_id: input.org_id,
-      client_id: input.client_id,
-      invoice_id: input.invoice_id || null,
-      receipt_no: input.receipt_no || null,
-      amount: input.amount,
-      receipt_date: input.receipt_date,
-      remarks: input.remarks || null,
-      payment_type: input.payment_type || null,
-      payment_mode: input.payment_mode || null,
-      reference_no: input.reference_no || null,
-      status: input.status || 'paid',
-      notes: input.notes || null,
-    })
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
-    .single();
+  const { data, error } = await supabase.rpc('record_customer_payment', {
+    p_organisation_id: input.org_id,
+    p_client_id: input.client_id,
+    p_invoice_id: input.invoice_id || null,
+    p_amount: input.amount,
+    p_receipt_date: input.receipt_date,
+    p_payment_mode: input.payment_mode || 'bank',
+    p_reference_no: input.reference_no || null,
+    p_remarks: input.remarks || null,
+    p_idempotency_key: input.idempotency_key || input.reference_no || null,
+  });
 
   if (error) throw error;
-  if (!data) throw new Error('Unable to record payment.');
+  if (!data || data.status !== 'success') throw new Error((data as any)?.message || 'Unable to record payment.');
+
+  const { data: receipt, error: receiptError } = await supabase
+    .from('receipts')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
+    .eq('id', data.receipt_id)
+    .single();
+
+  if (receiptError || !receipt) throw receiptError || new Error('Receipt recorded but unable to fetch details.');
 
   return {
-    id: String(data.id),
-    org_id: String(data.org_id),
-    client_id: String(data.client_id),
-    invoice_id: data.invoice_id ?? null,
-    receipt_no: data.receipt_no ?? null,
-    amount: Number(data.amount ?? 0),
-    receipt_date: String(data.receipt_date),
-    remarks: data.remarks ?? null,
-    payment_type: data.payment_type ?? null,
-    payment_mode: data.payment_mode ?? null,
-    reference_no: data.reference_no ?? null,
-    status: data.status ?? null,
-    notes: data.notes ?? null,
-    created_at: data.created_at ?? null,
+    id: String(receipt.id),
+    org_id: String(receipt.org_id),
+    client_id: String(receipt.client_id),
+    invoice_id: receipt.invoice_id ?? null,
+    receipt_no: receipt.receipt_no ?? null,
+    amount: Number(receipt.amount ?? 0),
+    receipt_date: String(receipt.receipt_date),
+    remarks: receipt.remarks ?? null,
+    payment_type: receipt.payment_type ?? null,
+    payment_mode: receipt.payment_mode ?? null,
+    reference_no: receipt.reference_no ?? null,
+    status: receipt.status ?? null,
+    notes: receipt.notes ?? null,
+    created_at: receipt.created_at ?? null,
   };
 }
 

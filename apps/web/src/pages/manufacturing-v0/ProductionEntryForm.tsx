@@ -93,17 +93,16 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
           .eq('id', entry.job_card_id)
           .maybeSingle();
         const productId = (bomProduct as any)?.bom_headers?.product_id;
-        if (productId) {
-          const { data: fgStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', productId)
-            .eq('warehouse_id', wh.fg.id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-          if (fgStock) {
-            await supabase.from('item_stock').update({ current_stock: Math.max(0, fgStock.current_stock - entry.actual_qty) }).eq('id', fgStock.id);
-          }
+        if (productId && entry.actual_qty > 0) {
+          await supabase.rpc('adjust_item_stock', {
+            p_item_id: productId,
+            p_warehouse_id: wh.fg.id,
+            p_quantity_change: -entry.actual_qty,
+            p_movement_type: 'MANUFACTURING_PRODUCTION',
+            p_reference: entry.entry_no || entry.id,
+            p_remarks: `Reversal of FG stock for entry ${entry.entry_no}`,
+            p_project_id: null,
+          });
         }
       }
 
@@ -111,29 +110,27 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
       for (const item of entry.production_entry_items || []) {
         const consumedWastage = (item.consumed_qty || 0) + (item.wastage_qty || 0);
         if (consumedWastage > 0) {
-          const { data: wipStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', item.material_id)
-            .eq('warehouse_id', wh.wip.id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-          if (wipStock) {
-            await supabase.from('item_stock').update({ current_stock: (wipStock.current_stock || 0) + consumedWastage }).eq('id', wipStock.id);
-          }
+          await supabase.rpc('adjust_item_stock', {
+            p_item_id: item.material_id,
+            p_warehouse_id: wh.wip.id,
+            p_quantity_change: consumedWastage,
+            p_movement_type: 'MANUFACTURING_PRODUCTION',
+            p_reference: entry.entry_no || entry.id,
+            p_remarks: `Reversal of consumed/wastage material for entry ${entry.entry_no}`,
+            p_project_id: null,
+          });
         }
 
         if (item.return_qty > 0) {
-          const { data: mainStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', item.material_id)
-            .eq('warehouse_id', wh.mainStore.id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-          if (mainStock) {
-            await supabase.from('item_stock').update({ current_stock: Math.max(0, (mainStock.current_stock || 0) - item.return_qty) }).eq('id', mainStock.id);
-          }
+          await supabase.rpc('adjust_item_stock', {
+            p_item_id: item.material_id,
+            p_warehouse_id: wh.mainStore.id,
+            p_quantity_change: -item.return_qty,
+            p_movement_type: 'MANUFACTURING_PRODUCTION',
+            p_reference: entry.entry_no || entry.id,
+            p_remarks: `Reversal of returned material for entry ${entry.entry_no}`,
+            p_project_id: null,
+          });
         }
       }
 
@@ -553,20 +550,15 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
 
         // b. Decrease WIP stock (consumed + wastage)
         if (totalDeductFromWip > 0) {
-          const { data: wipStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', mat.material_id)
-            .eq('warehouse_id', wh.wip.id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-
-          if (wipStock) {
-            await supabase
-              .from('item_stock')
-              .update({ current_stock: wipStock.current_stock - totalDeductFromWip })
-              .eq('id', wipStock.id);
-          }
+          await supabase.rpc('adjust_item_stock', {
+            p_item_id: mat.material_id,
+            p_warehouse_id: wh.wip.id,
+            p_quantity_change: -totalDeductFromWip,
+            p_movement_type: 'MANUFACTURING_PRODUCTION',
+            p_reference: entry.entry_no || entry.id,
+            p_remarks: `Consumed in production entry ${entry.entry_no}`,
+            p_project_id: null,
+          });
 
           // Record in material_outward_items
           await supabase
@@ -584,45 +576,27 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
 
         // c. Return unused materials: WIP ↓, Main Store ↑
         if (mat.return_qty > 0 && inwardRecord) {
-          const { data: wipStockForReturn } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', mat.material_id)
-            .eq('warehouse_id', wh.wip.id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-
-          if (wipStockForReturn) {
-            await supabase
-              .from('item_stock')
-              .update({ current_stock: wipStockForReturn.current_stock - mat.return_qty })
-              .eq('id', wipStockForReturn.id);
-          }
+          // Decrease WIP
+          await supabase.rpc('adjust_item_stock', {
+            p_item_id: mat.material_id,
+            p_warehouse_id: wh.wip.id,
+            p_quantity_change: -mat.return_qty,
+            p_movement_type: 'MANUFACTURING_PRODUCTION',
+            p_reference: entry.entry_no || entry.id,
+            p_remarks: `Returned from WIP in production entry ${entry.entry_no}`,
+            p_project_id: null,
+          });
 
           // Increase Main Store
-          const { data: mainStock } = await supabase
-            .from('item_stock')
-            .select('id, current_stock')
-            .eq('item_id', mat.material_id)
-            .eq('warehouse_id', wh.mainStore.id)
-            .eq('organisation_id', organisation.id)
-            .maybeSingle();
-
-          if (mainStock) {
-            await supabase
-              .from('item_stock')
-              .update({ current_stock: mainStock.current_stock + mat.return_qty })
-              .eq('id', mainStock.id);
-          } else {
-            await supabase
-              .from('item_stock')
-              .insert({
-                item_id: mat.material_id,
-                warehouse_id: wh.mainStore.id,
-                organisation_id: organisation.id,
-                current_stock: mat.return_qty
-              });
-          }
+          await supabase.rpc('adjust_item_stock', {
+            p_item_id: mat.material_id,
+            p_warehouse_id: wh.mainStore.id,
+            p_quantity_change: mat.return_qty,
+            p_movement_type: 'MANUFACTURING_PRODUCTION',
+            p_reference: entry.entry_no || entry.id,
+            p_remarks: `Returned to Main Store in production entry ${entry.entry_no}`,
+            p_project_id: null,
+          });
 
           // Record return in material_inward_items
           await supabase
@@ -692,29 +666,15 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
 
       // 6. Add finished goods to FG Warehouse
       if (finishedProductId && formData.actual_qty > 0) {
-        const { data: fgStock } = await supabase
-          .from('item_stock')
-          .select('id, current_stock')
-          .eq('item_id', finishedProductId)
-          .eq('warehouse_id', wh.fg.id)
-          .eq('organisation_id', organisation.id)
-          .maybeSingle();
-
-        if (fgStock) {
-          await supabase
-            .from('item_stock')
-            .update({ current_stock: fgStock.current_stock + formData.actual_qty })
-            .eq('id', fgStock.id);
-        } else {
-          await supabase
-            .from('item_stock')
-            .insert({
-              item_id: finishedProductId,
-              warehouse_id: wh.fg.id,
-              organisation_id: organisation.id,
-              current_stock: formData.actual_qty
-            });
-        }
+        await supabase.rpc('adjust_item_stock', {
+          p_item_id: finishedProductId,
+          p_warehouse_id: wh.fg.id,
+          p_quantity_change: formData.actual_qty,
+          p_movement_type: 'MANUFACTURING_PRODUCTION',
+          p_reference: entry.entry_no || entry.id,
+          p_remarks: `Produced finished goods in entry ${entry.entry_no}`,
+          p_project_id: null,
+        });
 
         // Record finished goods inward
         let fgInwardRecord = inwardRecord;

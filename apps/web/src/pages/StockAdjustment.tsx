@@ -225,11 +225,21 @@ export default function StockAdjustment() {
       for (const row of validRows) {
         const newQty = parseFloat(row.new_qty);
         if (isNaN(newQty)) continue;
-        const existing = stockData.find(s => s.item_id === row.material_id && s.warehouse_id === row.warehouse_id && (row.variant_id ? s.company_variant_id === row.variant_id : !s.company_variant_id));
-        if (existing) {
-          await supabase.from('item_stock').update({ current_stock: newQty, updated_at: new Date().toISOString() }).eq('item_id', row.material_id).eq('warehouse_id', row.warehouse_id).match(row.variant_id ? { company_variant_id: row.variant_id } : { company_variant_id: null });
-        } else {
-          await supabase.from('item_stock').insert({ item_id: row.material_id, warehouse_id: row.warehouse_id, company_variant_id: row.variant_id || null, current_stock: newQty, organisation_id: organisation?.id });
+        const currentQty = typeof row.current_qty === 'number' ? row.current_qty : (parseFloat(String(row.current_qty)) || 0);
+        const qtyDelta = newQty - currentQty;
+
+        const { error: rpcError } = await supabase.rpc('adjust_item_stock', {
+          p_item_id: row.material_id,
+          p_warehouse_id: row.warehouse_id,
+          p_quantity_change: qtyDelta,
+          p_movement_type: 'MANUAL_ADJUSTMENT',
+          p_reference: 'STOCK_ADJUSTMENT',
+          p_remarks: `Adjusted from ${currentQty} to ${newQty}`,
+          p_project_id: null,
+        });
+
+        if (rpcError) {
+          throw new Error(rpcError.message);
         }
       }
       toast.success(`Stock adjusted for ${validRows.length} items`);

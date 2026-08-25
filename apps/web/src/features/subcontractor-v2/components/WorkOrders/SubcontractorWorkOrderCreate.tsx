@@ -15,7 +15,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { ApprovalIntegration } from '../../../../approvals/integration';
-import { workOrderRpc } from '../../../../work-orders';
 import { toast } from '@/lib/logger';
 import { useUnits } from '../../../../hooks/useUnits';
 import { useVendorHolds } from '../../../../modules/Purchase/hooks/usePurchaseQueries';
@@ -386,6 +385,27 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   }, [subIdParam, subcontractors, editId]);
 
   useEffect(() => {
+    if (!editId && organisation?.id && !formData.work_order_no) {
+      const generateWONumber = async () => {
+        const { data } = await supabase
+          .from('subcontractor_work_orders')
+          .select('work_order_no')
+          .eq('organisation_id', organisation.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const lastWO = data?.[0]?.work_order_no;
+        let newNumber = 'WO/001';
+        if (lastWO && lastWO.match(/WO\/(\d+)/)) {
+          const num = parseInt(lastWO.match(/WO\/(\d+)/)?.[1] || '0', 10);
+          newNumber = `WO/${String(num + 1).padStart(3, '0')}`;
+        }
+        setFormData((prev) => ({ ...prev, work_order_no: newNumber }));
+      };
+      generateWONumber();
+    }
+  }, [editId, organisation?.id, formData.work_order_no]);
+
+  useEffect(() => {
     const calcResult = calculateFinance({
       lineItems: formData.line_items,
       taxType: formData.tax_type as 'GST' | 'TDS' | 'None',
@@ -460,97 +480,115 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!organisation?.id) throw new Error('No organisation');
-      const requestId = crypto.randomUUID();
-      const isInterState = formData.igst_percent > 0;
-      const draftResult = await workOrderRpc.saveDraft({
-        organisationId: organisation.id,
-        workOrderId: editId || null,
-        clientRequestId: requestId,
-        issuer: {
-          role: 'issuer',
-          partyType: 'internal_unit',
-          organisationId: organisation.id,
-          displayNameSnapshot: organisation.name || 'Organisation',
-        },
-        recipient: {
-          role: 'recipient',
-          partyType: 'subcontractor',
-          subcontractorId: formData.subcontractor_id,
-          displayNameSnapshot: selectedSubcontractor?.company_name || 'Subcontractor',
-          taxIdSnapshot: selectedSubcontractor?.gstin || null,
-        },
-        workOrderNo: editId ? (formData.work_order_no || null) : null,
-        issueDate: formData.issue_date,
-        validUntil: formData.valid_until || null,
-        startDate: formData.start_date || null,
-        endDate: formData.end_date || null,
-        workDescription: formData.work_description,
-        siteLocation: formData.site_location || null,
-        projectId: formData.project_id || null,
-        clientId: formData.client_id || null,
-        items: formData.line_items.map((item) => ({
-          description: item.description,
-          quantity: Number(item.quantity),
-          unit: item.unit,
-          rate: Number(item.rate),
-          taxableAmount: Math.max(Number(item.amount || item.quantity * item.rate), 0),
-          totalAmount: Math.max(Number(item.amount || item.quantity * item.rate), 0),
-          discountPercent: 0,
-          cgstPercent: formData.tax_type === 'GST' ? formData.cgst_percent : 0,
-          sgstPercent: formData.tax_type === 'GST' ? formData.sgst_percent : 0,
-          igstPercent: formData.tax_type === 'GST' ? formData.igst_percent : 0,
-          cgstAmount: 0,
-          sgstAmount: 0,
-          igstAmount: 0,
-          cessAmount: 0,
-        })),
-        commercial: {
-          currency: 'INR',
-          exchangeRate: 1,
-          subtotal: Math.max(Number(formData.subtotal), 0),
-          discountAmount: 0,
-          taxableAmount: Math.max(Number(formData.subtotal), 0),
-          cgstAmount: formData.tax_type === 'GST' ? Math.max(Number(formData.cgst_amount), 0) : 0,
-          sgstAmount: formData.tax_type === 'GST' ? Math.max(Number(formData.sgst_amount), 0) : 0,
-          igstAmount: formData.tax_type === 'GST' ? Math.max(Number(formData.igst_amount), 0) : 0,
-          cessAmount: 0,
-          totalAmount: Math.max(Number(formData.total_amount), 0),
-          advancePercent: Math.max(Number(formData.advance_percent), 0),
-          advanceAmount: Math.max(Number(formData.advance_amount), 0),
-          tdsApplicable: formData.tax_type === 'TDS' && Number(formData.tds_percent) > 0,
-          tdsPercent: formData.tax_type === 'TDS' ? Math.max(Number(formData.tds_percent), 0) : 0,
-          tdsBaseAmount: formData.tax_type === 'TDS' ? Math.max(Number(formData.subtotal), 0) : 0,
-          tdsAmount: formData.tax_type === 'TDS' ? Math.max(Number(formData.tds_amount), 0) : 0,
-          retentionPercent: formData.retention_held ? Math.max(Number(formData.retention_percent), 0) : 0,
-          retentionAmount: formData.retention_held ? Math.max(Number(formData.retention_amount || 0), 0) : 0,
-          retentionDurationMonths: formData.retention_held ? formData.retention_duration_months : null,
-          retentionConditions: formData.retention_held ? formData.retention_conditions : null,
-          taxType: formData.tax_type === 'GST' ? (isInterState ? 'inter_state' : 'intra_state') : 'not_applicable',
-          placeOfSupply: null,
-          reverseCharge: false,
-        },
-        paymentTermsText: formData.payment_terms || null,
-        paymentTerms: {},
-        deliveryTerms: formData.delivery_terms || null,
-        termsConditions: formData.terms_conditions,
-        remarks: formData.remarks || null,
-      });
-      if (draftResult.error || !draftResult.data) throw new Error(draftResult.error?.message || 'Work Order draft could not be saved.');
+      const payload = {
+        organisation_id: organisation.id,
+        issue_id: issueIdParam || null,
+        client_id: formData.client_id || null,
+        project_id: formData.project_id || null,
+        work_order_no: formData.work_order_no,
+        subcontractor_id: formData.subcontractor_id,
+        issue_date: formData.issue_date,
+        valid_until: formData.valid_until || null,
+        work_description: formData.work_description,
+        site_location: formData.site_location,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        line_items: formData.line_items,
+        subtotal: formData.subtotal,
+        tax_type: formData.tax_type,
+        cgst_percent: formData.tax_type === 'GST' ? formData.cgst_percent : 0,
+        sgst_percent: formData.tax_type === 'GST' ? formData.sgst_percent : 0,
+        igst_percent: formData.tax_type === 'GST' ? formData.igst_percent : 0,
+        cgst_amount: formData.tax_type === 'GST' ? formData.cgst_amount : 0,
+        sgst_amount: formData.tax_type === 'GST' ? formData.sgst_amount : 0,
+        igst_amount: formData.tax_type === 'GST' ? formData.igst_amount : 0,
+        tds_percent: formData.tax_type === 'TDS' ? formData.tds_percent : 0,
+        tds_amount: formData.tax_type === 'TDS' ? formData.tds_amount : 0,
+        total_amount: formData.total_amount,
+        advance_percent: formData.advance_percent,
+        advance_amount: formData.advance_amount,
+        payment_terms: formData.payment_terms,
+        delivery_terms: formData.delivery_terms,
+        terms_conditions: formData.terms_conditions,
+        status: editId ? formData.status : 'Draft',
+        remarks: formData.remarks,
+        retention_held: formData.retention_held,
+        retention_percent: formData.retention_held ? formData.retention_percent : 0,
+        retention_amount: formData.retention_held ? (formData.retention_amount || 0) : 0,
+        retention_duration_months: formData.retention_held ? formData.retention_duration_months : null,
+        retention_conditions: formData.retention_held ? formData.retention_conditions : null,
+      };
 
-      const workOrderId = String((draftResult.data as any).id);
-      if (!editId) {
-        const subName = selectedSubcontractor?.company_name || 'Subcontractor';
-        const proj = projects.find((p: any) => p.id === formData.project_id);
-        const projName = proj?.project_name || 'Project';
-        const approvalResult = await ApprovalIntegration.createWorkOrderApproval(workOrderId, subName, projName, formData.total_amount, 'NORMAL');
-        if (approvalResult.success && approvalResult.error?.includes('No approval required')) {
-          const issueResult = await workOrderRpc.issue({ organisationId: organisation.id, workOrderId, clientRequestId: crypto.randomUUID() });
-          if (issueResult.error) throw new Error(issueResult.error.message);
-          toast.success('Work order created successfully.');
-        } else if (approvalResult.success) {
-          toast.success('Work order saved and submitted for approval.');
-        } else {
-          throw new Error(approvalResult.error || 'Approval flow failed.');
+      let workOrderId = editId;
+      if (editId) {
+        const formattedItems = lineItems.map((item) => ({
+          description: item.description || 'Line Item',
+          qty: item.quantity || 1,
+          rate: item.unit_price || item.total || 0,
+        }));
+        const { error } = await supabase.rpc('update_subcontractor_work_order', {
+          p_work_order_id: editId,
+          p_organisation_id: organisation.id,
+          p_subcontractor_id: formData.subcontractor_id,
+          p_project_id: formData.project_id || null,
+          p_items: formattedItems,
+          p_work_description: formData.work_description || null,
+          p_site_location: formData.site_location || null,
+          p_start_date: formData.start_date || null,
+          p_end_date: formData.end_date || null,
+          p_retention_percent: formData.retention_held ? formData.retention_percent : 0,
+          p_tds_percent: formData.tds_percent || 0,
+          p_status: formData.status || 'Draft',
+          p_remarks: formData.remarks || null,
+        });
+        if (error) throw error;
+      } else {
+        const formattedItems = lineItems.map((item) => ({
+          description: item.description || 'Line Item',
+          qty: item.quantity || 1,
+          rate: item.unit_price || item.total || 0,
+        }));
+
+        const { data: rpcRes, error: insertError } = await supabase.rpc('record_subcontractor_work_order', {
+          p_organisation_id: organisation.id,
+          p_subcontractor_id: formData.subcontractor_id,
+          p_items: formattedItems,
+          p_project_id: formData.project_id || null,
+          p_work_description: formData.work_description || null,
+          p_site_location: formData.site_location || null,
+          p_start_date: formData.start_date || null,
+          p_end_date: formData.end_date || null,
+          p_retention_percent: formData.retention_held ? formData.retention_percent : 0,
+          p_tds_percent: formData.tds_percent || 0,
+        });
+        if (insertError) throw insertError;
+        workOrderId = rpcRes.work_order_id;
+        if (issueIdParam && rpcRes) {
+          await supabase.from('issue_activity_logs').insert({
+            issue_id: issueIdParam, action: 'work_order_created',
+            new_value: { wo_id: rpcRes.work_order_id, wo_number: rpcRes.work_order_no || formData.work_order_no },
+            done_by: user?.id || null,
+            done_by_name: user?.user_metadata?.full_name || 'System'
+          });
+        }
+      }
+
+      if (!editId && workOrderId) {
+        try {
+          const subName = selectedSubcontractor?.company_name || 'Subcontractor';
+          const proj = projects.find((p: any) => p.id === formData.project_id);
+          const projName = proj?.project_name || 'Project';
+          const approvalResult = await ApprovalIntegration.createWorkOrderApproval(workOrderId, subName, projName, formData.total_amount, 'NORMAL');
+          if (approvalResult.success) {
+            toast.success('Work order saved and submitted for approval.');
+          } else if (approvalResult.error && !approvalResult.error.includes('No approval required')) {
+            toast.error('Work order saved but approval flow failed: ' + approvalResult.error);
+          } else {
+            await supabase.from('subcontractor_work_orders').update({ status: 'Issued' }).eq('id', workOrderId);
+            toast.success('Work order created successfully.');
+          }
+        } catch (approvalErr) {
+          console.error('Approvals workflow error:', approvalErr);
         }
       }
     },

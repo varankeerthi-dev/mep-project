@@ -286,6 +286,20 @@ async function ensureClientState(clientId: string, fallbackState?: string | null
   return data?.state ?? null;
 }
 
+export async function finalizeInvoice(id: string, organisationId: string): Promise<InvoiceWithRelations> {
+  const { data, error } = await supabase.rpc('finalize_sales_invoice', {
+    p_invoice_id: id,
+    p_organisation_id: organisationId,
+  });
+
+  if (error) {
+    console.error('Invoice finalization RPC error:', error);
+    throw new Error(`Failed to finalize invoice: ${error.message}`);
+  }
+
+  return getInvoiceById(id, organisationId);
+}
+
 export async function createInvoice(input: InvoiceInput & { organisation_id: string }): Promise<InvoiceWithRelations> {
   const parsed = InvoiceSchema.parse(input);
   const organisationId = input.organisation_id;
@@ -299,7 +313,13 @@ export async function createInvoice(input: InvoiceInput & { organisation_id: str
   let invoiceId: string | null = null;
 
   try {
-    const { data: inserted, error } = await supabase.from('invoices').insert({ ...invoiceRow, organisation_id: organisationId }).select('id').single();
+    // Always insert header in draft state first
+    const { data: inserted, error } = await supabase
+      .from('invoices')
+      .insert({ ...invoiceRow, status: 'draft', organisation_id: organisationId })
+      .select('id')
+      .single();
+
     if (error) throw error;
     invoiceId = inserted.id;
     const insertedInvoiceId = inserted.id as string;
@@ -334,28 +354,9 @@ export async function createInvoice(input: InvoiceInput & { organisation_id: str
       }
     }
 
-    // Handle stock deduction if enabled.
-    // IMPORTANT: Delivery Challan already deducts stock at dispatch time,
-    // so invoices created from challans must never deduct again.
-    if (validated.source_type !== 'challan' && validated.deduct_stock_on_finalize && validated.mode) {
-      try {
-        const deductionResults = await deductInvoiceStock(
-          insertedInvoiceId,
-          organisationId,
-          validated.mode,
-          validated.allow_insufficient_stock || false
-        );
-        
-        // Check for insufficient stock errors
-        const insufficientItems = deductionResults.filter(r => r.status === 'INSUFFICIENT');
-        if (insufficientItems.length > 0) {
-          console.warn('Insufficient stock for items:', insufficientItems);
-          // Note: We don't fail the invoice creation, just log the warning
-        }
-      } catch (err) {
-        console.error('Stock deduction failed:', err);
-        // Note: We don't fail the invoice creation, just log the error
-      }
+    // If final status was requested, execute server-authoritative finalization RPC
+    if (validated.status === 'final') {
+      return await finalizeInvoice(insertedInvoiceId, organisationId);
     }
 
     return getInvoiceById(insertedInvoiceId, organisationId);
@@ -380,7 +381,12 @@ export async function updateInvoice(id: string, input: InvoiceInput & { organisa
   });
   const { invoiceRow, itemRows, materialRows } = buildInvoicePayload(validated);
 
-  const { error: invoiceError } = await supabase.from('invoices').update(invoiceRow).eq('id', id);
+  // Always update draft fields first
+  const { error: invoiceError } = await supabase
+    .from('invoices')
+    .update({ ...invoiceRow, status: 'draft' })
+    .eq('id', id);
+
   if (invoiceError) throw invoiceError;
 
   const [deleteItems, deleteMaterials] = await Promise.all([
@@ -405,28 +411,9 @@ export async function updateInvoice(id: string, input: InvoiceInput & { organisa
     if (materialError) throw materialError;
   }
 
-  // Handle stock deduction if enabled.
-  // IMPORTANT: Delivery Challan already deducts stock at dispatch time,
-  // so invoices created from challans must never deduct again.
-  if (validated.source_type !== 'challan' && validated.deduct_stock_on_finalize && validated.mode) {
-    try {
-      const deductionResults = await deductInvoiceStock(
-        id,
-        input.organisation_id,
-        validated.mode,
-        validated.allow_insufficient_stock || false
-      );
-      
-      // Check for insufficient stock errors
-      const insufficientItems = deductionResults.filter(r => r.status === 'INSUFFICIENT');
-      if (insufficientItems.length > 0) {
-        console.warn('Insufficient stock for items:', insufficientItems);
-        // Note: We don't fail the update, just log the warning
-      }
-    } catch (err) {
-      console.error('Stock deduction failed:', err);
-      // Note: We don't fail the update, just log the error
-    }
+  // If final status was requested, execute server-authoritative finalization RPC
+  if (validated.status === 'final') {
+    return await finalizeInvoice(id, input.organisation_id);
   }
 
   return getInvoiceById(id, input.organisation_id);

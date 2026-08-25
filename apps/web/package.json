@@ -8,7 +8,7 @@
     "demo": "vite",
     "dev:api": "vercel dev",
     "dev:server": "node server/pincode.js",
-    "build": "vite build",
+    "build": "node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

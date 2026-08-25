@@ -470,14 +470,22 @@ export function OrganisationSettings({ organisation, userId }) {
     }
   }
 
-  const handleRoleChange = async (memberId, newRole) => {
-    await updateUserRole(memberId, newRole)
+  const handleRoleChange = async (targetUserId, newRole) => {
+    if (!organisation?.id) return;
+    const { error } = await updateUserRole(organisation.id, targetUserId, newRole)
+    if (error) {
+      alert('Failed to update role: ' + error.message)
+    }
     loadMembers()
   }
 
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = async (targetUserId) => {
+    if (!organisation?.id) return;
     if (confirm('Are you sure you want to remove this member?')) {
-      await removeMember(memberId)
+      const { error } = await removeMember(organisation.id, targetUserId)
+      if (error) {
+        alert('Failed to remove member: ' + error.message)
+      }
       loadMembers()
     }
   }
@@ -900,7 +908,7 @@ export function OrganisationSettings({ organisation, userId }) {
                         <select
                           className="form-select"
                           value={member.role}
-                          onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                          onChange={(e) => handleRoleChange(member.user_id, e.target.value)}
                           style={{ width: 'auto' }}
                         >
                           <option value="admin">Admin</option>
@@ -928,7 +936,7 @@ export function OrganisationSettings({ organisation, userId }) {
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => handleRemoveMember(member.id)}
+                            onClick={() => handleRemoveMember(member.user_id)}
                           >
                             Remove
                           </Button>
@@ -964,16 +972,16 @@ export function JoinOrganisation({ userId }) {
     if (!org) {
       setError('Invalid organisation code')
       setLoading(false)
- }
       return
+    }
        
-    const { error: err } = await supabase
-      .from('org_members')
-      .insert({
-        organisation_id: org.id,
-        user_id: userId,
-        role: 'member'
-      })
+    const { error: err } = await supabase.rpc('admin_manage_org_member', {
+      p_action: 'ADD',
+      p_organisation_id: org.id,
+      p_target_user_id: userId,
+      p_role: 'member',
+      p_status: 'active'
+    })
     
     if (err) {
       setError(err.message)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+﻿import { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, X, Plus, Calendar } from 'lucide-react';
 import { useAuth } from '../../App';
@@ -157,10 +157,6 @@ export const CreateMeeting = memo(function CreateMeeting({
     const meetingDate = new Date(formData.meeting_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (meetingDate < today && !isEditMode) {
-      toast.error('Meeting date cannot be in the past');
-      return;
-    }
     
     // Validate attendees
     const invalidAttendees = attendees.filter(a => !a.name.trim());
@@ -210,7 +206,7 @@ export const CreateMeeting = memo(function CreateMeeting({
           tags: formData.tags,
           is_site_visit_meeting: formData.is_site_visit_meeting,
           site_visit_id: formData.site_visit_id || undefined,
-          status: 'upcoming',
+          status: meetingDate < today ? 'completed' : 'upcoming',
           minutes_status: 'pending',
         });
         toast.success('Meeting created successfully');

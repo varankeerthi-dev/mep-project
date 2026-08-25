@@ -1926,130 +1926,69 @@ export default function CreateQuotation() {
       };
 
       if (editId) {
-        let updateQuery = supabase
-          .from('quotation_header')
-          .update({
-            ...quotationData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editId)
-          .eq('organisation_id', organisation?.id);
+        const formattedItems = cleanItems.map((item) => ({
+          item_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          description: item.description || '',
+          qty: parseFloat(item.qty as any) || 1,
+          uom: item.uom || '',
+          rate: parseFloat(item.rate) || 0,
+          discount_percent: parseFloat(item.discount_percent) || 0,
+          tax_percent: parseFloat(item.tax_percent) || 0,
+        }));
 
-        if (lastLoadedUpdatedAt) {
-          updateQuery = updateQuery.eq('updated_at', lastLoadedUpdatedAt);
-        }
+        const { data: rpcRes, error: updateError } = await supabase.rpc('update_quotation', {
+          p_quotation_id: editId,
+          p_organisation_id: organisation.id,
+          p_client_id: formData.client_id,
+          p_project_id: formData.project_id || null,
+          p_items: formattedItems,
+          p_remarks: formData.remarks || null,
+          p_payment_terms: formData.payment_terms || null,
+          p_valid_till: formData.valid_till || null,
+          p_billing_address: formData.billing_address || null,
+          p_gstin: formData.gstin || null,
+          p_state: formData.state || null,
+          p_contact_no: formData.contact_no || null,
+          p_reference: formData.reference || null,
+          p_authorized_signatory_id: formData.authorized_signatory_id || null,
+          p_revision_no: formData.revision_no || 1,
+          p_revision_history: formData.revision_history || [],
+        });
 
-        const { data: updatedHeader, error: updateError } = await withTimeout(
-          updateQuery.select('id, updated_at'),
-          'updating quotation header'
-        );
         if (updateError) throw updateError;
-        if (!updatedHeader || updatedHeader.length === 0) {
-          setSaveStatus('conflict');
-          if (!isAutosave) {
-            toast.error('Save conflict', {
-              description: 'This quotation was modified by someone else. Please reload to see the latest version before saving again.'
-            });
-          }
-          ignoreDirtyRef.current = false;
-          setSaving(false);
-          return;
-        }
-        quotationId = updatedHeader[0].id;
-        setLastLoadedUpdatedAt(updatedHeader[0].updated_at);
+        quotationId = editId;
         setFormData(prev => ({ ...prev, id: quotationId }));
       } else {
-        const MAX_RETRIES = 3;
-        let data = null;
-        let error = null;
+        const formattedItems = cleanItems.map((item) => ({
+          item_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          description: item.description || '',
+          qty: parseFloat(item.qty as any) || 1,
+          uom: item.uom || '',
+          rate: parseFloat(item.rate) || 0,
+          discount_percent: parseFloat(item.discount_percent) || 0,
+          tax_percent: parseFloat(item.tax_percent) || 0,
+        }));
 
-        for (let retry = 0; retry < MAX_RETRIES; retry++) {
-          let defaultSeries = null;
-          try {
-            defaultSeries = await fetchDefaultSeriesRow();
-          } catch (seriesError) {
-            if (!isTimeoutError(seriesError, 'loading document series') && !isMissingColumnError(seriesError, 'is_default')) {
-              throw seriesError;
-            }
-          }
-          
-          let quotationNo = '';
-          if (defaultSeries) {
-            const baseNo = buildQuoteNoFromSeries(defaultSeries);
-            quotationNo = retry > 0 ? `${baseNo}-${Date.now().toString().slice(-4)}` : baseNo;
-          } else {
-            quotationNo = 'QT-0001';
-            try {
-              const { data: existing } = await withTimeout(
-                supabase
-                  .from('quotation_header')
-                  .select('quotation_no')
-                  .eq('organisation_id', organisation?.id)
-                  .order('created_at', { ascending: false })
-                  .limit(1),
-                'loading latest quotation number',
-                20000
-              );
+        const { data: rpcData, error: rpcError } = await supabase.rpc('record_quotation', {
+          p_organisation_id: organisation.id,
+          p_client_id: formData.client_id,
+          p_project_id: formData.project_id || null,
+          p_items: formattedItems,
+          p_remarks: formData.remarks || null,
+          p_payment_terms: formData.payment_terms || null,
+          p_valid_till: formData.valid_till || null,
+          p_billing_address: formData.billing_address || null,
+          p_gstin: formData.gstin || null,
+          p_state: formData.state || null,
+          p_contact_no: formData.contact_no || null,
+          p_reference: formData.reference || null,
+        });
 
-              if (existing && existing.length > 0) {
-                const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
-                quotationNo = `QT-${String(lastNum + 1 + retry).padStart(4, '0')}`;
-              }
-            } catch (noSeriesFallbackErr) {
-              if (!isTimeoutError(noSeriesFallbackErr, 'loading latest quotation number')) {
-                throw noSeriesFallbackErr;
-              }
-              quotationNo = `QT-${Date.now().toString().slice(-6)}${retry}`;
-            }
-          }
-
-          const createHeader = () =>
-            supabase
-              .from('quotation_header')
-              .insert({ 
-                ...quotationData, 
-                quotation_no: quotationNo, 
-                organisation_id: organisation.id,
-                prepared_by: user?.user_metadata?.full_name || user?.email?.split('@')[0] || null,
-                created_by: userProfileId || user.id
-              })
-              .select();
-
-          data = null;
-          error = null;
-          try {
-            const result = await withTimeout(createHeader(), 'creating quotation header');
-            data = result?.data ?? null;
-            error = result?.error ?? null;
-          } catch (createHeaderErr) {
-            if (!isTimeoutError(createHeaderErr, 'creating quotation header')) {
-              throw createHeaderErr;
-            }
-
-            await ensureValidSession({ strict: false, timeoutMs: 7000 });
-            const retryResult = await withTimeout(
-              createHeader(),
-              'creating quotation header',
-              60000
-            );
-            data = retryResult?.data ?? null;
-            error = retryResult?.error ?? null;
-          }
-
-          if (error && error.code === '23505') {
-            if (retry < MAX_RETRIES - 1) {
-              continue;
-            }
-            throw new Error(`Quotation number ${quotationNo} already exists. Please try saving again.`);
-          }
-          if (error) throw error;
-          
-          if (!data || data.length === 0) {
-            throw new Error('Failed to create quotation header. No data returned.');
-          }
-          
-          quotationId = data[0].id;
-          setFormData((prev: any) => ({ ...prev, id: quotationId }));
+        if (rpcError) throw rpcError;
+        quotationId = rpcData.quotation_id;
+        setFormData((prev: any) => ({ ...prev, id: quotationId }));
 
           if (formData.terms_conditions || formData.terms_text) {
             supabase.from('quotation_terms_conditions').insert({
@@ -2069,9 +2008,6 @@ export default function CreateQuotation() {
             const updatedCfg = { ...cfg, quote: { ...quoteCfg, start_number: nextNo } };
             await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', defaultSeries.id);
           }
-
-          break;
-        }
       }
 
       const rawItems = cleanItems.map((item, index) => {

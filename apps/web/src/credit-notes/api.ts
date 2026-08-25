@@ -118,70 +118,45 @@ export async function createCreditNote(input: {
   organisation_id: string;
   client_id: string;
   invoice_id?: string | null;
-  cn_number: string;
+  cn_number?: string;
   cn_date: string;
   cn_type: string;
   reason?: string | null;
-  taxable_amount: number;
-  cgst_amount: number;
-  sgst_amount: number;
-  igst_amount: number;
-  total_amount: number;
-  approval_status: string;
+  taxable_amount?: number;
+  cgst_amount?: number;
+  sgst_amount?: number;
+  igst_amount?: number;
+  total_amount?: number;
+  approval_status?: string;
+  idempotency_key?: string | null;
   authorized_signatory_id?: string | null;
   items: Omit<CreditNoteItem, 'id' | 'cn_id' | 'organisation_id' | 'created_at'>[];
 }): Promise<CreditNote> {
-  const { data: cn, error: cnError } = await supabase
-    .from('credit_notes')
-    .insert({
-      organisation_id: input.organisation_id,
-      client_id: input.client_id,
-      invoice_id: input.invoice_id || null,
-      cn_number: input.cn_number,
-      cn_date: input.cn_date,
-      cn_type: input.cn_type,
-      reason: input.reason || null,
-      taxable_amount: input.taxable_amount,
-      cgst_amount: input.cgst_amount,
-      sgst_amount: input.sgst_amount,
-      igst_amount: input.igst_amount,
-      total_amount: input.total_amount,
-      approval_status: input.approval_status,
-      authorized_signatory_id: (input.authorized_signatory_id && input.authorized_signatory_id !== '') ? input.authorized_signatory_id : null,
-    })
-    .select()
-    .single();
+  const idempotencyKey = input.idempotency_key || `cn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const preparedItems = input.items.map((item) => ({
+    description: item.description,
+    hsn_code: item.hsn_code || null,
+    quantity: item.quantity,
+    rate: item.rate,
+    tax_percent: (item.cgst_percent || 0) + (item.sgst_percent || 0) + (item.igst_percent || 0),
+  }));
 
-  if (cnError) throw cnError;
-  if (!cn) throw new Error('Failed to create credit note');
+  const { data, error } = await supabase.rpc('record_credit_note', {
+    p_organisation_id: input.organisation_id,
+    p_client_id: input.client_id,
+    p_invoice_id: input.invoice_id || null,
+    p_cn_date: input.cn_date,
+    p_cn_type: input.cn_type,
+    p_reason: input.reason || null,
+    p_idempotency_key: idempotencyKey,
+    p_items: preparedItems,
+  });
 
-  if (input.items.length > 0) {
-    const itemInserts = input.items.map((item) => ({
-      cn_id: cn.id,
-      organisation_id: input.organisation_id,
-      description: item.description,
-      hsn_code: item.hsn_code || null,
-      quantity: item.quantity,
-      rate: item.rate,
-      discount_amount: item.discount_amount,
-      taxable_value: item.taxable_value,
-      cgst_percent: item.cgst_percent,
-      cgst_amount: item.cgst_amount,
-      sgst_percent: item.sgst_percent,
-      sgst_amount: item.sgst_amount,
-      igst_percent: item.igst_percent,
-      igst_amount: item.igst_amount,
-      total_amount: item.total_amount,
-    }));
+  if (error) throw error;
+  const cnId = (data as any)?.cn_id;
+  if (!cnId) throw new Error('Failed to record credit note');
 
-    const { error: itemError } = await supabase
-      .from('credit_note_items')
-      .insert(itemInserts);
-
-    if (itemError) throw itemError;
-  }
-
-  return getCreditNoteById(cn.id, input.organisation_id) as Promise<CreditNote>;
+  return getCreditNoteById(cnId, input.organisation_id) as Promise<CreditNote>;
 }
 
 export async function updateCreditNote(input: {

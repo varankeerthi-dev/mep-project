@@ -76,9 +76,6 @@ const menuData: MenuSection[] = [
     section: '',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' },
-      { id: 'dashboard-demo', label: 'Dashboard Demo', path: '/dashboard-demo' },
-      { id: 'operations', label: 'Operations', path: '/operations' },
-      { id: 'projects-overview', label: 'CEO Dashboard', path: '/projects-overview' },
       { id: 'client-lookup', label: 'Quick Lookup', path: '/client-lookup' }
     ]
   },
@@ -357,6 +354,10 @@ const menuData: MenuSection[] = [
           { id: 'settings-access', label: 'Access control', path: '/settings/access-control' },
           { id: 'settings-discounts', label: 'Discount settings', path: '/settings/discounts' },
           { id: 'settings-tools', label: 'Tools settings', path: '/tools-settings' },
+          { id: 'settings-projects-old', label: 'Projects (Old Version)', path: '/projects-old' },
+          { id: 'settings-dashboard-demo', label: 'Dashboard Demo', path: '/dashboard-demo' },
+          { id: 'settings-operations', label: 'Operations', path: '/operations' },
+          { id: 'settings-ceo-dashboard', label: 'CEO Dashboard', path: '/projects-overview' },
           { id: 'settings-table-demo', label: 'Table Demo', path: '/table-demo' },
           { id: 'settings-dynamic-table-demo', label: 'Dynamic Table Demo', path: '/dynamic-table-demo' },
           { id: 'settings-custom-table-demo', label: 'Custom Table Demo', path: '/custom-table-demo' }
@@ -578,6 +579,13 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const { ChevronDownIcon, ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
 
+  const categorizedSections = useMemo(
+    () => otherSections.filter(s => Boolean(s.section)),
+    [otherSections]
+  );
+  const firstCategoryName = categorizedSections[0]?.section;
+  const lastCategoryName = categorizedSections[categorizedSections.length - 1]?.section;
+
   return (
     <>
       {mobileOpen && <div className="sidebar-overlay" onClick={handleOverlayClick} />}
@@ -593,11 +601,23 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
           <div className="sidebar-content">
             {otherSections.map(section => {
               const isSectionExpanded = !collapsedSections.includes(section.section);
+              const hasCategory = Boolean(section.section);
+              const isFirstCategory = section.section === firstCategoryName;
+              const isLastCategory = section.section === lastCategoryName;
               return (
-                <div key={section.section} className="sidebar-section">
-                  {section.section && !isCollapsed && (
+                <div
+                  key={section.section || 'default'}
+                  className={cx(
+                    'sidebar-section',
+                    hasCategory && 'has-category',
+                    isFirstCategory && 'is-first-category',
+                    isLastCategory && 'is-last-category',
+                    !isSectionExpanded && 'is-collapsed'
+                  )}
+                >
+                  {hasCategory && !isCollapsed && (
                     <div
-                      className="sidebar-section-header"
+                      className={cx('sidebar-category-rail', isSectionExpanded ? 'expanded' : 'collapsed')}
                       onClick={() => {
                         setCollapsedSections(prev =>
                           prev.includes(section.section)
@@ -605,75 +625,114 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                             : [...prev, section.section]
                         );
                       }}
+                      title={`Toggle ${section.section}`}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setCollapsedSections(prev =>
+                            prev.includes(section.section)
+                              ? prev.filter(s => s !== section.section)
+                              : [...prev, section.section]
+                          );
+                        }
+                      }}
                     >
-                      <span className="sidebar-section-title">{section.section}</span>
-                      <span className={cx('sidebar-section-chevron', isSectionExpanded && 'expanded')}>
-                        <ChevronRightIcon />
-                      </span>
+                      <div className="sidebar-category-rail-inner">
+                        <span className="sidebar-category-title">
+                          {section.section.charAt(0).toUpperCase() + section.section.slice(1).toLowerCase()}
+                        </span>
+                        <span className={cx('sidebar-category-chevron', isSectionExpanded && 'expanded')}>
+                          <ChevronRightIcon />
+                        </span>
+                      </div>
                     </div>
                   )}
-                  {isSectionExpanded && section.items.map(item => {
-                    const parentActive = isParentActive(item);
-                    const isExpanded = expandedMenus.includes(item.id);
-                    const Icon = getIconComponent(item.id);
-                    const isActiveBtn = parentActive && !(item.submenu && isExpanded);
-                    const isParentActiveBtn = !!(item.submenu && isExpanded);
 
-                    return (
-                      <div key={item.id}>
-                        <button className={cx( 'sidebar-item', isActiveBtn && 'active', isParentActiveBtn && 'parent-active', isExpanded && 'expanded' )} onClick={handleClick(item)} onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
-                          onMouseLeave={item.flyout ? handleFlyoutLeave : undefined}
-                          type="button"
-                        >
-                          <span className="sidebar-item-icon">
-                            <Icon />
-                          </span>
-                          <span className="sidebar-item-label">{item.label}</span>
-                          {item.submenu && !isCollapsed && (
-                            <span className={item.flyout ? "sidebar-flyout-pip" : "sidebar-item-chevron"}>
-                              {item.flyout ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                  <div className="sidebar-section-items">
+                    {isSectionExpanded && section.items.map(item => {
+                      const parentActive = isParentActive(item);
+                      const isExpanded = expandedMenus.includes(item.id);
+                      const Icon = getIconComponent(item.id);
+                      const isActiveBtn = parentActive && !(item.submenu && isExpanded);
+                      const isParentActiveBtn = !!(item.submenu && isExpanded);
+
+                      return (
+                        <div key={item.id}>
+                          <button
+                            className={cx(
+                              'sidebar-item',
+                              isActiveBtn && 'active',
+                              isParentActiveBtn && 'parent-active',
+                              isExpanded && 'expanded'
+                            )}
+                            onClick={handleClick(item)}
+                            onMouseEnter={item.flyout ? (e) => handleFlyoutEnter(item.id, e) : undefined}
+                            onMouseLeave={item.flyout ? handleFlyoutLeave : undefined}
+                            type="button"
+                          >
+                            <span className="sidebar-item-icon">
+                              <Icon />
                             </span>
-                          )}
-                        </button>
+                            <span className="sidebar-item-label">{item.label}</span>
+                            {item.submenu && !isCollapsed && (
+                              <span className={item.flyout ? "sidebar-flyout-pip" : "sidebar-item-chevron"}>
+                                {item.flyout ? <ChevronRightIcon /> : <ChevronDownIcon />}
+                              </span>
+                            )}
+                          </button>
 
-                        {item.submenu && isExpanded && !isCollapsed && !item.flyout && (
-                          <div className="sidebar-submenu">
-                            {item.submenu.map(subItem => (
-                              <div key={subItem.id}>
-                                <button className={cx( 'sidebar-submenu-item', isActive(subItem.path) && 'active' )} onClick={() => {
-                                    setFlyoutMenu(null);
-                                    subItem.submenu ? toggleMenu(subItem.id) : onNavigate(subItem.path);
-                                  }}
-                                  type="button"
-                                >
-                                  <span className="sidebar-item-label">{subItem.label}</span>
-                                  {subItem.submenu && (
-                                    <span className="sidebar-item-chevron">
-                                      {expandedMenus.includes(subItem.id) ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                                    </span>
+                          {item.submenu && isExpanded && !isCollapsed && !item.flyout && (
+                            <div className="sidebar-submenu">
+                              {item.submenu.map(subItem => (
+                                <div key={subItem.id}>
+                                  <button
+                                    className={cx(
+                                      'sidebar-submenu-item',
+                                      isActive(subItem.path) && 'active'
+                                    )}
+                                    onClick={() => {
+                                      setFlyoutMenu(null);
+                                      subItem.submenu ? toggleMenu(subItem.id) : onNavigate(subItem.path);
+                                    }}
+                                    type="button"
+                                  >
+                                    <span className="sidebar-item-label">{subItem.label}</span>
+                                    {subItem.submenu && (
+                                      <span className="sidebar-item-chevron">
+                                        {expandedMenus.includes(subItem.id) ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                                      </span>
+                                    )}
+                                  </button>
+                                  {subItem.submenu && expandedMenus.includes(subItem.id) && (
+                                    <div className="sidebar-submenu" style={{ paddingLeft: '16px' }}>
+                                      {subItem.submenu.map(nestedItem => (
+                                        <button
+                                          key={nestedItem.id}
+                                          className={cx(
+                                            'sidebar-submenu-item',
+                                            isActive(nestedItem.path) && 'active'
+                                          )}
+                                          onClick={() => {
+                                            setFlyoutMenu(null);
+                                            onNavigate(nestedItem.path);
+                                          }}
+                                          type="button"
+                                        >
+                                          <span className="sidebar-item-label">{nestedItem.label}</span>
+                                        </button>
+                                      ))}
+                                    </div>
                                   )}
-                                </button>
-                                {subItem.submenu && expandedMenus.includes(subItem.id) && (
-                                  <div className="sidebar-submenu" style={{ paddingLeft: '16px' }}>
-                                    {subItem.submenu.map(nestedItem => (
-                                      <button key={nestedItem.id} className={cx( 'sidebar-submenu-item', isActive(nestedItem.path) && 'active' )} onClick={() => {
-                                          setFlyoutMenu(null);
-                                          onNavigate(nestedItem.path);
-                                        }}
-                                        type="button"
-                                      >
-                                        <span className="sidebar-item-label">{nestedItem.label}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}

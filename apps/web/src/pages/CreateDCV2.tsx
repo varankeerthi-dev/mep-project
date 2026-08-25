@@ -702,13 +702,21 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
         try { const tableName = getSourceTableName(conversionRef.current.type as ConversionType); const status = getSourceStatusAfterConversion(conversionRef.current.type as ConversionType); await supabase.from(tableName).update({ status, conversion_status: 'converted' }).eq('id', conversionRef.current.sourceId); } catch (e) { console.error('Error updating conversion:', e); }
       }
       for (const item of validItems) {
-        if (item.is_service || !item.warehouse_id) continue;
-        const variantId = item.uses_variant ? item.variant_id : null;
-        let stockQuery = supabase.from('item_stock').select('*').eq('item_id', item.material_id).eq('warehouse_id', item.warehouse_id);
-        if (variantId) stockQuery = stockQuery.eq('company_variant_id', variantId); else stockQuery = stockQuery.is('company_variant_id', null);
-        const { data: stockRows } = await stockQuery;
-        if (stockRows && stockRows.length > 0) {
-          await supabase.from('item_stock').update({ current_stock: Math.max(0, (parseFloat(stockRows[0].current_stock) || 0) - parseFloat(item.quantity)), updated_at: new Date().toISOString() }).eq('id', stockRows[0].id);
+        if (item.is_service || !item.warehouse_id || !item.material_id) continue;
+        const qtyToDeduct = parseFloat(item.quantity);
+        if (isNaN(qtyToDeduct) || qtyToDeduct <= 0) continue;
+
+        const { error: rpcError } = await supabase.rpc('adjust_item_stock', {
+          p_item_id: item.material_id,
+          p_warehouse_id: item.warehouse_id,
+          p_quantity_change: -qtyToDeduct,
+          p_movement_type: 'DELIVERY_CHALLAN',
+          p_reference: dcNumber || dcId,
+          p_remarks: `Deducted for Delivery Challan ${dcNumber || dcId}`,
+          p_project_id: projectId || null,
+        });
+        if (rpcError) {
+          console.error('Error adjusting stock for DC item:', rpcError);
         }
       }
       alert(isEditing ? 'DC Updated!' : 'DC Created!');

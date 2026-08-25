@@ -4462,16 +4462,16 @@ export default function ProjectList() {
 
       {/* ── Filter Row ── */}
       <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
-        style={{ paddingTop: '15px', paddingBottom: '15px' }}>
-        <div className="flex items-center gap-2">
+        style={{ paddingTop: '12px', paddingBottom: '12px' }}>
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
           {STATUS_FILTER_OPTIONS.map((status) => (
             <button
               key={status}
               onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
-              className={`w-[130px] h-[26px] px-4 text-sm font-medium transition-colors ${
+              className={`px-3.5 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${
                 statusFilter === status
-                  ? 'bg-blue-600/10 text-blue-600'
-                  : 'text-zinc-600 hover:bg-zinc-100'
+                  ? 'bg-blue-50 text-blue-600 font-semibold shadow-xs'
+                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
               }`}
             >
               {status === 'All' ? 'All Projects' : status}
@@ -4500,28 +4500,28 @@ export default function ProjectList() {
                 <th className="sticky top-0 z-10 h-[36px] pl-4 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[240px]">
                   Project
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[150px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[150px]">
                   Client
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[100px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[100px]">
                   Type
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-right text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[130px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[130px]">
                   Est. Value
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-right text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[130px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[130px]">
                   PO Value
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[120px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[120px]">
                   PO Status
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[100px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[100px]">
                   Status
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[150px]">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 min-w-[150px]">
                   Completion
                 </th>
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-center text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
+                <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-left text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
                   Action
                 </th>
               </tr>
@@ -4561,7 +4561,7 @@ export default function ProjectList() {
                         onClick={() => loadProjectDetails(p)}
                       >
                         {/* Project */}
-                        <td className="pl-4 py-[26px] align-middle border-t border-zinc-200/70">
+                        <td className="pl-4 py-3 align-middle border-t border-zinc-200/70">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-sm font-semibold text-zinc-900 hover:text-blue-600 transition-colors">
                               {p.project_name || 'Unnamed Project'}
@@ -4591,39 +4591,39 @@ export default function ProjectList() {
                           </div>
                         </td>
                         {/* Client */}
-                        <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                           <div className="max-w-[200px] truncate" title={p.client?.client_name || '-'}>
                             {p.client?.client_name || '-'}
                           </div>
                         </td>
                         {/* Type */}
-                        <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                           {p.project_type || '-'}
                         </td>
                         {/* Est. Value */}
-                        <td className="px-6 py-[26px] align-middle text-sm font-mono font-medium text-zinc-900 text-right border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle text-sm font-mono font-medium text-zinc-900 text-left border-t border-zinc-200/70">
                           {p.project_estimated_value ? fmt(p.project_estimated_value) : '-'}
                         </td>
                         {/* PO Value */}
-                        <td className="px-6 py-[26px] align-middle text-sm font-mono font-medium text-zinc-900 text-right border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle text-sm font-mono font-medium text-zinc-900 text-left border-t border-zinc-200/70">
                           {p.pos && p.pos.length > 0 ? fmt(p.pos.reduce((sum, po) => sum + (po.po_total_value || 0), 0)) : '-'}
                         </td>
                         {/* PO Status */}
-                        <td className="px-6 py-[26px] align-middle border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle border-t border-zinc-200/70">
                           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600">
                             <span className="w-2 h-2 rounded-full" style={{ background: poStatusCfg.dot }} />
                             {poStatusCfg.label}
                           </span>
                         </td>
                         {/* Status */}
-                        <td className="px-6 py-[26px] align-middle border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle border-t border-zinc-200/70">
                           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600">
                             <span className="w-2 h-2 rounded-full" style={{ background: statusCfg.dot }} />
                             {statusCfg.label}
                           </span>
                         </td>
                         {/* Completion */}
-                        <td className="px-6 py-[26px] align-middle border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle border-t border-zinc-200/70">
                           <div className="flex items-center gap-2.5">
                             <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                               <div
@@ -4631,13 +4631,13 @@ export default function ProjectList() {
                                 style={{ width: `${p.completion_percentage || 0}%` }}
                               />
                             </div>
-                            <span className="text-xs font-medium text-zinc-500 font-mono min-w-[36px] text-right">
+                            <span className="text-xs font-medium text-zinc-500 font-mono min-w-[36px] text-left">
                               {p.completion_percentage || 0}%
                             </span>
                           </div>
                         </td>
                         {/* Actions */}
-                        <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <td className="px-6 py-3 align-middle text-left border-t border-zinc-200/70">
                           <div className="relative inline-block" ref={openMenuId === p.id ? menuRef : null}>
                             <button
                               onClick={(e) => {

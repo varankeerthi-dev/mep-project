@@ -298,14 +298,19 @@ export function useMaterialForm() {
               if (dbVariantId) del.eq('company_variant_id', dbVariantId); else del.is('company_variant_id', null);
               if (dbMake) del.eq('make', dbMake); else del.is('make', null);
               await del;
-            } else {
-              stockInsertions.push({ item_id: itemId, warehouse_id: wh.id, company_variant_id: dbVariantId, make: dbMake, current_stock: ws.current_stock || 0, updated_at: nowIso });
+            } else if (ws.current_stock > 0) {
+              const { error: stockError } = await supabase.rpc('adjust_item_stock', {
+                p_item_id: itemId,
+                p_warehouse_id: wh.id,
+                p_quantity_change: ws.current_stock,
+                p_movement_type: 'INITIAL_STOCK',
+                p_reference: 'MATERIAL_FORM',
+                p_remarks: 'Initial stock allocation on material save',
+                p_project_id: null,
+              });
+              if (stockError) console.error('Error saving warehouse stock via RPC:', stockError);
             }
           }
-        }
-        if (stockInsertions.length > 0) {
-          const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, make, warehouse_id' });
-          if (stockError) console.error('Error saving warehouse stock:', stockError);
         }
       }
 

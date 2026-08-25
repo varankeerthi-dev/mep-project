@@ -17,8 +17,8 @@ import ProjectGantt from '../../components/ProjectGantt';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/skeleton';
 
-const ProjectList = React.lazy(() => import('./ProjectListV2'));
-const CreateProject = React.lazy(() => import('./CreateProjectV2'));
+const ProjectList = React.lazy(() => import('./ProjectList'));
+const CreateProject = React.lazy(() => import('./CreateProject'));
 const DailyUpdates = React.lazy(() => import('../../pages/DailyUpdates'));
 const SiteMaterials = React.lazy(() => import('../../pages/ProjectManagementInternal').then(m => ({ default: m.SiteMaterials })));
 
@@ -38,7 +38,7 @@ function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
 
-export default function ProjectsV2() {
+export default function Projects() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -111,16 +111,27 @@ export default function ProjectsV2() {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <Button variant="default" size="sm" key={tab.id} onClick={() => handleTabChange(tab.id)}
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
-                  borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
-                  color: isActive ? '#1d4ed8' : '#6b7280', fontSize: '14px', fontWeight: isActive ? 600 : 500, cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '16px 20px',
+                  border: 'none',
+                  borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`,
+                  background: 'transparent',
+                  color: isActive ? '#1d4ed8' : '#6b7280',
+                  fontSize: '14px',
+                  fontWeight: isActive ? 600 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
                 }}
               >
                 <Icon size={18} />
                 {tab.label}
-              </Button>
+              </button>
             );
           })}
         </div>
@@ -136,16 +147,27 @@ export default function ProjectsV2() {
                   const Icon = subtab.icon;
                   const isActive = materialSubTab === subtab.id;
                   return (
-                    <Button variant="default" size="sm" key={subtab.id} onClick={() => handleMaterialSubTabChange(subtab.id)}
+                    <button
+                      key={subtab.id}
+                      onClick={() => handleMaterialSubTabChange(subtab.id)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
-                        borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
-                        color: isActive ? '#1d4ed8' : '#6b7280', fontSize: '14px', fontWeight: isActive ? 600 : 500, cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '16px 20px',
+                        border: 'none',
+                        borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`,
+                        background: 'transparent',
+                        color: isActive ? '#1d4ed8' : '#6b7280',
+                        fontSize: '14px',
+                        fontWeight: isActive ? 600 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
                       }}
                     >
                       <Icon size={18} />
                       {subtab.label}
-                    </Button>
+                    </button>
                   );
                 })}
               </div>

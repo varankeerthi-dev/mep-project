@@ -159,12 +159,13 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const issueIdParam = searchParams.get('issue_id');
+  const projectIdParam = searchParams.get('projectId') || searchParams.get('project_id');
 
   const [formData, setFormData] = useState<WorkOrderFormData>({
     work_order_no: '',
     subcontractor_id: '',
     client_id: '',
-    project_id: '',
+    project_id: projectIdParam || '',
     issue_date: new Date().toISOString().split('T')[0],
     valid_until: '',
     work_description: '',
@@ -527,16 +528,41 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
 
       let workOrderId = editId;
       if (editId) {
-        const { error } = await supabase.from('subcontractor_work_orders').update(payload).eq('id', editId);
+        const { data: rpcRes, error } = await supabase.rpc('update_subcontractor_work_order', {
+          p_work_order_id: editId,
+          p_organisation_id: selectedSubcontractor?.organisation_id || formData.organisation_id,
+          p_subcontractor_id: formData.subcontractor_id,
+          p_project_id: formData.project_id || null,
+          p_items: formData.line_items || [],
+          p_work_description: formData.work_description || null,
+          p_site_location: formData.site_location || null,
+          p_start_date: formData.start_date || null,
+          p_end_date: formData.end_date || null,
+          p_retention_percent: formData.retention_held ? formData.retention_percent : 0,
+          p_tds_percent: formData.tds_percent || 0,
+          p_status: formData.status || 'Draft',
+          p_remarks: formData.remarks || null,
+        });
         if (error) throw error;
       } else {
-        const { data, error: insertError } = await supabase.from('subcontractor_work_orders').insert(payload).select().single();
+        const { data: rpcRes, error: insertError } = await supabase.rpc('record_subcontractor_work_order', {
+          p_organisation_id: selectedSubcontractor?.organisation_id || formData.organisation_id,
+          p_subcontractor_id: formData.subcontractor_id,
+          p_items: formData.line_items || [],
+          p_project_id: formData.project_id || null,
+          p_work_description: formData.work_description || null,
+          p_site_location: formData.site_location || null,
+          p_start_date: formData.start_date || null,
+          p_end_date: formData.end_date || null,
+          p_retention_percent: formData.retention_held ? formData.retention_percent : 0,
+          p_tds_percent: formData.tds_percent || 0,
+        });
         if (insertError) throw insertError;
-        workOrderId = data.id;
-        if (issueIdParam && data) {
+        workOrderId = rpcRes.work_order_id;
+        if (issueIdParam && workOrderId) {
           await supabase.from('issue_activity_logs').insert({
             issue_id: issueIdParam, action: 'work_order_created',
-            new_value: { wo_id: data.id, wo_number: formData.work_order_no },
+            new_value: { wo_id: workOrderId, wo_number: rpcRes.work_order_no },
             done_by: user?.id || null,
             done_by_name: user?.user_metadata?.full_name || 'System'
           });

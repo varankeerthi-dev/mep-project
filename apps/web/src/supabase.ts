@@ -232,13 +232,13 @@ export const joinOrganisation = async (
   userId: string,
   role = 'member'
 ): Promise<{ data: unknown | null; error: Error | null }> => {
-  const { data, error } = await supabase
-    .from('org_members')
-    .insert({
-      organisation_id: organisationId,
-      user_id: userId,
-      role: role
-    })
+  const { data, error } = await supabase.rpc('admin_manage_org_member', {
+    p_action: 'ADD',
+    p_organisation_id: organisationId,
+    p_target_user_id: userId,
+    p_role: role,
+    p_status: 'active'
+  });
   return { data, error }
 }
 
@@ -350,13 +350,17 @@ export const getOrganisationMembers = async (
 }
 
 export const updateUserRole = async (
-  memberId: string,
+  organisationId: string,
+  targetUserId: string,
   role: string
 ): Promise<{ data: unknown | null; error: Error | null }> => {
-  const { data, error } = await supabase
-    .from('org_members')
-    .update({ role })
-    .eq('id', memberId)
+  const { data, error } = await supabase.rpc('admin_manage_org_member', {
+    p_action: 'UPDATE_ROLE',
+    p_organisation_id: organisationId,
+    p_target_user_id: targetUserId,
+    p_role: role,
+    p_status: 'active'
+  });
   return { data, error }
 }
 
@@ -422,12 +426,16 @@ export const acceptInvitation = async (
 
 
 export const removeMember = async (
-  memberId: string
+  organisationId: string,
+  targetUserId: string
 ): Promise<{ data: unknown | null; error: Error | null }> => {
-  const { data, error } = await supabase
-    .from('org_members')
-    .delete()
-    .eq('id', memberId)
+  const { data, error } = await supabase.rpc('admin_manage_org_member', {
+    p_action: 'REMOVE',
+    p_organisation_id: organisationId,
+    p_target_user_id: targetUserId,
+    p_role: 'member',
+    p_status: 'inactive'
+  });
   return { data, error }
 }
 

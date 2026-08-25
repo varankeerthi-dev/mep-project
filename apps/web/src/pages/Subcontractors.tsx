@@ -3068,12 +3068,19 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
   useEffect(() => { if (subId) loadWOs() }, [subId])
 
   const saveWO = async () => {
-    if (!subId || !woNo || !organisation?.id) return
-    setSaving(true)
-    await supabase.from('subcontractor_work_orders').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_no: woNo, work_description: desc, start_date: startDate, end_date: endDate, contract_value: value, status: 'Pending' })
-    setSaving(false)
-    loadWOs()
-  }
+    if (!subId || !organisation?.id) return;
+    setSaving(true);
+    await supabase.rpc('record_subcontractor_work_order', {
+      p_organisation_id: organisation.id,
+      p_subcontractor_id: subId,
+      p_items: [{ description: desc || 'Work Order Item', qty: 1, rate: value || 0 }],
+      p_work_description: desc || null,
+      p_start_date: startDate || null,
+      p_end_date: endDate || null,
+    });
+    setSaving(false);
+    loadWOs();
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
@@ -3384,106 +3391,132 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
     e.preventDefault();
     if (!organisation?.id) return;
 
-    const grossAmount = parseFloat(formData.gross_amount) || parseFloat(formData.amount) || 0;
-    const tdsPercent = parseFloat(formData.tds_percentage) || 0;
-    const tdsAmount = (grossAmount * tdsPercent) / 100;
-    const netAmount = grossAmount - tdsAmount;
-
-    const paymentData = {
-      organisation_id: organisation.id,
-      subcontractor_id: formData.subcontractor_id,
-      work_order_id: formData.work_order_id || null,
-      gross_amount: grossAmount,
-      tds_percentage: tdsPercent,
-      tds_amount: tdsAmount,
-      net_amount: netAmount,
-      amount: netAmount,
-      payment_date: formData.payment_date,
-      payment_mode: formData.payment_mode,
-      reference_no: formData.reference_no,
-      description: formData.description
-    };
-
+    // Editing a posted payment is not permitted — payments are immutable once recorded.
     if (editingPayment) {
-      await supabase.from('subcontractor_payments').update(paymentData).eq('id', editingPayment.id);
-    } else {
-      await supabase.from('subcontractor_payments').insert(paymentData);
+      alert('Posted payments cannot be modified. Please contact your administrator.');
+      return;
     }
 
-    // Refresh data
-    const { data: paymentsData } = await supabase.from('subcontractor_payments').select('*').order('payment_date', { ascending: false });
-    const { data: invoicesData } = await supabase.from('subcontractor_invoices').select('*').order('invoice_date', { ascending: false });
-    
-    const filteredPayments = (paymentsData || []).filter(p => !p.organisation_id || p.organisation_id === organisation.id);
-    const filteredInvoices = (invoicesData || []).filter(i => !i.organisation_id || i.organisation_id === organisation.id);
-    
-    const enrichedPayments = filteredPayments.map(p => ({
-      ...p,
-      subcontractors: subcontractors.find(s => s.id === p.subcontractor_id),
-      work_orders: workOrders.find(wo => wo.id === p.work_order_id)
-    }));
-    
-    const enrichedInvoices = filteredInvoices.map(i => ({
-      ...i,
-      subcontractors: subcontractors.find(s => s.id === i.subcontractor_id),
-      work_orders: workOrders.find(wo => wo.id === i.work_order_id)
-    }));
-    
-    setPayments(enrichedPayments);
-    setInvoices(enrichedInvoices);
-    
-    setShowModal(false);
-    setEditingPayment(null);
-    resetForm();
+    const grossAmount = parseFloat(formData.gross_amount) || parseFloat(formData.amount) || 0;
+    const tdsPercent = parseFloat(formData.tds_percentage) || 0;
+
+    if (grossAmount <= 0) {
+      alert('Payment amount must be greater than zero.');
+      return;
+    }
+
+    try {
+      // Route through authoritative SECURITY DEFINER RPC.
+      // The RPC handles: TDS calculation, GL posting, sequence number,
+      // idempotency, retention tracking, and balance updates.
+      const { data, error } = await supabase.rpc('record_subcontractor_payment', {
+        p_organisation_id: organisation.id,
+        p_subcontractor_id: formData.subcontractor_id,
+        p_amount: grossAmount,
+        p_payment_date: formData.payment_date,
+        p_payment_mode: formData.payment_mode,
+        p_reference_no: formData.reference_no || null,
+        p_tds_percent: tdsPercent,
+        p_idempotency_key: null
+      });
+      if (error) throw error;
+
+      // Refresh data
+      const { data: paymentsData } = await supabase.from('subcontractor_payments').select('*').order('payment_date', { ascending: false });
+      const { data: invoicesData } = await supabase.from('subcontractor_invoices').select('*').order('invoice_date', { ascending: false });
+
+      const filteredPayments = (paymentsData || []).filter((p: any) => !p.organisation_id || p.organisation_id === organisation.id);
+      const filteredInvoices = (invoicesData || []).filter((i: any) => !i.organisation_id || i.organisation_id === organisation.id);
+
+      const enrichedPayments = filteredPayments.map((p: any) => ({
+        ...p,
+        subcontractors: subcontractors.find((s: any) => s.id === p.subcontractor_id),
+        work_orders: workOrders.find((wo: any) => wo.id === p.work_order_id)
+      }));
+
+      const enrichedInvoices = filteredInvoices.map((i: any) => ({
+        ...i,
+        subcontractors: subcontractors.find((s: any) => s.id === i.subcontractor_id),
+        work_orders: workOrders.find((wo: any) => wo.id === i.work_order_id)
+      }));
+
+      setPayments(enrichedPayments);
+      setInvoices(enrichedInvoices);
+
+      setShowModal(false);
+      setEditingPayment(null);
+      resetForm();
+    } catch (err: any) {
+      alert(err?.message ?? 'Failed to record payment.');
+    }
   };
 
-  const handleDeletePayment = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this payment?')) return;
-    await supabase.from('approvals').delete().eq('reference_id', id);
-      await supabase.from('subcontractor_payments').delete().eq('id', id);
-    setPayments(payments.filter(p => p.id !== id));
+  const handleDeletePayment = async (_id: string) => {
+    // Financial payments are immutable records once posted.
+    // Direct hard-delete of subcontractor payments is prohibited.
+    alert('Posted payments cannot be deleted. Please raise a reversal request through the administrator.');
   };
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!organisation?.id) return;
 
-    const invoiceData = {
-      organisation_id: organisation.id,
-      subcontractor_id: invoiceFormData.subcontractor_id,
-      work_order_id: invoiceFormData.work_order_id || null,
-      invoice_no: invoiceFormData.invoice_no,
-      invoice_date: invoiceFormData.invoice_date,
-      amount: parseFloat(invoiceFormData.amount),
-      description: invoiceFormData.description,
-      status: invoiceFormData.status
-    };
-
+    // Editing an approved/posted bill is not permitted — bills are immutable once recorded.
     if (editingInvoice) {
-      await supabase.from('subcontractor_invoices').update(invoiceData).eq('id', editingInvoice.id);
-    } else {
-      await supabase.from('subcontractor_invoices').insert(invoiceData);
+      alert('Approved subcontractor bills cannot be modified. Please contact your administrator.');
+      return;
     }
 
-    // Refresh data
-    const { data: invoicesData } = await supabase.from('subcontractor_invoices').select('*').order('invoice_date', { ascending: false });
-    const filteredInvoices = (invoicesData || []).filter(i => !i.organisation_id || i.organisation_id === organisation.id);
-    const enrichedInvoices = filteredInvoices.map(i => ({
-      ...i,
-      subcontractors: subcontractors.find(s => s.id === i.subcontractor_id),
-      work_orders: workOrders.find(wo => wo.id === i.work_order_id)
-    }));
-    setInvoices(enrichedInvoices);
-    
-    setShowInvoiceModal(false);
-    setEditingInvoice(null);
-    resetInvoiceForm();
+    const amount = parseFloat(invoiceFormData.amount);
+    if (!amount || amount <= 0) {
+      alert('Bill amount must be greater than zero.');
+      return;
+    }
+
+    try {
+      // Route through authoritative SECURITY DEFINER RPC.
+      // The RPC handles: retention calculation, GL posting, sequence number,
+      // idempotency, status enforcement, and balance updates.
+      const { data, error } = await supabase.rpc('record_subcontractor_bill', {
+        p_organisation_id: organisation.id,
+        p_subcontractor_id: invoiceFormData.subcontractor_id,
+        p_work_order_id: invoiceFormData.work_order_id || null,
+        p_amount: amount,
+        p_invoice_date: invoiceFormData.invoice_date,
+        p_remarks: invoiceFormData.description || null,
+        p_idempotency_key: null
+      });
+      if (error) throw error;
+
+      // Refresh data
+      const { data: invoicesData } = await supabase.from('subcontractor_invoices').select('*').order('invoice_date', { ascending: false });
+      const filteredInvoices = (invoicesData || []).filter((i: any) => !i.organisation_id || i.organisation_id === organisation.id);
+      const enrichedInvoices = filteredInvoices.map((i: any) => ({
+        ...i,
+        subcontractors: subcontractors.find((s: any) => s.id === i.subcontractor_id),
+        work_orders: workOrders.find((wo: any) => wo.id === i.work_order_id)
+      }));
+      setInvoices(enrichedInvoices);
+
+      setShowInvoiceModal(false);
+      setEditingInvoice(null);
+      resetInvoiceForm();
+    } catch (err: any) {
+      alert(err?.message ?? 'Failed to record bill.');
+    }
   };
 
   const handleDeleteInvoice = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
-    await supabase.from('subcontractor_invoices').delete().eq('id', id);
-    setInvoices(invoices.filter(i => i.id !== id));
+    // Only draft/pending invoices may be deleted.
+    // Approved/posted bills are immutable; deletion will be blocked by the database.
+    if (!confirm('Delete this subcontractor bill? Approved or posted bills cannot be deleted.')) return;
+    try {
+      const { error } = await supabase.from('subcontractor_invoices').delete().eq('id', id);
+      if (error) throw error;
+      setInvoices(invoices.filter((i: any) => i.id !== id));
+    } catch (err: any) {
+      alert(err?.message ?? 'Failed to remove bill. Approved or posted bills cannot be deleted.');
+    }
   };
 
   const resetInvoiceForm = () => {

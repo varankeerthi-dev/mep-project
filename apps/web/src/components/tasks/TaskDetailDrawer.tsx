@@ -1,5 +1,5 @@
-// ============================================
-// UNIFIED TASK MODULE — TASK DETAIL DRAWER
+﻿// ============================================
+// UNIFIED TASK MODULE ΓÇö TASK DETAIL DRAWER
 // ============================================
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -249,7 +249,7 @@ function TaskDetailsTab({
 
       <Field label="Duration">
         <span className="text-[12px] text-zinc-700">
-          {task.duration_days ? `${task.duration_days} days` : '—'}
+          {task.duration_days ? `${task.duration_days} days` : 'ΓÇö'}
         </span>
       </Field>
 
@@ -316,7 +316,7 @@ function TaskDetailsTab({
         <div className="flex-1">
           <Field label="Act. Hours">
             <span className="text-[12px] tabular-nums text-zinc-700">
-              {task.actual_hours ?? '—'}
+              {task.actual_hours ?? 'ΓÇö'}
             </span>
           </Field>
         </div>
@@ -455,7 +455,7 @@ function TaskAttachmentsTab({ attachments }: { attachments: any[] }) {
               <div className="flex-1">
                 <p className="text-[12px] font-medium text-zinc-700">{att.file_name}</p>
                 <p className="text-[10px] text-zinc-400">
-                  {att.file_size ? `${(att.file_size / 1024).toFixed(0)} KB` : ''} · {formatDate(att.created_at)}
+                  {att.file_size ? `${(att.file_size / 1024).toFixed(0)} KB` : ''} ┬╖ {formatDate(att.created_at)}
                 </p>
               </div>
               <Button variant="secondary" size="icon-xs">
@@ -503,7 +503,7 @@ function TaskTimeTab({ timeLogs }: { timeLogs: any[] }) {
                 </p>
               </div>
               <span className="text-[12px] font-bold tabular-nums text-zinc-700">
-                {log.duration_minutes ? `${(log.duration_minutes / 60).toFixed(1)}h` : '—'}
+                {log.duration_minutes ? `${(log.duration_minutes / 60).toFixed(1)}h` : 'ΓÇö'}
               </span>
             </div>
           ))}

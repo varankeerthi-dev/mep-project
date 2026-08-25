@@ -124,11 +124,19 @@ export async function saveWarehouseStock(
   itemId: string,
   stockInserts: { warehouse_id: string; company_variant_id: string | null; make?: string | null; current_stock: number; updated_at: string }[]
 ) {
-  if (stockInserts.length > 0) {
-    const { error } = await supabase.from('item_stock').upsert(stockInserts, {
-      onConflict: 'item_id, company_variant_id, make, warehouse_id',
-    });
-    if (error) console.error('Error saving warehouse stock:', error);
+  for (const insert of stockInserts) {
+    if (insert.current_stock > 0) {
+      const { error } = await supabase.rpc('adjust_item_stock', {
+        p_item_id: itemId,
+        p_warehouse_id: insert.warehouse_id,
+        p_quantity_change: insert.current_stock,
+        p_movement_type: 'INITIAL_STOCK',
+        p_reference: 'MATERIAL_CREATION',
+        p_remarks: 'Initial stock allocation',
+        p_project_id: null,
+      });
+      if (error) console.error('Error saving warehouse stock via RPC:', error);
+    }
   }
 }
 

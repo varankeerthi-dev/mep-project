@@ -1,4 +1,4 @@
-﻿// src/App.tsx
+// src/App.tsx
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -71,9 +71,9 @@ const InvoiceView = lazyAny(() => import('./invoices/pages/InvoiceView'));
 const ProformaListPage = lazyAny(() => import('./proforma-invoices/pages/ProformaListPage'));
 const ProformaEditorPage = lazyAny(() => import('./proforma-invoices/pages/ProformaEditorPage'));
 const LedgerDashboard = lazyAny(() => import('./ledger/LedgerDashboard'));
-const FollowUpCentre = lazyAny(() => import('./pages/FollowUpCentre'));
-const ProjectList = lazyAny(() => import('./pages/ProjectList'));
-const CreateProject = lazyAny(() => import('./pages/CreateProject'));
+const ProjectList = lazyAny(() => import('./projects/pages/ProjectList'));
+const CreateProject = lazyAny(() => import('./projects/pages/CreateProject'));
+const LegacyCreateProject = lazyAny(() => import('./pages/CreateProject'));
 const _authModule        = memoLazyModule(() => import('./pages/Auth'));
 const Login              = lazyAny(() => _authModule().then(m => ({ default: m.Login })));
 const Signup             = lazyAny(() => _authModule().then(m => ({ default: m.Signup })));
@@ -106,9 +106,9 @@ const ProcurementDetail = lazyAny(() => import('./pages/ProcurementDetail'));
 const HandoverList = lazyAny(() => import('./pages/HandoverList'));
 const ProjectOverview = lazyAny(() => import('./pages/ProjectOverview'));
 const SiteExpenses = lazyAny(() => import('./pages/SiteExpenses').then(m => ({ default: m.SiteExpenses })));
-const Projects = lazyAny(() => import('./pages/Projects'));
-const ProjectsV2 = lazyAny(() => import('./projects/pages/ProjectsV2'));
-const CreateProjectV2 = lazyAny(() => import('./projects/pages/CreateProjectV2'));
+const Projects = lazyAny(() => import('./projects/pages/Projects'));
+const LegacyProjects = lazyAny(() => import('./pages/Projects'));
+const FollowUpCentre = lazyAny(() => import('./pages/FollowUpCentre'));
 const DayBook = lazyAny(() => import('./pages/accounting/DayBook'));
 const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts'));
 const PricingTableOneDemo = lazyAny(() => import('./components/pricing-table-one-demo').then(m => ({ default: m.PricingTableOneDemo })));
@@ -417,18 +417,31 @@ export default function App() {
       case '/dashboard':
         return <Dashboard onNavigate={navigate} />;
       case '/dashboard-demo':
+      case '/settings/dashboard-demo':
         return <DashboardDemo />;
       case '/operations':
+      case '/settings/operations':
         return <Operations />;
       case '/operations-v2':
+      case '/settings/operations-v2':
         return <OperationsV2 />;
-      case '/projects': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><Projects /></PermissionGuard>;
-      case '/projects-v2': return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><ProjectsV2 /></PermissionGuard>;
+      case '/projects':
+      case '/projects-v2':
+        return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><Projects /></PermissionGuard>;
+      case '/projects-old':
+      case '/settings/projects-old':
+        return <PermissionGuard permission="projects.read" fallback={<div className="p-6">Access Denied</div>}><LegacyProjects /></PermissionGuard>;
       case '/tools': return <ToolsManagement />;
-      case '/projects/new': return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
-      case '/projects-v2/new': return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><CreateProjectV2 onSuccess={() => navigate('/projects-v2')} onCancel={() => navigate('/projects-v2')} /></PermissionGuard>;
-      case '/projects/edit': return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
-      case '/projects-v2/edit': return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProjectV2 onSuccess={() => navigate('/projects-v2')} onCancel={() => navigate('/projects-v2')} /></PermissionGuard>;
+      case '/projects/new':
+      case '/projects-v2/new':
+        return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
+      case '/projects-old/new':
+        return <PermissionGuard permission="projects.create" fallback={<div className="p-6">Access Denied</div>}><LegacyCreateProject onSuccess={() => navigate('/projects-old')} onCancel={() => navigate('/projects-old')} /></PermissionGuard>;
+      case '/projects/edit':
+      case '/projects-v2/edit':
+        return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
+      case '/projects-old/edit':
+        return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><LegacyCreateProject onSuccess={() => navigate('/projects-old')} onCancel={() => navigate('/projects-old')} /></PermissionGuard>;
       case '/projects/daily-updates': return <Projects />;
       case '/projects/site-materials': return <Projects />;
       case '/todo': return <TodoList />;
@@ -444,7 +457,10 @@ export default function App() {
       case '/site-expenses': return <SiteExpenses />;
       case '/site-reports': return <SiteReport />;
       case '/handover': return <HandoverList />;
-      case '/projects-overview': return <ProjectOverview />;
+      case '/projects-overview':
+      case '/settings/projects-overview':
+      case '/settings/ceo-dashboard':
+        return <ProjectOverview />;
       case '/client-communication': return <ClientCommunication />;
       case '/manager-alerts': return <ManagerAlerts />;
       case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
@@ -742,11 +758,11 @@ export default function App() {
           const meetingId = pathKey.split('/meetings/edit/')[1];
           return <CreateMeeting meetingId={meetingId} />;
         }
-        if (pathKey.startsWith('/projects/') && pathKey.endsWith('/edit')) {
+        if ((pathKey.startsWith('/projects/') || pathKey.startsWith('/projects-v2/')) && pathKey.endsWith('/edit')) {
           return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
         }
-        if (pathKey.startsWith('/projects-v2/') && pathKey.endsWith('/edit')) {
-          return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProjectV2 onSuccess={() => navigate('/projects-v2')} onCancel={() => navigate('/projects-v2')} /></PermissionGuard>;
+        if (pathKey.startsWith('/projects-old/') && pathKey.endsWith('/edit')) {
+          return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><LegacyCreateProject onSuccess={() => navigate('/projects-old')} onCancel={() => navigate('/projects-old')} /></PermissionGuard>;
         }
         return <Dashboard onNavigate={navigate} />;
     }

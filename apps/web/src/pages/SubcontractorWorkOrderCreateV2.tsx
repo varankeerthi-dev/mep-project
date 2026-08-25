@@ -162,13 +162,42 @@ export default function SubcontractorWorkOrderCreateV2({ onNavigate }: { onNavig
         created_by: user?.id,
       };
       if (isEditing && editId) {
-        const { error } = await supabase.from('subcontractor_work_orders').update(payload).eq('id', editId);
+        const formattedItems = (form.items || []).map((item: any) => ({
+          description: item.description || 'Item',
+          qty: item.qty || 1,
+          rate: item.rate || 0,
+        }));
+        const { error } = await supabase.rpc('update_subcontractor_work_order', {
+          p_work_order_id: editId,
+          p_organisation_id: organisation.id,
+          p_subcontractor_id: form.subcontractor_id,
+          p_project_id: form.project_id || null,
+          p_items: formattedItems,
+          p_work_description: form.work_description || null,
+          p_start_date: form.start_date || null,
+          p_end_date: form.end_date || null,
+          p_status: status || 'Draft',
+        });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('subcontractor_work_orders').insert(payload).select().single();
+        const formattedItems = (form.items || []).map((item: any) => ({
+          description: item.description || 'Item',
+          qty: item.qty || 1,
+          rate: item.rate || 0,
+        }));
+
+        const { data: rpcRes, error } = await supabase.rpc('record_subcontractor_work_order', {
+          p_organisation_id: organisation.id,
+          p_subcontractor_id: form.subcontractor_id,
+          p_items: formattedItems,
+          p_project_id: form.project_id || null,
+          p_work_description: form.work_description || null,
+          p_start_date: form.start_date || null,
+          p_end_date: form.end_date || null,
+        });
         if (error) throw error;
-        if (status === 'Pending') {
-          try { await ApprovalIntegration.createWorkOrderApproval(data.id, organisation.id); } catch (e) { console.warn('Approval creation failed:', e); }
+        if (status === 'Pending' && rpcRes?.work_order_id) {
+          try { await ApprovalIntegration.createWorkOrderApproval(rpcRes.work_order_id, organisation.id); } catch (e) { console.warn('Approval creation failed:', e); }
         }
       }
     },

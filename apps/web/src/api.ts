@@ -614,39 +614,45 @@ export async function fetchQuotationById(id: string): Promise<QuotationHeader> {
   return data as QuotationHeader;
 }
 
-export async function createQuotation(quotation: Partial<QuotationHeader>): Promise<QuotationHeader> {
-  const { data: existing } = await supabase
-    .from('quotation_header')
-    .select('quotation_no')
-    .order('created_at', { ascending: false })
-    .limit(1);
-  
-  let quotationNo = 'QT-0001';
-  if (existing && existing.length > 0) {
-    const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-    quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-  }
+export async function createQuotation(quotation: Partial<QuotationHeader> & { items?: any[] }): Promise<any> {
+  const { data, error } = await supabase.rpc('record_quotation', {
+    p_organisation_id: quotation.organisation_id,
+    p_client_id: quotation.client_id,
+    p_project_id: quotation.project_id || null,
+    p_items: quotation.items || [],
+    p_remarks: quotation.remarks || null,
+    p_payment_terms: quotation.payment_terms || null,
+    p_valid_till: quotation.valid_till || null,
+    p_billing_address: quotation.billing_address || null,
+    p_gstin: quotation.gstin || null,
+    p_state: quotation.state || null,
+    p_contact_no: quotation.contact_no || null,
+    p_reference: quotation.reference || null,
+  });
 
-  const { data, error } = await supabase
-    .from('quotation_header')
-    .insert({ ...quotation, quotation_no: quotationNo })
-    .select()
-    .single();
-  
   if (error) throw error;
-  return data as QuotationHeader;
+  return data;
 }
 
-export async function updateQuotation(id: string, updates: Partial<QuotationHeader>): Promise<QuotationHeader> {
-  const { data, error } = await supabase
-    .from('quotation_header')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
-  
+export async function updateQuotation(id: string, updates: Partial<QuotationHeader> & { items?: any[] }): Promise<any> {
+  const { data, error } = await supabase.rpc('update_quotation', {
+    p_quotation_id: id,
+    p_organisation_id: updates.organisation_id,
+    p_client_id: updates.client_id || null,
+    p_project_id: updates.project_id || null,
+    p_items: updates.items || [],
+    p_remarks: updates.remarks || null,
+    p_payment_terms: updates.payment_terms || null,
+    p_valid_till: updates.valid_till || null,
+    p_billing_address: updates.billing_address || null,
+    p_gstin: updates.gstin || null,
+    p_state: updates.state || null,
+    p_contact_no: updates.contact_no || null,
+    p_reference: updates.reference || null,
+  });
+
   if (error) throw error;
-  return data as QuotationHeader;
+  return data;
 }
 
 export async function deleteQuotation(id: string): Promise<{ success: boolean }> {
@@ -662,44 +668,15 @@ export async function deleteQuotation(id: string): Promise<{ success: boolean }>
 export async function createQuotationItems(
   quotationId: string,
   items: Partial<QuotationItem>[]
-): Promise<QuotationItem[]> {
-  const itemsWithQuotationId = items.map(item => ({
-    ...item,
-    quotation_id: quotationId,
-    line_total: calculateLineTotal(item)
-  }));
-
-  const { data, error } = await supabase
-    .from('quotation_items')
-    .insert(itemsWithQuotationId)
-    .select();
-  
-  if (error) throw error;
-  return data as QuotationItem[];
+): Promise<any> {
+  throw new Error('createQuotationItems is deprecated. Pass items directly to record_quotation or update_quotation RPC.');
 }
 
 export async function updateQuotationItems(
   quotationId: string,
   items: Partial<QuotationItem>[]
-): Promise<QuotationItem[]> {
-  await supabase
-    .from('quotation_items')
-    .delete()
-    .eq('quotation_id', quotationId);
-
-  const itemsWithQuotationId = items.map(item => ({
-    ...item,
-    quotation_id: quotationId,
-    line_total: calculateLineTotal(item)
-  }));
-
-  const { data, error } = await supabase
-    .from('quotation_items')
-    .insert(itemsWithQuotationId)
-    .select();
-  
-  if (error) throw error;
-  return data as QuotationItem[];
+): Promise<any> {
+  throw new Error('updateQuotationItems is deprecated. Pass items directly to update_quotation RPC.');
 }
 
 function calculateLineTotal(item: Partial<QuotationItem>): number {
@@ -716,74 +693,36 @@ function calculateLineTotal(item: Partial<QuotationItem>): number {
 
 export async function duplicateQuotation(id: string): Promise<QuotationHeader> {
   const original = await fetchQuotationById(id);
-  
-  const { data: existing } = await supabase
-    .from('quotation_header')
-    .select('quotation_no')
-    .order('created_at', { ascending: false })
-    .limit(1);
-  
-  let quotationNo = 'QT-0001';
-  if (existing && existing.length > 0) {
-    const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-    quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-  }
+  if (!original) throw new Error('Original quotation not found');
 
-  const newQuotation = {
-    quotation_no: quotationNo,
-    client_id: original.client_id,
-    project_id: original.project_id,
-    billing_address: original.billing_address,
-    gstin: original.gstin,
-    state: original.state,
-    date: new Date().toISOString().split('T')[0],
-    valid_till: original.valid_till,
-    payment_terms: original.payment_terms,
-    contact_no: original.contact_no || null,
-    remarks: original.remarks || original.reference || null,
-    reference: original.reference,
-    subtotal: original.subtotal,
-    total_item_discount: original.total_item_discount,
-    extra_discount_percent: original.extra_discount_percent,
-    extra_discount_amount: original.extra_discount_amount,
-    total_tax: original.total_tax,
-    round_off: original.round_off,
-    grand_total: original.grand_total,
-    status: 'Draft',
-    negotiation_mode: false,
-    revised_from_id: id
-  };
+  const formattedItems = (original.items || []).map((item) => ({
+    item_id: item.item_id || null,
+    variant_id: item.variant_id || null,
+    description: item.description || '',
+    qty: item.qty || 1,
+    uom: item.uom || '',
+    rate: item.rate || 0,
+    discount_percent: item.discount_percent || 0,
+    tax_percent: item.tax_percent || 18,
+  }));
 
-  const { data, error } = await supabase
-    .from('quotation_header')
-    .insert(newQuotation)
-    .select()
-    .single();
-  
+  const { data, error } = await supabase.rpc('record_quotation', {
+    p_organisation_id: original.organisation_id,
+    p_client_id: original.client_id,
+    p_project_id: original.project_id || null,
+    p_items: formattedItems,
+    p_remarks: original.remarks || original.reference || null,
+    p_payment_terms: original.payment_terms || null,
+    p_valid_till: original.valid_till || null,
+    p_billing_address: original.billing_address || null,
+    p_gstin: original.gstin || null,
+    p_state: original.state || null,
+    p_contact_no: original.contact_no || null,
+    p_reference: original.reference || null,
+  });
+
   if (error) throw error;
-
-  if (original.items && original.items.length > 0) {
-    const itemsToInsert = original.items.map(item => ({
-      quotation_id: data.id,
-      item_id: item.item_id,
-      variant_id: item.variant_id,
-      description: item.description,
-      qty: item.qty,
-      uom: item.uom,
-      rate: item.rate,
-      original_discount_percent: item.original_discount_percent,
-      discount_percent: item.discount_percent,
-      discount_amount: item.discount_amount,
-      tax_percent: item.tax_percent,
-      tax_amount: item.tax_amount,
-      line_total: item.line_total,
-      override_flag: false
-    }));
-
-    await supabase.from('quotation_items').insert(itemsToInsert);
-  }
-
-  return data as QuotationHeader;
+  return fetchQuotationById(data.quotation_id);
 }
 
 export async function createQuotationFromDC(

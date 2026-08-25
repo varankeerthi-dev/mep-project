@@ -260,28 +260,6 @@ export function SummaryTab({
         </div>
       </div>
 
-      <div className="pl-card" style={{ padding: '1.25rem' }}>
-        <h3 className="pl-summary-title" style={{ marginBottom: '1rem' }}>Financial Overview</h3>
-        <div className="pl-financial-grid">
-          <div className="pl-financial-card">
-            <div className="pl-financial-label">PO Value</div>
-            <div className="pl-financial-value">{fmt(financialSummary?.total_po_value)}</div>
-          </div>
-          <div className="pl-financial-card">
-            <div className="pl-financial-label">Invoice</div>
-            <div className="pl-financial-value">{fmt(financialSummary?.total_invoice_value)}</div>
-          </div>
-          <div className="pl-financial-card">
-            <div className="pl-financial-label">Payments</div>
-            <div className="pl-financial-value positive">{fmt(financialSummary?.total_payment_received)}</div>
-          </div>
-          <div className="pl-financial-card">
-            <div className="pl-financial-label">Expenses</div>
-            <div className="pl-financial-value negative">{fmt(financialSummary?.total_expense)}</div>
-          </div>
-        </div>
-      </div>
-
       <div className="pl-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <h3 className="pl-summary-title">Project Scope & Site Instructions</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>

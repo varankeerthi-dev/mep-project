@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { supabase } from '../../supabase';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronUp, Folder } from 'lucide-react';
+import { ChevronDown, ChevronUp, Folder, Plus } from 'lucide-react';
 
 export function ProjectSubcontractorWorkOrders({
   projectId,
   fmt,
   fmtD,
+  navigate,
 }: {
   projectId: string;
   fmt: (n: any) => string;
   fmtD: (d?: string | null) => string;
+  navigate?: (path: string) => void;
 }) {
   const [expandedWoId, setExpandedWoId] = useState<string | null>(null);
 
@@ -29,6 +31,15 @@ export function ProjectSubcontractorWorkOrders({
     staleTime: 30_000,
   });
 
+  const handleCreateWorkOrder = () => {
+    const url = `/subcontractors/workorders/create?projectId=${projectId}`;
+    if (navigate) {
+      navigate(url);
+    } else {
+      window.location.href = url;
+    }
+  };
+
   if (isLoading) {
     return <div className="pl-empty">Loading work orders…</div>;
   }
@@ -44,7 +55,7 @@ export function ProjectSubcontractorWorkOrders({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 8px', flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
             Subcontractor Work Orders
@@ -53,15 +64,57 @@ export function ProjectSubcontractorWorkOrders({
             Terms &amp; conditions for on-site reference — read only
           </p>
         </div>
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: '#f1f5f9', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
-          {workOrders.length} work order{workOrders.length !== 1 ? 's' : ''}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', background: '#f1f5f9', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' }}>
+            {workOrders.length} work order{workOrders.length !== 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={handleCreateWorkOrder}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            }}
+          >
+            <Plus size={14} /> Create Work Order
+          </button>
+        </div>
       </div>
 
       {workOrders.length === 0 ? (
-        <div className="pl-empty">
+        <div className="pl-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
           <Folder className="pl-empty-icon" />
           <p className="pl-empty-text">No subcontractor work orders linked to this project yet.</p>
+          <button
+            type="button"
+            onClick={handleCreateWorkOrder}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginTop: '4px',
+            }}
+          >
+            <Plus size={14} /> Issue New Work Order to Subcontractor
+          </button>
         </div>
       ) : (
         workOrders.map((wo: any) => {
