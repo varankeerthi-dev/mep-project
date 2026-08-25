@@ -297,6 +297,8 @@ export function useCreateAmendment() {
   });
 }
 
+export const useCreateMeetingAmendment = useCreateAmendment;
+
 // Reopen minutes mutation
 export function useReopenMinutes() {
   const queryClient = useQueryClient();
