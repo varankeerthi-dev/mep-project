@@ -84,6 +84,7 @@ const AccessControlPage = lazyAny(() => import('./pages/AccessControl'));
 const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })));
 const QuotationList = lazyAny(() => import('./pages/QuotationList'));
 const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation/index'));
+const WorkCompletionCertificatePage = lazyAny(() => import('./pages/WorkCompletionCertificatePage'));
 const CreateQuotationV2 = lazyAny(() => import('./pages/CreateQuotationV2/index'));
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const SalesOrderList = lazyAny(() => import('./pages/sales/SalesOrderList'));
@@ -587,7 +588,10 @@ export default function App() {
       case '/manufacturing-v0/custom-fields':
       case '/manufacturing-v0/activity-log':
         return <ManufacturingShellV0 />;
-      case '/documents': return <Documents />;
+      case '/documents': return <PermissionGuard permission="work_completion.read" fallback={<div className="p-6">Access Denied</div>}><Documents /></PermissionGuard>;
+      case '/work-completion': return <PermissionGuard permission="work_completion.read" fallback={<div className="p-6">Access Denied</div>}><Documents /></PermissionGuard>;
+      case '/work-completion/create': return <PermissionGuard permission="work_completion.create" fallback={<div className="p-6">Access Denied</div>}><WorkCompletionCertificatePage /></PermissionGuard>;
+      case '/work-completion/edit': return <PermissionGuard permission="work_completion.update" fallback={<div className="p-6">Access Denied</div>}><WorkCompletionCertificatePage /></PermissionGuard>;
       case '/issue': return <IssueDashboard />;
       case '/issues': return <IssueListPage />;
       case '/issue/new': return <IssueCreateModal isOpen={true} onClose={() => navigate('/issues')} />;

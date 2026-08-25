@@ -16,8 +16,9 @@ import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, Lo
 import { FieldVariationMobile } from './screens/FieldVariationMobile';
 import { MaterialReturnMobile } from './screens/MaterialReturnMobile';
 import { MachineBoardMobile } from './screens/MachineBoardMobile';
+import { WorkCompletionCertificate } from './screens/WorkCompletionCertificate';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board';
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board' | 'work_completion';
 type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
 
 function App() {
@@ -145,6 +146,7 @@ function App() {
             onNavigateToLookup={() => setCurrentScreen('lookup')}
             onNavigateToFieldVariation={() => setCurrentScreen('field_variation')}
             onNavigateToMaterialReturn={() => setCurrentScreen('material_return')}
+            onNavigateToWorkCompletion={() => setCurrentScreen('work_completion')}
             onOpenModule={(m) => setActiveModule(m)}
             isDemo={isDemo}
           />
@@ -156,6 +158,7 @@ function App() {
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
         {currentScreen === 'field_variation' && <FieldVariationMobile onBack={() => setCurrentScreen('dashboard')} />}
         {currentScreen === 'material_return' && <MaterialReturnMobile onBack={() => setCurrentScreen('dashboard')} />}
+        {currentScreen === 'work_completion' && <WorkCompletionCertificate onBack={() => setCurrentScreen('dashboard')} isDemo={isDemo} />}
         {currentScreen === 'lookup' && (
           <ClientLookup 
             onBack={() => setCurrentScreen('dashboard')} 
