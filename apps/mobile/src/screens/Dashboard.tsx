@@ -12,6 +12,7 @@ interface DashboardProps {
   onNavigateToLookup: () => void;
   onNavigateToFieldVariation?: () => void;
   onNavigateToMaterialReturn?: () => void;
+  onNavigateToWorkCompletion?: () => void;
   onOpenModule: (module: 'client' | 'project' | 'purchase') => void;
   isDemo?: boolean;
 }
@@ -30,6 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToLookup,
   onNavigateToFieldVariation,
   onNavigateToMaterialReturn,
+  onNavigateToWorkCompletion,
   onOpenModule,
   isDemo = false
 }) => {
@@ -251,6 +253,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <p className="text-sm font-bold text-slate-100">Material Return</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Dispatch return</p>
           </div>
+        </div>
+
+        <div
+          onClick={onNavigateToWorkCompletion}
+          className="glass-card rounded-xl p-3.5 border border-cyan-500/30 bg-cyan-950/20 text-left cursor-pointer active:scale-[0.98] transition-all"
+        >
+          <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">Project document</div>
+          <p className="text-sm font-bold text-slate-100">Work Completion</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Create certificate independently</p>
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════ */}

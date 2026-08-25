@@ -1,0 +1,8 @@
+-- DEPRECATED: do not apply this source-file copy directly.
+--
+-- The canonical Work Completion Certificate schema, RLS, RBAC permissions,
+-- and SECURITY DEFINER create/update RPCs now live in:
+-- apps/web/supabase/migrations/20260825000000_work_completion_secure_rpc.sql
+--
+-- Apply the timestamped migration through the normal Supabase migration process.
+-- Direct browser INSERT/UPDATE/DELETE grants are intentionally revoked there.
