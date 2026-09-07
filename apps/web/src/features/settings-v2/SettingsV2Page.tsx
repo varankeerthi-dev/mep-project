@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import {
   SettingsShell,
   SettingsSidebar,
@@ -14,185 +15,71 @@ import {
   PlaceholderTab,
   TemplatesTab,
 } from './tabs';
-import { SettingsTabDefinition } from './types';
-import {
-  Building2,
-  Sliders,
-  Users,
-  Hash,
-  FileText,
-  Printer,
-  Percent,
-  Zap,
-  ShieldCheck,
-  Workflow,
-  FolderTree,
-  Ruler,
-  Layers,
-  Warehouse,
-  FileCode,
-} from 'lucide-react';
+import { SETTINGS_TABS } from './types';
+import { PageSkeleton } from '@/components/ui/skeleton';
 
-export const SETTINGS_TABS: SettingsTabDefinition[] = [
-  // Organisation
-  {
-    id: 'general',
-    label: 'General & Config',
-    category: 'Organisation',
-    icon: Sliders,
-    description: 'System-wide preferences, calculation rounding, and auto-generation',
-    searchIndex: ['general', 'config', 'round off', 'rounding', 'integer rounding', 'item code generation'],
-  },
-  {
-    id: 'organisation',
-    label: 'Organisation Info',
-    category: 'Organisation',
-    icon: Building2,
-    description: 'Company identity, tax registration, address, and branding',
-    searchIndex: ['organisation', 'company', 'gst', 'gstin', 'pan', 'logo', 'address', 'phone', 'email'],
-  },
-  {
-    id: 'team-members',
-    label: 'Team Members',
-    category: 'Organisation',
-    icon: Users,
-    description: 'User access levels, team roles, and invitations',
-    searchIndex: ['team members', 'users', 'roles', 'employee', 'invite', 'access'],
-  },
+// Lazy load heavy settings tab components
+const AccessControlPage = lazy(() => import('../../pages/AccessControl'));
+const PrintSettings = lazy(() => import('../../pages/PrintSettings'));
+const DiscountSettings = lazy(() => import('../../pages/DiscountSettings'));
+const QuickQuoteSettings = lazy(() => import('../../pages/QuickQuoteSettings'));
+const ModuleSettings = lazy(() => import('../../components/ModuleSettings'));
+const ApprovalSettings = lazy(() => import('../../components/ApprovalSettings'));
+const CategoryTab = lazy(() => import('../materials/settings/CategoryTab').then(m => ({ default: m.CategoryTab })));
+const UnitTab = lazy(() => import('../materials/settings/UnitTab').then(m => ({ default: m.UnitTab })));
+const VariantsTab = lazy(() => import('../materials/settings/VariantsTab').then(m => ({ default: m.VariantsTab })));
+const WarehouseTab = lazy(() => import('../materials/settings/WarehouseTab').then(m => ({ default: m.WarehousesTab })));
+const TermsConditionsSettings = lazy(() => import('../../pages/TermsConditionsSettings'));
+const ToolsSettings = lazy(() => import('../../pages/ToolsSettings'));
+const TransactionNumberSeries = lazy(() => import('../../pages/TransactionNumberSeries'));
 
-  // Documents
-  {
-    id: 'numbering-series',
-    label: 'Numbering Series',
-    category: 'Documents',
-    icon: Hash,
-    description: 'Transaction prefixes, start numbers, zero padding, and duplicate prevention',
-    searchIndex: [
-      'numbering series',
-      'document numbers',
-      'prefix',
-      'suffix',
-      'padding',
-      'start number',
-      'quotation prefix',
-      'invoice prefix',
-      'po prefix',
-      'prevent duplicate numbers',
-    ],
-  },
-  {
-    id: 'document-templates',
-    label: 'Document Templates',
-    category: 'Documents',
-    icon: FileText,
-    description: 'Custom PDF templates, layout columns, and labels',
-    searchIndex: ['document templates', 'templates', 'pdf template', 'columns', 'labels', 'custom template'],
-  },
-  {
-    id: 'print-layouts',
-    label: 'Print Layouts',
-    category: 'Documents',
-    icon: Printer,
-    description: 'Printer defaults, page size, orientation, and margins',
-    searchIndex: ['print layouts', 'print', 'printer', 'page size', 'orientation', 'margins', 'a4'],
-  },
+export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
 
-  // Commerce
-  {
-    id: 'discounts',
-    label: 'Discount Settings',
-    category: 'Commerce',
-    icon: Percent,
-    description: 'Default, minimum, and maximum discount percentage rules by variant',
-    searchIndex: ['discount settings', 'discount rules', 'min discount', 'max discount', 'margin'],
-  },
-  {
-    id: 'quick-quote',
-    label: 'Quick Quote',
-    category: 'Commerce',
-    icon: Zap,
-    description: 'Quick estimation matrix, standard size pricing, and defaults',
-    searchIndex: ['quick quote', 'quote matrix', 'size pricing', 'estimation defaults'],
-  },
+  const tabFromUrl = useMemo(() => {
+    // 1. Check query param: ?tab=xxx
+    const paramTab = searchParams.get('tab');
+    if (paramTab && SETTINGS_TABS.some((t) => t.id === paramTab)) return paramTab;
 
-  // Advanced
-  {
-    id: 'modules',
-    label: 'Module Management',
-    category: 'Advanced',
-    icon: ShieldCheck,
-    description: 'Enable or disable feature modules across the application',
-    searchIndex: ['modules', 'module management', 'feature toggles', 'enable module'],
-  },
-  {
-    id: 'approvals',
-    label: 'Approval Workflows',
-    category: 'Advanced',
-    icon: Workflow,
-    description: 'Multi-level approval authorization rules, thresholds, and reviewers',
-    searchIndex: [
-      'approval workflows',
-      'approvals',
-      'workflow',
-      'approver',
-      'reviewer',
-      'purchase payment',
-      'subcontractor payment',
-      'payment request',
-      'quotation',
-      'work order',
-      'purchase order',
-      'sales order',
-      'job card',
-      'site expense',
-    ],
-  },
+    // 2. Check path suffix: /settings/xxx
+    const path = location.pathname.replace(/\/$/, '');
+    const segments = path.split('/');
+    if (segments.length >= 3 && segments[1] === 'settings') {
+      const subPath = segments[2];
+      const aliasMap: Record<string, string> = {
+        print: 'print-layouts',
+        template: 'document-templates',
+        templates: 'document-templates',
+        discounts: 'discounts',
+        'quick-quote': 'quick-quote',
+        'terms-conditions': 'terms-conditions',
+        terms: 'terms-conditions',
+        'document-series': 'numbering-series',
+        numbering: 'numbering-series',
+        organisation: 'organisation',
+        'access-control': 'team-members',
+        access: 'team-members',
+        modules: 'modules',
+        approval: 'approvals',
+        approvals: 'approvals',
+        tools: 'tools',
+      };
+      if (aliasMap[subPath]) return aliasMap[subPath];
+      if (SETTINGS_TABS.some((t) => t.id === subPath)) return subPath;
+    }
 
-  // Master Data
-  {
-    id: 'categories',
-    label: 'Item Categories',
-    category: 'Master Data',
-    icon: FolderTree,
-    description: 'Item taxonomy and classification hierarchy',
-    searchIndex: ['categories', 'item categories', 'taxonomy', 'classification'],
-  },
-  {
-    id: 'units',
-    label: 'Units of Measure',
-    category: 'Master Data',
-    icon: Ruler,
-    description: 'UOM definitions, symbols, and decimal precision',
-    searchIndex: ['units of measure', 'uom', 'units', 'kg', 'nos', 'meters', 'decimal'],
-  },
-  {
-    id: 'variants',
-    label: 'Variants & Discount Cats',
-    category: 'Master Data',
-    icon: Layers,
-    description: 'Product variants and discount category assignments',
-    searchIndex: ['variants', 'discount categories', 'product variants', 'company variants'],
-  },
-  {
-    id: 'warehouses',
-    label: 'Warehouses & Locations',
-    category: 'Master Data',
-    icon: Warehouse,
-    description: 'Inventory storage locations and godowns',
-    searchIndex: ['warehouses', 'locations', 'godown', 'storage', 'inventory site'],
-  },
-  {
-    id: 'terms-conditions',
-    label: 'Terms & Conditions',
-    category: 'Master Data',
-    icon: FileCode,
-    description: 'Standard clause templates for quotations, invoices, and POs',
-    searchIndex: ['terms & conditions', 'terms', 'conditions', 'legal terms', 'contract clauses'],
-  },
-];
+    return initialTab || 'general';
+  }, [searchParams, location.pathname, initialTab]);
 
-export const SettingsV2Page: React.FC = () => {
-  const [activeTabId, setActiveTabId] = useState<string>('general');
+  const [activeTabId, setActiveTabId] = useState<string>(tabFromUrl);
+
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTabId) {
+      setActiveTabId(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Dirty state tracking per tab
@@ -241,6 +128,7 @@ export const SettingsV2Page: React.FC = () => {
     }
 
     setActiveTabId(targetTabId);
+    setSearchParams({ tab: targetTabId }, { replace: true });
   };
 
   // Guard Dialog Actions
@@ -254,6 +142,7 @@ export const SettingsV2Page: React.FC = () => {
       }
       setShowGuardDialog(false);
       setActiveTabId(pendingTabId);
+      setSearchParams({ tab: pendingTabId }, { replace: true });
       setPendingTabId(null);
     } catch (e) {
       console.error('Failed to save before tab switch:', e);
@@ -270,6 +159,7 @@ export const SettingsV2Page: React.FC = () => {
     }
     setShowGuardDialog(false);
     setActiveTabId(pendingTabId);
+    setSearchParams({ tab: pendingTabId }, { replace: true });
     setPendingTabId(null);
   };
 
@@ -313,19 +203,18 @@ export const SettingsV2Page: React.FC = () => {
             }
           />
         );
+      case 'team-members':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <AccessControlPage />
+          </Suspense>
+        );
       case 'numbering-series':
         return (
-          <NumberingTab
-            onDirtyChange={(isDirty) =>
-              handleDirtyChange('numbering-series', isDirty)
-            }
-            onRegisterSave={(saveFn, discardFn) =>
-              handleRegisterSave('numbering-series', saveFn, discardFn)
-            }
-          />
+          <Suspense fallback={<PageSkeleton variant="table" rows={6} />}>
+            <TransactionNumberSeries />
+          </Suspense>
         );
-      case 'approvals':
-        return <ApprovalsTab />;
       case 'document-templates':
         return (
           <TemplatesTab
@@ -336,6 +225,72 @@ export const SettingsV2Page: React.FC = () => {
               handleRegisterSave('document-templates', saveFn, discardFn)
             }
           />
+        );
+      case 'print-layouts':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <PrintSettings />
+          </Suspense>
+        );
+      case 'discounts':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <DiscountSettings />
+          </Suspense>
+        );
+      case 'quick-quote':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <QuickQuoteSettings />
+          </Suspense>
+        );
+      case 'modules':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <ModuleSettings />
+          </Suspense>
+        );
+      case 'approvals':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <ApprovalSettings />
+          </Suspense>
+        );
+      case 'categories':
+        return (
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <CategoryTab />
+          </Suspense>
+        );
+      case 'units':
+        return (
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <UnitTab />
+          </Suspense>
+        );
+      case 'variants':
+        return (
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <VariantsTab />
+          </Suspense>
+        );
+      case 'warehouses':
+        return (
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <WarehouseTab />
+          </Suspense>
+        );
+      case 'terms-conditions':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <TermsConditionsSettings />
+          </Suspense>
+        );
+      case 'tools':
+        return (
+          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
+            <ToolsSettings />
+          </Suspense>
         );
       default:
         return <PlaceholderTab tab={activeTab} />;

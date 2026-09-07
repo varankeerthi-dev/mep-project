@@ -32,11 +32,16 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
   const orgId = organisation?.id;
   const { settings, updateSettings } = useOrganisationSettings();
 
-  const orgDateFormat = settings?.date_format ?? DEFAULT_DATE_FORMAT;
+  const isRoundOff = (organisation as any)?.round_off_enabled !== false;
+  const orgDateFormat = settings?.date_format || DEFAULT_DATE_FORMAT;
 
   const initialData: GeneralConfigData = React.useMemo(
-    () => ({ ...DEFAULT_GENERAL_DATA, date_format: orgDateFormat }),
-    [orgDateFormat]
+    () => ({
+      round_off_enabled: isRoundOff,
+      auto_generate_item_codes: false,
+      date_format: orgDateFormat,
+    }),
+    [isRoundOff, orgDateFormat]
   );
 
   const handleSave = async (data: GeneralConfigData) => {

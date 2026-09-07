@@ -220,8 +220,8 @@ importers:
         specifier: ^19.2.0
         version: 19.2.7(react@19.2.7)
       react-grab:
-        specifier: ^0.1.32
-        version: 0.1.47(react@19.2.7)
+        specifier: ^0.2.0
+        version: 0.2.0(react@19.2.7)
       react-hook-form:
         specifier: ^7.51.0
         version: 7.80.0(react@19.2.7)
@@ -2001,8 +2001,8 @@ packages:
   '@radix-ui/rect@1.1.3':
     resolution: {integrity: sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw==}
 
-  '@react-grab/cli@0.1.47':
-    resolution: {integrity: sha512-Cc7d8mSwvoV8gpeTQbE8dMPdeXIyO6w+yIhzgi3jY06i03WLNhb/6jIxNBNF1cVRI7ujnFQXZA66BbnBNTpBSw==}
+  '@react-grab/cli@0.2.0':
+    resolution: {integrity: sha512-LVfA+j5cFT0Szd958WRD8W/B8ucCtz4ViiveDKWLqAwBkZFW9VRW1ZvwOUhp/M3SmVPtjDaRkW12GvAuTArP+Q==}
     hasBin: true
 
   '@react-pdf/fns@3.1.3':
@@ -3555,8 +3555,8 @@ packages:
   bindings@1.5.0:
     resolution: {integrity: sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==}
 
-  bippy@0.5.42:
-    resolution: {integrity: sha512-K3tpfO9uGQB2k/Vi5P6jgfrnXvO/FAQNUE2tqKjQmT0a93fJCysMGLgJmRKzYYfybAoOtwWwmKm0vw/uXE0hMw==}
+  bippy@0.6.1:
+    resolution: {integrity: sha512-ky4m94Y/KfsddjGkKTsV4uFjZqkJjpOjQ2t5gKPdX6XH1MNxMNX5FrVefsxV4lpjemEmEdwe0e0YbzAMNs3oUQ==}
     peerDependencies:
       react: '>=17.0.1'
 
@@ -4442,6 +4442,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -6302,8 +6303,8 @@ packages:
     peerDependencies:
       react: ^19.2.7
 
-  react-grab@0.1.47:
-    resolution: {integrity: sha512-1GNy24KMJ4CY1IxorYO9mydItGi0L1HkQB19uYU3t0BMsJB0K+D/QYiaBz+rugRynyY8LzmXIuOcon1TykLlCg==}
+  react-grab@0.2.0:
+    resolution: {integrity: sha512-ohhsfXD4qN0j6cMQd56aaVJBPDF3kUdviF/Od1Eak/rEIXQ3svQ4gjkwTfuTZwTBnxHRL16p9JqdlVQO5nUHqA==}
     hasBin: true
     peerDependencies:
       react: '>=17.0.0'
@@ -9477,7 +9478,7 @@ snapshots:
 
   '@radix-ui/rect@1.1.3': {}
 
-  '@react-grab/cli@0.1.47':
+  '@react-grab/cli@0.2.0':
     dependencies:
       agent-install: 0.0.6
       commander: 14.0.3
@@ -11235,7 +11236,7 @@ snapshots:
     dependencies:
       file-uri-to-path: 1.0.0
 
-  bippy@0.5.42(react@19.2.7):
+  bippy@0.6.1(react@19.2.7):
     dependencies:
       react: 19.2.7
 
@@ -14412,10 +14413,10 @@ snapshots:
       react: 19.2.7
       scheduler: 0.27.0
 
-  react-grab@0.1.47(react@19.2.7):
+  react-grab@0.2.0(react@19.2.7):
     dependencies:
-      '@react-grab/cli': 0.1.47
-      bippy: 0.5.42(react@19.2.7)
+      '@react-grab/cli': 0.2.0
+      bippy: 0.6.1(react@19.2.7)
     optionalDependencies:
       react: 19.2.7
 

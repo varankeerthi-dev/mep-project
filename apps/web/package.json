@@ -53,7 +53,7 @@
     "react": "^19.2.0",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.0",
-    "react-grab": "^0.1.32",
+    "react-grab": "^0.2.0",
     "react-hook-form": "^7.51.0",
     "react-resizable-panels": "^3.0.6",
     "react-router-dom": "^7.13.0",

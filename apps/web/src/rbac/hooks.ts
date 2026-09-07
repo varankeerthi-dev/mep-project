@@ -151,23 +151,66 @@ export function useReplaceRolePermissions(organisationId?: string | null) {
   });
 }
 
-export function useHasPermission(permissionKey: PermissionKey | PermissionKey[]) {
-  const { user, organisations, selectedOrganisation } = useAuth();
-  const qc = useQueryClient();
+import { useMemo } from 'react';
 
-  return useQuery({
-    queryKey: ['rbac', 'has-permission', user?.id, selectedOrganisation?.id, permissionKey],
-    queryFn: async () => {
-      if (!user?.id || !selectedOrganisation?.id) return false;
-      const { hasPermission } = await import('./api');
-      const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
-      const results = await Promise.all(
-        keys.map(key => hasPermission(user.id, selectedOrganisation.id, key))
-      );
-      return Array.isArray(permissionKey) ? results : results[0];
-    },
-    enabled: !!user?.id && !!selectedOrganisation?.id,
-    staleTime: 5 * 60 * 1000,
-  });
+export function usePermissions() {
+  const { user, organisation, selectedOrganisation } = useAuth();
+  const orgId = organisation?.id || selectedOrganisation?.id || null;
+  const { data: permissions = [], isLoading, error } = useMyPermissions(user?.id, orgId);
+
+  const isAdmin = useMemo(() => {
+    return permissions.includes('admin_all_access' as any);
+  }, [permissions]);
+
+  const permissionSet = useMemo(() => {
+    return new Set<string>(permissions);
+  }, [permissions]);
+
+  const hasPermission = useMemo(() => {
+    return (key: PermissionKey): boolean => {
+      if (isAdmin) return true;
+      return permissionSet.has(key);
+    };
+  }, [isAdmin, permissionSet]);
+
+  const hasAnyPermission = useMemo(() => {
+    return (keys: PermissionKey[]): boolean => {
+      if (isAdmin) return true;
+      return keys.some(key => permissionSet.has(key));
+    };
+  }, [isAdmin, permissionSet]);
+
+  const hasAllPermissions = useMemo(() => {
+    return (keys: PermissionKey[]): boolean => {
+      if (isAdmin) return true;
+      return keys.every(key => permissionSet.has(key));
+    };
+  }, [isAdmin, permissionSet]);
+
+  return {
+    permissions,
+    isAdmin,
+    isLoading,
+    error,
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
+  };
+}
+
+export function useHasPermission(permissionKey: PermissionKey | PermissionKey[]) {
+  const { hasPermission, hasAllPermissions, isLoading } = usePermissions();
+
+  const isGranted = useMemo(() => {
+    if (Array.isArray(permissionKey)) {
+      return hasAllPermissions(permissionKey);
+    }
+    return hasPermission(permissionKey);
+  }, [permissionKey, hasPermission, hasAllPermissions]);
+
+  return {
+    data: isGranted,
+    isLoading,
+  };
 }
 
