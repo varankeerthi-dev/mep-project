@@ -5,11 +5,13 @@ import { WarehouseTab } from './WarehouseTab';
 import { AdjustmentsTab } from './AdjustmentsTab';
 import { TransactionsTab } from './TransactionsTab';
 import { AuditTab } from './AuditTab';
+import { AttributesTab } from './AttributesTab';
 import type { Material } from '../../model/entities';
 import type { ItemTransactions } from '../../model/aggregates';
 
 export const ITEM_DETAIL_TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'attributes', label: 'Attributes' },
   { key: 'warehouse', label: 'Warehouse Report' },
   { key: 'adjustments', label: 'Stock Adjustments' },
   { key: 'quotation', label: 'Quotation' },
@@ -67,6 +69,7 @@ export function ItemDetailsDialog({
 
       <div className="overflow-y-auto max-h-[60vh]">
         {activeTab === 'overview' && <OverviewTab material={material} />}
+        {activeTab === 'attributes' && <AttributesTab materialId={material?.id} />}
         {activeTab === 'warehouse' && <WarehouseTab rows={transactions.warehouseRows} loading={loading} />}
         {activeTab === 'adjustments' && <AdjustmentsTab rows={transactions.adjustmentRows} loading={loading} />}
         {(activeTab === 'quotation' || activeTab === 'invoice' || activeTab === 'purchase' || activeTab === 'challan') && (

@@ -11,14 +11,14 @@ export { ItemEditorPage } from './page/ItemEditorPage';
 export { ItemsToolbar, ColumnSettingsDropdown } from './components/toolbar';
 export { ItemsTable, Pagination } from './components/table';
 export { ItemEditorDialog, BasicInformationSection, TechnicalSection, CommercialSection, InventorySection, VendorSection, ClientSection, VariantPricingSection } from './components/editor';
-export { ItemDetailsDialog, OverviewTab, WarehouseTab, AdjustmentsTab, TransactionsTab, AuditTab } from './components/viewer';
+export { ItemDetailsDialog, AttributesTab, OverviewTab, WarehouseTab, AdjustmentsTab, TransactionsTab, AuditTab } from './components/viewer';
 export { BulkPriceDialog, MultiItemDialog, ExcelEditorDialog } from './components/dialogs';
 
 // Hooks
-export { useMaterialForm, useItemTransactions, useBulkPriceUpdate, useMaterialActions } from './hooks';
+export { useMaterialForm, useAttributeDefinitions, useItemTransactions, useBulkPriceUpdate, useMaterialActions } from './hooks';
 
 // Model
-export type { Material, Warehouse, Vendor, Client, MaterialUnit, ItemStock } from './model';
+export type { Material, Warehouse, Vendor, Client, MaterialUnit, ItemStock, AttributeDefinition, MaterialCustomAttribute, AttributeDataType } from './model';
 export type {
   MaterialEditorFormData,
   ClassificationOption,

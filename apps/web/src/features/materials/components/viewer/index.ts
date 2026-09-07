@@ -4,3 +4,4 @@ export { AdjustmentsTab } from './AdjustmentsTab';
 export { TransactionsTab } from './TransactionsTab';
 export { AuditTab } from './AuditTab';
 export { ItemDetailsDialog } from './ItemDetailsDialog';
+export { AttributesTab } from './AttributesTab';

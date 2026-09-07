@@ -40,12 +40,19 @@ export interface Material {
 }
 
 /** A reusable attribute definition scoped to an organisation */
+export type AttributeDataType = 'text' | 'alphanumeric' | 'number' | 'date' | 'boolean';
+
 export interface AttributeDefinition {
   id: string;
   organisation_id: string;
   name: string;
+  description?: string | null;
+  data_type?: AttributeDataType;
   default_unit: string;
   known_units: string[];
+  category_scopes?: string[];
+  is_required?: boolean;
+  is_printable?: boolean;
   created_at?: string;
 }
 
@@ -57,6 +64,8 @@ export interface MaterialCustomAttribute {
   attribute_name: string;
   attribute_value: string;
   attribute_unit: string;
+  attribute_definition_id?: string | null;
+  data_type?: AttributeDataType;
   sort_order: number;
 }
 

@@ -1,4 +1,4 @@
-export type { Material, MaterialUnit, ItemStock } from './entities';
+export type { Material, MaterialUnit, ItemStock, AttributeDefinition, MaterialCustomAttribute, AttributeDataType } from './entities';
 export type { Warehouse } from './entities';
 export type { Vendor } from './entities';
 export type { Client } from './entities';

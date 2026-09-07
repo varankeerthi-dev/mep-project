@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMaterialsPageData } from '@/hooks/useMaterialsPageData';
 import { useUnits } from '@/hooks/useUnits';
 import { useMaterialForm } from '../hooks/useMaterialForm';
+import { useAttributeDefinitions } from '../hooks/useAttributeDefinitions';
 import { ItemEditorDialog } from '../components/editor/ItemEditorDialog';
 import { checkVariantRecords } from '../persistence/materialsPersistence';
 import { CLASSIFICATION_PRESETS } from '../model/aggregates';
@@ -48,16 +49,7 @@ export function ItemEditorPage() {
     enabled: !!orgId,
   });
 
-  const { data: attributeDefinitions = [] } = useQuery({
-    queryKey: ['attribute-definitions', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase.from('attribute_definitions').select('*').eq('organisation_id', orgId).order('label');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
+  const { data: attributeDefinitions = [] } = useAttributeDefinitions(orgId);
 
   // ─── Form ─────────────────────────────────────────────────────
   const form = useMaterialForm();

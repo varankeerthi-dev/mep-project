@@ -6,12 +6,13 @@ interface TechnicalSectionProps {
   color?: 'indigo' | 'blue' | 'green' | 'purple' | 'orange' | 'teal' | 'slate';
   customAttributes: MaterialCustomAttribute[];
   attributeDefinitions: AttributeDefinition[];
+  category?: string;
   onCustomAttributesChange: (attributes: MaterialCustomAttribute[]) => void;
   showTechnical: boolean;
   onToggleTechnical: () => void;
 }
 
-export function TechnicalSection({ color, customAttributes, attributeDefinitions, onCustomAttributesChange, showTechnical, onToggleTechnical }: TechnicalSectionProps) {
+export function TechnicalSection({ color, customAttributes, attributeDefinitions, category, onCustomAttributesChange, showTechnical, onToggleTechnical }: TechnicalSectionProps) {
   return (
     <EditorSection
       color={color || 'purple'}
@@ -24,6 +25,7 @@ export function TechnicalSection({ color, customAttributes, attributeDefinitions
       <CustomAttributesSection
         attributes={customAttributes}
         definitions={attributeDefinitions}
+        category={category}
         onChange={onCustomAttributesChange}
       />
     </EditorSection>

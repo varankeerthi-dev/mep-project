@@ -148,17 +148,21 @@ export function useMaterialForm() {
     try {
       const { data: attrs } = await supabase.from('material_custom_attributes').select('*').eq('material_id', material.id).order('sort_order');
       if (attrs && attrs.length > 0) {
-        setCustomAttributes(attrs);
+        setCustomAttributes(attrs.map((attr: any) => ({
+          ...attr,
+          data_type: attr.data_type || 'text',
+          attribute_definition_id: attr.attribute_definition_id || null,
+        })));
       } else {
         // Auto-migrate legacy columns
         const legacyAttrs: any[] = [];
-        if (material.size) legacyAttrs.push({ attribute_name: 'Size', attribute_value: material.size, attribute_unit: '', sort_order: 0 });
-        if (material.pressure_class) legacyAttrs.push({ attribute_name: 'Pressure Class', attribute_value: material.pressure_class, attribute_unit: '', sort_order: legacyAttrs.length });
-        if (material.make) legacyAttrs.push({ attribute_name: 'Make', attribute_value: material.make, attribute_unit: '', sort_order: legacyAttrs.length });
-        if (material.material) legacyAttrs.push({ attribute_name: 'Material', attribute_value: material.material, attribute_unit: '', sort_order: legacyAttrs.length });
-        if (material.end_connection) legacyAttrs.push({ attribute_name: 'End Connection', attribute_value: material.end_connection, attribute_unit: '', sort_order: legacyAttrs.length });
-        if (material.dimension) legacyAttrs.push({ attribute_name: 'Dimension', attribute_value: material.dimension, attribute_unit: material.dimension_unit || '', sort_order: legacyAttrs.length });
-        if (material.weight) legacyAttrs.push({ attribute_name: 'Weight', attribute_value: material.weight.toString(), attribute_unit: material.weight_unit || '', sort_order: legacyAttrs.length });
+        if (material.size) legacyAttrs.push({ attribute_name: 'Size', attribute_value: material.size, attribute_unit: '', data_type: 'text', sort_order: 0 });
+        if (material.pressure_class) legacyAttrs.push({ attribute_name: 'Pressure Class', attribute_value: material.pressure_class, attribute_unit: '', data_type: 'text', sort_order: legacyAttrs.length });
+        if (material.make) legacyAttrs.push({ attribute_name: 'Make', attribute_value: material.make, attribute_unit: '', data_type: 'text', sort_order: legacyAttrs.length });
+        if (material.material) legacyAttrs.push({ attribute_name: 'Material', attribute_value: material.material, attribute_unit: '', data_type: 'text', sort_order: legacyAttrs.length });
+        if (material.end_connection) legacyAttrs.push({ attribute_name: 'End Connection', attribute_value: material.end_connection, attribute_unit: '', data_type: 'text', sort_order: legacyAttrs.length });
+        if (material.dimension) legacyAttrs.push({ attribute_name: 'Dimension', attribute_value: material.dimension, attribute_unit: material.dimension_unit || '', data_type: 'text', sort_order: legacyAttrs.length });
+        if (material.weight) legacyAttrs.push({ attribute_name: 'Weight', attribute_value: material.weight.toString(), attribute_unit: material.weight_unit || '', data_type: 'number', sort_order: legacyAttrs.length });
         setCustomAttributes(legacyAttrs);
       }
     } catch (err) {
@@ -364,12 +368,35 @@ export function useMaterialForm() {
           attribute_name: a.attribute_name,
           attribute_value: a.attribute_value,
           attribute_unit: a.attribute_unit || null,
+          attribute_definition_id: a.attribute_definition_id || null,
+          data_type: a.data_type || 'text',
           sort_order: idx,
           organisation_id: organisationId,
         }));
       if (attrsToInsert.length > 0) {
         const { error: attrsError } = await supabase.from('material_custom_attributes').insert(attrsToInsert);
         if (attrsError) throw attrsError;
+      }
+
+      // Remember named attributes as reusable organisation suggestions. This
+      // does not make the attribute mandatory; it simply makes the next item
+      // easier to configure.
+      const definitionsToUpsert = customAttributes
+        .filter(a => a.attribute_name?.trim())
+        .map(a => ({
+          organisation_id: organisationId,
+          name: a.attribute_name.trim(),
+          default_unit: a.attribute_unit || '',
+          known_units: a.attribute_unit ? [a.attribute_unit] : [],
+          data_type: a.data_type || 'text',
+          category_scopes: formData.main_category ? [formData.main_category] : [],
+        }))
+        .filter((definition, index, all) => all.findIndex(candidate => candidate.name.toLowerCase() === definition.name.toLowerCase()) === index);
+      if (definitionsToUpsert.length > 0) {
+        const { error: definitionsError } = await supabase
+          .from('attribute_definitions')
+          .upsert(definitionsToUpsert, { onConflict: 'organisation_id,name' });
+        if (definitionsError) throw definitionsError;
       }
 
       // Audit logging
@@ -400,6 +427,8 @@ export function useMaterialForm() {
 
       setSaveNotice(isEditing ? 'Item updated successfully.' : 'Item added successfully.');
       await refreshMaterials();
+      queryClient.invalidateQueries({ queryKey: ['material-custom-attributes', itemId] });
+      queryClient.invalidateQueries({ queryKey: ['attribute-definitions', organisationId] });
       queryClient.invalidateQueries({ queryKey: ['materials-for-bom'] });
       if (selectedMaterialId === itemId) {
         await loadItemTransactions(itemId);
