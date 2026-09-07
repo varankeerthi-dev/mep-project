@@ -27,6 +27,9 @@ export const InvoiceEditorItemSchema = z.object({
     warehouse_id: z.string().uuid().optional(),
     variant_id: z.string().uuid().optional(),
     is_service: z.boolean().optional(),
+    batch_no: z.string().optional(),
+    expiry_date: z.string().optional(),
+    serial_numbers: z.array(z.string()).optional(),
   }).catchall(z.unknown()).optional().default({ tax_percent: 18, uom: 'Nos' }),
 });
 

@@ -81,6 +81,11 @@ const styles = StyleSheet.create({
     color: '#475569',
     textAlign: 'right',
   },
+  traceability: {
+    marginTop: 3,
+    fontSize: 7.5,
+    color: '#475569',
+  },
   companyName: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 15,
@@ -274,6 +279,17 @@ function getExtraColumnValue(value: unknown): string {
   return '-';
 }
 
+function getTraceabilityLine(meta: Record<string, unknown> | null | undefined): string | null {
+  if (!meta) return null;
+  const parts: string[] = [];
+  if (typeof meta.batch_no === 'string' && meta.batch_no.trim()) parts.push(`Batch: ${meta.batch_no}`);
+  if (typeof meta.expiry_date === 'string' && meta.expiry_date.trim()) parts.push(`Expiry: ${meta.expiry_date}`);
+  if (Array.isArray(meta.serial_numbers) && meta.serial_numbers.length > 0) {
+    parts.push(`Serial: ${meta.serial_numbers.filter((value): value is string => typeof value === 'string').join(', ')}`);
+  }
+  return parts.length > 0 ? parts.join('  |  ') : null;
+}
+
 function getClientCustomColumns(data: InvoicePdfData) {
   const showCustomColumn = data.invoice.template_type === 'client_custom';
   const templateLabel = data.template?.layout_json?.extra_column_label;
@@ -323,6 +339,9 @@ function InvoiceItemsTable({ data }: { data: InvoicePdfData }) {
         <View key={`${item.invoice_id ?? data.invoice.id}-line-${index}`} style={styles.tableRow} wrap={false}>
           <View style={[styles.tableCell, { width: widths[0] }]}>
             <Text>{stringValue(item.description)}</Text>
+            {getTraceabilityLine(item.meta_json) && (
+              <Text style={styles.traceability}>{getTraceabilityLine(item.meta_json)}</Text>
+            )}
           </View>
           {showCustomColumn && (
             <View style={[styles.tableCell, { width: widths[1] }]}>

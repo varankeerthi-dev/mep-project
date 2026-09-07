@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../supabase';
@@ -26,12 +26,12 @@ import {
   Loader2
 } from 'lucide-react';
 import { useInvoices, useDeleteInvoice } from '../hooks';
-import { downloadInvoicePDF, printInvoicePDF, emailInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
 import { DocumentStatusBadge } from '../../components/DocumentStatusBadge';
-import { PDFDocument } from 'pdf-lib';
-import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
-import AddSubmittedDetailsDrawer from '../components/AddSubmittedDetailsDrawer';
 import { Button } from '@/components/ui/button';
+
+// Lazy-load action drawers on demand
+const RecordPaymentDrawer = lazy(() => import('../components/RecordPaymentDrawer'));
+const AddSubmittedDetailsDrawer = lazy(() => import('../components/AddSubmittedDetailsDrawer'));
 
 const INVOICE_STATUSES = ['All', 'draft', 'sent', 'paid', 'overdue', 'cancelled', 'converted'];
 
@@ -276,10 +276,26 @@ export default function InvoiceListPage() {
     setSelectedIds(new Set());
   };
 
+  const handleDownloadPdf = async (invoice: any) => {
+    const { downloadInvoicePDF } = await import('../pdf');
+    downloadInvoicePDF(invoice);
+  };
+
+  const handlePrintPdf = async (invoice: any) => {
+    const { printInvoicePDF } = await import('../pdf');
+    printInvoicePDF(invoice);
+  };
+
+  const handleEmailPdf = async (invoice: any) => {
+    const { emailInvoicePDF } = await import('../pdf');
+    emailInvoicePDF(invoice);
+  };
+
   const handlePreviewPdf = async (invoice: any) => {
     setPreviewInvoice(invoice);
     setPreviewLoading(true);
     try {
+      const { getInvoicePdfBlobUrl } = await import('../pdf');
       const url = await getInvoicePdfBlobUrl(invoice);
       setPreviewPdfUrl(url);
     } finally {
@@ -500,9 +516,9 @@ export default function InvoiceListPage() {
                               <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/invoices/edit?id=${i.id}`); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PencilIcon className="w-3.5 h-3.5" />Edit Invoice</Button>
                               <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedInvoiceForSubmission(i); setSubmissionOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-blue-50 hover:text-blue-700 active:scale-[0.98]" style={{ padding: '6px' }}><PlusIcon className="w-3.5 h-3.5" />Add Submitted details</Button>
                               <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedInvoiceForPayment(i); setRecordPaymentOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 active:scale-[0.98]" style={{ padding: '6px' }}><CreditCardIcon className="w-3.5 h-3.5" />Record Payment</Button>
-                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); downloadInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</Button>
-                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); printInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PrinterIcon className="w-3.5 h-3.5" />Print</Button>
-                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); emailInvoicePDF(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><MailIcon className="w-3.5 h-3.5" />Email</Button>
+                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); handleDownloadPdf(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><DownloadIcon className="w-3.5 h-3.5" />Download PDF</Button>
+                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); handlePrintPdf(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><PrinterIcon className="w-3.5 h-3.5" />Print</Button>
+                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); handleEmailPdf(i); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]" style={{ padding: '6px' }}><MailIcon className="w-3.5 h-3.5" />Email</Button>
                               <div className="my-1 border-t border-zinc-100" />
                               <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); if(confirm('Delete invoice?')) deleteMutate(i.id!); }} className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]" style={{ padding: '6px' }}><Trash2Icon className="w-3.5 h-3.5" />Delete</Button>
                             </div>
@@ -544,7 +560,7 @@ export default function InvoiceListPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="default" size="sm" onClick={() => navigate(`/invoices/edit?id=${previewInvoice.id}`)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"><PencilIcon className="w-3.5 h-3.5" />Edit</Button>
-                <Button variant="default" size="sm" onClick={() => downloadInvoicePDF(previewInvoice)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"><DownloadIcon className="w-3.5 h-3.5" />Download</Button>
+                <Button variant="default" size="sm" onClick={() => handleDownloadPdf(previewInvoice)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"><DownloadIcon className="w-3.5 h-3.5" />Download</Button>
                 <Button variant="secondary" size="icon-xs" onClick={closePreview}><XIcon className="w-4 h-4 text-zinc-500" /></Button>
               </div>
             </div>
@@ -564,31 +580,35 @@ export default function InvoiceListPage() {
 
       {/* Record Payment Drawer */}
       {selectedInvoiceForPayment && (
-        <RecordPaymentDrawer
-          open={recordPaymentOpen}
-          onClose={() => {
-            setRecordPaymentOpen(false);
-            setSelectedInvoiceForPayment(null);
-          }}
-          invoice={selectedInvoiceForPayment}
-          onSuccess={() => {
-            setRecordPaymentOpen(false);
-            setSelectedInvoiceForPayment(null);
-            queryClient.invalidateQueries({ queryKey: ['invoices'] });
-          }}
-        />
+        <Suspense fallback={null}>
+          <RecordPaymentDrawer
+            open={recordPaymentOpen}
+            onClose={() => {
+              setRecordPaymentOpen(false);
+              setSelectedInvoiceForPayment(null);
+            }}
+            invoice={selectedInvoiceForPayment}
+            onSuccess={() => {
+              setRecordPaymentOpen(false);
+              setSelectedInvoiceForPayment(null);
+              queryClient.invalidateQueries({ queryKey: ['invoices'] });
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Submission Details Drawer */}
       {selectedInvoiceForSubmission && (
-        <AddSubmittedDetailsDrawer
-          open={submissionOpen}
-          onClose={() => {
-            setSubmissionOpen(false);
-            setSelectedInvoiceForSubmission(null);
-          }}
-          invoice={selectedInvoiceForSubmission}
-        />
+        <Suspense fallback={null}>
+          <AddSubmittedDetailsDrawer
+            open={submissionOpen}
+            onClose={() => {
+              setSubmissionOpen(false);
+              setSelectedInvoiceForSubmission(null);
+            }}
+            invoice={selectedInvoiceForSubmission}
+          />
+        </Suspense>
       )}
     </div>
   );
