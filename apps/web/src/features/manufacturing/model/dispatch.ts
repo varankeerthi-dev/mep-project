@@ -32,6 +32,7 @@ export interface DispatchItem {
   dispatched_qty: number;
   unit: string;
   batch_no?: string;
+  inventory_lot_id?: string | null;
   warehouse_id?: string | null;
   status: 'pending' | 'picking' | 'packed' | 'dispatched';
   organisation_id: string;

@@ -4,6 +4,9 @@ export interface ProductionEntry {
   job_card_id: string;
   actual_qty: number;
   output_unit: string;
+  batch_no?: string | null;
+  production_date?: string | null;
+  expiry_date?: string | null;
   notes?: string;
   production_start_time?: string;
   production_end_time?: string;

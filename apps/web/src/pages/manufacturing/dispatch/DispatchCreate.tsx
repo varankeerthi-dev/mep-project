@@ -5,7 +5,7 @@ import { ArrowLeft, Plus, Trash, Loader2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { supabase } from '../../../supabase';
 import { useMaterials } from '../../../hooks/useMaterials';
-import { useCreateDispatchOrderMutation } from '../../../features/manufacturing';
+import { fetchInventoryLots, useCreateDispatchOrderMutation, type InventoryLot } from '../../../features/manufacturing';
 
 type DispatchCreateProps = {
   onCancel: () => void;
@@ -19,6 +19,9 @@ interface DispatchItemFormLine {
   unit: string;
   sales_order_item_id?: string;
   available_stock: number;
+  available_lots: InventoryLot[];
+  inventory_lot_id?: string;
+  batch_no?: string;
 }
 
 export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreateProps) {
@@ -106,6 +109,10 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
 
       const fgWarehouseId = warehouses?.[0]?.id;
 
+      const materialIds = salesOrderItems.map((item: any) => item.material_id).filter(Boolean);
+      const availableLots = fgWarehouseId && organisation?.id
+        ? await fetchInventoryLots(organisation.id, materialIds, fgWarehouseId)
+        : [];
       const itemLines: DispatchItemFormLine[] = [];
 
       for (const item of salesOrderItems) {
@@ -130,7 +137,8 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
             picked_qty: remaining,
             unit: item.uom || item.material?.unit || 'Nos',
             sales_order_item_id: item.id,
-            available_stock: stock
+            available_stock: stock,
+            available_lots: availableLots.filter((lot) => lot.material_id === item.material_id),
           });
         }
       }
@@ -153,6 +161,9 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
       .eq('warehouse_purpose', 'fg');
 
     const fgWarehouseId = warehouses?.[0]?.id;
+    const availableLots = fgWarehouseId && organisation?.id
+      ? await fetchInventoryLots(organisation.id, [firstMaterial.id], fgWarehouseId)
+      : [];
     let stock = 0;
     if (fgWarehouseId) {
       const { data: stockRow } = await supabase
@@ -169,7 +180,8 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
       ordered_qty: 1,
       picked_qty: 1,
       unit: firstMaterial.unit || 'Nos',
-      available_stock: stock
+      available_stock: stock,
+      available_lots: availableLots,
     }]);
   };
 
@@ -185,6 +197,9 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
       .eq('warehouse_purpose', 'fg');
 
     const fgWarehouseId = warehouses?.[0]?.id;
+    const availableLots = fgWarehouseId && organisation?.id
+      ? await fetchInventoryLots(organisation.id, [materialId], fgWarehouseId)
+      : [];
     let stock = 0;
     if (fgWarehouseId) {
       const { data: stockRow } = await supabase
@@ -201,7 +216,8 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
       ...newItems[index],
       material_id: materialId,
       unit: selectedMat.unit || 'Nos',
-      available_stock: stock
+      available_stock: stock,
+      available_lots: availableLots,
     };
     setItems(newItems);
   };
@@ -253,6 +269,8 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
         packed_qty: 0,
         dispatched_qty: 0,
         unit: item.unit,
+        inventory_lot_id: item.inventory_lot_id || null,
+        batch_no: item.batch_no || null,
         status: 'pending'
       })),
       orgId: organisation?.id || ''
@@ -435,6 +453,7 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
                     <th style={{ padding: '8px 12px', fontWeight: 500, color: '#4b5563', width: '100px' }}>Available FG Stock</th>
                     <th style={{ padding: '8px 12px', fontWeight: 500, color: '#4b5563', width: '100px' }}>Ordered Qty</th>
                     <th style={{ padding: '8px 12px', fontWeight: 500, color: '#4b5563', width: '100px' }}>Picked Qty</th>
+                    <th style={{ padding: '8px 12px', fontWeight: 500, color: '#4b5563', width: '170px' }}>Batch / Lot</th>
                     <th style={{ padding: '8px 12px', fontWeight: 500, color: '#4b5563', width: '60px' }}>Unit</th>
                     {!selectedSOId && <th style={{ padding: '8px 12px', width: '50px' }}></th>}
                   </tr>
@@ -476,6 +495,30 @@ export default function DispatchCreate({ onCancel, onSuccess }: DispatchCreatePr
                               className="rounded border border-zinc-300 px-2 py-1 text-xs focus:outline-none"
                               style={{ width: '80px', height: '28px' }}
                             />
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {item.available_lots.length > 0 ? (
+                            <select
+                              value={item.inventory_lot_id || ''}
+                              onChange={(e) => {
+                                const lot = item.available_lots.find((candidate) => candidate.id === e.target.value);
+                                setItems((current) => current.map((line, lineIndex) => lineIndex === idx
+                                  ? { ...line, inventory_lot_id: lot?.id, batch_no: lot?.batch_no }
+                                  : line));
+                              }}
+                              className="rounded border border-zinc-300 px-2 py-1 text-xs focus:outline-none"
+                              style={{ width: '100%', height: '28px' }}
+                            >
+                              <option value="">Select batch</option>
+                              {item.available_lots.map((lot) => (
+                                <option key={lot.id} value={lot.id}>
+                                  {lot.batch_no} ({lot.quantity_available})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span style={{ color: '#9ca3af' }}>No tracked lots</span>
                           )}
                         </td>
                         <td style={{ padding: '8px 12px' }}>

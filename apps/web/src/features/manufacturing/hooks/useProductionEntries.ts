@@ -49,6 +49,8 @@ export function useCreateProductionEntryMutation(onSuccessCallback?: () => void)
         consumed_qty: number;
         wastage_qty: number;
         return_qty: number;
+        batch_no?: string | null;
+        remarks?: string | null;
       }[];
       orgId: string;
       userId: string;

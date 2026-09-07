@@ -40,6 +40,9 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
     job_card_id: jobCardId || '',
     actual_qty: 0,
     output_unit: 'nos',
+    batch_no: '',
+    production_date: new Date().toISOString().split('T')[0],
+    expiry_date: '',
     notes: '',
     production_start_time: '',
     production_end_time: '',
@@ -188,6 +191,9 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
       job_card_id: jobCardId || '',
       actual_qty: 0,
       output_unit: 'nos',
+      batch_no: '',
+      production_date: new Date().toISOString().split('T')[0],
+      expiry_date: '',
       notes: '',
       production_start_time: '',
       production_end_time: '',
@@ -218,6 +224,9 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
       const entryUpdates = {
         actual_qty: formData.actual_qty,
         output_unit: formData.output_unit || selectedJobCard?.output_unit,
+        batch_no: formData.batch_no.trim() || null,
+        production_date: formData.production_date || null,
+        expiry_date: formData.expiry_date || null,
         yield_pct: yieldPct,
         notes: formData.notes,
         production_start_time: formData.production_start_time || null,
@@ -242,6 +251,9 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
         job_card_id: formData.job_card_id,
         actual_qty: formData.actual_qty,
         output_unit: formData.output_unit || selectedJobCard?.output_unit,
+        batch_no: formData.batch_no.trim() || null,
+        production_date: formData.production_date || null,
+        expiry_date: formData.expiry_date || null,
         yield_pct: yieldPct,
         notes: formData.notes,
         production_start_time: formData.production_start_time || null,
@@ -319,7 +331,7 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
           {editingEntryId && (
             <Button
               variant="secondary"
-              onClick={() => { setEditingEntryId(null); setFormData({ job_card_id: jobCardId || '', actual_qty: 0, output_unit: 'nos', notes: '', production_start_time: '', production_end_time: '', operator_name: '', machine_name: '', scrap_byproducts: '' }); }}
+              onClick={() => { setEditingEntryId(null); setFormData({ job_card_id: jobCardId || '', actual_qty: 0, output_unit: 'nos', batch_no: '', production_date: new Date().toISOString().split('T')[0], expiry_date: '', notes: '', production_start_time: '', production_end_time: '', operator_name: '', machine_name: '', scrap_byproducts: '' }); }}
               type="button"
             >
               Cancel Edit
@@ -416,7 +428,38 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                     />
                   </div>
 
-                  {/* Row 2: Machine Name & Notes */}
+                  {/* Row 2: Batch & Dates */}
+                  <div>
+                    <label style={labelStyle}>Production Batch Number</label>
+                    <input
+                      type="text"
+                      value={formData.batch_no}
+                      onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })}
+                      placeholder="Leave blank to auto-generate"
+                      style={inputStyle}
+                    />
+                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>Created once for this production output and used by QC and packing.</div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Production Date</label>
+                    <input
+                      type="date"
+                      value={formData.production_date}
+                      onChange={(e) => setFormData({ ...formData, production_date: e.target.value })}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Expiry Date <span style={{ fontWeight: 400, color: '#9ca3af', textTransform: 'none' }}>(if applicable)</span></label>
+                    <input
+                      type="date"
+                      value={formData.expiry_date}
+                      onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {/* Row 3: Machine Name & Notes */}
                   <div>
                     <label style={labelStyle}>Machine Name / ID</label>
                     <input
@@ -603,6 +646,9 @@ export default function ProductionEntryForm({ onNavigate }: ProductionEntryFormP
                                   job_card_id: entry.job_card_id || '',
                                   actual_qty: entry.actual_qty || 0,
                                   output_unit: entry.output_unit || 'nos',
+                                  batch_no: entry.batch_no || '',
+                                  production_date: entry.production_date || entry.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+                                  expiry_date: entry.expiry_date || '',
                                   notes: entry.notes || '',
                                   production_start_time: entry.production_start_time?.split('T')[0] || '',
                                   production_end_time: entry.production_end_time?.split('T')[0] || '',

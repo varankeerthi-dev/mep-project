@@ -989,7 +989,7 @@ export default function BOQFormPage() {
       {/* Header Bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-4">
-          <Button variant="default" size="sm" onClick={() => navigate(-1)} className="p-1.5 hover:bg-zinc-100 rounded">
+          <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)} className="text-zinc-600 hover:text-zinc-900">
             <ArrowLeft className="h-5 w-5 text-zinc-600" />
           </Button>
           <h1 className="text-xl font-semibold text-zinc-800">{isEdit ? 'Edit BOQ' : 'New BOQ'}</h1>
@@ -1004,13 +1004,13 @@ export default function BOQFormPage() {
             </Button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 min-w-[160px]">
-                <Button variant="default" size="sm" onClick={exportToPDF}>
+                <Button variant="secondary" size="sm" onClick={exportToPDF} className="w-full justify-start px-3 border-0">
                   <FileSpreadsheet className="h-4 w-4" /> Export to PDF
                 </Button>
-                <Button variant="default" size="sm" onClick={exportToExcel}>
+                <Button variant="secondary" size="sm" onClick={exportToExcel} className="w-full justify-start px-3 border-0">
                   <Table className="h-4 w-4" /> Export to Excel
                 </Button>
-                <Button variant="default" size="sm" onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }} className="w-full px-4 py-2 text-sm text-left hover:bg-zinc-50 flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }} className="w-full justify-start px-3 border-0">
                   <Settings className="h-4 w-4" /> Export Settings
                 </Button>
               </div>
@@ -1022,7 +1022,7 @@ export default function BOQFormPage() {
             Stock Check
           </Button>
           <PermissionGuard permission="estimation.boq.update">
-            <Button variant="default" size="icon-xs" onClick={handleSave} disabled={isSaving} >
+            <Button variant="default" size="sm" onClick={handleSave} disabled={isSaving} className="px-3 gap-1.5">
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
@@ -1184,7 +1184,7 @@ export default function BOQFormPage() {
                   </Button>
                 )}
                 {sections.length > 1 && (
-                  <Button variant="default" size="sm" onClick={() => deleteSection(section.id)} className="p-0.5 text-zinc-400 hover:text-red-500 ml-0.5">
+                  <Button variant="ghost" size="icon-xs" onClick={() => deleteSection(section.id)} className="text-zinc-400 hover:text-red-500 ml-0.5" aria-label="Delete sheet">
                     <X className="h-3 w-3" />
                   </Button>
                 )}
@@ -1257,18 +1257,18 @@ export default function BOQFormPage() {
                             {col.key === 'rowControl' && (
                               <div className="flex items-center gap-0.5">
                                 <span className="text-zinc-300 cursor-grab"><GripVertical className="h-3 w-3" /></span>
-                                <Button variant="default" size="sm" onClick={() => deleteRow(virtualRow.index)} className="p-0.5 text-zinc-400 hover:text-red-500"><Trash2 className="h-3 w-3" /></Button>
+                                <Button variant="ghost" size="icon-xs" onClick={() => deleteRow(virtualRow.index)} className="text-zinc-400 hover:text-red-500" aria-label="Delete row"><Trash2 className="h-3 w-3" /></Button>
                               </div>
                             )}
                             {col.key === 'sno' && (
                               <div className="flex items-center gap-0.5 px-1">
                                 <span className="text-zinc-600">{isRowEmpty ? '' : sno}</span>
-                                <Button variant="default" size="sm" onClick={() => insertRow(virtualRow.index)} className="p-0.5 text-zinc-400 hover:text-blue-500 ml-auto"><Plus className="h-2.5 w-2.5" /></Button>
+                                <Button variant="ghost" size="icon-xs" onClick={() => insertRow(virtualRow.index)} className="text-zinc-400 hover:text-blue-500 ml-auto" aria-label="Insert row below"><Plus className="h-2.5 w-2.5" /></Button>
                               </div>
                             )}
                             {col.key === 'description' && (
                               <div className="relative">
-                                <input type="text" defaultValue={item.description || ''} key={`${item.id}-desc`}
+                                <input type="text" value={item.description || ''} key={`${item.id}-desc`}
                                   onFocus={(e) => {
                                     const rect = e.target.getBoundingClientRect();
                                     const filtered = materials.filter((m: any) => !item.description || (m.display_name || m.name || '').toLowerCase().includes(item.description.toLowerCase())).slice(0, 10);
@@ -1282,7 +1282,7 @@ export default function BOQFormPage() {
                                     const filtered = materials.filter((m: any) => (m.display_name || m.name || '').toLowerCase().includes(search)).slice(0, 10);
                                     setDropdownPortal({ sectionId: activeSectionId, rowIndex: virtualRow.index, items: filtered, position: { top: rect.bottom, left: rect.left, width: rect.width } });
                                   }}
-                                  onBlur={() => setTimeout(() => setDropdownPortal(null), 200)}
+                                  onBlur={() => setDropdownPortal(null)}
                                   ref={(el) => { inputRefs.current[`${activeSectionId}-${virtualRow.index}-material_id`] = el; }}
                                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); const next = FIELD_ORDER[0]; inputRefs.current[`${activeSectionId}-${virtualRow.index}-${next}`]?.focus(); } }}
                                   className="w-full px-1 py-0.5 text-[11px] border border-transparent focus:border-blue-400 rounded-none bg-transparent outline-none" />
@@ -1542,7 +1542,8 @@ export default function BOQFormPage() {
               <div className="px-3 py-2 text-xs text-zinc-400">No matches</div>
             ) : (
               dropdownPortal.items.map((m: any) => (
-                <div key={m.id} onClick={() => { handleMaterialPick(dropdownPortal.rowIndex, m); setDropdownPortal(null); }}
+                <div key={m.id}
+                  onMouseDown={(e) => { e.preventDefault(); handleMaterialPick(dropdownPortal.rowIndex, m); setDropdownPortal(null); }}
                   className="px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 border-b border-zinc-50 last:border-0">
                   {m.display_name || m.name}
                 </div>

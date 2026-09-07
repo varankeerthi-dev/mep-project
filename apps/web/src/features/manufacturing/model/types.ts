@@ -7,3 +7,4 @@ export { type Warehouse, type ItemStock, type MaterialRequisition, type Material
 export { type WorkCenter, type ProductionPlan, type ProductionPlanItem } from './plan';
 export { type IPQCCheckpoint, type IPQCInspection } from './ipqc';
 export { type WIPValuationSnapshot } from './wip';
+export { type InventoryLot } from './lot';

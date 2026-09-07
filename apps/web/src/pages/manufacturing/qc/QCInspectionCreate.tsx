@@ -139,7 +139,7 @@ export default function QCInspectionCreate({ onCancel, onSuccess }: QCInspection
         production_entry_id: selectedEntryId,
         job_card_id: selectedEntry.job_card_id,
         product_id: productId!,
-        batch_no: selectedEntry.entry_no, // Use production entry number as batch/lot reference
+        batch_no: selectedEntry.batch_no || selectedEntry.entry_no, // Keep legacy entries traceable while using the real production batch when present
         produced_qty: produced,
         sample_size: sampleSize || undefined,
         accepted_qty: acceptedQty,

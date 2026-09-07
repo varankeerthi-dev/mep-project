@@ -93,6 +93,9 @@ export async function createFGQCInspectionAggregate(
 
   // A. Process accepted_qty -> FG Warehouse
   if (createdInspection.accepted_qty > 0) {
+    const productionEntry = createdInspection.production_entry_id
+      ? await P.fetchProductionEntryById(createdInspection.production_entry_id)
+      : null;
     const fgStockRow = await P.fetchItemStockSingle(createdInspection.product_id, fgWh.id, orgId);
     if (fgStockRow) {
       await P.updateItemStock(fgStockRow.id!, fgStockRow.current_stock + createdInspection.accepted_qty);
@@ -120,6 +123,26 @@ export async function createFGQCInspectionAggregate(
       warehouse_id: fgWh.id,
       organisation_id: orgId
     }]);
+
+    if (createdInspection.batch_no) {
+      const { error: lotError } = await supabase.from('inventory_lots').upsert({
+        organisation_id: orgId,
+        material_id: createdInspection.product_id,
+        warehouse_id: fgWh.id,
+        batch_no: createdInspection.batch_no,
+        source_type: 'production',
+        source_id: createdInspection.production_entry_id || null,
+        production_entry_id: createdInspection.production_entry_id || null,
+        qc_inspection_id: createdInspection.id || null,
+        manufacture_date: productionEntry?.production_date || createdInspection.inspection_date || null,
+        expiry_date: productionEntry?.expiry_date || null,
+        quantity_received: createdInspection.accepted_qty,
+        quantity_available: createdInspection.accepted_qty,
+        status: 'available',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'organisation_id,material_id,warehouse_id,batch_no', ignoreDuplicates: true });
+      if (lotError) throw lotError;
+    }
   }
 
   // B. Process rejected_qty -> Rejection Warehouse

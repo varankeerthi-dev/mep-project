@@ -101,10 +101,21 @@ export async function confirmDispatchAggregate(
   for (const item of items) {
     const qty = item.dispatched_qty;
 
-    // Decrement Finished Goods stock
-    const fgStockRow = await P.fetchItemStockSingle(item.material_id, fgWarehouse.id, orgId);
-    if (fgStockRow) {
-      await P.updateItemStock(fgStockRow.id!, Math.max(0, fgStockRow.current_stock - qty));
+    if (item.inventory_lot_id) {
+      const { data: lotResult, error: lotError } = await supabase.rpc('consume_inventory_lot', {
+        p_lot_id: item.inventory_lot_id,
+        p_quantity: qty,
+        p_organisation_id: orgId,
+      });
+      if (lotError) throw lotError;
+      if (!lotResult?.ok) throw new Error(lotResult?.error || 'Unable to consume the selected inventory batch');
+    } else {
+      // Preserve the existing aggregate-stock path for legacy dispatches that
+      // were created before lot tracking was enabled.
+      const fgStockRow = await P.fetchItemStockSingle(item.material_id, fgWarehouse.id, orgId);
+      if (fgStockRow) {
+        await P.updateItemStock(fgStockRow.id!, Math.max(0, fgStockRow.current_stock - qty));
+      }
     }
 
     outwardItemsPayload.push({

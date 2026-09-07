@@ -121,6 +121,26 @@ export async function confirmGRNAcceptanceAggregate(
       accepted_qty: qtyToAdd,
       status: 'accepted'
     });
+
+    // Keep regulated/purchased stock traceable without changing the existing
+    // aggregate stock path for items that do not provide a batch number.
+    if (item.batch_no?.trim()) {
+      const { error: lotError } = await supabase.from('inventory_lots').upsert({
+        organisation_id: orgId,
+        material_id: item.material_id,
+        warehouse_id: mainStore.id,
+        batch_no: item.batch_no.trim(),
+        source_type: 'purchase',
+        source_id: grnId,
+        manufacture_date: grn.receipt_date || null,
+        expiry_date: item.expiry_date || null,
+        quantity_received: qtyToAdd,
+        quantity_available: qtyToAdd,
+        status: 'available'
+      }, { onConflict: 'organisation_id,material_id,warehouse_id,batch_no' });
+
+      if (lotError) throw lotError;
+    }
   }
 
   const inwardHeader = await P.insertMaterialInward({

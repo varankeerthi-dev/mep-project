@@ -1,5 +1,6 @@
 import { supabase } from '../../../supabase';
 import { ProductionEntry, ProductionEntryItem, ActivityLog } from '../model/types';
+import type { InventoryLot } from '../model/types';
 
 export async function fetchProductionEntries(jobCardId?: string, orgId: string) {
   let query = supabase.from('production_entries').select('*, production_entry_items(*)').eq('organisation_id', orgId);
@@ -15,6 +16,37 @@ export async function fetchProductionEntryById(id: string) {
   const { data, error } = await supabase.from('production_entries').select('*, production_entry_items(*)').eq('id', id).single();
   if (error) throw error;
   return data;
+}
+
+export async function fetchInventoryLots(orgId: string, materialIds: string[], warehouseId?: string) {
+  if (materialIds.length === 0) return [] as InventoryLot[];
+  let query = supabase
+    .from('inventory_lots')
+    .select('*')
+    .eq('organisation_id', orgId)
+    .in('material_id', materialIds)
+    .eq('status', 'available')
+    .gt('quantity_available', 0)
+    .order('expiry_date', { ascending: true, nullsFirst: false });
+  if (warehouseId) query = query.eq('warehouse_id', warehouseId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as InventoryLot[];
+}
+
+export async function updateInventoryLotQuantity(id: string, quantityAvailable: number) {
+  const { data, error } = await supabase
+    .from('inventory_lots')
+    .update({
+      quantity_available: Math.max(0, quantityAvailable),
+      status: quantityAvailable > 0 ? 'available' : 'exhausted',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as InventoryLot;
 }
 
 export async function fetchProductionEntryItems(entryId: string) {
