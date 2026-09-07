@@ -6,17 +6,17 @@
 
 // ─── Inputs ──────────────────────────────────────────────────
 
-/** 46px tall text input, 10px radius, softer border */
+/** 36px tall text input, 8px radius, softer border */
 export const inputField =
-  'h-[46px] w-full min-w-0 !rounded-[10px] !border !border-[#E2E5EB] bg-white !px-5 !py-0 text-[14px] font-normal text-[#111827] transition-[border-color,box-shadow] outline-none placeholder:text-[#9CA3AF] hover:border-[#C7D2FE] focus-visible:border-[#6366F1] focus-visible:shadow-[0_0_0_4px_rgba(99,102,241,0.10)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
+  'h-[36px] w-full min-w-0 !rounded-lg !border !border-[#E2E5EB] bg-white !px-5 !py-0 text-[13px] font-normal text-[#111827] transition-[border-color,box-shadow] outline-none placeholder:text-[#9CA3AF] hover:border-[#C7D2FE] focus-visible:border-[#6366F1] focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.10)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
 
 /** Compact input for table cells (40px height, softer border, more padding) */
 export const inputFieldSm =
   'h-10 w-full min-w-0 !rounded-lg !border !border-[#E2E5EB] bg-white !px-4 !py-0 text-[14px] font-normal text-[#111827] transition-[border-color,box-shadow] outline-none placeholder:text-[#9CA3AF] hover:border-[#C7D2FE] focus-visible:border-[#6366F1] focus-visible:shadow-[0_0_0_4px_rgba(99,102,241,0.10)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
 
-/** 46px select matching input styling */
+/** 36px select matching input styling */
 export const selectField =
-  'h-[46px] w-full min-w-0 cursor-pointer appearance-none !rounded-[10px] !border !border-[#E2E5EB] bg-white !pl-5 !pr-10 !py-0 text-[14px] font-normal text-[#111827] transition-[border-color,box-shadow] outline-none hover:border-[#C7D2FE] focus-visible:border-[#6366F1] focus-visible:shadow-[0_0_0_4px_rgba(99,102,241,0.10)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
+  'h-[36px] w-full min-w-0 cursor-pointer appearance-none !rounded-lg !border !border-[#E2E5EB] bg-white !pl-5 !pr-10 !py-0 text-[13px] font-normal text-[#111827] transition-[border-color,box-shadow] outline-none hover:border-[#C7D2FE] focus-visible:border-[#6366F1] focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.10)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]';
 
 /** Compact select for table cells (40px height, softer border, more padding) */
 export const selectFieldSm =

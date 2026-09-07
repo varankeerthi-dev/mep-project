@@ -4,6 +4,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useReactTable, getCoreRowModel } from '@tanstack/react-table';
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { Package, IndianRupee, Tag, Layers, Download } from 'lucide-react';
 import { useMaterialsPageData } from '../../../hooks/useMaterialsPageData';
 import { useUnits } from '../../../hooks/useUnits';
 import { useMaterialForm } from '../hooks/useMaterialForm';
@@ -84,6 +85,26 @@ export function ItemsTab() {
     return map;
   }, [stock]);
 
+  // ─── KPI Stats ──────────────────────────────────────────────
+  const kpiStats = useMemo(() => {
+    const active = materials.filter((m: any) => m.is_active);
+    const totalSKUs = active.length;
+    const totalStockValue = active.reduce((sum: number, m: any) => {
+      const qty = stockData[m.id] || 0;
+      const price = m.purchase_price || m.sale_price || 0;
+      return sum + qty * price;
+    }, 0);
+    const kgItems = active.filter((m: any) => m.unit === 'kg');
+    const avgRate = kgItems.length > 0
+      ? kgItems.reduce((s: number, m: any) => s + (m.sale_price || 0), 0) / kgItems.length
+      : 0;
+    const belowReorder = active.filter((m: any) => {
+      const qty = stockData[m.id] || 0;
+      return qty > 0 && qty <= (m.reorder_level || 0);
+    }).length;
+    return { totalSKUs, totalStockValue, avgRate, belowReorder };
+  }, [materials, stockData]);
+
   const refreshMaterials = useCallback(async () => { await refetch(); }, [refetch]);
   const updateMaterialsCache = useCallback((updater: any) => {
     queryClient.setQueryData(['materials-page-data', orgId], (old: any) => {
@@ -146,6 +167,32 @@ export function ItemsTab() {
               m.hsn_code?.toLowerCase().includes(term));
     });
   }, [materials, searchTerm, categoryFilter, hideInactive]);
+
+  // ─── CSV Export ─────────────────────────────────────────────
+  const exportCsv = useCallback(() => {
+    const headers = ['Code', 'Name', 'Category', 'Unit', 'Sale Price', 'Purchase Price', 'HSN', 'GST %', 'Stock Qty', 'Reorder Level', 'Status'];
+    const rows = filteredMaterials.map((m: any) => [
+      m.item_code || '',
+      m.display_name || m.name || '',
+      m.main_category || '',
+      m.unit || '',
+      m.sale_price || 0,
+      m.purchase_price || 0,
+      m.hsn_code || '',
+      m.gst_rate ?? '',
+      stockData[m.id] || 0,
+      m.reorder_level || '',
+      m.is_active ? 'Active' : 'Inactive',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `items-catalogue-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredMaterials, stockData]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMaterials.length / DEFAULT_PAGE_SIZE));
   const paginatedMaterials = useMemo(() => {
@@ -354,7 +401,7 @@ export function ItemsTab() {
           onBulkImport={() => { setMultiItemRows([createEmptyRow()]); setShowMultiItemModal(true); }}
           onBulkPrice={bulk.openBulkPriceModal}
           onColumnSettings={() => setShowColumnSettings(!showColumnSettings)}
-          onExport={() => setShowExcelEditor(true)}
+          onExport={exportCsv}
           onExcelEdit={() => setShowExcelEditor(true)}
           categoryFilter={categoryFilter}
           categoryOptions={categoryOptions}
@@ -394,6 +441,14 @@ export function ItemsTab() {
           {form.saveNotice}
         </div>
       )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard icon={Package} label="SKUs Listed" value={String(kpiStats.totalSKUs)} sub={`${categoryOptions.length} categories`} tone="brand" />
+        <KpiCard icon={IndianRupee} label="Catalogue Value" value={`₹${kpiStats.totalStockValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} sub="At purchase cost" tone="violet" />
+        <KpiCard icon={Tag} label="Avg Sale Rate" value={kpiStats.avgRate > 0 ? `₹${kpiStats.avgRate.toFixed(0)}/kg` : '—'} sub="Across kg-based items" tone="sky" />
+        <KpiCard icon={Layers} label="Below Reorder" value={String(kpiStats.belowReorder)} sub={kpiStats.belowReorder > 0 ? 'Needs purchase order' : 'All stock healthy'} tone={kpiStats.belowReorder > 0 ? 'amber' : 'green'} />
+      </div>
 
       {/* Editor Dialog */}
       <ItemEditorDialog
@@ -500,6 +555,34 @@ export function ItemsTab() {
         onPreview={bulk.parseBulkPriceRows}
         onApply={() => bulk.applyBulkPriceUpdates(refreshMaterials, transactions.loadItemTransactions, selectedMaterialId)}
       />
+    </div>
+  );
+}
+
+/* ── KPI Card ────────────────────────────────────────────────── */
+const TONE_MAP: Record<string, { bg: string; icon: string; border: string }> = {
+  brand:  { bg: 'bg-blue-50',   icon: 'text-blue-600',   border: 'border-blue-200' },
+  violet: { bg: 'bg-violet-50', icon: 'text-violet-600', border: 'border-violet-200' },
+  sky:    { bg: 'bg-sky-50',    icon: 'text-sky-600',    border: 'border-sky-200' },
+  amber:  { bg: 'bg-amber-50',  icon: 'text-amber-600',  border: 'border-amber-200' },
+  green:  { bg: 'bg-green-50',  icon: 'text-green-600',  border: 'border-green-200' },
+  red:    { bg: 'bg-red-50',    icon: 'text-red-600',    border: 'border-red-200' },
+};
+
+function KpiCard({ icon: Icon, label, value, sub, tone = 'brand' }: {
+  icon: typeof Package; label: string; value: string; sub: string; tone?: string;
+}) {
+  const t = TONE_MAP[tone] || TONE_MAP.brand;
+  return (
+    <div className={`rounded-xl border ${t.border} bg-white p-4 shadow-sm flex items-start gap-3`}>
+      <div className={`w-9 h-9 rounded-lg ${t.bg} flex items-center justify-center shrink-0`}>
+        <Icon size={16} className={t.icon} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{label}</p>
+        <p className="text-lg font-bold text-zinc-800 tabular-nums leading-tight mt-0.5">{value}</p>
+        <p className="text-[11px] text-zinc-400 mt-0.5 truncate">{sub}</p>
+      </div>
     </div>
   );
 }

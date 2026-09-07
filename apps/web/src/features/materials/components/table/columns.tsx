@@ -114,21 +114,21 @@ export function buildColumns(
             id: 'actions',
             header: 'Actions',
             cell: ({ row }) => (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button variant="default" size="default" onClick={() => onView(row.original)}
-                  className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 transition-colors"
+              <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon-sm" onClick={() => onView(row.original)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent"
                   title="View"
                 >
                   <Eye className="w-4 h-4" />
                 </Button>
-                <Button variant="default" size="default" onClick={() => onEdit(row.original)}
-                  className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 transition-colors"
+                <Button variant="ghost" size="icon-sm" onClick={() => onEdit(row.original)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent"
                   title="Edit"
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
-                <Button variant="default" size="default" onClick={() => onDelete(row.original)}
-                  className="p-1.5 rounded-md hover:bg-red-50 text-zinc-500 hover:text-red-600 transition-colors"
+                <Button variant="ghost" size="icon-sm" onClick={() => onDelete(row.original)}
+                  className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />

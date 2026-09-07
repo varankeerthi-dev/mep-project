@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
 import { EditorSection } from './EditorSection';
-import { inputField, inputFieldSm, fieldLabel, addButton, addLink } from './formStyles';
+import { inputField, inputFieldSm, selectFieldSm, fieldLabel, addButton, addLink } from './formStyles';
 import { supabase } from '../../../../supabase';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { Plus, ChevronDown, Check } from 'lucide-react';
@@ -26,7 +26,7 @@ interface BasicInformationSectionProps {
   onUnitCreated?: (newUnit: string) => void;
 }
 
-const fieldSpacing = 'space-y-2';
+const fieldSpacing = 'space-y-3';
 
 export function BasicInformationSection({
   color,
@@ -55,6 +55,8 @@ export function BasicInformationSection({
   const [newUnitName, setNewUnitName] = useState('');
   const [isSavingUnit, setIsSavingUnit] = useState(false);
   const unitDropdownRef = useRef<HTMLDivElement>(null);
+  const [openAltIdx, setOpenAltIdx] = useState<number | null>(null);
+  const altDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -63,6 +65,9 @@ export function BasicInformationSection({
       }
       if (unitDropdownRef.current && !unitDropdownRef.current.contains(e.target as Node)) {
         setIsUnitDropdownOpen(false);
+      }
+      if (altDropdownRef.current && !altDropdownRef.current.contains(e.target as Node)) {
+        setOpenAltIdx(null);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -231,16 +236,16 @@ export function BasicInformationSection({
                   onChange={(e) => { setSearchText(e.target.value); setIsDropdownOpen(true); }}
                   onFocus={() => setIsDropdownOpen(true)}
                   placeholder="Search or select category..."
-                  className={inputField}
+                  className={inputField + ' !pr-10'}
                 />
                 <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7280]"
+                  size={14}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280]"
                 />
                 {isDropdownOpen && (
                   <div className={dropdownPanel}>
                     <div
-                      className="cursor-pointer border-b border-[#F1F5F9] px-3 py-2 text-xs italic text-[#6B7280] hover:bg-[#F8FAFC]"
+                      className="cursor-pointer border-b border-[#F1F5F9] px-3 py-1.5 text-xs italic text-[#6B7280] hover:bg-[#F8FAFC]"
                       onClick={() => { onChange('main_category', ''); setIsDropdownOpen(false); setSearchText(''); }}
                     >
                       Clear selection
@@ -250,7 +255,7 @@ export function BasicInformationSection({
                       return (
                         <div
                           key={c}
-                          className={`flex cursor-pointer items-center justify-between border-b border-[#F1F5F9] px-4 py-2.5 text-sm transition-colors ${
+                          className={`flex cursor-pointer items-center justify-between border-b border-[#F1F5F9] px-4 py-1.5 text-sm transition-colors ${
                             isSelected ? 'bg-[#EEF2FF] font-semibold text-[#111827]' : 'text-[#6B7280] hover:bg-[#F8FAFC]'
                           }`}
                           onClick={() => { onChange('main_category', c); setSearchText(''); setIsDropdownOpen(false); }}
@@ -261,7 +266,7 @@ export function BasicInformationSection({
                       );
                     })}
                     {filteredCategories.length === 0 && (
-                      <div className="px-3 py-3 text-center text-xs italic text-[#6B7280]">
+                      <div className="px-3 py-2 text-center text-xs italic text-[#6B7280]">
                         No categories found
                       </div>
                     )}
@@ -326,11 +331,11 @@ export function BasicInformationSection({
                   onFocus={() => setIsUnitDropdownOpen(true)}
                   placeholder="Search or select unit..."
                   data-required="true"
-                  className={inputField}
+                  className={inputField + ' !pr-10'}
                 />
                 <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#6B7280]"
+                  size={14}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280]"
                 />
                 {isUnitDropdownOpen && (
                   <div className={dropdownPanel}>
@@ -339,7 +344,7 @@ export function BasicInformationSection({
                       return (
                         <div
                           key={u.unit_code}
-                          className={`flex cursor-pointer items-center justify-between border-b border-[#F1F5F9] px-4 py-2.5 text-sm transition-colors ${
+                          className={`flex cursor-pointer items-center justify-between border-b border-[#F1F5F9] px-4 py-1.5 text-sm transition-colors ${
                             isSelected ? 'bg-[#EEF2FF] font-semibold text-[#111827]' : 'text-[#6B7280] hover:bg-[#F8FAFC]'
                           }`}
                           onClick={() => { onChange('unit', u.unit_code); setUnitSearchText(''); setIsUnitDropdownOpen(false); }}
@@ -373,56 +378,91 @@ export function BasicInformationSection({
                 <Plus size={14} /> Add Alternative Unit
               </Button>
             ) : (
-              <div className="mt-2 space-y-2 rounded-xl border border-dashed border-[#D6DAE6] bg-[#F8FAFC] p-3">
+              <div className="mt-3 space-y-2 rounded-xl border border-dashed border-[#D6DAE6] bg-[#F8FAFC] p-3 text-[10px]">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-[#6B7280]">Alternative Units</span>
-                  <Button variant="default" size="sm" type="button" onClick={() => {
+                  <span className="text-[10px] font-semibold text-[#6B7280]">Alternative Units</span>
+                  <button type="button" onClick={() => {
                       onChange('has_alternative_unit', false);
                       onChange('alternative_units', []);
                     }}
-                    className="text-[10px] font-medium text-[#EF4444] hover:underline"
+                    className="text-[10px] font-medium text-[#EF4444] hover:underline cursor-pointer"
                   >
                     Clear All
-                  </Button>
+                  </button>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2.5">
                   {(formData.alternative_units || []).map((altRow: any, altIdx: number) => (
                     <div key={altIdx} className="flex items-center gap-2">
-                      <span className="whitespace-nowrap text-[11px] text-[#6B7280]">1 {formData.unit || 'Nos'} =</span>
+                      <span className="whitespace-nowrap text-[10px] text-[#6B7280]">1 {formData.unit || 'Nos'} =</span>
                       <Input
                         type="text"
-                        placeholder="Conversion"
+                        inputMode="decimal"
+                        placeholder="Conv."
                         value={altRow.conversion_factor}
-                        onChange={(e) => updateAlternativeUnitRow(altIdx, 'conversion_factor', e.target.value)}
-                        className={inputFieldSm + ' w-20'}
+                        onKeyDown={(e) => {
+                          if (!/[0-9.]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                          if (e.key === '.' && altRow.conversion_factor.includes('.')) {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          const filtered = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                          updateAlternativeUnitRow(altIdx, 'conversion_factor', filtered);
+                        }}
+                        className={inputFieldSm + ' !h-8 !w-16 shrink-0 !text-[11px] !px-2.5'}
                       />
 
-                      <select
-                        value={altRow.unit_name}
-                        onChange={(e) => updateAlternativeUnitRow(altIdx, 'unit_name', e.target.value)}
-                        className={inputFieldSm + ' flex-1 cursor-pointer'}
-                      >
-                        <option value="">Select Unit</option>
-                        {unitOptions.filter(u => u.unit_code !== formData.unit).map(u => (
-                          <option key={u.unit_code} value={u.unit_code}>
-                            {u.unit_code} {u.unit_name ? `(${u.unit_name})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <div ref={altIdx === openAltIdx ? altDropdownRef : undefined} className="relative min-w-[100px] flex-1">
+                        <button
+                          type="button"
+                          onClick={() => setOpenAltIdx(openAltIdx === altIdx ? null : altIdx)}
+                          className={selectFieldSm + ' !h-8 !min-w-[110px] !text-[11px] !pl-2.5 !pr-7 text-left'}
+                        >
+                          {altRow.unit_name || <span className="text-[#9CA3AF]">Select Unit</span>}
+                        </button>
+                        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                        {openAltIdx === altIdx && (
+                          <div className="absolute left-0 top-full z-50 mt-1 min-w-full max-h-40 overflow-y-auto rounded-lg border border-[#E7EAF1] bg-white py-1 shadow-[0_8px_24px_rgba(16,24,40,0.08)]">
+                            <div
+                              className="cursor-pointer border-b border-[#F1F5F9] px-3 py-1.5 text-xs italic text-[#6B7280] hover:bg-[#F8FAFC]"
+                              onClick={() => { updateAlternativeUnitRow(altIdx, 'unit_name', ''); setOpenAltIdx(null); }}
+                            >
+                              Clear selection
+                            </div>
+                            {unitOptions.filter(u => u.unit_code !== formData.unit).map(u => {
+                              const isSelected = altRow.unit_name === u.unit_code;
+                              return (
+                                <div
+                                  key={u.unit_code}
+                                  className={`flex cursor-pointer items-center justify-between whitespace-nowrap border-b border-[#F1F5F9] px-3 py-1.5 text-xs transition-colors ${
+                                    isSelected ? 'bg-[#EEF2FF] font-semibold text-[#111827]' : 'text-[#6B7280] hover:bg-[#F8FAFC]'
+                                  }`}
+                                  onClick={() => { updateAlternativeUnitRow(altIdx, 'unit_name', u.unit_code); setOpenAltIdx(null); }}
+                                >
+                                  <span className="truncate"><strong>{u.unit_code}</strong>{u.unit_name ? ` — ${u.unit_name}` : ''}</span>
+                                  {isSelected && <Check size={12} className="text-[#4F46E5]" />}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
 
-                      <Button variant="default" size="sm" type="button" onClick={() => removeAlternativeUnitRow(altIdx)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#EF4444]/40 text-[#EF4444] transition-colors hover:bg-[#EF4444]/10"
+                      <button type="button" onClick={() => removeAlternativeUnitRow(altIdx)}
+                        className="flex !h-8 !w-8 shrink-0 items-center justify-center rounded border border-transparent text-[12px] font-medium text-[#9CA3AF] transition-colors hover:border-[#FEE2E2] hover:bg-[#FEF2F2] hover:text-[#EF4444]"
                       >
                         ×
-                      </Button>
+                      </button>
                     </div>
                   ))}
                 </div>
 
-                <Button variant="default" size="sm" type="button" onClick={addAlternativeUnitRow} className={addLink} >
+                <button type="button" onClick={addAlternativeUnitRow} className={addLink} >
                   <Plus size={14} /> Add Another Row
-                </Button>
+                </button>
               </div>
             )}
           </div>

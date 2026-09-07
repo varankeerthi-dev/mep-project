@@ -141,48 +141,48 @@ export function ItemEditorDialog({
           </div>
         }
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {CLASSIFICATION_OPTIONS.filter(o => !o.requiresMfg || manufacturingEnabled).map((opt) => {
             const isSelected = formData.item_classification === opt.value;
             const Icon = CLASS_ICONS[opt.value] || Boxes;
             const colors = CLASS_COLORS[opt.value] || { icon: '#6B7280', bg: '#F3F4F6' };
             return (
-              <Button variant="default" size="sm" key={opt.value} type="button" onClick={() => onClassificationChange(opt.value)}
-                className={`group relative flex h-[100px] items-center gap-4 p-8 text-left transition-all duration-180 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/40 focus-visible:ring-offset-1 classification-card ${
+              <button key={opt.value} type="button" onClick={() => onClassificationChange(opt.value)}
+                className={`group relative flex min-h-[80px] items-center gap-3 rounded-xl px-4 py-3.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/40 focus-visible:ring-offset-1 ${
                   isSelected
-                    ? 'border-2 border-[#6366F1] bg-[#EEF2FF]'
-                    : 'border border-[#E7EAF1] bg-white hover:border-[#818CF8] hover:bg-[#FAFAFF]'
+                    ? 'border-2 border-[#6366F1] bg-[#EEF2FF] shadow-sm'
+                    : 'border border-[#E2E5EB] bg-white hover:border-[#818CF8]/50 hover:bg-[#FAFAFF] hover:shadow-sm'
                 }`}
               >
                 {/* Icon */}
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center transition-colors duration-180 icon-circle"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150"
                   style={{ backgroundColor: colors.bg, color: colors.icon }}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4.5 w-4.5" />
                 </span>
                 {/* Label + Description */}
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold leading-5 text-[#111827]">
+                  <div className="text-[13px] font-semibold leading-4 text-[#111827]">
                     {opt.label}
                   </div>
-                  <div className="mt-0.5 text-xs leading-4 text-[#6B7280]">
+                  <div className="mt-0.5 text-[11px] leading-3.5 text-[#6B7280] line-clamp-2">
                     {opt.desc}
                   </div>
                 </div>
                 {/* Radio indicator */}
                 <span
-                  className={`radio-indicator flex h-5 w-5 shrink-0 items-center justify-center border-2 transition-all duration-180 ${
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150 ${
                     isSelected
                       ? 'border-[#6366F1] bg-[#6366F1]'
                       : 'border-[#D1D5DB] bg-white group-hover:border-[#6366F1]/40'
                   }`}
                 >
                   {isSelected && (
-                    <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                    <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
                   )}
                 </span>
-              </Button>
+              </button>
             );
           })}
         </div>
@@ -216,7 +216,7 @@ export function ItemEditorDialog({
           onChange={handleChange}
         />
         <EditorSection color="blue" title="Discount Category" description="Choose a discount category for this item (used in quotations).">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-[13px] font-semibold text-[#374151]">Discount Category</label>
             <div className="relative">
               <select
@@ -304,12 +304,14 @@ export function ItemEditorDialog({
   // ── Page variant: full page with breadcrumb header ──────────────────────
   if (asPage) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: '#FFFFFF' }}>
-        {/* Sticky Top Bar with Breadcrumb + Actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FFFFFF', overflow: 'hidden' }}>
+        {/* Top Bar with Breadcrumb + Actions */}
         <div style={{
-          position: 'sticky', top: 0, zIndex: 20,
-          background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(12px)',
+          flexShrink: 0,
+          background: '#FFFFFF',
           borderBottom: '1px solid #E5E7EB',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+          zIndex: 2,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 32px', maxWidth: 1450, margin: '0 auto', width: '100%' }}>
             <Button
@@ -349,9 +351,10 @@ export function ItemEditorDialog({
         </div>
 
         {/* Page container: max 1450px, centered */}
-        <div style={{ maxWidth: 1450, width: '100%', margin: '0 auto', padding: '24px 32px 48px', boxSizing: 'border-box' }}>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ maxWidth: 1450, width: '100%', margin: '0 auto', padding: '12px 32px 48px', boxSizing: 'border-box' }}>
           {/* Page Title */}
-          <div style={{ padding: '16px 0 24px' }}>
+          <div style={{ padding: '8px 0 16px' }}>
             <h1 style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.01em', color: '#111827', margin: 0 }}>
               {editingMaterial ? 'Edit Item' : 'Add New Material'}
             </h1>
@@ -361,6 +364,7 @@ export function ItemEditorDialog({
           <div style={{ width: '100%' }}>
             {formBody}
           </div>
+        </div>
         </div>
       </div>
     );

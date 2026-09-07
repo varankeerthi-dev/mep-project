@@ -68,13 +68,13 @@ export function VariantPricingSection({
 
             {variantPricing.map((row) => (
               <div key={row.id} className="flex items-center gap-2 rounded-xl p-2.5">
-                <div className="relative w-40 shrink-0">
+                <div className="relative w-[130px] shrink-0">
                   <select
                     className={selectFieldSm}
                     value={row.company_variant_id}
                     onChange={(e) => onRowChange(row.id, 'company_variant_id', e.target.value)}
                   >
-                    <option value="">Select category</option>
+                    <option value="">Category</option>
                     {variants.map(v => (
                       <option key={v.id} value={v.id}>{v.variant_name}</option>
                     ))}
@@ -84,33 +84,33 @@ export function VariantPricingSection({
                 <Input
                   value={row.make}
                   onChange={(e) => onRowChange(row.id, 'make', e.target.value)}
-                  placeholder="Make/Brand"
-                  className={inputFieldSm + ' w-32'}
+                  placeholder="Make"
+                  className={inputFieldSm + ' w-[100px] shrink-0'}
                 />
-                <div className="relative w-40 shrink-0">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">₹</span>
+                <div className="relative min-w-0 flex-1">
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#6B7280]">₹</span>
                   <Input
                     value={row.sale_price}
                     onChange={(e) => onRowChange(row.id, 'sale_price', e.target.value)}
-                    placeholder="Sale Price"
+                    placeholder="Sale"
                     type="number"
                     step="0.01"
-                    className={inputFieldSm + ' pl-9'}
+                    className={inputFieldSm + ' !pl-7 text-[12px]'}
                   />
                 </div>
-                <div className="relative w-40 shrink-0">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">₹</span>
+                <div className="relative min-w-0 flex-1">
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#6B7280]">₹</span>
                   <Input
                     value={row.purchase_price}
                     onChange={(e) => onRowChange(row.id, 'purchase_price', e.target.value)}
-                    placeholder="Purchase Price"
+                    placeholder="Purchase"
                     type="number"
                     step="0.01"
-                    className={inputFieldSm + ' pl-9'}
+                    className={inputFieldSm + ' !pl-7 text-[12px]'}
                   />
                 </div>
                 <Button variant="default" size="default" onClick={() => onRemoveRow(row.id)}
-                  className="ml-2 rounded-lg p-1.5 text-[#6B7280] transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+                  className="ml-1 rounded-lg p-1.5 text-[#6B7280] transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

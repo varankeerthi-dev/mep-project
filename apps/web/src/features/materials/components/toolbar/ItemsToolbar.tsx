@@ -102,17 +102,14 @@ export function ItemsToolbar({
 
         <div className="w-px h-6 bg-zinc-200" />
 
-        <Button variant="secondary" size="sm" onClick={onAddItem} className="h-8 text-xs gap-1.5">
+        <Button onClick={onAddItem} className="h-8 text-xs gap-1.5">
           <Plus className="w-3.5 h-3.5" /> Add Item
         </Button>
         <Button variant="secondary" size="sm" onClick={onBulkImport} className="h-8 text-xs gap-1.5">
           <TableIcon className="w-3.5 h-3.5" /> Multi-Item
         </Button>
-        <Button variant="secondary" size="sm" onClick={onBulkPrice} className="h-8 text-xs gap-1.5">
-          <Download className="w-3.5 h-3.5" /> Update Prices
-        </Button>
         <Button variant="secondary" size="sm" onClick={onExport} className="h-8 text-xs gap-1.5">
-          <TableIcon className="w-3.5 h-3.5" /> Export
+          <Download className="w-3.5 h-3.5" /> Export CSV
         </Button>
         <Button variant="secondary" size="sm" onClick={onColumnSettings} className="h-8 text-xs gap-1.5">
           <Settings className="w-3.5 h-3.5" /> Columns

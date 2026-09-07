@@ -59,7 +59,7 @@ export function EditorSection({
       <div className="flex items-center justify-between px-6 pb-0 pt-5">
         {/* Left: Title + Badge */}
         <div className="flex min-w-0 items-center gap-2.5">
-          <Button variant="default" size="icon-xs" type="button" onClick={onToggle} tabIndex={collapsible ? 0 : -1} aria-expanded={collapsible ? isOpen : undefined} className={cn( 'flex items-center gap-2.5 text-left', collapsible ? 'cursor-pointer rounded-lg px-1 py-0.5 -ml-1 transition-colors hover:bg-[#F3F4F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/30' : 'cursor-default' )} >
+          <Button variant="ghost" size="sm" type="button" onClick={onToggle} tabIndex={collapsible ? 0 : -1} aria-expanded={collapsible ? isOpen : undefined} className={cn( 'flex items-center gap-2.5 text-left h-auto p-0', collapsible ? 'cursor-pointer rounded-lg px-1 py-0.5 -ml-1 transition-colors hover:bg-[#F3F4F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/30' : 'cursor-default' )} >
             <span className={cn('text-[17px] font-semibold tracking-tight text-[#111827]', colorStyle.title)}>
               {title}
             </span>

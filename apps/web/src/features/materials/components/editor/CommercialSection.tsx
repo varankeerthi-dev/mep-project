@@ -35,10 +35,10 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
         onToggle={() => setCollapsed(!collapsed)}
       >
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className={fieldLabel}>Sale Price</label>
             <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">&#8377;</span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#6B7280]">&#8377;</span>
               <Input
                 value={formData.sale_price}
                 onChange={(e) => onChange('sale_price', e.target.value)}
@@ -46,14 +46,23 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
                 type="number"
                 step="0.01"
                 min="0"
-                className={inputField + ' pl-10'}
+                inputMode="decimal"
+                onKeyDown={(e) => {
+                  if (!/[0-9.]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                  if (e.key === '.' && formData.sale_price.includes('.')) {
+                    e.preventDefault();
+                  }
+                }}
+                className={inputField + ' !pl-10'}
               />
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className={fieldLabel}>Purchase Price</label>
             <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">&#8377;</span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#6B7280]">&#8377;</span>
               <Input
                 value={formData.purchase_price}
                 onChange={(e) => onChange('purchase_price', e.target.value)}
@@ -61,11 +70,20 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
                 type="number"
                 step="0.01"
                 min="0"
-                className={inputField + ' pl-10'}
+                inputMode="decimal"
+                onKeyDown={(e) => {
+                  if (!/[0-9.]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                  if (e.key === '.' && formData.purchase_price.includes('.')) {
+                    e.preventDefault();
+                  }
+                }}
+                className={inputField + ' !pl-10'}
               />
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className={fieldLabel}>GST Rate (%)</label>
             <div className="relative">
               <select
@@ -83,7 +101,7 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
               />
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className={fieldLabel}>HSN/SAC Code</label>
             <Input
               value={formData.hsn_code}
