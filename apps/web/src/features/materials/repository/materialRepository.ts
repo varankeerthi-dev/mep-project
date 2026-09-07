@@ -48,7 +48,7 @@ export async function saveMaterialAggregate(
         sale_price: p.sale_price ? parseFloat(p.sale_price) : 0,
         purchase_price: p.purchase_price ? parseFloat(p.purchase_price) : null,
       }));
-    await P.saveVariantPricing(itemId, pricingData);
+    await P.saveVariantPricing(itemId, pricingData, organisationId);
   }
 
   // Warehouse stock

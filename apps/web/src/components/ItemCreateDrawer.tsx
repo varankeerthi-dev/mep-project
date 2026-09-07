@@ -182,6 +182,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
           .filter(p => p.sale_price || p.purchase_price)
           .map(p => ({
             item_id: itemId,
+            organisation_id: organisation?.id,
             company_variant_id: p.company_variant_id || null,
             make: p.make || '',
             sale_price: p.sale_price ? parseFloat(p.sale_price) : 0,

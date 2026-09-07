@@ -98,12 +98,18 @@ export async function saveAlternativeUnits(itemId: string, units: { unit_name: s
 
 export async function saveVariantPricing(
   itemId: string,
-  pricing: { company_variant_id: string | null; make: string; sale_price: number; purchase_price: number }[]
+  pricing: { company_variant_id: string | null; make: string; sale_price: number; purchase_price: number }[],
+  organisationId?: string | null
 ) {
   await supabase.from('item_variant_pricing').delete().eq('item_id', itemId);
   if (pricing.length > 0) {
     const { error } = await supabase.from('item_variant_pricing').insert(
-      pricing.map((p) => ({ item_id: itemId, ...p, updated_at: new Date().toISOString() }))
+      pricing.map((p) => ({
+        item_id: itemId,
+        ...(organisationId ? { organisation_id: organisationId } : {}),
+        ...p,
+        updated_at: new Date().toISOString()
+      }))
     );
     if (error) throw error;
   }

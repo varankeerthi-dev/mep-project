@@ -277,8 +277,13 @@ export function useMaterialForm() {
       if (formData.uses_variant && variantPricing.length > 0) {
         await supabase.from('item_variant_pricing').delete().eq('item_id', itemId);
         const pricingToInsert = variantPricing.filter(p => p.sale_price || p.purchase_price).map(p => ({
-          item_id: itemId, company_variant_id: p.company_variant_id || null, make: p.make || '',
-          sale_price: p.sale_price ? parseFloat(p.sale_price) : 0, purchase_price: p.purchase_price ? parseFloat(p.purchase_price) : null, updated_at: nowIso
+          item_id: itemId,
+          organisation_id: organisationId,
+          company_variant_id: p.company_variant_id || null,
+          make: p.make || '',
+          sale_price: p.sale_price ? parseFloat(p.sale_price) : 0,
+          purchase_price: p.purchase_price ? parseFloat(p.purchase_price) : null,
+          updated_at: nowIso
         }));
         if (pricingToInsert.length > 0) {
           const { error: pricingError } = await supabase.from('item_variant_pricing').insert(pricingToInsert);
