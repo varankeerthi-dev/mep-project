@@ -1,32 +1,34 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users, CheckSquare, LayoutGrid } from 'lucide-react';
+import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users, CheckSquare, LayoutGrid, MessageSquare } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../App';
-import ProjectMaterialIntents from '../../pages/ProjectMaterialIntents';
-import ReceiveMaterial from '../../pages/ReceiveMaterial';
-import ProjectMaterialDashboard from '../../pages/ProjectMaterialDashboard';
-import MaterialIntentsList from '../../pages/MaterialIntentsList';
-import ProjectMaterialList from '../../pages/ProjectMaterialList';
-import MaterialUsageTracker from '../../pages/MaterialUsageTracker';
-import MaterialConsumptionReport from '../../pages/MaterialConsumptionReport';
 import { getMeetings } from '../../meetings/api/meetings';
-import ProjectTaskListView from '../../components/tasks/ProjectTaskListView';
-import ProjectGantt from '../../components/ProjectGantt';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/skeleton';
+import ProjectList from './ProjectList';
 
-const ProjectList = React.lazy(() => import('./ProjectList'));
+const ProjectMaterialIntents = React.lazy(() => import('../../pages/ProjectMaterialIntents'));
+const ReceiveMaterial = React.lazy(() => import('../../pages/ReceiveMaterial'));
+const ProjectMaterialDashboard = React.lazy(() => import('../../pages/ProjectMaterialDashboard'));
+const MaterialIntentsList = React.lazy(() => import('../../pages/MaterialIntentsList'));
+const ProjectMaterialList = React.lazy(() => import('../../pages/ProjectMaterialList'));
+const MaterialUsageTracker = React.lazy(() => import('../../pages/MaterialUsageTracker'));
+const MaterialConsumptionReport = React.lazy(() => import('../../pages/MaterialConsumptionReport'));
+const ProjectTaskListView = React.lazy(() => import('../../components/tasks/ProjectTaskListView'));
+const ProjectGantt = React.lazy(() => import('../../components/ProjectGantt'));
 const CreateProject = React.lazy(() => import('./CreateProject'));
 const DailyUpdates = React.lazy(() => import('../../pages/DailyUpdates'));
 const SiteMaterials = React.lazy(() => import('../../pages/ProjectManagementInternal').then(m => ({ default: m.SiteMaterials })));
+const CollaborationTab = React.lazy(() => import('../features/collaboration/CollaborationTab'));
 
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, component: null },
   { id: 'timeline', label: 'Timeline', icon: LayoutGrid, component: null },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
+  { id: 'collaboration', label: 'Collaboration', icon: MessageSquare, component: CollaborationTab },
 ];
 
 const MATERIAL_SUBTABS = [
@@ -74,16 +76,16 @@ export default function Projects() {
 
   const handleTabChange = (tabId: string) => {
     setSearchParams({ tab: tabId });
-    if (tabId !== 'material-management') {
+    if (tabId !== 'material-management' && tabId !== 'collaboration') {
       setSelectedProjectId(null);
     }
   };
 
-  const handleSelectProject = (id: string, orgId: string, name: string) => {
+  const handleSelectProject = (id: string, orgId: string, name: string, targetTab?: string) => {
     setSelectedProjectId(id);
     setProjectName(name);
-    setSearchParams({ 
-      tab: 'material-management', 
+    setSearchParams({
+      tab: targetTab || 'material-management',
       subtab: 'select-project',
       projectId: id,
       projectName: name
@@ -186,7 +188,7 @@ export default function Projects() {
                     onBack={handleBackToProjects}
                   />
                 ) : (
-                  <ProjectMaterialSelect onSelectProject={handleSelectProject} />
+                  <ProjectMaterialSelect onSelectProject={(id, orgId, name) => handleSelectProject(id, orgId, name, 'material-management')} />
                 )
               ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
@@ -196,21 +198,166 @@ export default function Projects() {
             </div>
           </div>
         ) : activeTab === 'tasks' ? (
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <ProjectTaskListView
-              organisationId={organisationId}
-              userId={user?.id || ''}
-              globalMode={true}
-              projectName="All Tasks"
-            />
-          </div>
-        ) : activeTab === 'timeline' ? (
-          <TimelineTab organisationId={organisationId} />
-        ) : (
-          <Suspense fallback={<div className="flex h-64 items-center justify-center text-zinc-400">Loading projects...</div>}>
-            <ProjectList />
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <ProjectTaskListView
+                organisationId={organisationId}
+                userId={user?.id || ''}
+                globalMode={true}
+                projectName="All Tasks"
+              />
+            </div>
           </Suspense>
+        ) : activeTab === 'timeline' ? (
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <TimelineTab organisationId={organisationId} />
+          </Suspense>
+        ) : activeTab === 'collaboration' ? (
+          <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
+            <ProjectCollaborationSection
+              organisationId={organisationId}
+              selectedProjectId={selectedProjectId}
+              setSelectedProjectId={setSelectedProjectId}
+              setProjectName={setProjectName}
+              setSearchParams={setSearchParams}
+            />
+          </Suspense>
+        ) : (
+          <ProjectList />
         )}
+      </div>
+    </div>
+  );
+}
+
+function ProjectCollaborationSection({
+  organisationId,
+  selectedProjectId,
+  setSelectedProjectId,
+  setProjectName,
+  setSearchParams,
+}: {
+  organisationId: string;
+  selectedProjectId: string | null;
+  setSelectedProjectId: (id: string | null) => void;
+  setProjectName: (name: string) => void;
+  setSearchParams: (params: any) => void;
+}) {
+  const { organisation } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects-collaboration', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data } = await supabase
+        .from('projects')
+        .select('id, project_name, name, status')
+        .eq('organisation_id', organisation.id)
+        .order('project_name');
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const filteredProjects = projects.filter(p =>
+    !searchTerm || (p.project_name || p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelectProject = (id: string, name: string) => {
+    setSelectedProjectId(id);
+    setProjectName(name);
+    setSearchParams({ tab: 'collaboration', projectId: id, projectName: name });
+  };
+
+  const handleBackToProjects = () => {
+    setSelectedProjectId(null);
+    setSearchParams({ tab: 'collaboration' });
+  };
+
+  if (!selectedProjectId) {
+    return (
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+        <div style={{ background: '#fff', borderRadius: '8px', padding: '24px' }}>
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>Select a Project</h3>
+            <div style={{ marginBottom: '16px' }}>
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {filteredProjects.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
+                No projects found
+              </div>
+            ) : (
+              filteredProjects.map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => handleSelectProject(project.id, project.project_name || project.name || '')}
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    background: '#fff',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                >
+                  <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>
+                    {project.project_name || project.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                    Status: {project.status || 'Active'}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+      <div style={{ background: '#fff', borderRadius: '8px', padding: '24px', height: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+          <button
+            onClick={handleBackToProjects}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              background: '#fff',
+              cursor: 'pointer',
+              fontSize: '12px',
+              marginRight: '12px',
+            }}
+          >
+            ← Back to Projects
+          </button>
+          <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
+            {projectName} - Team Collaboration
+          </h3>
+        </div>
+        <CollaborationTab projectId={selectedProjectId} />
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export function useProjects(options: {
       let query = supabase
         .from('projects')
         .select(
-          '*, client:clients(id, client_name), pos:client_purchase_orders!client_purchase_orders_project_id_fkey(po_total_value), created_by_user:user_profiles!created_by(full_name), updated_by_user:user_profiles!updated_by(full_name)',
+          'id, project_name, project_code, project_type, project_estimated_value, po_required, po_status, status, completion_percentage, start_date, expected_end_date, created_at, client:clients(id, client_name), pos:client_purchase_orders!client_purchase_orders_project_id_fkey(po_total_value)',
           { count: 'exact' }
         )
         .eq('organisation_id', organisationId);
@@ -46,7 +46,8 @@ export function useProjects(options: {
       };
     },
     enabled: !!organisationId,
-    staleTime: 30 * 1000,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -72,6 +73,7 @@ export function useProjectStats(organisationId: string) {
       return counts;
     },
     enabled: !!organisationId,
-    staleTime: 30 * 1000,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
