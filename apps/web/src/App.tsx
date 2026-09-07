@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { PageSkeleton } from './components/ui/skeleton';
+import { PageLoadingSpinner } from './components/ui/loading-spinner';
 import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { PermissionGuard } from './rbac';
@@ -218,6 +219,9 @@ const ApprovalSettings = lazyAny(() => import('./components/ApprovalSettings'));
 const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/PaymentsHub'));
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
+
+// GST pages
+const GSTDashboard = lazyAny(() => import('./pages/GSTDashboard'));
 
 // Estimation pages
 const BOQListPage = lazyAny(() => import('./features/estimation/pages/boq/BOQListPage'));
@@ -669,16 +673,25 @@ export default function App() {
       case '/dynamic-table-demo': return <DynamicTableDemo />;
       case '/help': return <HelpPage onNavigate={navigate} />;
 
-      case '/settings': return <SettingsPage />;
-      case '/settings-v2': return <SettingsV2Page />;
-      case '/settings/print': return <PrintSettings />;
-      case '/settings/template': return <TemplateSettings />;
-      case '/settings/discounts': return <DiscountSettings />;
-      case '/settings/quick-quote': return <QuickQuoteSettings />;
-      case '/settings/terms-conditions': return <TermsConditionsSettings />;
-      case '/settings/document-series': return <TransactionNumberSeries />;
-      case '/settings/organisation': return <AdminRoute><OrganisationSettings organisation={organisation} userId={user?.id} /></AdminRoute>;
-      case '/settings/access-control': return <AdminRoute><AccessControlPage /></AdminRoute>;
+      case '/settings':
+      case '/settings-v2':
+      case '/settings/general':
+      case '/settings/print':
+      case '/settings/template':
+      case '/settings/discounts':
+      case '/settings/quick-quote':
+      case '/settings/terms-conditions':
+      case '/settings/document-series':
+      case '/settings/organisation':
+      case '/settings/access-control':
+      case '/settings/modules':
+      case '/settings/approvals':
+      case '/settings/categories':
+      case '/settings/units':
+      case '/settings/variants':
+      case '/settings/warehouses':
+      case '/settings/tools':
+        return <SettingsV2Page />;
       case '/approval-settings': return <ApprovalSettings />;
       case '/advances-expenses':
       case '/advances-expenses/new':
@@ -690,6 +703,15 @@ export default function App() {
       case '/finance/payments': return <PaymentsHub />;
       case '/accounting/day-book': return <DayBook />;
       case '/accounting/chart-of-accounts': return <ChartOfAccounts />;
+      // GST routes
+      case '/gst/dashboard': return <GSTDashboard />;
+      case '/gst/reconciliation': return <GSTDashboard />;
+      case '/gst/reports': return <GSTDashboard />;
+      case '/gst/gstr1': return <GSTDashboard />;
+      case '/gst/gstr2b': return <GSTDashboard />;
+      case '/gst/gstr3b': return <GSTDashboard />;
+      case '/gst/itc': return <GSTDashboard />;
+      case '/gst/rcm': return <GSTDashboard />;
       case '/hr/employees': return <EmployeeTab />;
       case '/hr/planning': return <AttendancePlanning />;
       case '/hr/entry': return <AttendanceEntry />;
@@ -1232,7 +1254,7 @@ export default function App() {
             </div>
           )}
 
-          <Suspense fallback={<PageSkeleton />}>
+          <Suspense fallback={<PageLoadingSpinner />}>
             {renderedPage}
           </Suspense>
         </main>
