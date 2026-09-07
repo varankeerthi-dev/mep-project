@@ -214,6 +214,7 @@ export function ItemEditorDialog({
         <CommercialSection
           formData={formData}
           onChange={handleChange}
+          usesVariant={formData.uses_variant}
         />
         <EditorSection color="blue" title="Discount Category" description="Choose a discount category for this item (used in quotations).">
           <div className="space-y-3">

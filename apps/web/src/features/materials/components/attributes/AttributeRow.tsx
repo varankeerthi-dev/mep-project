@@ -1,4 +1,4 @@
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { inputFieldSm, selectFieldSm, deleteIconButton } from '../editor/formStyles';
 import { AttributeValueInput } from './AttributeValueInput';
@@ -18,85 +18,73 @@ export function AttributeRow({ attribute, index, onChange, onRemove }: Attribute
     : 'text';
 
   return (
-    <div className="group rounded-xl border border-[#E7EAF1] bg-white p-3.5 transition-all hover:border-[#C7D2FE] hover:shadow-sm">
-      <div className="flex items-start gap-2.5">
-        <div className="flex h-8 w-4 shrink-0 items-center justify-center text-[#C7D2FE] opacity-60 mt-1 cursor-grab" aria-hidden="true">
-          <GripVertical size={14} />
-        </div>
+    <div className="group flex items-center gap-2 rounded-xl border border-[#E7EAF1] bg-white px-2.5 py-1.5 transition-all hover:border-[#C7D2FE] hover:shadow-xs">
+      {/* Drag handle */}
+      <div className="flex w-3.5 shrink-0 items-center justify-center text-[#C7D2FE] opacity-60 cursor-grab" aria-hidden="true">
+        <GripVertical size={14} />
+      </div>
 
-        <div className="min-w-0 flex-1 space-y-2.5">
-          {/* Top row: Attribute Name + Value Type */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_135px]">
-            <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">
-                Attribute {index + 1}
-              </label>
-              <input
-                type="text"
-                value={attribute.attribute_name}
-                onChange={(event) => onChange('attribute_name', event.target.value)}
-                placeholder="e.g. Grade, Model Number, Finish"
-                className={inputFieldSm}
-              />
-            </div>
+      {/* Attribute Name */}
+      <div className="min-w-0 flex-[1.4]">
+        <input
+          type="text"
+          value={attribute.attribute_name}
+          onChange={(event) => onChange('attribute_name', event.target.value)}
+          placeholder={`Attribute ${index + 1}`}
+          className={inputFieldSm + ' !h-9 text-[13px] !px-3'}
+          title="Attribute name"
+        />
+      </div>
 
-            <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">
-                Value type
-              </label>
-              <select
-                value={dataType}
-                onChange={(event) => onChange('data_type', event.target.value)}
-                className={selectFieldSm}
-              >
-                {ATTRIBUTE_DATA_TYPES.map((type) => (
-                  <option key={type} value={type}>{ATTRIBUTE_DATA_TYPE_LABELS[type]}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+      {/* Value type dropdown (design system styled with ChevronDown) */}
+      <div className="relative w-[120px] shrink-0">
+        <select
+          value={dataType}
+          onChange={(event) => onChange('data_type', event.target.value)}
+          className={selectFieldSm + ' !h-9 !pl-3 !pr-7 text-[12px]'}
+          title="Value type"
+        >
+          {ATTRIBUTE_DATA_TYPES.map((type) => (
+            <option key={type} value={type}>{ATTRIBUTE_DATA_TYPE_LABELS[type]}</option>
+          ))}
+        </select>
+        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+      </div>
 
-          {/* Bottom row: Value + Unit (optional) */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px]">
-            <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">
-                Value
-              </label>
-              <AttributeValueInput
-                dataType={dataType}
-                value={attribute.attribute_value}
-                onChange={(value) => onChange('attribute_value', value)}
-                placeholder={dataType === 'date' ? 'Choose date' : dataType === 'number' ? 'Enter number' : 'Enter value'}
-              />
-            </div>
+      {/* Value input */}
+      <div className="min-w-0 flex-[1.4]">
+        <AttributeValueInput
+          dataType={dataType}
+          value={attribute.attribute_value}
+          onChange={(value) => onChange('attribute_value', value)}
+          placeholder={dataType === 'date' ? 'Date' : dataType === 'number' ? 'Number' : 'Value'}
+        />
+      </div>
 
-            <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#98A2B3]">
-                Unit <span className="font-normal normal-case text-[9px] text-[#9CA3AF]">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={attribute.attribute_unit}
-                onChange={(event) => onChange('attribute_unit', event.target.value)}
-                placeholder="e.g. mm, kg"
-                className={inputFieldSm}
-              />
-            </div>
-          </div>
-        </div>
+      {/* Unit (optional) */}
+      <div className="w-[68px] shrink-0">
+        <input
+          type="text"
+          value={attribute.attribute_unit}
+          onChange={(event) => onChange('attribute_unit', event.target.value)}
+          placeholder="Unit"
+          className={inputFieldSm + ' !h-9 text-[12px] !px-2 text-center'}
+          title="Unit (optional)"
+        />
+      </div>
 
-        <div className="shrink-0 pt-5">
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            onClick={onRemove}
-            className={deleteIconButton}
-            aria-label={`Remove attribute ${index + 1}`}
-          >
-            <Trash2 size={15} />
-          </Button>
-        </div>
+      {/* Delete button */}
+      <div className="shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          type="button"
+          onClick={onRemove}
+          className={deleteIconButton + ' !h-8 !w-8'}
+          aria-label={`Remove attribute ${index + 1}`}
+        >
+          <Trash2 size={14} />
+        </Button>
       </div>
     </div>
   );

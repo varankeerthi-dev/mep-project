@@ -77,7 +77,16 @@ export function CustomAttributesSection({ attributes, definitions, category = ''
       </div>
 
       {attributes.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#98A2B3]">
+            <span className="w-3.5 shrink-0" />
+            <span className="min-w-0 flex-[1.4]">Attribute Name</span>
+            <span className="w-[120px] shrink-0">Value Type</span>
+            <span className="min-w-0 flex-[1.4]">Value</span>
+            <span className="w-[68px] shrink-0 text-center">Unit</span>
+            <span className="w-8 shrink-0" />
+          </div>
+
           {attributes.map((attribute, index) => (
             <AttributeRow
               key={attribute.id || `${attribute.attribute_name}-${index}`}

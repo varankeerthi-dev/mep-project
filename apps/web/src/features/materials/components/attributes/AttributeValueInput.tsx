@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { inputFieldSm, selectFieldSm } from '../editor/formStyles';
 import type { AttributeDataType } from '../../model/attributes/attributeTypes';
 
@@ -11,11 +12,18 @@ interface AttributeValueInputProps {
 export function AttributeValueInput({ dataType, value, onChange, placeholder = 'Enter value...' }: AttributeValueInputProps) {
   if (dataType === 'boolean') {
     return (
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={selectFieldSm}>
-        <option value="">Select...</option>
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
+      <div className="relative w-full">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={selectFieldSm + ' !h-9 !pl-3 !pr-7 text-[12px]'}
+        >
+          <option value="">Select...</option>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+        <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+      </div>
     );
   }
 
@@ -27,7 +35,7 @@ export function AttributeValueInput({ dataType, value, onChange, placeholder = '
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className={inputFieldSm}
+      className={inputFieldSm + ' !h-9 text-[13px] !px-3'}
     />
   );
 }

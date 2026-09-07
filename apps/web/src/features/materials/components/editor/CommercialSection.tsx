@@ -11,13 +11,16 @@ interface CommercialSectionProps {
     purchase_price: string;
     hsn_code: string;
     gst_rate: number;
+    uses_variant?: boolean;
   };
   onChange: (field: string, value: any) => void;
+  usesVariant?: boolean;
 }
 
-export function CommercialSection({ formData, onChange }: CommercialSectionProps) {
+export function CommercialSection({ formData, onChange, usesVariant: propUsesVariant }: CommercialSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const usesVariant = propUsesVariant ?? formData.uses_variant ?? false;
 
   useEffect(() => {
     if (!collapsed && sectionRef.current) {
@@ -36,16 +39,24 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
       >
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
           <div className="space-y-3">
-            <label className={fieldLabel}>Sale Price</label>
+            <div className="flex items-center justify-between">
+              <label className={fieldLabel}>Sale Price</label>
+              {usesVariant && (
+                <span className="rounded bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-medium text-[#4F46E5]">
+                  Managed in Variants
+                </span>
+              )}
+            </div>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#6B7280]">&#8377;</span>
               <Input
-                value={formData.sale_price}
+                value={usesVariant ? '' : formData.sale_price}
                 onChange={(e) => onChange('sale_price', e.target.value)}
-                placeholder="0.00"
+                placeholder={usesVariant ? 'Managed per variant' : '0.00'}
                 type="number"
                 step="0.01"
                 min="0"
+                disabled={usesVariant}
                 inputMode="decimal"
                 onKeyDown={(e) => {
                   if (!/[0-9.]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
@@ -55,21 +66,29 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
                     e.preventDefault();
                   }
                 }}
-                className={inputField + ' !pl-10'}
+                className={inputField + ' !pl-10 disabled:bg-[#F8FAFC] disabled:cursor-not-allowed'}
               />
             </div>
           </div>
           <div className="space-y-3">
-            <label className={fieldLabel}>Purchase Price</label>
+            <div className="flex items-center justify-between">
+              <label className={fieldLabel}>Purchase Price</label>
+              {usesVariant && (
+                <span className="rounded bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-medium text-[#4F46E5]">
+                  Managed in Variants
+                </span>
+              )}
+            </div>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#6B7280]">&#8377;</span>
               <Input
-                value={formData.purchase_price}
+                value={usesVariant ? '' : formData.purchase_price}
                 onChange={(e) => onChange('purchase_price', e.target.value)}
-                placeholder="0.00"
+                placeholder={usesVariant ? 'Managed per variant' : '0.00'}
                 type="number"
                 step="0.01"
                 min="0"
+                disabled={usesVariant}
                 inputMode="decimal"
                 onKeyDown={(e) => {
                   if (!/[0-9.]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight'].includes(e.key)) {
@@ -79,7 +98,7 @@ export function CommercialSection({ formData, onChange }: CommercialSectionProps
                     e.preventDefault();
                   }
                 }}
-                className={inputField + ' !pl-10'}
+                className={inputField + ' !pl-10 disabled:bg-[#F8FAFC] disabled:cursor-not-allowed'}
               />
             </div>
           </div>

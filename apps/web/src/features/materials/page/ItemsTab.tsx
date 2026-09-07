@@ -256,7 +256,11 @@ export function ItemsTab() {
         return;
       }
     }
-    form.setFormData((prev: any) => ({ ...prev, uses_variant: checked }));
+    form.setFormData((prev: any) => ({
+      ...prev,
+      uses_variant: checked,
+      ...(checked ? { sale_price: '', purchase_price: '' } : {})
+    }));
     if (checked) {
       form.setVariantPricing((prev: any[]) => [...prev, { id: Date.now() + Math.random(), company_variant_id: '', make: '', sale_price: '', purchase_price: '' }]);
     }
