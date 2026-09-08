@@ -113,6 +113,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     route: '/warehouse',
   },
   {
+    id: 'manufacturing',
+    label: 'Manufacturing',
+    description: 'BOMs, job cards, production schedules, stores, QC, and dispatch.',
+    icon: 'Factory',
+    category: 'inventory',
+    route: '/manufacturing',
+  },
+  {
     id: 'purchase',
     label: 'Purchase Module',
     description: 'Procurement lifecycle: requisitions, inquiries, POs, and vendor management.',

@@ -30,6 +30,7 @@ export async function fetchBOMItemsByHeaderId(bomId: string) {
   if (error) throw error;
   return data || [];
 }
+export const fetchBomItems = fetchBOMItemsByHeaderId;
 
 export async function insertBOMHeader(header: Partial<BOMHeader>) {
   const { data, error } = await supabase.from('bom_headers').insert(header).select().single();

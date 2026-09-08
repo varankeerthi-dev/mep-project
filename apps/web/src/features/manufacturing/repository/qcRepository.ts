@@ -91,89 +91,20 @@ export async function createFGQCInspectionAggregate(
     throw new Error('WIP Warehouse not found');
   }
 
-  // A. Process accepted_qty -> FG Warehouse
-  if (createdInspection.accepted_qty > 0) {
-    const productionEntry = createdInspection.production_entry_id
-      ? await P.fetchProductionEntryById(createdInspection.production_entry_id)
-      : null;
-    const fgStockRow = await P.fetchItemStockSingle(createdInspection.product_id, fgWh.id, orgId);
-    if (fgStockRow) {
-      await P.updateItemStock(fgStockRow.id!, fgStockRow.current_stock + createdInspection.accepted_qty);
-    } else {
-      await P.insertItemStock({
-        item_id: createdInspection.product_id,
-        warehouse_id: fgWh.id,
-        current_stock: createdInspection.accepted_qty,
-        organisation_id: orgId
-      });
-    }
+  // Process QC stocks atomically (FG, Rejected, Rework)
+  const { error: rpcError } = await supabase.rpc('record_qc_inspection_stock_atomic', {
+    p_inspection_id: createdInspection.id!,
+    p_product_id: createdInspection.product_id,
+    p_variant_id: null,
+    p_accepted_qty: createdInspection.accepted_qty || 0,
+    p_rejected_qty: createdInspection.rejected_qty || 0,
+    p_rework_qty: createdInspection.rework_qty || 0,
+    p_fg_warehouse_id: fgWh.id,
+    p_rej_warehouse_id: rejectionWh?.id || null,
+    p_wip_warehouse_id: wipWh.id,
+  });
 
-    // Log material inward for audit trail
-    const inwardHeader = await P.insertMaterialInward({
-      inward_date: createdInspection.inspection_date,
-      remarks: `QC Inspection ${inspectionNo} — finished goods accepted`,
-      organisation_id: orgId,
-    });
-
-    await P.insertMaterialInwardItems([{
-      material_inward_id: inwardHeader.id!,
-      material_id: createdInspection.product_id,
-      qty: createdInspection.accepted_qty,
-      unit: 'Nos', // Default fallback unit
-      warehouse_id: fgWh.id,
-      organisation_id: orgId
-    }]);
-
-    if (createdInspection.batch_no) {
-      const { error: lotError } = await supabase.from('inventory_lots').upsert({
-        organisation_id: orgId,
-        material_id: createdInspection.product_id,
-        warehouse_id: fgWh.id,
-        batch_no: createdInspection.batch_no,
-        source_type: 'production',
-        source_id: createdInspection.production_entry_id || null,
-        production_entry_id: createdInspection.production_entry_id || null,
-        qc_inspection_id: createdInspection.id || null,
-        manufacture_date: productionEntry?.production_date || createdInspection.inspection_date || null,
-        expiry_date: productionEntry?.expiry_date || null,
-        quantity_received: createdInspection.accepted_qty,
-        quantity_available: createdInspection.accepted_qty,
-        status: 'available',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'organisation_id,material_id,warehouse_id,batch_no', ignoreDuplicates: true });
-      if (lotError) throw lotError;
-    }
-  }
-
-  // B. Process rejected_qty -> Rejection Warehouse
-  if (createdInspection.rejected_qty > 0 && rejectionWh) {
-    const rejStockRow = await P.fetchItemStockSingle(createdInspection.product_id, rejectionWh.id, orgId);
-    if (rejStockRow) {
-      await P.updateItemStock(rejStockRow.id!, rejStockRow.current_stock + createdInspection.rejected_qty);
-    } else {
-      await P.insertItemStock({
-        item_id: createdInspection.product_id,
-        warehouse_id: rejectionWh.id,
-        current_stock: createdInspection.rejected_qty,
-        organisation_id: orgId
-      });
-    }
-  }
-
-  // C. Process rework_qty -> WIP Warehouse
-  if (createdInspection.rework_qty > 0) {
-    const wipStockRow = await P.fetchItemStockSingle(createdInspection.product_id, wipWh.id, orgId);
-    if (wipStockRow) {
-      await P.updateItemStock(wipStockRow.id!, wipStockRow.current_stock + createdInspection.rework_qty);
-    } else {
-      await P.insertItemStock({
-        item_id: createdInspection.product_id,
-        warehouse_id: wipWh.id,
-        current_stock: createdInspection.rework_qty,
-        organisation_id: orgId
-      });
-    }
-  }
+  if (rpcError) throw rpcError;
 
   // 5. Log activity
   await P.insertActivityLog({

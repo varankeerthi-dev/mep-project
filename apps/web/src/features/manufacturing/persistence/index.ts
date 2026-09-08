@@ -9,3 +9,4 @@ export * from './workCenterPersistence';
 export * from './planPersistence';
 export * from './ipqcPersistence';
 export * from './wipPersistence';
+export { supabase } from '../../../supabase';

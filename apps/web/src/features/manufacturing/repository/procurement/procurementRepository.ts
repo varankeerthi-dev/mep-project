@@ -102,69 +102,22 @@ export async function confirmGRNAcceptanceAggregate(
     throw new Error('Main Store warehouse not found');
   }
 
-  for (const item of items) {
-    const qtyToAdd = item.accepted_qty > 0 ? item.accepted_qty : item.received_qty;
-
-    const mainStock = await P.fetchItemStockSingle(item.material_id, mainStore.id, orgId);
-    if (mainStock) {
-      await P.updateItemStock(mainStock.id!, mainStock.current_stock + qtyToAdd);
-    } else {
-      await P.insertItemStock({
-        item_id: item.material_id,
-        warehouse_id: mainStore.id,
-        current_stock: qtyToAdd,
-        organisation_id: orgId
-      });
-    }
-
-    await P.updateGRNItemQty(item.id!, {
-      accepted_qty: qtyToAdd,
-      status: 'accepted'
-    });
-
-    // Keep regulated/purchased stock traceable without changing the existing
-    // aggregate stock path for items that do not provide a batch number.
-    if (item.batch_no?.trim()) {
-      const { error: lotError } = await supabase.from('inventory_lots').upsert({
-        organisation_id: orgId,
-        material_id: item.material_id,
-        warehouse_id: mainStore.id,
-        batch_no: item.batch_no.trim(),
-        source_type: 'purchase',
-        source_id: grnId,
-        manufacture_date: grn.receipt_date || null,
-        expiry_date: item.expiry_date || null,
-        quantity_received: qtyToAdd,
-        quantity_available: qtyToAdd,
-        status: 'available'
-      }, { onConflict: 'organisation_id,material_id,warehouse_id,batch_no' });
-
-      if (lotError) throw lotError;
-    }
-  }
-
-  const inwardHeader = await P.insertMaterialInward({
-    inward_date: new Date().toISOString().split('T')[0],
-    remarks: `GRN ${grn.grn_no} — raw goods received and inwarded`,
-    organisation_id: orgId
-  });
-
-  const inwardItemsPayload = items.map(item => ({
-    material_inward_id: inwardHeader.id!,
+  const itemsPayload = items.map(item => ({
+    item_id: item.id,
     material_id: item.material_id,
-    qty: item.accepted_qty > 0 ? item.accepted_qty : item.received_qty,
-    unit: item.unit,
-    warehouse_id: mainStore.id,
-    organisation_id: orgId
+    accepted_qty: item.accepted_qty > 0 ? item.accepted_qty : item.received_qty,
+    received_qty: item.received_qty,
   }));
 
-  if (inwardItemsPayload.length > 0) {
-    await P.insertMaterialInwardItems(inwardItemsPayload);
-  }
-
-  const updatedGrn = await P.updateGoodsReceiptNote(grnId, {
-    status: 'accepted'
+  const { error: rpcError } = await supabase.rpc('record_procurement_grn_atomic', {
+    p_grn_id: grnId,
+    p_warehouse_id: mainStore.id,
+    p_accepted_items: itemsPayload,
   });
+
+  if (rpcError) throw rpcError;
+
+  const updatedGrn = await P.fetchGoodsReceiptNoteById(grnId);
 
   await P.insertActivityLog({
     entity_type: 'goods_receipt_note',
@@ -182,5 +135,5 @@ export async function confirmGRNAcceptanceAggregate(
     organisation_id: orgId
   });
 
-  return updatedGrn;
+  return updatedGrn || grn;
 }

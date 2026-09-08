@@ -72,7 +72,7 @@ export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) 
   }
 
   return (
-    <div className="p-6 max-w-[1200px] mx-auto font-['Inter'] space-y-6">
+    <div className="p-6 w-full font-['Inter'] space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

@@ -11,6 +11,7 @@ import {
   TrendingUp, 
   Loader2, 
   FileText,
+  Download,
   X,
   Eye,
   Calendar as CalendarIcon,
@@ -565,8 +566,8 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
   };
 
   const FILTER_OPTIONS = [
-    { id: 'raw', label: 'Raw Materials Report' },
-    { id: 'fg', label: 'Finished Goods Report' },
+    { id: 'raw', label: 'Raw Materials' },
+    { id: 'fg', label: 'Finished Goods' },
   ];
 
   const filterPanel = (
@@ -674,18 +675,94 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
     </div>
   );
 
+  // ─── EXPORT HELPERS (CSV / PDF) ───────────────────────────────────
+  const exportHeaders = [
+    'Item Name',
+    'Unit',
+    'Current Stock',
+    'Production Qty (Active)',
+    'Inward (Period)',
+    'Outward (Period)',
+    'Net Change',
+  ];
+
+  const exportRows = () =>
+    processedReport.map((r) => [
+      r.name,
+      r.unit,
+      r.currentStock,
+      r.productionQty,
+      r.inwardQty,
+      r.outwardQty,
+      r.netChange,
+    ]);
+
+  const exportBaseName = `inventory-${activeTab === 'raw' ? 'raw-materials' : 'finished-goods'}-${endDate || 'all'}`;
+
+  const handleDownloadCSV = () => {
+    const escapeCell = (v: string | number) => {
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [
+      exportHeaders.join(','),
+      ...exportRows().map((row) => row.map(escapeCell).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${exportBaseName}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFontSize(14);
+    doc.text(`Inventory — ${activeTab === 'raw' ? 'Raw Materials' : 'Finished Goods'}`, 14, 15);
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    doc.text(
+      `Period: ${startDate ? new Date(startDate).toLocaleDateString('en-GB') : '—'} to ${endDate ? new Date(endDate).toLocaleDateString('en-GB') : '—'}  ·  Generated: ${new Date().toLocaleDateString('en-GB')}`,
+      14,
+      22
+    );
+
+    autoTable(doc, {
+      startY: 28,
+      head: [exportHeaders],
+      body: exportRows().map((row) => row.map((cell) => String(cell ?? ''))),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [24, 95, 165], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+
+    doc.save(`${exportBaseName}.pdf`);
+  };
+
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
       
       {/* Header Bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
         <div>
-          <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Manufacturing Inventory Report</h1>
+          <h1 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>Inventory</h1>
           <span style={{ fontSize: '11px', color: '#9ca3af' }}>
             Track material stock requirements, inward receipts, and consumptions · <span className="font-semibold text-indigo-600">Period: {new Date(startDate).toLocaleDateString('en-GB')} to {new Date(endDate).toLocaleDateString('en-GB')}</span>
           </span>
         </div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button variant="outline" size="sm" onClick={handleDownloadCSV} leftIcon={<Download size={14} />} disabled={isLoading || processedReport.length === 0}>
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF} leftIcon={<FileText size={14} />} disabled={isLoading || processedReport.length === 0}>
+            PDF
+          </Button>
           <Button variant="secondary" onClick={() => onNavigate?.('/manufacturing/inventory/wip-valuation')}>
             WIP Valuation Report
           </Button>

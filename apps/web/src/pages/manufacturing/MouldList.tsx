@@ -198,7 +198,7 @@ export default function MouldList({ onNavigate }: MouldListProps) {
   };
 
   return (
-    <div className="moulds-page-container p-6 max-w-[1200px] mx-auto font-['Inter']">
+    <div className="moulds-page-container p-6 w-full font-['Inter']">
       {/* Explicit Scoped CSS to override any global CSS for Moulds Page */}
       <style>{`
         .moulds-page-container .inner-container-20px {

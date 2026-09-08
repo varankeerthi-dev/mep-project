@@ -76,69 +76,21 @@ export async function confirmDispatchAggregate(
     throw new Error('Finished Goods (FG) Warehouse or default store not found');
   }
 
-  // 3. Verify that each item has sufficient stock in Finished Goods Warehouse
-  for (const item of items) {
-    const stockRow = await P.fetchItemStockSingle(item.material_id, fgWarehouse.id, orgId);
-    const availableStock = stockRow?.current_stock || 0;
-    if (availableStock < item.dispatched_qty) {
-      throw new Error(
-        `Insufficient stock in Finished Goods Warehouse for item ${item.materials?.name || 'material'}. ` +
-        `Required: ${item.dispatched_qty} ${item.materials?.unit || ''}, Available: ${availableStock} ${item.materials?.unit || ''}`
-      );
-    }
-  }
+  const itemsPayload = items.map(item => ({
+    material_id: item.material_id,
+    variant_id: null,
+    dispatched_qty: item.dispatched_qty,
+  }));
 
-  // 4. Create Material Outward header record
-  const outwardHeader = await P.insertMaterialOutward({
-    outward_date: new Date().toISOString().split('T')[0],
-    remarks: `Dispatch ${order.dispatch_no} to ${order.customer_name}`,
-    organisation_id: orgId,
+  const { error: rpcError } = await supabase.rpc('dispatch_manufacturing_order_atomic', {
+    p_dispatch_order_id: dispatchOrderId,
+    p_fg_warehouse_id: fgWarehouse.id,
+    p_items: itemsPayload,
   });
 
-  const outwardItemsPayload = [];
+  if (rpcError) throw rpcError;
 
-  // 5. Update stocks and format ledger outward items
-  for (const item of items) {
-    const qty = item.dispatched_qty;
-
-    if (item.inventory_lot_id) {
-      const { data: lotResult, error: lotError } = await supabase.rpc('consume_inventory_lot', {
-        p_lot_id: item.inventory_lot_id,
-        p_quantity: qty,
-        p_organisation_id: orgId,
-      });
-      if (lotError) throw lotError;
-      if (!lotResult?.ok) throw new Error(lotResult?.error || 'Unable to consume the selected inventory batch');
-    } else {
-      // Preserve the existing aggregate-stock path for legacy dispatches that
-      // were created before lot tracking was enabled.
-      const fgStockRow = await P.fetchItemStockSingle(item.material_id, fgWarehouse.id, orgId);
-      if (fgStockRow) {
-        await P.updateItemStock(fgStockRow.id!, Math.max(0, fgStockRow.current_stock - qty));
-      }
-    }
-
-    outwardItemsPayload.push({
-      material_outward_id: outwardHeader.id!,
-      material_id: item.material_id,
-      qty,
-      unit: item.unit,
-      batch_no: item.batch_no || null,
-      warehouse_id: fgWarehouse.id,
-      organisation_id: orgId,
-    });
-  }
-
-  // Insert outward logs
-  if (outwardItemsPayload.length > 0) {
-    await P.insertMaterialOutwardItems(outwardItemsPayload);
-  }
-
-  // 6. Update dispatch order status to dispatched
-  const updatedOrder = await P.updateDispatchOrder(dispatchOrderId, {
-    status: 'dispatched',
-    actual_dispatch_date: new Date().toISOString().split('T')[0],
-  });
+  const updatedOrder = await P.fetchDispatchOrderById(dispatchOrderId);
 
   // 7. Insert to Activity Log
   await P.insertActivityLog({

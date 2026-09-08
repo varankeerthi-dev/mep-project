@@ -48,10 +48,10 @@ type Tab = {
 };
 
 const TABS: Tab[] = [
-  { id: 'machines', label: 'Machine Board', path: '/manufacturing', matchPrefix: '/manufacturing/machines' },
-  { id: 'moulds', label: 'Moulds', path: '/manufacturing/moulds', matchPrefix: '/manufacturing/moulds' },
-  { id: 'dashboard', label: 'Dashboard', path: '/manufacturing/dashboard', matchPrefix: '/manufacturing/dashboard' },
+  { id: 'dashboard', label: 'Dashboard', path: '/manufacturing', matchPrefix: '/manufacturing/dashboard' },
   { id: 'inventory', label: 'Inventory', path: '/manufacturing/inventory', matchPrefix: '/manufacturing/inventory' },
+  { id: 'machines', label: 'Machine Board', path: '/manufacturing/machines', matchPrefix: '/manufacturing/machines' },
+  { id: 'moulds', label: 'Moulds', path: '/manufacturing/moulds', matchPrefix: '/manufacturing/moulds' },
   { id: 'boms', label: 'BOMs', path: '/manufacturing/boms', matchPrefix: '/manufacturing/boms' },
   { id: 'schedules', label: 'Schedules', path: '/manufacturing/schedules', matchPrefix: '/manufacturing/schedules' },
   { id: 'job-cards', label: 'Job Cards', path: '/manufacturing/job-cards', matchPrefix: '/manufacturing/job-cards' },
@@ -97,6 +97,7 @@ export default function ManufacturingShell() {
   const queryClient = useQueryClient();
 
   const activeTab = useMemo(() => {
+    if (pathKey === '/manufacturing/dashboard') return TABS[0];
     const exact = TABS.find(t => pathKey === t.path);
     if (exact) return exact;
     const best = TABS.filter(t => t.id !== 'dashboard').find(t => pathKey.startsWith(t.matchPrefix + '/'));
@@ -113,19 +114,19 @@ export default function ManufacturingShell() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] font-['Inter']">
-      <div className="w-full max-w-[1200px] mx-auto px-4 pt-3">
+      <div className="w-full px-4 pt-3">
         <SubTabsNav tabs={TABS} activeTabId={activeTab.id} />
 
-      <Panel active={activeTab.id === 'machines' || (!activeTab && pathKey === '/manufacturing')}>
+      <Panel active={activeTab.id === 'dashboard' || (!activeTab && (pathKey === '/manufacturing' || pathKey === '/manufacturing/dashboard'))}>
+        <ManufacturingDashboard onNavigate={navigateV2} />
+      </Panel>
+
+      <Panel active={activeTab.id === 'machines'}>
         <MachineBoardPage onNavigate={navigateV2} />
       </Panel>
 
       <Panel active={activeTab.id === 'moulds'}>
         <MouldList onNavigate={navigateV2} />
-      </Panel>
-
-      <Panel active={activeTab.id === 'dashboard'}>
-        <ManufacturingDashboard onNavigate={navigateV2} />
       </Panel>
 
       <Panel active={activeTab.id === 'inventory'}>

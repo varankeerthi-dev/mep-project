@@ -71,7 +71,6 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   'non-billable-dc': 'delivery_challans',
   reports: 'reports',
   hr: 'hr',
-  gst: 'gst',
 };
 
 const menuData: MenuSection[] = [
@@ -311,7 +310,12 @@ const menuData: MenuSection[] = [
       { id: 'payments-hub', label: 'Payments hub', path: '/finance/payments' },
       { id: 'advances-expenses', label: 'Advances & Expenses', path: '/advances-expenses' },
       { id: 'chart-of-accounts', label: 'Chart of accounts', path: '/accounting/chart-of-accounts' },
-      { id: 'day-book', label: 'Day book', path: '/accounting/day-book' },
+      { id: 'day-book', label: 'Day book', path: '/accounting/day-book' }
+    ]
+  },
+  {
+    section: 'GST',
+    items: [
       {
         id: 'gst',
         label: 'GST',

@@ -65,19 +65,7 @@ export async function fetchItemStockSingle(itemId: string, warehouseId: string, 
   return data;
 }
 
-export async function updateItemStock(id: string, currentStock: number) {
-  const { error } = await supabase
-    .from('item_stock')
-    .update({ current_stock: currentStock, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
-}
 
-export async function insertItemStock(stock: Partial<ItemStock>) {
-  const { data, error } = await supabase.from('item_stock').insert(stock).select().single();
-  if (error) throw error;
-  return data;
-}
 
 export async function insertMaterialOutward(outward: { outward_date: string; remarks: string; organisation_id: string }) {
   const { data, error } = await supabase

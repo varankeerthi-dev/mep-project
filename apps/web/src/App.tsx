@@ -222,6 +222,13 @@ const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
 
 // GST pages
 const GSTDashboard = lazyAny(() => import('./pages/GSTDashboard'));
+const GSTReconciliation = lazyAny(() => import('./pages/GSTReconciliation'));
+const GSTReports = lazyAny(() => import('./pages/GSTReports'));
+const GSTR1 = lazyAny(() => import('./pages/GSTR1'));
+const GSTR2B = lazyAny(() => import('./pages/GSTR2B'));
+const GSTR3B = lazyAny(() => import('./pages/GSTR3B'));
+const ITCManagement = lazyAny(() => import('./pages/ITCManagement'));
+const RCMManagement = lazyAny(() => import('./pages/RCMManagement'));
 
 // Estimation pages
 const BOQListPage = lazyAny(() => import('./features/estimation/pages/boq/BOQListPage'));
@@ -705,13 +712,13 @@ export default function App() {
       case '/accounting/chart-of-accounts': return <ChartOfAccounts />;
       // GST routes
       case '/gst/dashboard': return <GSTDashboard />;
-      case '/gst/reconciliation': return <GSTDashboard />;
-      case '/gst/reports': return <GSTDashboard />;
-      case '/gst/gstr1': return <GSTDashboard />;
-      case '/gst/gstr2b': return <GSTDashboard />;
-      case '/gst/gstr3b': return <GSTDashboard />;
-      case '/gst/itc': return <GSTDashboard />;
-      case '/gst/rcm': return <GSTDashboard />;
+      case '/gst/reconciliation': return <GSTReconciliation />;
+      case '/gst/reports': return <GSTReports />;
+      case '/gst/gstr1': return <GSTR1 />;
+      case '/gst/gstr2b': return <GSTR2B />;
+      case '/gst/gstr3b': return <GSTR3B />;
+      case '/gst/itc': return <ITCManagement />;
+      case '/gst/rcm': return <RCMManagement />;
       case '/hr/employees': return <EmployeeTab />;
       case '/hr/planning': return <AttendancePlanning />;
       case '/hr/entry': return <AttendanceEntry />;

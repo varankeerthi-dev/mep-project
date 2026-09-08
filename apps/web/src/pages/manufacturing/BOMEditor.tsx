@@ -38,6 +38,18 @@ type BOMItem = {
   lead_time_days: number;
   bom_level: number;
   parent_material_id: string | null;
+  custom_attributes?: Record<string, any>;
+  unit_cost?: number;
+  sequence_no?: number;
+  work_center_id?: string | null;
+  is_critical?: boolean;
+  alternate_material_id?: string;
+  drawing_reference?: string;
+  inspection_required?: boolean;
+  shelf_life_days?: number | null;
+  scrap_factor?: number | null;
+  yield_pct?: number | null;
+  warehouse_id?: string | null;
 };
 
 const LEAD_TIME_UNITS = [
@@ -232,9 +244,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       priority: formData.priority,
       effective_date: formData.effective_date || null,
       valid_to: formData.valid_to || null,
-      created_by_name: formData.created_by_name || user.name || user.email || '',
+      created_by_name: formData.created_by_name || (user as any)?.name || user.email || '',
       approved_by_name: formData.approval_status === 'approved' && !formData.approved_by_name
-        ? (user.name || user.email || '')
+        ? ((user as any)?.name || user.email || '')
         : formData.approved_by_name
     };
     saveBOM.mutate({ header: headerData, items });
@@ -255,6 +267,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       make: '',
       lead_time_days: 0,
       parent_material_id: null,
+      bom_level: 0,
       custom_attributes: {},
       unit_cost: 0,
       sequence_no: prev.length,
@@ -301,6 +314,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       make: '',
       lead_time_days: 0,
       parent_material_id: parentId,
+      bom_level: (prev.find(i => i.id === parentId)?.bom_level ?? 0) + 1,
       custom_attributes: {},
       unit_cost: 0,
       sequence_no: 0,
@@ -441,7 +455,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           notes: parts[2]?.trim() || '',
           make: match?.make || '',
           lead_time_days: 0,
-          parent_material_id: null
+          parent_material_id: null,
+          bom_level: 0
         });
       }
     });
@@ -728,7 +743,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-indigo-600" style={{ margin: 0 }}>
-                  3. Raw Materials
+                  3. Materials
                 </h3>
                 <span style={{
                   height: '24px',
@@ -745,7 +760,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 </span>
               </div>
               <p style={{ fontSize: '13px', color: '#64748B', margin: '6px 0 0', fontWeight: 400 }}>
-                Used to manufacture one finished product.
+                Define materials needed. Click "Costing" to set prices, scrap & supply details.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0 }}>
@@ -776,27 +791,15 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 width: '100%',
                 borderCollapse: 'collapse',
                 tableLayout: 'fixed',
-                minWidth: '1520px',
+                minWidth: '620px',
               }}>
                 <thead>
                   <tr style={{ background: '#FAFBFC', borderBottom: '1px solid #F1F5F9' }}>
-                    <th style={{ width: '44px', padding: '0 12px', height: '48px', textAlign: 'center' }}></th>
-                    <th style={{ width: '56px', padding: '0 8px', height: '48px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>#</th>
-                    <th style={{ width: '200px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Material</th>
-                    <th style={{ width: '110px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quantity</th>
-                    <th style={{ width: '80px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Unit Cost</th>
-                    <th style={{ width: '70px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Scrap %</th>
-                    <th style={{ width: '70px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Yield %</th>
-                    <th style={{ width: '100px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Lead Time</th>
-                    <th style={{ width: '110px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Work Center</th>
-                    <th style={{ width: '60px', padding: '0 8px', height: '48px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Critical</th>
-                    <th style={{ width: '110px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alternate</th>
-                    <th style={{ width: '90px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Drawing Ref</th>
-                    <th style={{ width: '50px', padding: '0 8px', height: '48px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Inspect</th>
-                    <th style={{ width: '60px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Shelf Life</th>
-                    <th style={{ width: '100px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Warehouse</th>
-                    <th style={{ width: '70px', padding: '0 16px', height: '48px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Details</th>
-                    <th style={{ width: '44px', padding: '0 8px', height: '48px' }}></th>
+                    <th style={{ width: '36px', padding: '0 8px', height: '40px', textAlign: 'center' }}></th>
+                    <th style={{ padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Item</th>
+                    <th style={{ width: '120px', padding: '0 16px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
+                    <th style={{ width: '80px', padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Unit</th>
+                    <th style={{ width: '64px', padding: '0 8px', height: '40px' }}></th>
                   </tr>
                 </thead>
               <tbody>
@@ -814,58 +817,13 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                       onMouseLeave={() => setHoveredRowId(null)}
                       style={{
                         borderBottom: '1px solid #F1F5F9',
-                        height: '72px',
+                        height: '52px',
                         transition: 'background 150ms ease',
                         background: isHovered ? '#F8FAFC' : 'transparent',
                         animation: `fadeInRow 200ms ease-out ${idx * 30}ms both`,
                       }}
                     >
-                      {/* Drag Handle / Depth Indicator */}
-                      <td style={{
-                        padding: '0 8px',
-                        textAlign: 'center',
-                        verticalAlign: 'middle',
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '2px',
-                        }}>
-                          {depth > 0 && (
-                            <span style={{
-                              display: 'inline-block',
-                              width: `${depth * 12}px`,
-                            }} />
-                          )}
-                          <GripVertical size={14} style={{ color: '#CBD5E1', opacity: isHovered ? 1 : 0.4, transition: 'opacity 0.15s' }} />
-                        </div>
-                      </td>
-
-                      {/* Sequence */}
-                      <td style={{ padding: '0 8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                        {hasChildren ? (
-                          <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                        ) : (
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.sequence_no ?? ''}
-                            onChange={(e) => updateItemById(item.id!, 'sequence_no', parseInt(e.target.value) || 0)}
-                            style={{
-                              width: '100%',
-                              height: '32px',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '6px',
-                              padding: '0 6px',
-                              fontSize: '12px',
-                              textAlign: 'center',
-                              outline: 'none',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          />
-                        )}
-                      </td>
+                      
 
                       {/* Material Cell */}
                       <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
@@ -885,32 +843,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                             <div style={{ width: '24px', flexShrink: 0 }} />
                           )}
 
-                          {/* Material Icon + Search */}
-                          <div className="material-dropdown-container" style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {/* Icon Container */}
-                            {isMaterialSelected ? (
-                              <div style={{
-                                width: '40px', height: '40px', borderRadius: '10px',
-                                background: '#EFF6FF',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0,
-                              }}>
-                                <Box size={18} style={{ color: '#2563EB' }} />
-                              </div>
-                            ) : (
-                              <div style={{
-                                width: '40px', height: '40px', borderRadius: '10px',
-                                background: '#F8FAFC',
-                                border: '1px dashed #E2E8F0',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0,
-                              }}>
-                                <Search size={16} style={{ color: '#CBD5E1' }} />
-                              </div>
-                            )}
-
-                            {/* Search / Name Display */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                          {/* Search / Name Display */}
+                            <div className="material-dropdown-container" style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                               <input
                                 ref={el => { materialSearchRefs.current[item.id!] = el; }}
                                 type="text"
@@ -920,13 +854,12 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                   setMaterialSearchText(prev => ({ ...prev, [idx]: e.target.value }));
                                   setOpenDropdownIndex(idx);
                                 }}
-                                onFocus={() => setOpenDropdownIndex(items.findIndex(i => i.id === item.id))}
-                                placeholder="Search material..."
+                                onFocus={() => setOpenDropdownIndex(items.findIndex(i => i.id === item.id))}                                  placeholder="Search material..."
                                 style={{
                                   width: '100%',
-                                  height: '42px',
-                                  padding: '0 14px',
-                                  fontSize: '14px',
+                                  height: '34px',
+                                  padding: '0 12px',
+                                  fontSize: '13px',
                                   fontWeight: isMaterialSelected ? 600 : 400,
                                   color: '#0F172A',
                                   background: '#F8FAFC',
@@ -946,12 +879,6 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                   e.currentTarget.style.background = '#F8FAFC';
                                 }}
                               />
-                              {/* Subtitle under search when material is selected */}
-                              {isMaterialSelected && openDropdownIndex !== items.findIndex(i => i.id === item.id) && (
-                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '1px', paddingLeft: '14px' }}>
-                                  Raw Material
-                                </div>
-                              )}
 
                               {/* Dropdown */}
                               {openDropdownIndex === items.findIndex(i => i.id === item.id) && materials && (
@@ -974,7 +901,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                       <div
                                         key={m.id}
                                         style={{
-                                          padding: '10px 12px',
+                                          padding: '8px 12px',
                                           cursor: 'pointer',
                                           fontSize: '13px',
                                           borderRadius: '8px',
@@ -1036,541 +963,123 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                               </span>
                             )}
                           </div>
-                        </div>
                       </td>
-
-                       {/* Quantity + Unit — Grouped Control */}
-                       <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
-                         <div style={{
-                           display: 'flex',
-                           height: '42px',
-                           border: '1px solid #E2E8F0',
-                           borderRadius: '10px',
-                           overflow: 'hidden',
-                           transition: 'border-color 0.15s',
-                         }}
-                           onFocus={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; }}
-                           onBlur={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.boxShadow = 'none'; }}
-                         >
-                           <input
-                             type="number"
-                             value={item.required_qty || ''}
-                             onChange={(e) => updateItemById(item.id!, 'required_qty', Number(e.target.value))}
-                             style={{
-                               flex: 1,
-                               border: 'none',
-                               padding: '0 12px',
-                               fontSize: '13px',
-                               fontWeight: 500,
-                               color: '#0F172A',
-                               background: '#F8FAFC',
-                               textAlign: 'right',
-                               outline: 'none',
-                               fontVariantNumeric: 'tabular-nums',
-                             }}
-                           />
-                           <div style={{
-                             width: '56px',
-                             display: 'flex',
-                             alignItems: 'center',
-                             justifyContent: 'center',
-                             background: '#F1F5F9',
-                             borderLeft: '1px solid #E2E8F0',
-                           }}>
-                             <select
-                               value={item.unit}
-                               onChange={(e) => updateItemById(item.id!, 'unit', e.target.value)}
-                               style={{
-                                 border: 'none',
-                                 background: 'transparent',
-                                 fontSize: '12px',
-                                 fontWeight: 500,
-                                 color: '#475569',
-                                 cursor: 'pointer',
-                                 outline: 'none',
-                                 padding: '0 2px',
-                                 textAlign: 'center',
-                               }}
-                             >
-                               {unitOptions.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
-                             </select>
-                           </div>
-                         </div>
-                       </td>
-
-                       {/* Unit Cost */}
-                       <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <div style={{
-                             height: '42px',
-                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                             color: '#CBD5E1', fontSize: '13px',
-                           }}>—</div>
-                         ) : (
-                           <input
-                             type="number"
-                             min="0"
-                             step="0.01"
-                             value={item.unit_cost ?? ''}
-                             onChange={(e) => updateItemById(item.id!, 'unit_cost', parseFloat(e.target.value) || 0)}
-                             style={{
-                               width: '100%',
-                               height: '42px',
-                               border: '1px solid #E2E8F0',
-                               borderRadius: '10px',
-                               padding: '0 12px',
-                               fontSize: '13px',
-                               background: '#F8FAFC',
-                               outline: 'none',
-                               textAlign: 'right',
-                               fontVariantNumeric: 'tabular-nums',
-                             }}
-                           />
-                         )}
-                       </td>
-
-                       {/* Scrap % */}
-                      <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
-                        {hasChildren ? (
-                          <div style={{
-                            height: '42px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#CBD5E1', fontSize: '13px',
-                          }}>—</div>
-                        ) : (
-                          <div style={{
-                            display: 'flex',
-                            height: '42px',
-                            border: '1px solid #E2E8F0',
-                            borderRadius: '10px',
-                            overflow: 'hidden',
-                            transition: 'border-color 0.15s',
-                          }}
-                            onFocusWithin={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; }}
-                            onBlurWithin={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.boxShadow = 'none'; }}
-                          >
-                            <input
-                              type="number"
-                              value={item.wastage_pct || ''}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                updateItemById(item.id!, 'wastage_pct', val);
-                                updateItemById(item.id!, 'scrap_factor', val);
-                                updateItemById(item.id!, 'yield_pct', Math.max(0, 100 - val));
-                              }}
-                              style={{
-                                flex: 1,
-                                border: 'none',
-                                padding: '0 12px',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                color: '#0F172A',
-                                background: '#F8FAFC',
-                                textAlign: 'center',
-                                outline: 'none',
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            />
-                            <div style={{
-                              width: '36px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: '#F1F5F9',
-                              borderLeft: '1px solid #E2E8F0',
-                              fontSize: '12px',
-                              fontWeight: 500,
-                              color: '#94A3B8',
-                            }}>%</div>
-                          </div>
-                        )}
-                       </td>
-
-                       {/* Yield % */}
-                       <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <div style={{
-                             height: '42px',
-                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                             color: '#CBD5E1', fontSize: '13px',
-                           }}>—</div>
-                         ) : (
-                           <div style={{
-                             display: 'flex',
-                             height: '42px',
-                             border: '1px solid #E2E8F0',
-                             borderRadius: '10px',
-                             overflow: 'hidden',
-                             transition: 'border-color 0.15s',
+                      {/* Quantity */}
+                      <td style={{ padding: '0 12px', verticalAlign: 'middle' }}>
+                         <input
+                           type="number"
+                           value={item.required_qty || ''}
+                           onChange={(e) => updateItemById(item.id!, 'required_qty', Number(e.target.value))}
+                           placeholder="0"
+                           style={{
+                             width: '100%', height: '34px', padding: '0 8px',
+                             fontSize: '13px', fontWeight: 500, color: '#0F172A',
+                             background: '#F8FAFC', border: '1px solid #E2E8F0',
+                             borderRadius: '6px', textAlign: 'right', outline: 'none',
+                             fontVariantNumeric: 'tabular-nums',
                            }}
-                             onFocusWithin={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; }}
-                             onBlurWithin={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.boxShadow = 'none'; }}
-                           >
-                             <input
-                               type="number"
-                               value={item.yield_pct ?? ''}
-                               onChange={(e) => updateItemById(item.id!, 'yield_pct', Number(e.target.value))}
-                               style={{
-                                 flex: 1,
-                                 border: 'none',
-                                 padding: '0 12px',
-                                 fontSize: '13px',
-                                 fontWeight: 500,
-                                 color: '#0F172A',
-                                 background: '#F8FAFC',
-                                 textAlign: 'center',
-                                 outline: 'none',
-                                 fontVariantNumeric: 'tabular-nums',
-                               }}
-                             />
-                             <div style={{
-                               width: '36px',
-                               display: 'flex',
-                               alignItems: 'center',
-                               justifyContent: 'center',
-                               background: '#F1F5F9',
-                               borderLeft: '1px solid #E2E8F0',
-                               fontSize: '12px',
-                               fontWeight: 500,
-                               color: '#94A3B8',
-                             }}>%</div>
-                           </div>
-                         )}
+                         />
+                       </td>
+                      {/* Unit */}
+                      <td style={{ padding: '0 12px', verticalAlign: 'middle' }}>
+                         <select
+                           value={item.unit}
+                           onChange={(e) => updateItemById(item.id!, 'unit', e.target.value)}
+                           style={{
+                             width: '100%', height: '34px', padding: '0 6px',
+                             fontSize: '12px', fontWeight: 500, color: '#475569',
+                             background: '#F8FAFC', border: '1px solid #E2E8F0',
+                             borderRadius: '6px', outline: 'none', cursor: 'pointer',
+                           }}
+                         >
+                           {unitOptions.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
+                         </select>
                        </td>
 
-                       {/* Lead Time — Combined Control */}
-                      <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
-                        {hasChildren ? (
-                          <div style={{
-                            height: '42px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#CBD5E1', fontSize: '13px',
-                          }}>—</div>
-                        ) : (
-                          <div style={{
-                            display: 'flex',
-                            height: '42px',
-                            border: '1px solid #E2E8F0',
-                            borderRadius: '10px',
-                            overflow: 'hidden',
-                            transition: 'border-color 0.15s',
-                          }}
-                            onFocusWithin={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; }}
-                            onBlurWithin={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.boxShadow = 'none'; }}
-                          >
-                            <input
-                              type="number"
-                              min="0"
-                              value={item.lead_time_days || ''}
-                              onChange={(e) => updateItemById(item.id!, 'lead_time_days', Math.max(0, parseInt(e.target.value) || 0))}
-                              style={{
-                                flex: 1,
-                                border: 'none',
-                                padding: '0 12px',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                color: '#0F172A',
-                                background: '#F8FAFC',
-                                textAlign: 'right',
-                                outline: 'none',
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            />
-                            <div style={{
-                              width: '64px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: '#F1F5F9',
-                              borderLeft: '1px solid #E2E8F0',
-                            }}>
-                              <select
-                                 defaultValue="days"
-                                 onFocus={(e) => { const p = e.currentTarget.closest('[data-bom-field]'); if (p) { p.style.borderColor = '#2563EB'; p.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; } }}
-                                 onBlur={(e) => { const p = e.currentTarget.closest('[data-bom-field]'); if (p) { p.style.borderColor = '#E2E8F0'; p.style.boxShadow = 'none'; } }}
-                                 style={{
-                                  border: 'none',
-                                  background: 'transparent',
-                                  fontSize: '11px',
-                                  fontWeight: 500,
-                                  color: '#475569',
-                                  cursor: 'pointer',
-                                  outline: 'none',
-                                  padding: '0 2px',
-                                  textAlign: 'center',
-                                }}
-                              >
-                                {LEAD_TIME_UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-                              </select>
-                            </div>
-                          </div>
-                        )}
-                       </td>
 
-                       {/* Work Center */}
-                       <td style={{ padding: '0 12px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <select
-                             value={item.work_center_id || ''}
-                             onChange={(e) => updateItemById(item.id!, 'work_center_id', e.target.value || null)}
-                             style={{
-                               width: '100%',
-                               height: '36px',
-                               border: '1px solid #E2E8F0',
-                               borderRadius: '8px',
-                               padding: '0 8px',
-                               fontSize: '12px',
-                               background: '#F8FAFC',
-                               outline: 'none',
-                               color: '#0F172A',
-                             }}
-                           >
-                             <option value="">—</option>
-                             {(workCenters || []).map(wc => (
-                               <option key={wc.id} value={wc.id}>{wc.name}</option>
-                             ))}
-                           </select>
-                         )}
-                       </td>
-
-                       {/* Critical */}
-                       <td style={{ padding: '0 8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <button
-                             type="button"
-                             onClick={() => updateItemById(item.id!, 'is_critical', !item.is_critical)}
-                             style={{
-                               width: '100%',
-                               height: '32px',
-                               border: `1px solid ${item.is_critical ? '#F59E0B' : '#E2E8F0'}`,
-                               borderRadius: '6px',
-                               background: item.is_critical ? '#FFFBEB' : '#F8FAFC',
-                               color: item.is_critical ? '#B45309' : '#94A3B8',
-                               fontSize: '11px',
-                               fontWeight: 600,
-                               cursor: 'pointer',
-                               transition: 'all 0.15s',
-                             }}
-                           >
-                             {item.is_critical ? 'Yes' : 'No'}
-                           </button>
-                         )}
-                       </td>
-
-                       {/* Alternate Material */}
-                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <select
-                             value={item.alternate_material_id || ''}
-                             onChange={(e) => updateItemById(item.id!, 'alternate_material_id', e.target.value || null)}
-                             style={{
-                               width: '100%',
-                               height: '36px',
-                               border: '1px solid #E2E8F0',
-                               borderRadius: '8px',
-                               padding: '0 8px',
-                               fontSize: '12px',
-                               background: '#F8FAFC',
-                               outline: 'none',
-                               color: '#0F172A',
-                             }}
-                           >
-                             <option value="">None</option>
-                             {(materials || [])
-                               .filter(m => m.id !== item.material_id)
-                               .map(m => (
-                               <option key={m.id} value={m.id}>{m.name}</option>
-                             ))}
-                           </select>
-                         )}
-                       </td>
-
-                       {/* Drawing Reference */}
-                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <input
-                             type="text"
-                             value={item.drawing_reference || ''}
-                             onChange={(e) => updateItemById(item.id!, 'drawing_reference', e.target.value)}
-                             placeholder="e.g. DWG-001"
-                             style={{
-                               width: '100%',
-                               height: '36px',
-                               border: '1px solid #E2E8F0',
-                               borderRadius: '8px',
-                               padding: '0 10px',
-                               fontSize: '12px',
-                               background: '#F8FAFC',
-                               outline: 'none',
-                               color: '#0F172A',
-                             }}
-                           />
-                         )}
-                       </td>
-
-                       {/* Inspection Required */}
-                       <td style={{ padding: '0 8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <input
-                             type="checkbox"
-                             checked={item.inspection_required || false}
-                             onChange={(e) => updateItemById(item.id!, 'inspection_required', e.target.checked)}
-                             style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                           />
-                         )}
-                       </td>
-
-                       {/* Shelf Life */}
-                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <input
-                             type="number"
-                             min="0"
-                             value={item.shelf_life_days ?? ''}
-                             onChange={(e) => updateItemById(item.id!, 'shelf_life_days', e.target.value ? parseInt(e.target.value) : null)}
-                             placeholder="Days"
-                             style={{
-                               width: '100%',
-                               height: '36px',
-                               border: '1px solid #E2E8F0',
-                               borderRadius: '8px',
-                               padding: '0 8px',
-                               fontSize: '12px',
-                               background: '#F8FAFC',
-                               outline: 'none',
-                               textAlign: 'right',
-                               fontVariantNumeric: 'tabular-nums',
-                             }}
-                           />
-                         )}
-                       </td>
-
-                       {/* Warehouse */}
-                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
-                         {hasChildren ? (
-                           <span style={{ color: '#CBD5E1', fontSize: '13px' }}>—</span>
-                         ) : (
-                           <select
-                             value={item.warehouse_id || ''}
-                             onChange={(e) => updateItemById(item.id!, 'warehouse_id', e.target.value || null)}
-                             style={{
-                               width: '100%',
-                               height: '36px',
-                               border: '1px solid #E2E8F0',
-                               borderRadius: '8px',
-                               padding: '0 8px',
-                               fontSize: '12px',
-                               background: '#F8FAFC',
-                               outline: 'none',
-                               color: '#0F172A',
-                             }}
-                           >
-                             <option value="">—</option>
-                             {(warehouses || []).map(w => (
-                               <option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>
-                             ))}
-                           </select>
-                         )}
-                       </td>
-
-                       {/* Details — View Details Link */}
-                      <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
-                        <Button
-                          type="button"
-                          variant="link"
-                          size="sm"
-                          onClick={() => setActiveDetailRowId(activeDetailRowId === item.id ? null : item.id!)}
-                          className="p-0 h-auto text-blue-600 hover:text-blue-700"
-                          style={{ textDecoration: activeDetailRowId === item.id ? 'underline' : 'none' }}
-                        >
-                          {activeDetailRowId === item.id ? 'Hide' : 'View Details'} →
-                        </Button>
-                      </td>
-
-                      {/* Row Actions — Hover Reveal */}
+                       
+{/* Actions — 3-dot menu + Delete on hover */}
                       <td style={{ padding: '0 8px', verticalAlign: 'middle', position: 'relative' }}>
-                        <div className="action-menu-container" style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-                          <Button
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', opacity: isHovered || activeActionMenuRowId === item.id ? 1 : 0, transition: 'opacity 0.15s' }}>
+                          {/* 3-Dot Menu */}
+                          <div className="action-menu-container" style={{ position: 'relative' }}>
+                            <button
+                              type="button"
+                              onClick={() => setActiveActionMenuRowId(activeActionMenuRowId === item.id ? null : item.id!)}
+                              style={{
+                                width: '28px', height: '28px', borderRadius: '6px',
+                                border: 'none', background: activeActionMenuRowId === item.id ? '#F1F5F9' : 'transparent',
+                                color: '#94A3B8',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.15s',
+                              }}
+                              title="More actions"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                            {activeActionMenuRowId === item.id && (
+                              <div style={{
+                                position: 'absolute', right: 0, top: '100%', marginTop: '4px',
+                                zIndex: 999, background: '#fff', border: '1px solid #E2E8F0',
+                                borderRadius: '10px', boxShadow: '0 8px 24px rgba(15,23,42,0.12)',
+                                padding: '4px', minWidth: '180px', animation: 'scaleIn 150ms ease-out',
+                              }}>
+                                <button type="button" onClick={() => { setActiveDetailRowId(activeDetailRowId === item.id ? null : item.id!); setActiveActionMenuRowId(null); }}
+                                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', fontWeight: 500, color: '#2563EB', background: activeDetailRowId === item.id ? '#EFF6FF' : 'none', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}
+                                  onMouseEnter={e => { if (activeDetailRowId !== item.id) e.currentTarget.style.background = '#F3F4F6'; }}
+                                  onMouseLeave={e => { if (activeDetailRowId !== item.id) e.currentTarget.style.background = 'none'; }}>
+                                  <BarChart3 size={13} /> Costing & Details
+                                </button>
+                                <div style={{ height: '1px', background: '#F1F5F9', margin: '3px 6px' }} />
+                                <button type="button" onClick={() => { addSubMaterial(item.id!); setActiveActionMenuRowId(null); }}
+                                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', fontWeight: 500, color: '#374151', background: 'none', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}
+                                  onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                                  <Plus size={13} /> Add Sub-material
+                                </button>
+                                <button type="button" onClick={() => { duplicateItem(item.id!); setActiveActionMenuRowId(null); }}
+                                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', fontWeight: 500, color: '#374151', background: 'none', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}
+                                  onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                                  <Copy size={13} /> Duplicate
+                                </button>
+                                <div style={{ height: '1px', background: '#F1F5F9', margin: '3px 6px' }} />
+                                <button type="button" onClick={() => { removeItem(item.id!); setActiveActionMenuRowId(null); }}
+                                  disabled={items.length <= 1}
+                                  style={{ width: '100%', padding: '6px 10px', fontSize: '12px', fontWeight: 500, color: '#EF4444', background: 'none', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left', opacity: items.length <= 1 ? 0.4 : 1 }}
+                                  onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                                  <Trash2 size={13} /> Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {/* Delete X */}
+                          <button
                             type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setActiveActionMenuRowId(activeActionMenuRowId === item.id ? null : item.id!)}
-                            className="text-slate-400 hover:text-slate-600"
+                            onClick={() => removeItem(item.id!)}
+                            disabled={items.length <= 1}
                             style={{
-                              opacity: isHovered || activeActionMenuRowId === item.id ? 1 : 0,
-                              transition: 'all 0.15s',
+                              width: '24px', height: '24px', borderRadius: '50%',
+                              border: 'none', background: 'transparent',
+                              color: '#CBD5E1', cursor: 'pointer', display: 'flex',
+                              alignItems: 'center', justifyContent: 'center',
+                              transition: 'all 0.15s', opacity: isHovered ? 1 : 0,
                             }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.color = '#EF4444'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#CBD5E1'; }}
+                            title="Remove material"
                           >
-                            <MoreHorizontal size={16} />
-                          </Button>
-                          
-                          {activeActionMenuRowId === item.id && (
-                            <div style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: '100%',
-                              marginTop: '4px',
-                              zIndex: 999,
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '12px',
-                              boxShadow: '0 12px 36px rgba(15,23,42,0.12)',
-                              padding: '4px',
-                              minWidth: '160px',
-                              animation: 'scaleIn 150ms ease-out',
-                            }}>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { addSubMaterial(item.id!); setActiveActionMenuRowId(null); }}
-                                className="w-full justify-start font-medium text-slate-600"
-                              >
-                                <Plus size={14} /> Add Sub-material
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { duplicateItem(item.id!); setActiveActionMenuRowId(null); }}
-                                className="w-full justify-start font-medium text-slate-600"
-                              >
-                                <Copy size={14} /> Duplicate
-                              </Button>
-                              <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 0' }} />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { removeItem(item.id!); setActiveActionMenuRowId(null); }}
-                                disabled={items.length <= 1}
-                                className="w-full justify-start font-medium text-red-600 disabled:opacity-40"
-                              >
-                                <Trash2 size={14} /> Delete
-                              </Button>
-                            </div>
-                          )}
+                            <X size={14} />
+                          </button>
                         </div>
-                      </td>
-                    </tr>
+                      </td>                    </tr>
                   );
                 })}
                 
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{
+                    <td colSpan={4} style={{
                       padding: '60px 24px',
                       textAlign: 'center',
                     }}>
@@ -1623,119 +1132,211 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
             </div>
           </div>
 
-          {/* ─── Detail Tray (Expanded Row) ─── */}
+                    {/* ─── Detail Tray (Costing & Details — Expanded Row) ─── */}
           {getFlattenedTree().map((item) => {
             if (activeDetailRowId !== item.id) return null;
             return (
               <div key={`detail-${item.id}`} style={{
                 background: '#F8FBFF',
                 borderTop: '1px solid #F1F5F9',
-                padding: '20px 28px 20px 84px',
-                display: 'flex',
-                gap: '24px',
+                padding: '16px 28px 16px 84px',
                 animation: 'slideDown 200ms ease-out',
               }}>
-                <div style={{ flex: 1, maxWidth: '220px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
-                    Discount Category
-                  </label>
-                  {(() => {
-                    const variants = getVariantsForMaterial(item.material_id);
-                    if (!variants.length) {
-                      return <div style={{ fontSize: '13px', color: '#94A3B8', padding: '10px 0' }}>—</div>;
-                    }
-                    return (
-                      <select
-                        value={item.company_variant_id || ''}
-                        onChange={(e) => {
-                          const vId = e.target.value;
-                          const vName = getVariantName(vId);
-                          updateItemById(item.id!, 'company_variant_id', vId || '');
-                          updateItemById(item.id!, 'variant_name', vName);
-                        }}
-                        style={{
-                          width: '100%',
-                          height: '40px',
-                          padding: '0 12px',
-                          background: '#fff',
-                          border: '1px solid #E2E8F0',
-                          borderRadius: '10px',
-                          fontSize: '13px',
-                          color: '#0F172A',
-                          outline: 'none',
-                          transition: 'border-color 0.15s',
-                        }}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#2563EB'; }}
-                        onBlur={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                {/* Section Title */}
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563EB' }} />
+                  Costing & Details — {item.material_name || 'Material'}
+                </div>
+
+                {/* Row 1: Unit Cost, Scrap %, Yield %, Lead Time */}
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '140px', maxWidth: '180px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Unit Cost (₹)</label>
+                    <input type="number" min="0" step="0.01"
+                      value={item.unit_cost ?? ''}
+                      onChange={(e) => updateItemById(item.id!, 'unit_cost', parseFloat(e.target.value) || 0)}
+                      placeholder="0.00"
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '120px', maxWidth: '150px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Scrap %</label>
+                    <input type="number" min="0" max="100"
+                      value={item.wastage_pct || ''}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        updateItemById(item.id!, 'wastage_pct', val);
+                        updateItemById(item.id!, 'scrap_factor', val);
+                        updateItemById(item.id!, 'yield_pct', Math.max(0, 100 - val));
+                      }}
+                      placeholder="5"
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s', textAlign: 'center' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '120px', maxWidth: '150px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Yield %</label>
+                    <input type="number" min="0" max="100"
+                      value={item.yield_pct ?? ''}
+                      onChange={(e) => updateItemById(item.id!, 'yield_pct', Number(e.target.value))}
+                      placeholder="95"
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s', textAlign: 'center' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '160px', maxWidth: '220px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Lead Time</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <input type="number" min="0"
+                        value={item.lead_time_days || ''}
+                        onChange={(e) => updateItemById(item.id!, 'lead_time_days', Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="0"
+                        style={{ ...{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }, flex: 1 }}
+                      />
+                      <select defaultValue="days"
+                        style={{ width: '72px', height: '36px', padding: '0 4px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '11px', fontWeight: 500, color: '#475569', outline: 'none', cursor: 'pointer' }}
                       >
-                        <option value="">No Category</option>
-                        {variants.map(v => (
-                          <option key={v.company_variant_id} value={v.company_variant_id}>
-                            {getVariantName(v.company_variant_id)}
-                          </option>
-                        ))}
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
                       </select>
-                    );
-                  })()}
+                    </div>
+                  </div>
                 </div>
-                
-                <div style={{ flex: 1, maxWidth: '220px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
-                    Brand
-                  </label>
-                  <select
-                    value={item.make || ''}
-                    onChange={(e) => updateItemById(item.id!, 'make', e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '40px',
-                      padding: '0 12px',
-                      background: '#fff',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '10px',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                    }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#2563EB'; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                  >
-                    <option value="">—</option>
-                    {brandOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
+
+                {/* Row 2: Work Center, Critical, Alternate, Warehouse */}
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '160px', maxWidth: '200px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Work Center</label>
+                    <select
+                      value={item.work_center_id || ''}
+                      onChange={(e) => updateItemById(item.id!, 'work_center_id', e.target.value || null)}
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
+                    >
+                      <option value="">—</option>
+                      {(workCenters || []).map(wc => (
+                        <option key={wc.id} value={wc.id}>{wc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ minWidth: '100px', maxWidth: '120px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Critical?</label>
+                    <button type="button"
+                      onClick={() => updateItemById(item.id!, 'is_critical', !item.is_critical)}
+                      style={{
+                        width: '100%', height: '36px',
+                        border: '1px solid ' + (item.is_critical ? '#F59E0B' : '#E2E8F0'),
+                        borderRadius: '8px',
+                        background: item.is_critical ? '#FFFBEB' : '#F8FAFC',
+                        color: item.is_critical ? '#B45309' : '#94A3B8',
+                        fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >
+                      {item.is_critical ? 'Yes' : 'No'}
+                    </button>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '160px', maxWidth: '220px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Alternate Material</label>
+                    <select
+                      value={item.alternate_material_id || ''}
+                      onChange={(e) => updateItemById(item.id!, 'alternate_material_id', e.target.value || null)}
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
+                    >
+                      <option value="">None</option>
+                      {(materials || []).filter(m => m.id !== item.material_id).map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '160px', maxWidth: '200px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Warehouse</label>
+                    <select
+                      value={item.warehouse_id || ''}
+                      onChange={(e) => updateItemById(item.id!, 'warehouse_id', e.target.value || null)}
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
+                    >
+                      <option value="">—</option>
+                      {(warehouses || []).map(w => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                
-                <div style={{ flex: 1, maxWidth: '400px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
-                    Notes / Remarks
-                  </label>
-                  <input
-                    type="text"
-                    value={item.notes || ''}
-                    onChange={(e) => updateItemById(item.id!, 'notes', e.target.value)}
-                    placeholder="Enter notes..."
-                    style={{
-                      width: '100%',
-                      height: '40px',
-                      padding: '0 14px',
-                      background: '#fff',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '10px',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                    }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#2563EB'; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                  />
+
+                {/* Row 3: Drawing Ref, Inspect, Shelf Life, Discount Category, Brand */}
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '140px', maxWidth: '180px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Drawing Ref</label>
+                    <input type="text"
+                      value={item.drawing_reference || ''}
+                      onChange={(e) => updateItemById(item.id!, 'drawing_reference', e.target.value)}
+                      placeholder="e.g. DWG-001"
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
+                    />
+                  </div>
+                  <div style={{ minWidth: '90px', maxWidth: '110px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Inspect?</label>
+                    <div style={{ height: '36px', display: 'flex', alignItems: 'center', paddingLeft: '4px' }}>
+                      <input type="checkbox"
+                        checked={item.inspection_required || false}
+                        onChange={(e) => updateItemById(item.id!, 'inspection_required', e.target.checked)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '11px', color: '#64748B', marginLeft: '6px' }}>Required</span>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '120px', maxWidth: '150px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Shelf Life (days)</label>
+                    <input type="number" min="0"
+                      value={item.shelf_life_days ?? ''}
+                      onChange={(e) => updateItemById(item.id!, 'shelf_life_days', e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="—"
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s', textAlign: 'right' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '160px', maxWidth: '200px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Discount Category</label>
+                    {(() => {
+                      const variants = getVariantsForMaterial(item.material_id);
+                      if (!variants.length) {
+                        return <div style={{ fontSize: '12px', color: '#94A3B8', padding: '8px 0' }}>—</div>;
+                      }
+                      return (
+                        <select
+                          value={item.company_variant_id || ''}
+                          onChange={(e) => {
+                            const vId = e.target.value;
+                            const vName = getVariantName(vId);
+                            updateItemById(item.id!, 'company_variant_id', vId || '');
+                            updateItemById(item.id!, 'variant_name', vName);
+                          }}
+                          style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
+                        >
+                          <option value="">No Category</option>
+                          {variants.map(v => (
+                            <option key={v.company_variant_id} value={v.company_variant_id}>
+                              {getVariantName(v.company_variant_id)}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    })()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: '140px', maxWidth: '180px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Brand</label>
+                    <select
+                      value={item.make || ''}
+                      onChange={(e) => updateItemById(item.id!, 'make', e.target.value)}
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
+                    >
+                      <option value="">—</option>
+                      {brandOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             );
           })}
 
-          {/* ─── Add Material Dashed Button ─── */}
+{/* ─── Add Material Dashed Button ─── */}
           <div style={{
             padding: '16px 28px 24px',
             display: 'flex',
