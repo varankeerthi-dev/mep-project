@@ -93,6 +93,9 @@ async function resolveInvoice(invoice: InvoiceLike, organisationId?: string): Pr
   if (typeof invoice === 'string') {
     return getInvoiceById(invoice, organisationId);
   }
+  if (!invoice.items || invoice.items.length === 0) {
+    return getInvoiceById(invoice.id, organisationId || invoice.organisation_id || undefined);
+  }
   return invoice;
 }
 

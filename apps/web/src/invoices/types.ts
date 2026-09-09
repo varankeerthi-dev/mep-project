@@ -15,6 +15,7 @@ export interface InvoiceFilters {
   templateType?: InvoiceTemplateType;
   limit?: number;
   organisationId?: string | null;
+  includeItems?: boolean;
 }
 
 export interface InvoiceSourceMapOptions {

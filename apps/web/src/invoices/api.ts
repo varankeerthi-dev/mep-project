@@ -79,6 +79,34 @@ const INVOICE_SELECT = `
   materials:invoice_materials(id, invoice_id, product_id, qty_used)
 `;
 
+export const INVOICE_LIST_SELECT = `
+  id,
+  organisation_id,
+  client_id,
+  invoice_no,
+  invoice_date,
+  po_number,
+  po_date,
+  source_type,
+  source_id,
+  template_id,
+  template_type,
+  mode,
+  subtotal,
+  cgst,
+  sgst,
+  igst,
+  total,
+  paid_amount,
+  status,
+  prepared_by,
+  submitted_date,
+  submitted_by,
+  submitted_file_url,
+  created_at,
+  client:clients(id, client_name, gstin, state, default_template_id, email)
+`;
+
 export interface SubmissionUpdateInput {
   invoiceId: string;
   organisationId: string;
@@ -277,6 +305,41 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
   };
 }
 
+export function parseInvoiceSummaryRecord(row: any): InvoiceWithRelations {
+  const client = parseClientSummary(row.client);
+  return {
+    id: row.id,
+    organisation_id: row.organisation_id ?? null,
+    client_id: row.client_id,
+    invoice_no: row.invoice_no ?? null,
+    invoice_date: row.invoice_date ?? null,
+    po_number: row.po_number ?? null,
+    po_date: row.po_date ?? null,
+    template_id: row.template_id ?? null,
+    source_type: row.source_type,
+    source_id: row.source_id ?? null,
+    template_type: row.template_type,
+    mode: row.mode,
+    subtotal: Number(row.subtotal || 0),
+    cgst: Number(row.cgst || 0),
+    sgst: Number(row.sgst || 0),
+    igst: Number(row.igst || 0),
+    total: Number(row.total || 0),
+    paid_amount: Number(row.paid_amount ?? 0),
+    status: row.status,
+    prepared_by: row.prepared_by ?? null,
+    submitted_date: row.submitted_date ?? null,
+    submitted_by: row.submitted_by ?? null,
+    submitted_file_url: row.submitted_file_url ?? null,
+    created_at: row.created_at,
+    company_state: null,
+    client_state: client?.state ?? null,
+    items: [],
+    materials: [],
+    client,
+  };
+}
+
 async function ensureClientState(clientId: string, fallbackState?: string | null): Promise<string | null> {
   if (fallbackState) return fallbackState;
 
@@ -445,8 +508,12 @@ export async function getInvoiceById(id: string, organisationId?: string): Promi
 }
 
 export async function getInvoices(filters: InvoiceFilters = {}): Promise<InvoiceWithRelations[]> {
-  let query = supabase.from('invoices').select(INVOICE_SELECT).eq('organisation_id', filters.organisationId).order('created_at', { ascending: false });
+  const selectQuery = filters.includeItems ? INVOICE_SELECT : INVOICE_LIST_SELECT;
+  let query = supabase.from('invoices').select(selectQuery).order('created_at', { ascending: false });
 
+  if (filters.organisationId) {
+    query = query.eq('organisation_id', filters.organisationId);
+  }
   if (filters.clientId) query = query.eq('client_id', filters.clientId);
   if (filters.status) query = query.eq('status', filters.status);
   if (filters.sourceType) query = query.eq('source_type', filters.sourceType);
@@ -456,7 +523,11 @@ export async function getInvoices(filters: InvoiceFilters = {}): Promise<Invoice
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data ?? []).map(parseInvoiceRecord);
+  if (filters.includeItems) {
+    return (data ?? []).map(parseInvoiceRecord);
+  }
+
+  return (data ?? []).map(parseInvoiceSummaryRecord);
 }
 
 export async function getInvoiceTemplates(organisationId?: string): Promise<InvoiceTemplateRecord[]> {
