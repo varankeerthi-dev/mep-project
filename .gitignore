@@ -302,3 +302,7 @@ nul
 .turbo/
 
 .blume/
+
+# Local diagnostic files
+apps/error.txt
+apps/web/sidebar-diagnose.html
