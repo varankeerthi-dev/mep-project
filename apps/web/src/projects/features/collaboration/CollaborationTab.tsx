@@ -203,3 +203,5 @@ export const CollaborationTab: React.FC<CollaborationTabProps> = ({ projectId })
     </div>
   );
 };
+
+export default CollaborationTab;

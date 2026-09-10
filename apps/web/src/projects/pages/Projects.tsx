@@ -21,14 +21,14 @@ const ProjectGantt = React.lazy(() => import('../../components/ProjectGantt'));
 const CreateProject = React.lazy(() => import('./CreateProject'));
 const DailyUpdates = React.lazy(() => import('../../pages/DailyUpdates'));
 const SiteMaterials = React.lazy(() => import('../../pages/ProjectManagementInternal').then(m => ({ default: m.SiteMaterials })));
-const CollaborationTab = React.lazy(() => import('../features/collaboration/CollaborationTab'));
+const CollaborationWorkspace = React.lazy(() => import('../features/collaboration/components/CollaborationWorkspace').then(m => ({ default: m.CollaborationWorkspace })));
 
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, component: null },
   { id: 'timeline', label: 'Timeline', icon: LayoutGrid, component: null },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
-  { id: 'collaboration', label: 'Collaboration', icon: MessageSquare, component: CollaborationTab },
+  { id: 'collaboration', label: 'Collaboration', icon: MessageSquare, component: CollaborationWorkspace },
 ];
 
 const MATERIAL_SUBTABS = [
@@ -214,150 +214,13 @@ export default function Projects() {
           </Suspense>
         ) : activeTab === 'collaboration' ? (
           <Suspense fallback={<PageSkeleton variant="list" rows={6} />}>
-            <ProjectCollaborationSection
-              organisationId={organisationId}
-              selectedProjectId={selectedProjectId}
-              setSelectedProjectId={setSelectedProjectId}
-              setProjectName={setProjectName}
-              setSearchParams={setSearchParams}
-            />
+            <div style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+              <CollaborationWorkspace organisationId={organisationId} />
+            </div>
           </Suspense>
         ) : (
           <ProjectList />
         )}
-      </div>
-    </div>
-  );
-}
-
-function ProjectCollaborationSection({
-  organisationId,
-  selectedProjectId,
-  setSelectedProjectId,
-  setProjectName,
-  setSearchParams,
-}: {
-  organisationId: string;
-  selectedProjectId: string | null;
-  setSelectedProjectId: (id: string | null) => void;
-  setProjectName: (name: string) => void;
-  setSearchParams: (params: any) => void;
-}) {
-  const { organisation } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects-collaboration', organisation?.id],
-    queryFn: async () => {
-      if (!organisation?.id) return [];
-      const { data } = await supabase
-        .from('projects')
-        .select('id, project_name, name, status')
-        .eq('organisation_id', organisation.id)
-        .order('project_name');
-      return data || [];
-    },
-    enabled: !!organisation?.id,
-  });
-
-  const filteredProjects = projects.filter(p =>
-    !searchTerm || (p.project_name || p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSelectProject = (id: string, name: string) => {
-    setSelectedProjectId(id);
-    setProjectName(name);
-    setSearchParams({ tab: 'collaboration', projectId: id, projectName: name });
-  };
-
-  const handleBackToProjects = () => {
-    setSelectedProjectId(null);
-    setSearchParams({ tab: 'collaboration' });
-  };
-
-  if (!selectedProjectId) {
-    return (
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        <div style={{ background: '#fff', borderRadius: '8px', padding: '24px' }}>
-          <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>Select a Project</h3>
-            <div style={{ marginBottom: '16px' }}>
-              <input
-                type="text"
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                }}
-              />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            {filteredProjects.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px', color: '#6b7280' }}>
-                No projects found
-              </div>
-            ) : (
-              filteredProjects.map((project) => (
-                <button
-                  key={project.id}
-                  onClick={() => handleSelectProject(project.id, project.project_name || project.name || '')}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    background: '#fff',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
-                >
-                  <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>
-                    {project.project_name || project.name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                    Status: {project.status || 'Active'}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-      <div style={{ background: '#fff', borderRadius: '8px', padding: '24px', height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-          <button
-            onClick={handleBackToProjects}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              background: '#fff',
-              cursor: 'pointer',
-              fontSize: '12px',
-              marginRight: '12px',
-            }}
-          >
-            ← Back to Projects
-          </button>
-          <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
-            {projectName} - Team Collaboration
-          </h3>
-        </div>
-        <CollaborationTab projectId={selectedProjectId} />
       </div>
     </div>
   );
