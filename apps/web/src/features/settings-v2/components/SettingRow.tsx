@@ -19,18 +19,18 @@ export const SettingRow: React.FC<SettingRowProps> = ({
     <div
       className={`flex flex-col sm:flex-row gap-4 ${
         alignTop ? 'sm:items-start' : 'sm:items-center'
-      } justify-between border-b border-zinc-100 py-4 first:pt-0 last:border-b-0 last:pb-0`}
+      } justify-between border-b border-zinc-100 py-2 first:pt-0 last:border-b-0 last:pb-0`}
       style={{ gap: '16px' }}
     >
       <div className="sm:max-w-sm flex-1">
         <label
           className="block font-semibold text-zinc-800 leading-snug"
-          style={{ fontSize: '13px', color: '#1f2937' }}
+          style={{ fontSize: '12px', color: '#1f2937' }}
         >
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {description && (
-          <p className="text-xs text-zinc-500 leading-relaxed mt-1">
+          <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5">
             {description}
           </p>
         )}

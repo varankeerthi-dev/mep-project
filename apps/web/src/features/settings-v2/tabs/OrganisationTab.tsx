@@ -206,9 +206,9 @@ export const OrganisationTab: React.FC<OrganisationTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {draftAvailable && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between text-xs text-amber-900">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center justify-between text-xs text-amber-900">
           <span>We found unsaved changes from your previous session.</span>
           <div className="flex items-center gap-2">
             <Button variant="warning" size="default" onClick={restoreDraft}>

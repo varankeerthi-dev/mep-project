@@ -70,20 +70,6 @@ function ModuleCard({
         overflow: 'hidden',
       }}
     >
-      {/* Category accent line */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: '3px',
-          background: enabled ? catStyle.dot : '#d4d4d4',
-          borderRadius: '3px 0 0 3px',
-          transition: 'background 0.3s',
-        }}
-      />
-
       {/* Icon */}
       <div
         style={{
@@ -136,12 +122,12 @@ function ModuleCard({
         </div>
       </div>
 
-      {/* Apple iOS Toggle */}
+      {/* Compact toggle */}
       <div
         style={{
           position: 'relative',
-          width: '51px',
-          height: '31px',
+          width: '36px',
+          height: '20px',
           borderRadius: '9999px',
           cursor: 'pointer',
           flexShrink: 0,
@@ -149,7 +135,7 @@ function ModuleCard({
           transition: 'background 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
           boxShadow: enabled
             ? 'inset 0 1px 2px rgba(0,0,0,0.1)'
-            : 'inset 0 1px 3px rgba(0,0,0,0.08)',
+            : 'inset 0 1px 2px rgba(0,0,0,0.08)',
         }}
         role="switch"
         aria-checked={enabled}
@@ -158,7 +144,7 @@ function ModuleCard({
         <motion.span
           initial={false}
           animate={{
-            x: enabled ? 22 : 2,
+            x: enabled ? 18 : 2,
           }}
           transition={{
             type: 'spring',
@@ -170,11 +156,11 @@ function ModuleCard({
             position: 'absolute',
             top: '2px',
             left: 0,
-            width: '27px',
-            height: '27px',
+            width: '16px',
+            height: '16px',
             borderRadius: '50%',
             background: '#ffffff',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.1)',
             pointerEvents: 'none',
           }}
         />

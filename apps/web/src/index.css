@@ -295,7 +295,7 @@ html, body {
      ~370ms jank on heavy pages). It now snaps in a single reflow, matching how
      Linear/Notion/VS Code handle sidebar collapse. */
   background: #f9fafb;
-  padding: 1.5rem;
+  padding: 6px;
 }
 
 /* Subtabs Heading Typography & Tab Spacing */
@@ -312,6 +312,14 @@ html, body {
   margin-top: 0;
   padding: 0;
   background: #f8fafc;
+}
+
+/* Settings V2 shell is full-bleed: it draws its own header + sidebar + content
+   padding, so remove the shared .main-content padding (the gap between the main
+   sidebar and the settings module panel). */
+.main-content:has(.settings-v2-root) {
+  padding: 0;
+  background: #ffffff;
 }
 
 @media (max-width: 768px) {
@@ -385,7 +393,7 @@ html, body {
     margin-left: 0;
     width: 100%;
     height: calc(100vh - 32px);
-    padding: 1rem;
+    padding: 6px;
   }
 
   .main-content.sidebar-collapsed {
@@ -547,13 +555,13 @@ html, body {
   box-sizing: border-box;
 }
 
-/* settings-v2 content area: 5px default padding baseline.
-   Scoped to .sv-content (right-side panel only) and wrapped in :where() so its
-   specificity stays 0 — components with their own padding (cards, inputs, rows)
-   keep their values; only padding-less elements pick up 5px. Sidebar/other pages
-   are untouched. */
+/* settings-v2 content area: 5px vertical baseline, 0 horizontal — horizontal
+   spacing is owned by the container (3px), so padding-less elements don't add a
+   hidden 5px gap between the module sidebar and content. Scoped to .sv-content
+   and wrapped in :where() so specificity stays 0 — components with their own
+   padding (cards, inputs, rows) keep their values. Sidebar/other pages untouched. */
 :where(.sv-content *) {
-  padding: 5px;
+  padding: 5px 0;
 }
 
 /* settings-v2 card: 10px corner radius. Class-level !important (specificity
@@ -1596,7 +1604,7 @@ body {
   .main-content {
     margin-left: 0;
     width: 100%;
-    padding: 16px;
+    padding: 6px;
   }
 
   .page-title {
@@ -4285,4 +4293,122 @@ td:hover .inline-description-cell-container:not(.has-description):not(.is-editin
 .touch-target {
   min-height: 44px;
   min-width: 44px;
+}
+/* ══════════════════════════════════════════════════════════════════
+   BOM EDITOR — SCOPED FORM DESIGN SYSTEM
+   Scoped under .bom-editor-page-container so these styles ONLY affect
+   the BOM editor and do not leak into the ~30 other pages that use
+   the legacy .form-* classes (CreditNote, Invoice, Quotation, etc.).
+   ══════════════════════════════════════════════════════════════════ */
+.bom-editor-page-container .form-card {
+  @apply w-full max-w-6xl mx-auto bg-white rounded-lg border border-slate-300 shadow-sm relative overflow-hidden font-sans;
+}
+
+.bom-editor-page-container .form-card form {
+  @apply p-4 pt-5;
+}
+
+.bom-editor-page-container .form-row {
+  @apply grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-3 items-end;
+}
+
+.bom-editor-page-container .form-row + .form-row {
+  @apply mt-3;
+}
+
+.bom-editor-page-container .form-group {
+  @apply flex flex-col gap-1;
+}
+
+.bom-editor-page-container .form-label {
+  @apply text-[13px] font-semibold text-slate-800 tracking-tight select-none;
+}
+
+.bom-editor-page-container .form-input {
+  @apply h-[36px] w-full px-2.5 text-[13px] text-slate-800 bg-white border border-slate-300 rounded-[3px] outline-none transition-colors;
+}
+
+.bom-editor-page-container .form-input:focus {
+  @apply border-sky-500 ring-1 ring-sky-500;
+}
+
+.bom-editor-page-container .form-input-muted {
+  @apply bg-[#eef1f5] text-slate-700 font-medium;
+}
+
+.bom-editor-page-container .form-input-disabled {
+  @apply bg-[#eef1f5] text-slate-500 cursor-not-allowed border-slate-200;
+}
+
+.bom-editor-page-container .form-input-right {
+  @apply text-right;
+}
+
+.bom-editor-page-container .form-select-wrap {
+  @apply relative w-full;
+}
+
+.bom-editor-page-container .form-select-wrap::after {
+  content: "";
+  @apply absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none w-2 h-2 border-r-2 border-b-2 border-slate-600 rotate-45 mb-0.5;
+}
+
+.bom-editor-page-container .form-select {
+  @apply h-[36px] w-full px-2.5 pr-8 text-[13px] text-slate-800 bg-white border border-slate-300 rounded-[3px] appearance-none outline-none cursor-pointer;
+}
+
+.bom-editor-page-container .form-select:focus {
+  @apply border-sky-500 ring-1 ring-sky-500;
+}
+
+.bom-editor-page-container .form-split-fields {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-2;
+}
+
+.bom-editor-page-container .form-input-addon-group {
+  @apply flex items-stretch gap-1;
+}
+
+.bom-editor-page-container .form-input-addon-group .form-input {
+  @apply flex-1 min-w-0;
+}
+
+.bom-editor-page-container .form-addon-btn {
+  @apply inline-flex items-center justify-center px-3 bg-[#eef1f5] hover:bg-[#e2e8f0] border border-slate-300 rounded-[3px] text-slate-600 transition-colors cursor-pointer;
+}
+
+.bom-editor-page-container .form-icon {
+  @apply w-4 h-4;
+}
+
+.bom-editor-page-container .form-footer {
+  @apply mt-4 pt-3 flex flex-wrap items-center justify-between gap-4 border-t border-transparent;
+}
+
+.bom-editor-page-container .form-checkbox-label {
+  @apply inline-flex items-center gap-2 text-[13px] text-slate-800 select-none cursor-pointer;
+}
+
+.bom-editor-page-container .form-checkbox {
+  @apply w-4 h-4 rounded-[2px] border-slate-400 text-teal-600 focus:ring-teal-500 cursor-pointer;
+}
+
+.bom-editor-page-container .form-btn-group {
+  @apply inline-flex items-center gap-2 ml-auto;
+}
+
+.bom-editor-page-container .form-btn {
+  @apply min-w-[80px] h-[34px] px-4 text-[13px] font-medium text-white rounded-[4px] shadow-sm transition-opacity hover:opacity-90 active:scale-95 cursor-pointer;
+}
+
+.bom-editor-page-container .form-btn-primary {
+  @apply bg-[#42b8ca];
+}
+
+.bom-editor-page-container .form-btn-secondary {
+  @apply bg-[#ef4444];
+}
+
+.bom-editor-page-container .form-btn-cancel {
+  @apply bg-slate-500;
 }

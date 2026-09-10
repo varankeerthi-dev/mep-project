@@ -17,25 +17,25 @@ export const SettingSection: React.FC<SettingSectionProps> = ({
 }) => {
   return (
       <div
-        className={`bg-white border border-zinc-300 overflow-hidden mb-6 sv-card ${className}`}
+        className={`bg-white border border-zinc-300 overflow-hidden mb-3 sv-card ${className}`}
       >
       {(title || description) && (
-      <div className="px-3 py-0.5 border-b border-zinc-100 flex items-center justify-between">
+      <div className="px-3 py-0.5 border-b border-zinc-100 flex items-center justify-between" style={{ paddingTop: 6, paddingBottom: 6 }}>
         <div>
           <h3
             className="font-semibold text-zinc-900"
-            style={{ fontSize: '15px', letterSpacing: '-0.01em' }}
+            style={{ fontSize: '13px', letterSpacing: '-0.01em' }}
           >
             {title}
           </h3>
           {description && (
-            <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">{description}</p>
           )}
         </div>
         {action && <div>{action}</div>}
       </div>
       )}
-      <div className="p-6 space-y-5" style={{ padding: '24px 24px 24px 12px' }}>
+      <div className="space-y-2" style={{ padding: '10px 14px 10px 12px' }}>
         {children}
       </div>
     </div>

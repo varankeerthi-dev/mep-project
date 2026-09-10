@@ -11,7 +11,7 @@ export const PlaceholderTab: React.FC<PlaceholderTabProps> = ({ tab }) => {
   const Icon = tab.icon;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <SettingSection
         title={tab.label}
         description={tab.description || `Configure ${tab.label.toLowerCase()} settings`}

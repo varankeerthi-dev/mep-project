@@ -192,9 +192,9 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {draftAvailable && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between text-xs text-amber-900">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center justify-between text-xs text-amber-900">
           <span>We found unsaved changes from your previous session.</span>
           <div className="flex items-center gap-2">
             <Button variant="warning" size="default" onClick={restoreDraft} >
@@ -211,9 +211,9 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
         title="Document Numbering Series"
         description="Configure automated prefix, start numbers, and zero padding for all transaction types"
       >
-        <div className="space-y-6 divide-y divide-zinc-100">
+        <div className="space-y-3 divide-y divide-zinc-100">
           {Object.values(liveData.series).map((s) => (
-            <div key={s.doc_type} className="pt-4 first:pt-0 space-y-3">
+            <div key={s.doc_type} className="pt-3 first:pt-0 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-zinc-900 uppercase tracking-wide">
                   {s.label}

@@ -59,22 +59,22 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
   return (
     <aside
-      className="w-72 bg-white border-r border-zinc-200/90 flex flex-col shrink-0 min-h-screen py-5 px-3.5 overflow-y-auto"
-      style={{ width: '288px', borderColor: '#e5e5e5' }}
+      className="bg-white border-r border-zinc-200/90 flex flex-col shrink-0 min-h-screen py-3 px-1.5 overflow-y-auto"
+      style={{ width: '160px', borderColor: '#e5e5e5' }}
     >
       {CATEGORY_ORDER.map((cat, catIdx) => {
         const catTabs = groupedTabs[cat] || [];
         if (catTabs.length === 0) return null;
 
         return (
-          <div key={cat} className={catIdx === 0 ? 'mb-6' : 'mt-6 mb-6'}>
+          <div key={cat} className={catIdx === 0 ? 'mb-3' : 'mt-3 mb-3'}>
             <h4
-              className="px-3.5 mb-2.5 font-bold text-zinc-400 uppercase tracking-wider"
-              style={{ fontSize: '11px', letterSpacing: '0.06em' }}
+              className="px-2.5 mb-1 font-bold text-zinc-400 uppercase tracking-wider"
+              style={{ fontSize: '10px', letterSpacing: '0.06em' }}
             >
               {cat}
             </h4>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {catTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === activeTabId;
@@ -82,16 +82,16 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
                 return (
                   <Button variant="ghost" size="default" key={tab.id} type="button" onClick={() => onSelectTab(tab.id)}
-                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-lg font-medium transition-all cursor-pointer text-left leading-normal ${
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer text-left leading-tight ${
                       isActive
-                        ? 'bg-zinc-100 text-zinc-900 font-semibold shadow-2xs border-l-3 border-[#185FA5]'
+                        ? 'bg-zinc-100 text-zinc-900 font-semibold shadow-2xs'
                         : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
                     }`}
-                    style={{ fontSize: '13px', lineHeight: '1.4' }}
+                    style={{ fontSize: '10px', lineHeight: 1.3, paddingTop: 6, paddingBottom: 6, height: 'auto' }}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <Icon
-                        className={`w-4 h-4 shrink-0 ${
+                        className={`w-3 h-3 shrink-0 ${
                           isActive ? 'text-[#185FA5]' : 'text-zinc-400'
                         }`}
                       />
@@ -99,7 +99,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                     </div>
                     {isDirty && (
                       <span
-                        className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 ml-2"
+                        className="w-2 h-2 rounded-full bg-amber-500 shrink-0 ml-1.5"
                         title="Unsaved changes in this section"
                       />
                     )}

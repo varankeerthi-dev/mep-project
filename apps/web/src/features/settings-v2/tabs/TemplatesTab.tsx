@@ -661,7 +661,7 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
         {successMessage && (
           <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900">{successMessage}</div>
         )}
-        <div className="space-y-6">
+        <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SettingRow label="Template Name" description="">
               <SettingInput value={formData.template_name} onChange={(val) => setFormData(prev => ({ ...prev, template_name: val }))} placeholder="e.g., My Company Quotation" />
@@ -806,7 +806,7 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-bold text-zinc-900">Document Templates</h2>
@@ -852,7 +852,7 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
             <p>Create your first template to get started</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {DOCUMENT_TYPES.map(docType => {
               const typeTemplates = templates.filter(t => {
                 if (t.document_type !== docType) return false;

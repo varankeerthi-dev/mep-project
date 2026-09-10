@@ -13,16 +13,16 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
 }) => {
   return (
     <main className="flex-1 bg-zinc-50/50 min-h-screen overflow-y-auto pb-24 sv-content">
-      <div className="max-w-4xl mx-auto px-12 py-8" style={{ maxWidth: '1000px', padding: '32px 12px' }}>
+      <div className="max-w-4xl" style={{ maxWidth: '1000px', padding: '16px 5px' }}>
         {(title || description) && (
-          <div className="mb-8 border-b border-zinc-200/80 pb-4">
+          <div className="mb-4 border-b border-zinc-200/80 pb-2">
             {title && (
-              <h1 className="text-xl font-bold text-zinc-900 tracking-tight">
+              <h1 className="font-bold text-zinc-900 tracking-tight" style={{ fontSize: '16px' }}>
                 {title}
               </h1>
             )}
             {description && (
-              <p className="text-xs text-zinc-500 mt-1">
+              <p className="text-xs text-zinc-500 mt-0.5">
                 {description}
               </p>
             )}

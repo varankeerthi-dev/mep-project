@@ -32,7 +32,7 @@ export const SettingsShell: React.FC<SettingsShellProps> = ({
   }, [hasUnsavedChanges]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans antialiased text-zinc-900">
+    <div className="settings-v2-root flex flex-col min-h-screen bg-white font-sans antialiased text-zinc-900">
       {/* Top Navigation Header */}
       <header className="h-14 bg-white border-b border-zinc-200 px-6 flex items-center justify-between shrink-0 sticky top-0 z-40 shadow-2xs">
         <div className="flex items-center gap-3">
