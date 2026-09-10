@@ -29,6 +29,7 @@ export default function ManufacturingDashboard({ onNavigate }: DashboardProps) {
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['manufacturing-dashboard', organisation?.id],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!organisation?.id) return null;
 

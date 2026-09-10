@@ -7,6 +7,7 @@ import { toast } from '../../../lib/logger';
 export function useQCInspectionsListQuery(orgId: string | undefined, result?: string) {
   return useQuery({
     queryKey: ['qc-inspections', orgId, result],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchQCInspections(orgId, result);
@@ -18,6 +19,7 @@ export function useQCInspectionsListQuery(orgId: string | undefined, result?: st
 export function useQCInspectionDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['qc-inspection', id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchQCInspectionById(id);
@@ -29,6 +31,7 @@ export function useQCInspectionDetailQuery(id: string | undefined) {
 export function useQCParametersQuery(orgId: string | undefined, productId?: string, bomId?: string) {
   return useQuery({
     queryKey: ['qc-parameters', orgId, productId, bomId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchQCParameters(orgId, productId, bomId);
@@ -40,6 +43,7 @@ export function useQCParametersQuery(orgId: string | undefined, productId?: stri
 export function useQCParameterResultsQuery(inspectionId: string | undefined) {
   return useQuery({
     queryKey: ['qc-parameter-results', inspectionId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!inspectionId) return [];
       return P.fetchQCParameterResults(inspectionId);

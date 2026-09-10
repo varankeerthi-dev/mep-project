@@ -608,12 +608,13 @@ export const PurchaseOrders: React.FC = () => {
   };
 
   const buildPONumber = (series: any): string => {
-    const cfg = series?.configs || {};
+    // Match the settings UI contract: per-doc-type config lives under configs.po
+    const cfg = series?.configs?.po || series?.configs || {};
     const prefix = cfg.prefix || 'PO-';
     const suffix = cfg.suffix || '';
     const fyPrefix = cfg.fy_prefix ? cfg.fy_prefix + '-' : '';
     const padding = cfg.padding || 4;
-    const current = cfg.current || series?.current_number || 1;
+    const current = cfg.start_number || cfg.current || series?.current_number || 1;
     const num = String(current).padStart(padding, '0');
     return `${fyPrefix}${prefix}${num}${suffix}`;
   };
@@ -685,7 +686,7 @@ export const PurchaseOrders: React.FC = () => {
           .eq('vendor_id', vendorId)
           .order('is_preferred', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         if (pricingData) {
           rate = pricingData.base_rate || rate;
           make = pricingData.make || make;
@@ -950,6 +951,22 @@ export const PurchaseOrders: React.FC = () => {
         const result = await createPO.mutateAsync({ poData, items: itemsData }) as any;
         poId = result.id;
         logPOActivity(poId, 'CREATED', `PO created by ${(user as any)?.user_metadata?.full_name || 'System'}`);
+
+        // Advance the series so the next PO gets a fresh number (was previously
+        // never incremented — every new PO form session reused the same number).
+        try {
+          const series = await getPOSeriesNumber();
+          if (series) {
+            const cfg = series.configs?.po || series.configs || {};
+            const nextNo = (cfg.start_number || cfg.current || series.current_number || 1) + 1;
+            const updatedCfg = series.configs?.po
+              ? { ...series.configs, po: { ...cfg, start_number: nextNo } }
+              : { ...series.configs, current: nextNo };
+            await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', series.id);
+          }
+        } catch (seriesErr) {
+          console.warn('Failed to increment PO series', seriesErr);
+        }
       }
 
       toast.success(editingPOId ? 'PO updated successfully' : 'PO created successfully');
@@ -1373,7 +1390,7 @@ export const PurchaseOrders: React.FC = () => {
                                   .eq('vendor_id', vendorId)
                                   .order('is_preferred', { ascending: false })
                                   .limit(1)
-                                  .single();
+                                  .maybeSingle();
                                 if (pricingData) {
                                   rate = pricingData.base_rate || rate;
                                   make = pricingData.make || make;

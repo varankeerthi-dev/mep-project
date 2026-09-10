@@ -7,6 +7,7 @@ import { toast } from '../../../lib/logger';
 export function useDemandRequirementsQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['demand-requirements', orgId],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return R.fetchDemandRequirements(orgId);
@@ -18,6 +19,7 @@ export function useDemandRequirementsQuery(orgId: string | undefined) {
 export function useProductionPlansQuery(orgId: string | undefined, status?: string) {
   return useQuery({
     queryKey: ['production-plans', orgId, status],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchProductionPlans(orgId, status);
@@ -29,6 +31,7 @@ export function useProductionPlansQuery(orgId: string | undefined, status?: stri
 export function useProductionPlanDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['production-plan', id],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchProductionPlanById(id);
@@ -40,6 +43,7 @@ export function useProductionPlanDetailQuery(id: string | undefined) {
 export function useProductionPlanItemsQuery(planId: string | undefined) {
   return useQuery({
     queryKey: ['production-plan-items', planId],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!planId) return [];
       return P.fetchProductionPlanItems(planId);

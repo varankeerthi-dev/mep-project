@@ -6,6 +6,7 @@ import { toast } from '../../../lib/logger';
 export function useIPQCCheckpointsQuery(bomId: string | undefined) {
   return useQuery({
     queryKey: ['ipqc-checkpoints', bomId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!bomId) return [];
       return P.fetchIPQCCheckpoints(bomId);
@@ -50,6 +51,7 @@ export function useDeleteIPQCCheckpointMutation() {
 export function useIPQCInspectionsQuery(jobCardId: string | undefined) {
   return useQuery({
     queryKey: ['ipqc-inspections', jobCardId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!jobCardId) return [];
       return P.fetchIPQCInspections(jobCardId);

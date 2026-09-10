@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { Loader2, Plus, Wrench, ChevronDown, ChevronUp, AlertTriangle, Home, ArrowLeft, Edit2, ChevronRight, Save } from 'lucide-react';
 import { EntryContainer } from '../../components/ui/EntryContainer';
@@ -14,40 +15,14 @@ interface MouldListProps {
 
 export default function MouldList({ onNavigate }: MouldListProps) {
   const { organisation } = useAuth();
-  const [toolings, setToolings] = useState<(ManufacturingTooling & { total_shots: number; shots_since_maint: number; is_reserved: boolean })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  // View Mode: 'list' | 'form'
-  const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Collapsible Sections State in Form
-  const [techOpen, setTechOpen] = useState(true);
-  const [maintOpen, setMaintOpen] = useState(true);
-
-  // Maintenance Log Modal State
-  const [maintModalTooling, setMaintModalTooling] = useState<ManufacturingTooling | null>(null);
-  const [maintWorkDone, setMaintWorkDone] = useState('');
-  const [maintDoneBy, setMaintDoneBy] = useState('');
-  const [maintCost, setMaintCost] = useState('');
-
-  // Form inputs
-  const [toolingName, setToolingName] = useState('');
-  const [toolingNumber, setToolingNumber] = useState('');
-  const [toolingType, setToolingType] = useState<'mould' | 'die' | 'jig' | 'fixture'>('mould');
-  const [noOfCavities, setNoOfCavities] = useState<number | ''>(4);
-  const [compatibleMachineType, setCompatibleMachineType] = useState('injection_moulding');
-  const [minTonnage, setMinTonnage] = useState<number | ''>('');
-  const [maxTonnage, setMaxTonnage] = useState<number | ''>('');
-  const [materialType, setMaterialType] = useState('');
-  const [cycleTimeSeconds, setCycleTimeSeconds] = useState<number | ''>('');
-  const [maintIntervalShots, setMaintIntervalShots] = useState<number | ''>(50000);
-  const [notes, setNotes] = useState('');
-
-  const fetchToolings = async () => {
-    if (!organisation?.id) return;
-    setLoading(true);
-    try {
+  // Phase 4: Migrated from raw useState+useEffect to useQuery
+  const { data: toolings = [], isLoading: loading, refetch: fetchToolings } = useQuery({
+    queryKey: ['manufacturing-tooling', organisation?.id],
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      if (!organisation?.id) return [];
       const { data: rawToolings, error } = await supabase
         .from('manufacturing_tooling')
         .select('*')
@@ -79,17 +54,37 @@ export default function MouldList({ onNavigate }: MouldListProps) {
         })
       );
 
-      setToolings(enriched);
-    } catch (err) {
-      console.error('Error fetching toolings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return enriched;
+    },
+    enabled: !!organisation?.id,
+  });
 
-  useEffect(() => {
-    fetchToolings();
-  }, [organisation?.id]);
+  // View Mode: 'list' | 'form'
+  const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Collapsible Sections State in Form
+  const [techOpen, setTechOpen] = useState(true);
+  const [maintOpen, setMaintOpen] = useState(true);
+
+  // Maintenance Log Modal State
+  const [maintModalTooling, setMaintModalTooling] = useState<ManufacturingTooling | null>(null);
+  const [maintWorkDone, setMaintWorkDone] = useState('');
+  const [maintDoneBy, setMaintDoneBy] = useState('');
+  const [maintCost, setMaintCost] = useState('');
+
+  // Form inputs
+  const [toolingName, setToolingName] = useState('');
+  const [toolingNumber, setToolingNumber] = useState('');
+  const [toolingType, setToolingType] = useState<'mould' | 'die' | 'jig' | 'fixture'>('mould');
+  const [noOfCavities, setNoOfCavities] = useState<number | ''>(4);
+  const [compatibleMachineType, setCompatibleMachineType] = useState('injection_moulding');
+  const [minTonnage, setMinTonnage] = useState<number | ''>('');
+  const [maxTonnage, setMaxTonnage] = useState<number | ''>('');
+  const [materialType, setMaterialType] = useState('');
+  const [cycleTimeSeconds, setCycleTimeSeconds] = useState<number | ''>('');
+  const [maintIntervalShots, setMaintIntervalShots] = useState<number | ''>(50000);
+  const [notes, setNotes] = useState('');
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -156,6 +151,7 @@ export default function MouldList({ onNavigate }: MouldListProps) {
     }
 
     setViewMode('list');
+    queryClient.invalidateQueries({ queryKey: ['manufacturing-tooling'] });
     fetchToolings();
   };
 
@@ -182,6 +178,7 @@ export default function MouldList({ onNavigate }: MouldListProps) {
     setMaintWorkDone('');
     setMaintDoneBy('');
     setMaintCost('');
+    queryClient.invalidateQueries({ queryKey: ['manufacturing-tooling'] });
     fetchToolings();
   };
 

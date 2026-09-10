@@ -7,6 +7,7 @@ import { toast } from '../../../lib/logger';
 export function useJobCardsListQuery(orgId: string | undefined, statusFilters?: string[]) {
   return useQuery({
     queryKey: ['job-cards', orgId, statusFilters],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchJobCards(orgId, statusFilters);
@@ -18,6 +19,7 @@ export function useJobCardsListQuery(orgId: string | undefined, statusFilters?: 
 export function useJobCardDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['job-card', id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchJobCardById(id);
@@ -29,6 +31,7 @@ export function useJobCardDetailQuery(id: string | undefined) {
 export function useJobCardMaterialsQuery(jobCardId: string | undefined) {
   return useQuery({
     queryKey: ['job-card-materials', jobCardId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!jobCardId) return [];
       return P.fetchJobCardMaterials(jobCardId);
@@ -40,6 +43,7 @@ export function useJobCardMaterialsQuery(jobCardId: string | undefined) {
 export function useJobCardStockQuery(materialIds: string[], orgId: string | undefined) {
   return useQuery({
     queryKey: ['job-card-stock', materialIds, orgId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId || materialIds.length === 0) return {};
       const stockRows = await P.fetchStockByMaterials(materialIds, orgId);
@@ -74,6 +78,7 @@ export function useJobCardStockQuery(materialIds: string[], orgId: string | unde
 export function useWarehousesQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['manufacturing-warehouses', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchWarehouses(orgId);

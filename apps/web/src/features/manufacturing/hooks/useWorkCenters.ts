@@ -6,6 +6,7 @@ import { toast } from '../../../lib/logger';
 export function useWorkCentersQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['work-centers', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchWorkCenters(orgId);
@@ -17,6 +18,7 @@ export function useWorkCentersQuery(orgId: string | undefined) {
 export function useWorkCenterDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['work-center', id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchWorkCenterById(id);
@@ -44,6 +46,7 @@ export function useCreateWorkCenterMutation() {
 export function useBomWorkCentersQuery(bomId: string | undefined) {
   return useQuery({
     queryKey: ['bom-work-centers', bomId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!bomId) return [];
       return P.fetchBomWorkCenters(bomId);

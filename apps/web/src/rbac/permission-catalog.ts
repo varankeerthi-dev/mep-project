@@ -200,6 +200,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     actions: [
       { key: 'org.manage_users', label: 'User Management' },
       { key: 'org.manage_roles', label: 'Role Management' },
+      { key: 'org.settings', label: 'Manage Settings' },
     ],
   },
 ];

@@ -388,6 +388,9 @@ export const usePurchaseOrders = (organisationId: string | undefined, filters?: 
   });
 };
 
+const isValidUuid = (value: string | null | undefined): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
+
 export const usePurchaseOrder = (poId: string | null) => {
   return useQuery({
     queryKey: ['purchase-order', poId],
@@ -403,7 +406,7 @@ export const usePurchaseOrder = (poId: string | null) => {
       if (error) throw error;
       return data;
     }),
-    enabled: !!poId,
+    enabled: !!poId && isValidUuid(poId),
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });

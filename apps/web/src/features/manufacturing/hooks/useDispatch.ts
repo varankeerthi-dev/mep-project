@@ -7,6 +7,7 @@ import { toast } from '../../../lib/logger';
 export function useDispatchOrdersListQuery(orgId: string | undefined, status?: string) {
   return useQuery({
     queryKey: ['dispatch-orders', orgId, status],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchDispatchOrders(orgId, status);
@@ -18,6 +19,7 @@ export function useDispatchOrdersListQuery(orgId: string | undefined, status?: s
 export function useDispatchOrderDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['dispatch-order', id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchDispatchOrderById(id);
@@ -29,6 +31,7 @@ export function useDispatchOrderDetailQuery(id: string | undefined) {
 export function useDispatchOrderItemsQuery(dispatchOrderId: string | undefined) {
   return useQuery({
     queryKey: ['dispatch-order-items', dispatchOrderId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!dispatchOrderId) return [];
       return P.fetchDispatchItems(dispatchOrderId);
@@ -40,6 +43,7 @@ export function useDispatchOrderItemsQuery(dispatchOrderId: string | undefined) 
 export function useDispatchOrderPackingQuery(dispatchOrderId: string | undefined) {
   return useQuery({
     queryKey: ['dispatch-order-packing', dispatchOrderId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!dispatchOrderId) return [];
       return P.fetchDispatchPacking(dispatchOrderId);
@@ -51,6 +55,7 @@ export function useDispatchOrderPackingQuery(dispatchOrderId: string | undefined
 export function useDispatchOrderCountVerificationsQuery(dispatchOrderId: string | undefined) {
   return useQuery({
     queryKey: ['dispatch-order-count-verifications', dispatchOrderId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!dispatchOrderId) return [];
       return P.fetchDispatchCountVerifications(dispatchOrderId);

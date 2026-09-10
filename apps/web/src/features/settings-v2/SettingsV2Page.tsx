@@ -17,6 +17,7 @@ import {
 } from './tabs';
 import { SETTINGS_TABS } from './types';
 import { PageSkeleton } from '@/components/ui/skeleton';
+import { PermissionGuard } from '../../rbac';
 
 // Lazy load heavy settings tab components
 const AccessControlPage = lazy(() => import('../../pages/AccessControl'));
@@ -29,7 +30,7 @@ const CategoryTab = lazy(() => import('../materials/settings/CategoryTab').then(
 const UnitTab = lazy(() => import('../materials/settings/UnitTab').then(m => ({ default: m.UnitTab })));
 const VariantsTab = lazy(() => import('../materials/settings/VariantsTab').then(m => ({ default: m.VariantsTab })));
 const WarehouseTab = lazy(() => import('../materials/settings/WarehouseTab').then(m => ({ default: m.WarehousesTab })));
-const TermsConditionsSettings = lazy(() => import('../../pages/TermsConditionsSettings'));
+const TermsConditionsSettings = lazy(() => import('../../pages/TermsConditionsSettingsRefactored').then(m => ({ default: m.TermsConditionsSettings })));
 const ToolsSettings = lazy(() => import('../../pages/ToolsSettings'));
 const TransactionNumberSeries = lazy(() => import('../../pages/TransactionNumberSeries'));
 
@@ -298,6 +299,15 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
   };
 
   return (
+    <PermissionGuard
+      permission="org.settings"
+      fallback={
+        <div className="p-6 text-sm text-zinc-500">
+          You do not have permission to manage organisation settings. Ask an admin for the
+          <span className="font-semibold text-zinc-700"> Manage Settings</span> permission.
+        </div>
+      }
+    >
     <SettingsShell
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
@@ -332,6 +342,7 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
         isSaving={isDialogSaving}
       />
     </SettingsShell>
+    </PermissionGuard>
   );
 };
 

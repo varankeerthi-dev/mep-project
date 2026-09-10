@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, AlertOctagon, Wrench, PlayCircle, Clock, ShieldAlert, ArrowRight, Edit2, Tag } from 'lucide-react';
 import { getMachineBoardCards, MachineBoardCardData, WorkCenterMachine } from '../../../api/machineBoard';
 import { CardBody } from '../../../components/cards/CardBody';
@@ -14,8 +15,21 @@ interface MachineBoardPageProps {
 
 export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) {
   const { organisation } = useAuth();
-  const [cards, setCards] = useState<MachineBoardCardData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Phase 4: Migrated from raw useEffect→useState to useQuery
+  const { data: cards = [], isLoading: loading, refetch: refetchBoard } = useQuery({
+    queryKey: ['machine-board', organisation?.id],
+    queryFn: () => getMachineBoardCards(organisation!.id),
+    staleTime: 60 * 1000,
+    enabled: !!organisation?.id,
+  });
+
+  // Stable callback for child components (AddMachinePage, MachineBoardDrawer, DowntimeModal)
+  const fetchBoard = () => {
+    queryClient.invalidateQueries({ queryKey: ['machine-board'] });
+    refetchBoard();
+  };
 
   // View Mode: 'list' | 'create' | 'edit'
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
@@ -24,23 +38,6 @@ export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) 
   // Drawer / Modal targets
   const [planMachineTarget, setPlanMachineTarget] = useState<MachineBoardCardData | null>(null);
   const [downtimeTarget, setDowntimeTarget] = useState<MachineBoardCardData | null>(null);
-
-  const fetchBoard = async () => {
-    if (!organisation?.id) return;
-    setLoading(true);
-    try {
-      const data = await getMachineBoardCards(organisation.id);
-      setCards(data);
-    } catch (err) {
-      console.error('Error loading machine board:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBoard();
-  }, [organisation?.id]);
 
   const handleGoToMoulds = () => {
     if (onNavigate) {
@@ -112,7 +109,7 @@ export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {cards.map((card) => {
-            const { machine, currentTooling, activeJobCard, activeDowntime, pendingToolingPM } = card;
+            const { machine, currentTooling, activeJobCard, activeDowntime } = card;
 
             // Status Badges & Styling
             let statusBadge = { text: 'Idle', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
@@ -130,7 +127,8 @@ export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) 
             }
 
             // Calculation of remaining shots & hours
-            const remainingShots = activeJobCard ? Math.max(0, activeJobCard.planned_shots - activeJobCard.actual_shots) : 0;
+            const actualShots = (activeJobCard as any)?.actual_shots || activeJobCard?.completed_qty || 0;
+            const remainingShots = activeJobCard ? Math.max(0, (activeJobCard.planned_shots || 0) - actualShots) : 0;
             let estRemainingHours = '0.0';
             if (remainingShots > 0) {
               const cycleSec = currentTooling?.cycle_time_seconds || 20;

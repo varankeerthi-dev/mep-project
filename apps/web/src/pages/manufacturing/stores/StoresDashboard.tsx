@@ -26,6 +26,7 @@ export default function StoresDashboard({ onNavigate }: StoresDashboardProps) {
   // Today's outward count
   const { data: todayOutwardCount = 0 } = useQuery({
     queryKey: ['today-outward-count', organisation?.id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!organisation?.id) return 0;
       const today = new Date().toISOString().split('T')[0];

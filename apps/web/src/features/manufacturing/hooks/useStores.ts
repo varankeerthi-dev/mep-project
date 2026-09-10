@@ -12,6 +12,7 @@ import * as PR from '../repository/procurement/procurementRepository';
 export function useMaterialRequisitionsListQuery(orgId: string | undefined, status?: string) {
   return useQuery({
     queryKey: ['material-requisitions', orgId, status],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchMaterialRequisitions(orgId, status);
@@ -23,6 +24,7 @@ export function useMaterialRequisitionsListQuery(orgId: string | undefined, stat
 export function useMaterialRequisitionDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['material-requisition', id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchMaterialRequisitionById(id);
@@ -34,6 +36,7 @@ export function useMaterialRequisitionDetailQuery(id: string | undefined) {
 export function useMaterialRequisitionItemsQuery(requisitionId: string | undefined) {
   return useQuery({
     queryKey: ['material-requisition-items', requisitionId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!requisitionId) return [];
       return P.fetchMaterialRequisitionItems(requisitionId);
@@ -105,6 +108,7 @@ export function useIssueMaterialRequisitionMutation() {
 export function useGoodsReceiptNotesListQuery(orgId: string | undefined, status?: string) {
   return useQuery({
     queryKey: ['goods-receipt-notes', orgId, status],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchGoodsReceiptNotes(orgId, status);
@@ -116,6 +120,7 @@ export function useGoodsReceiptNotesListQuery(orgId: string | undefined, status?
 export function useGoodsReceiptNoteDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['goods-receipt-note', id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchGoodsReceiptNoteById(id);
@@ -127,6 +132,7 @@ export function useGoodsReceiptNoteDetailQuery(id: string | undefined) {
 export function useGRNItemsQuery(grnId: string | undefined) {
   return useQuery({
     queryKey: ['grn-items', grnId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!grnId) return [];
       return P.fetchGRNItems(grnId);

@@ -8,6 +8,7 @@ import { toast } from '../../../lib/logger';
 export function useBomsListQuery(orgId: string | undefined, statusFilter: 'active' | 'inactive' | 'all', search: string) {
   return useQuery({
     queryKey: ['boms', orgId, statusFilter, search],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchBOMHeaders(orgId, statusFilter, search);
@@ -19,6 +20,7 @@ export function useBomsListQuery(orgId: string | undefined, statusFilter: 'activ
 export function useBomsForJobCardQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['boms-for-job-card', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchBOMHeaders(orgId, 'active');
@@ -30,6 +32,7 @@ export function useBomsForJobCardQuery(orgId: string | undefined) {
 export function useBomDetailQuery(bomId: string | null) {
   return useQuery({
     queryKey: ['bom-detail', bomId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!bomId) return null;
       const header = await P.fetchBOMHeaderById(bomId);
@@ -95,6 +98,7 @@ export function useCloneBOMMutation(onSuccessCallback?: (newBomId: string) => vo
 export function useRawMaterialsQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['materials-for-bom', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchRawMaterialsForBom(orgId);
@@ -106,6 +110,7 @@ export function useRawMaterialsQuery(orgId: string | undefined) {
 export function useCompanyVariantsQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['company-variants-bom', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchCompanyVariants(orgId);
@@ -117,6 +122,7 @@ export function useCompanyVariantsQuery(orgId: string | undefined) {
 export function useItemVariantPricingQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['bom-variant-pricing', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchItemVariantPricing(orgId);
@@ -128,6 +134,7 @@ export function useItemVariantPricingQuery(orgId: string | undefined) {
 export function useFinishedGoodsQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['finished-goods', orgId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchFinishedGoods(orgId);
@@ -139,6 +146,7 @@ export function useFinishedGoodsQuery(orgId: string | undefined) {
 export function useBomItemsQuery(bomId: string | null) {
   return useQuery({
     queryKey: ['bom-items', bomId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!bomId) return [];
       return P.fetchBOMItemsByHeaderId(bomId);
@@ -185,6 +193,7 @@ export function useCreateBOMRevisionMutation(onSuccessCallback?: (newBomId: stri
 export function useBOMExplosionQuery(bomId: string | null, productionQty: number = 1, productionDate?: string) {
   return useQuery({
     queryKey: ['bom-explosion', bomId, productionQty, productionDate],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!bomId) return [];
       return R.explodeBOM(bomId, productionQty, productionDate);

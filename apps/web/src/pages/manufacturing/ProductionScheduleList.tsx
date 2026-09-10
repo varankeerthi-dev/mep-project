@@ -20,6 +20,7 @@ export default function ProductionScheduleList({ onNavigate }: ProductionSchedul
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ['production-schedules', organisation?.id, statusFilter, search],
+    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!organisation?.id) return [];
       let query = supabase
@@ -87,7 +88,6 @@ export default function ProductionScheduleList({ onNavigate }: ProductionSchedul
     {
       header: 'Status',
       id: 'status',
-      type: 'badge',
       cell: ({ row }) => (
         <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full border ${statusColors[row.status] || 'bg-zinc-50 text-zinc-700 border-zinc-200'}`}>
           {row.status.replace('_', ' ').toUpperCase()}

@@ -7,6 +7,7 @@ import { toast } from '../../../lib/logger';
 export function useProductionEntriesQuery(jobCardId?: string, orgId?: string) {
   return useQuery({
     queryKey: ['production-entries', jobCardId, orgId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchProductionEntries(jobCardId, orgId);
@@ -18,6 +19,7 @@ export function useProductionEntriesQuery(jobCardId?: string, orgId?: string) {
 export function useOrgProductionEntriesQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['org-production-entries', orgId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchProductionEntries(undefined, orgId);
@@ -29,6 +31,7 @@ export function useOrgProductionEntriesQuery(orgId: string | undefined) {
 export function useProductionEntryDetailQuery(id: string | undefined) {
   return useQuery({
     queryKey: ['production-entry-detail', id],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!id) return null;
       return P.fetchProductionEntryById(id);
@@ -140,6 +143,7 @@ export function useUpdateProductionEntryMutation(onSuccessCallback?: () => void)
 export function useActivityLogsQuery(orgId: string | undefined) {
   return useQuery({
     queryKey: ['activity-log', orgId],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!orgId) return [];
       return P.fetchActivityLogs(orgId);

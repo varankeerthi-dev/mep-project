@@ -134,6 +134,7 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
   // ─── RETRIEVE INVENTORY DATA ──────────────────────────────────────
   const { data: inventoryData, isLoading } = useQuery({
     queryKey: ['mfg-inventory-data', organisation?.id, startDate, endDate],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!organisation?.id) return null;
 
@@ -148,15 +149,48 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
         outwardHeadersRes,
         outwardItemsRes
       ] = await Promise.all([
-        supabase.from('materials').select('*').eq('organisation_id', organisation.id),
-        supabase.from('item_stock').select('*').eq('organisation_id', organisation.id),
-        supabase.from('job_cards').select('*, job_card_materials(*)').eq('organisation_id', organisation.id).in('status', ['draft', 'issued', 'in_progress']),
-        supabase.from('production_schedules').select('*, production_schedule_items(*)').eq('organisation_id', organisation.id).in('status', ['draft', 'planned', 'in_progress']),
-        supabase.from('bom_headers').select('*, bom_items(*)').eq('organisation_id', organisation.id),
-        supabase.from('material_inward').select('id, inward_date').eq('organisation_id', organisation.id).gte('inward_date', startDate).lte('inward_date', endDate),
-        supabase.from('material_inward_items').select('*, material_inward!inner(organisation_id)').eq('material_inward.organisation_id', organisation.id),
-        supabase.from('material_outward').select('id, outward_date').eq('organisation_id', organisation.id).gte('outward_date', startDate).lte('outward_date', endDate),
-        supabase.from('material_outward_items').select('*, material_outward!inner(organisation_id)').eq('material_outward.organisation_id', organisation.id)
+        supabase
+          .from('materials')
+          .select('id, name, unit, item_classification, allow_purchase, allow_sales, is_manufactured')
+          .eq('organisation_id', organisation.id),
+        supabase
+          .from('item_stock')
+          .select('item_id, current_stock')
+          .eq('organisation_id', organisation.id),
+        supabase
+          .from('job_cards')
+          .select('id, bom_id, product_name, planned_qty, status, job_card_materials(material_id, planned_qty, consumed_qty)')
+          .eq('organisation_id', organisation.id)
+          .in('status', ['draft', 'issued', 'in_progress']),
+        supabase
+          .from('production_schedules')
+          .select('id, status, production_schedule_items(bom_id, product_name, planned_qty)')
+          .eq('organisation_id', organisation.id)
+          .in('status', ['draft', 'planned', 'in_progress']),
+        supabase
+          .from('bom_headers')
+          .select('id, product_id, output_qty, bom_items(material_id, required_qty)')
+          .eq('organisation_id', organisation.id),
+        supabase
+          .from('material_inward')
+          .select('id, inward_date')
+          .eq('organisation_id', organisation.id)
+          .gte('inward_date', startDate)
+          .lte('inward_date', endDate),
+        supabase
+          .from('material_inward_items')
+          .select('inward_id, material_id, quantity, material_inward!inner(organisation_id)')
+          .eq('material_inward.organisation_id', organisation.id),
+        supabase
+          .from('material_outward')
+          .select('id, outward_date')
+          .eq('organisation_id', organisation.id)
+          .gte('outward_date', startDate)
+          .lte('outward_date', endDate),
+        supabase
+          .from('material_outward_items')
+          .select('outward_id, material_id, quantity, material_outward!inner(organisation_id)')
+          .eq('material_outward.organisation_id', organisation.id)
       ]);
 
       if (materialsRes.error) throw materialsRes.error;
@@ -164,9 +198,9 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
       return {
         materials: (materialsRes.data || []) as MaterialItem[],
         stock: stockRes.data || [],
-        jobCards: jobCardsRes.data || [],
-        schedules: schedulesRes.data || [],
-        boms: bomsRes.data || [],
+        jobCards: (jobCardsRes.data || []) as any[],
+        schedules: (schedulesRes.data || []) as any[],
+        boms: (bomsRes.data || []) as any[],
         inwardHeaders: inwardHeadersRes.data || [],
         inwardItems: inwardItemsRes.data || [],
         outwardHeaders: outwardHeadersRes.data || [],

@@ -155,6 +155,7 @@ export default function ActivityLog({ onNavigate }: ActivityLogProps) {
 
   const { data: logs, isLoading } = useQuery({
     queryKey: ['activity-log', organisation?.id, entityFilter, actionFilter],
+    staleTime: 30 * 1000,
     queryFn: async () => {
       if (!organisation?.id) return [];
       let query = supabase

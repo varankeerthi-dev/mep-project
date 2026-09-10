@@ -6,5 +6,8 @@
 ALTER TABLE public.purchase_orders
 ADD COLUMN IF NOT EXISTS authorized_signatory_id UUID;
 
+ALTER TABLE public.client_purchase_orders
+ADD COLUMN IF NOT EXISTS authorized_signatory_id UUID;
+
 -- Force PostgREST to pick up the new column immediately
 NOTIFY pgrst, 'reload schema';

@@ -118,6 +118,7 @@ export default function CustomUnits({ onNavigate }: CustomUnitsProps) {
 
   const { data: units, isLoading } = useQuery({
     queryKey: ['custom-units', organisation?.id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!organisation?.id) return [];
       const { data, error } = await supabase
