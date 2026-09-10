@@ -1,44 +1,45 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { SubTabsNav } from '../../components/ui/SubTabsNav';
+import { PageSkeleton } from '../../components/ui/skeleton';
 
-import ManufacturingDashboard from './ManufacturingDashboard';
-import InventoryReport from './InventoryReport';
-import BOMList from './BOMList';
-import BOMEditor from './BOMEditor';
-import ProductionScheduleList from './ProductionScheduleList';
-import ProductionScheduleEditor from './ProductionScheduleEditor';
-import JobCardList from './JobCardList';
-import JobCardCreate from './JobCardCreate';
-import JobCardDetail from './JobCardDetail';
-import ProductionEntryForm from './ProductionEntryForm';
-import CustomUnits from './CustomUnits';
-import CustomFields from './CustomFields';
-import ActivityLog from './ActivityLog';
+// ── Phase 3: Code-split all sub-page components via React.lazy ──────────────
+const ManufacturingDashboard = lazy(() => import('./ManufacturingDashboard'));
+const InventoryReport        = lazy(() => import('./InventoryReport'));
+const BOMList                = lazy(() => import('./BOMList'));
+const BOMEditor              = lazy(() => import('./BOMEditor'));
+const ProductionScheduleList = lazy(() => import('./ProductionScheduleList'));
+const ProductionScheduleEditor = lazy(() => import('./ProductionScheduleEditor'));
+const JobCardList            = lazy(() => import('./JobCardList'));
+const JobCardCreate          = lazy(() => import('./JobCardCreate'));
+const JobCardDetail          = lazy(() => import('./JobCardDetail'));
+const ProductionEntryForm    = lazy(() => import('./ProductionEntryForm'));
+const CustomUnits            = lazy(() => import('./CustomUnits'));
+const CustomFields           = lazy(() => import('./CustomFields'));
+const ActivityLog            = lazy(() => import('./ActivityLog'));
 
-// New gap feature components
-import DispatchList from './dispatch/DispatchList';
-import DispatchCreate from './dispatch/DispatchCreate';
-import DispatchDetail from './dispatch/DispatchDetail';
-import StoresDashboard from './stores/StoresDashboard';
-import RequisitionDetail from './stores/RequisitionDetail';
-import GRNCreate from './stores/GRNCreate';
-import GRNDetail from './stores/GRNDetail';
-import QCInspectionList from './qc/QCInspectionList';
-import QCInspectionCreate from './qc/QCInspectionCreate';
-import QCInspectionDetail from './qc/QCInspectionDetail';
-import QCParameters from './qc/QCParameters';
-import ProductionPlanList from './plans/ProductionPlanList';
-import ProductionPlanCreate from './plans/ProductionPlanCreate';
-import ProductionPlanDetail from './plans/ProductionPlanDetail';
-import WorkCenterList from './work-centers/WorkCenterList';
-import IPQCDashboard from './qc/IPQCDashboard';
-import IPQCCheckpointConfig from './qc/IPQCCheckpointConfig';
-import WIPValuationReport from './inventory/WIPValuationReport';
+const DispatchList           = lazy(() => import('./dispatch/DispatchList'));
+const DispatchCreate         = lazy(() => import('./dispatch/DispatchCreate'));
+const DispatchDetail         = lazy(() => import('./dispatch/DispatchDetail'));
+const StoresDashboard        = lazy(() => import('./stores/StoresDashboard'));
+const RequisitionDetail      = lazy(() => import('./stores/RequisitionDetail'));
+const GRNCreate              = lazy(() => import('./stores/GRNCreate'));
+const GRNDetail              = lazy(() => import('./stores/GRNDetail'));
+const QCInspectionList       = lazy(() => import('./qc/QCInspectionList'));
+const QCInspectionCreate     = lazy(() => import('./qc/QCInspectionCreate'));
+const QCInspectionDetail     = lazy(() => import('./qc/QCInspectionDetail'));
+const QCParameters           = lazy(() => import('./qc/QCParameters'));
+const ProductionPlanList     = lazy(() => import('./plans/ProductionPlanList'));
+const ProductionPlanCreate   = lazy(() => import('./plans/ProductionPlanCreate'));
+const ProductionPlanDetail   = lazy(() => import('./plans/ProductionPlanDetail'));
+const WorkCenterList         = lazy(() => import('./work-centers/WorkCenterList'));
+const IPQCDashboard          = lazy(() => import('./qc/IPQCDashboard'));
+const IPQCCheckpointConfig   = lazy(() => import('./qc/IPQCCheckpointConfig'));
+const WIPValuationReport     = lazy(() => import('./inventory/WIPValuationReport'));
 
-import MachineBoardPage from './machine-board/MachineBoardPage';
-import MouldList from './MouldList';
+const MachineBoardPage       = lazy(() => import('./machine-board/MachineBoardPage'));
+const MouldList              = lazy(() => import('./MouldList'));
 
 type Tab = {
   id: string;
@@ -83,13 +84,6 @@ export function useInvalidateManufacturing() {
   }, [queryClient]);
 }
 
-const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
-
-type PanelProps = { children: React.ReactNode; active: boolean };
-function Panel({ children, active }: PanelProps) {
-  return <div style={{ display: active ? '' : 'none' }}>{children}</div>;
-}
-
 export default function ManufacturingShell() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -112,161 +106,194 @@ export default function ManufacturingShell() {
     navigate(path);
   }, [navigate]);
 
+  // ── Phase 2: Conditional Mounting ─────────────────────────────────────
+  // Only the active tab's component tree mounts (and therefore fetches data).
+  // Previously all 14 panels mounted simultaneously with display:none.
+  // Each branch is wrapped in <Suspense> so lazy chunks load with a skeleton.
+
   return (
     <div className="min-h-screen bg-[#f8f9fb] font-['Inter']">
       <div className="w-full px-4 pt-3">
         <SubTabsNav tabs={TABS} activeTabId={activeTab.id} />
 
-      <Panel active={activeTab.id === 'dashboard' || (!activeTab && (pathKey === '/manufacturing' || pathKey === '/manufacturing/dashboard'))}>
-        <ManufacturingDashboard onNavigate={navigateV2} />
-      </Panel>
+      {activeTab.id === 'dashboard' && (
+        <Suspense fallback={<PageSkeleton variant="page" />}>
+          <ManufacturingDashboard onNavigate={navigateV2} />
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'machines'}>
-        <MachineBoardPage onNavigate={navigateV2} />
-      </Panel>
+      {activeTab.id === 'machines' && (
+        <Suspense fallback={<PageSkeleton variant="page" />}>
+          <MachineBoardPage onNavigate={navigateV2} />
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'moulds'}>
-        <MouldList onNavigate={navigateV2} />
-      </Panel>
+      {activeTab.id === 'moulds' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          <MouldList onNavigate={navigateV2} />
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'inventory'}>
-        {pathKey === '/manufacturing/inventory/wip-valuation' ? (
-          <WIPValuationReport />
-        ) : (
-          <InventoryReport onNavigate={navigateV2} />
-        )}
-      </Panel>
+      {activeTab.id === 'inventory' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/inventory/wip-valuation' ? (
+            <WIPValuationReport />
+          ) : (
+            <InventoryReport onNavigate={navigateV2} />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'boms'}>
-        {pathKey === '/manufacturing/boms' ? (
-          <BOMList onNavigate={navigateV2} />
-        ) : (
-          <BOMEditor
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['boms'] }); navigate('/manufacturing/boms'); }}
-            onCancel={() => navigate('/manufacturing/boms')}
-          />
-        )}
-      </Panel>
+      {activeTab.id === 'boms' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/boms' ? (
+            <BOMList onNavigate={navigateV2} />
+          ) : (
+            <BOMEditor
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['boms'] }); navigate('/manufacturing/boms'); }}
+              onCancel={() => navigate('/manufacturing/boms')}
+            />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'schedules'}>
-        {pathKey === '/manufacturing/schedules' ? (
-          <ProductionScheduleList onNavigate={navigateV2} />
-        ) : (
-          <ProductionScheduleEditor
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['production-schedules'] }); navigate('/manufacturing/schedules'); }}
-            onCancel={() => navigate('/manufacturing/schedules')}
-          />
-        )}
-      </Panel>
+      {activeTab.id === 'schedules' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/schedules' ? (
+            <ProductionScheduleList onNavigate={navigateV2} />
+          ) : (
+            <ProductionScheduleEditor
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['production-schedules'] }); navigate('/manufacturing/schedules'); }}
+              onCancel={() => navigate('/manufacturing/schedules')}
+            />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'job-cards'}>
-        {pathKey === '/manufacturing/job-cards' ? (
-          <JobCardList onNavigate={navigateV2} />
-        ) : pathKey === '/manufacturing/job-cards/create' ? (
-          <JobCardCreate
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['job-cards'] }); navigate('/manufacturing/job-cards'); }}
-            onCancel={() => navigate('/manufacturing/job-cards')}
-          />
-        ) : (
-          <JobCardDetail jobCardId={pathKey.split('/manufacturing/job-cards/')[1]} onNavigate={navigateV2} />
-        )}
-      </Panel>
+      {activeTab.id === 'job-cards' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/job-cards' ? (
+            <JobCardList onNavigate={navigateV2} />
+          ) : pathKey === '/manufacturing/job-cards/create' ? (
+            <JobCardCreate
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['job-cards'] }); navigate('/manufacturing/job-cards'); }}
+              onCancel={() => navigate('/manufacturing/job-cards')}
+            />
+          ) : (
+            <JobCardDetail jobCardId={pathKey.split('/manufacturing/job-cards/')[1]} onNavigate={navigateV2} />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'production'}>
-        <ProductionEntryForm onNavigate={navigateV2} />
-      </Panel>
+      {activeTab.id === 'production' && (
+        <Suspense fallback={<PageSkeleton variant="detail" />}>
+          <ProductionEntryForm onNavigate={navigateV2} />
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'plans'}>
-        {pathKey === '/manufacturing/plans' ? (
-          <ProductionPlanList onNavigate={navigateV2} />
-        ) : pathKey === '/manufacturing/plans/create' ? (
-          <ProductionPlanCreate
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['production-plans'] }); navigate('/manufacturing/plans'); }}
-            onCancel={() => navigate('/manufacturing/plans')}
-          />
-        ) : pathKey === '/manufacturing/work-centers' ? (
-          <WorkCenterList
-            onCancel={() => navigate('/manufacturing/plans')}
-          />
-        ) : (
-          <ProductionPlanDetail
-            planId={pathKey.split('/manufacturing/plans/')[1]}
-            onCancel={() => navigate('/manufacturing/plans')}
-          />
-        )}
-      </Panel>
+      {activeTab.id === 'plans' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/plans' ? (
+            <ProductionPlanList onNavigate={navigateV2} />
+          ) : pathKey === '/manufacturing/plans/create' ? (
+            <ProductionPlanCreate
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['production-plans'] }); navigate('/manufacturing/plans'); }}
+              onCancel={() => navigate('/manufacturing/plans')}
+            />
+          ) : pathKey === '/manufacturing/work-centers' ? (
+            <WorkCenterList
+              onCancel={() => navigate('/manufacturing/plans')}
+            />
+          ) : (
+            <ProductionPlanDetail
+              planId={pathKey.split('/manufacturing/plans/')[1]}
+              onCancel={() => navigate('/manufacturing/plans')}
+            />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'dispatch'}>
-        {pathKey === '/manufacturing/dispatch' ? (
-          <DispatchList onNavigate={navigateV2} />
-        ) : pathKey === '/manufacturing/dispatch/create' ? (
-          <DispatchCreate
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['dispatch-orders'] }); navigate('/manufacturing/dispatch'); }}
-            onCancel={() => navigate('/manufacturing/dispatch')}
-          />
-        ) : (
-          <DispatchDetail dispatchOrderId={pathKey.split('/manufacturing/dispatch/')[1]} onNavigate={navigateV2} />
-        )}
-      </Panel>
+      {activeTab.id === 'dispatch' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/dispatch' ? (
+            <DispatchList onNavigate={navigateV2} />
+          ) : pathKey === '/manufacturing/dispatch/create' ? (
+            <DispatchCreate
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['dispatch-orders'] }); navigate('/manufacturing/dispatch'); }}
+              onCancel={() => navigate('/manufacturing/dispatch')}
+            />
+          ) : (
+            <DispatchDetail dispatchOrderId={pathKey.split('/manufacturing/dispatch/')[1]} onNavigate={navigateV2} />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'stores'}>
-        {pathKey === '/manufacturing/stores' ? (
-          <StoresDashboard onNavigate={navigateV2} />
-        ) : pathKey === '/manufacturing/stores/grn/create' ? (
-          <GRNCreate
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['goods-receipt-notes'] }); navigate('/manufacturing/stores'); }}
-            onCancel={() => navigate('/manufacturing/stores')}
-          />
-        ) : pathKey.startsWith('/manufacturing/stores/grn/') ? (
-          <GRNDetail
-            grnId={pathKey.split('/manufacturing/stores/grn/')[1]}
-            onCancel={() => navigate('/manufacturing/stores')}
-          />
-        ) : (
-          <RequisitionDetail
-            requisitionId={pathKey.split('/manufacturing/stores/requisitions/')[1]}
-            onCancel={() => navigate('/manufacturing/stores')}
-          />
-        )}
-      </Panel>
+      {activeTab.id === 'stores' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/stores' ? (
+            <StoresDashboard onNavigate={navigateV2} />
+          ) : pathKey === '/manufacturing/stores/grn/create' ? (
+            <GRNCreate
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['goods-receipt-notes'] }); navigate('/manufacturing/stores'); }}
+              onCancel={() => navigate('/manufacturing/stores')}
+            />
+          ) : pathKey.startsWith('/manufacturing/stores/grn/') ? (
+            <GRNDetail
+              grnId={pathKey.split('/manufacturing/stores/grn/')[1]}
+              onCancel={() => navigate('/manufacturing/stores')}
+            />
+          ) : (
+            <RequisitionDetail
+              requisitionId={pathKey.split('/manufacturing/stores/requisitions/')[1]}
+              onCancel={() => navigate('/manufacturing/stores')}
+            />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'qc'}>
-        {pathKey === '/manufacturing/qc' ? (
-          <QCInspectionList onNavigate={navigateV2} />
-        ) : pathKey === '/manufacturing/qc/create' ? (
-          <QCInspectionCreate
-            onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['qc-inspections'] }); navigate('/manufacturing/qc'); }}
-            onCancel={() => navigate('/manufacturing/qc')}
-          />
-        ) : pathKey === '/manufacturing/qc/parameters' ? (
-          <QCParameters
-            onCancel={() => navigate('/manufacturing/qc')}
-          />
-        ) : pathKey === '/manufacturing/qc/ipqc' ? (
-          <IPQCDashboard onNavigate={navigateV2} />
-        ) : pathKey === '/manufacturing/qc/ipqc/checkpoints' ? (
-          <IPQCCheckpointConfig
-            onCancel={() => navigate('/manufacturing/qc/ipqc')}
-          />
-        ) : (
-          <QCInspectionDetail
-            inspectionId={pathKey.split('/manufacturing/qc/')[1]}
-            onCancel={() => navigate('/manufacturing/qc')}
-          />
-        )}
-      </Panel>
+      {activeTab.id === 'qc' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/qc' ? (
+            <QCInspectionList onNavigate={navigateV2} />
+          ) : pathKey === '/manufacturing/qc/create' ? (
+            <QCInspectionCreate
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['qc-inspections'] }); navigate('/manufacturing/qc'); }}
+              onCancel={() => navigate('/manufacturing/qc')}
+            />
+          ) : pathKey === '/manufacturing/qc/parameters' ? (
+            <QCParameters
+              onCancel={() => navigate('/manufacturing/qc')}
+            />
+          ) : pathKey === '/manufacturing/qc/ipqc' ? (
+            <IPQCDashboard onNavigate={navigateV2} />
+          ) : pathKey === '/manufacturing/qc/ipqc/checkpoints' ? (
+            <IPQCCheckpointConfig
+              onCancel={() => navigate('/manufacturing/qc/ipqc')}
+            />
+          ) : (
+            <QCInspectionDetail
+              inspectionId={pathKey.split('/manufacturing/qc/')[1]}
+              onCancel={() => navigate('/manufacturing/qc')}
+            />
+          )}
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'activity'}>
-        <ActivityLog onNavigate={navigateV2} />
-      </Panel>
+      {activeTab.id === 'activity' && (
+        <Suspense fallback={<PageSkeleton variant="list" />}>
+          <ActivityLog onNavigate={navigateV2} />
+        </Suspense>
+      )}
 
-      <Panel active={activeTab.id === 'settings'}>
-        {pathKey === '/manufacturing/custom-units' ? (
-          <CustomUnits onNavigate={navigateV2} />
-        ) : (
-          <CustomFields onNavigate={navigateV2} />
-        )}
-      </Panel>
+      {activeTab.id === 'settings' && (
+        <Suspense fallback={<PageSkeleton variant="table" />}>
+          {pathKey === '/manufacturing/custom-units' ? (
+            <CustomUnits onNavigate={navigateV2} />
+          ) : (
+            <CustomFields onNavigate={navigateV2} />
+          )}
+        </Suspense>
+      )}
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ export async function fetchBOMHeaderById(bomId: string) {
 export async function fetchBOMItemsByHeaderId(bomId: string) {
   const { data, error } = await supabase
     .from('bom_items')
-    .select('*, materials(name)')
+    .select('*, materials:bom_items_material_id_fkey(name)')
     .eq('bom_id', bomId);
   if (error) throw error;
   return data || [];

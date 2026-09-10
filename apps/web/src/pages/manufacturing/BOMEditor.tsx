@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Save, Trash2, ChevronDown, ChevronRight, MoreHorizontal, FileSpreadsheet, Upload, Search, GripVertical, Box, Percent, BarChart3, Copy, X } from 'lucide-react';
-import { EntryContainer } from '../../components/ui/EntryContainer';
+import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronRight, MoreHorizontal, FileSpreadsheet, Upload, Search, GripVertical, Box, Percent, BarChart3, Copy, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { useCombinedUnits } from '../../hooks/useCombinedUnits';
 import { useAuth } from '../../contexts/AuthContext';
@@ -50,6 +49,7 @@ type BOMItem = {
   scrap_factor?: number | null;
   yield_pct?: number | null;
   warehouse_id?: string | null;
+  lead_time_unit?: string;
 };
 
 const LEAD_TIME_UNITS = [
@@ -57,6 +57,135 @@ const LEAD_TIME_UNITS = [
   { value: 'days', label: 'Days' },
   { value: 'weeks', label: 'Weeks' },
 ];
+
+/* ────────────────────────────────────────────────────────────────
+   FormSelect — searchable portal dropdown, same UX as the Product
+   dropdown (click to open, type to filter, portal overlay that
+   escapes clipping/stacking contexts).
+   ──────────────────────────────────────────────────────────────── */
+
+type FormSelectOption = { value: string; label: string };
+
+function FormSelect({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select...',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: FormSelectOption[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const selectedLabel = options.find(o => o.value === value)?.label ?? value;
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.bom-form-select-container') && !target.closest('.bom-form-select-portal')) {
+        setOpen(false);
+      }
+    };
+    const handleScrollOrResize = (e?: Event) => {
+      // Ignore scrolls coming from inside the dropdown portal itself,
+      // otherwise scrolling the option list closes the dropdown.
+      if (e && e.target instanceof Element && e.target.closest('.bom-form-select-portal')) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [open]);
+
+  const filtered = options.filter(o =>
+    !search || o.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <>
+      <div className="bom-form-select-container" style={{ position: 'relative', width: '100%' }}>
+        <input
+          type="text"
+          className="form-input"
+          style={{ cursor: 'pointer' }}
+          value={open ? search : selectedLabel}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            const rect = e.currentTarget.getBoundingClientRect();
+            setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+            setOpen(true);
+          }}
+          onFocus={(e) => {
+            setSearch('');
+            const rect = e.currentTarget.getBoundingClientRect();
+            setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+            setOpen(true);
+          }}
+          placeholder={placeholder}
+          readOnly={false}
+        />
+        <ChevronDown size={14} style={{
+          position: 'absolute',
+          right: 10,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          pointerEvents: 'none',
+          color: '#64748B',
+        }} />
+      </div>
+      {open && pos && createPortal(
+        <div className="bom-form-select-portal" style={{
+          position: 'fixed',
+          top: pos.top,
+          left: pos.left,
+          width: pos.width,
+          zIndex: 9999,
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: '10px',
+          boxShadow: '0 12px 36px rgba(15,23,42,0.12)',
+          maxHeight: '220px',
+          overflowY: 'auto',
+          padding: '4px',
+        }}>
+          {filtered.map(o => (
+            <div key={o.value}
+              style={{
+                padding: '10px 12px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                borderRadius: '8px',
+                fontWeight: o.value === value ? 600 : 400,
+                color: o.value === value ? '#0F172A' : '#334155',
+                background: o.value === value ? '#F0F7FF' : 'transparent',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#F0F7FF'}
+              onMouseLeave={e => e.currentTarget.style.background = o.value === value ? '#F0F7FF' : 'transparent'}
+              onClick={() => { onChange(o.value); setOpen(false); setSearch(''); }}
+            >
+              {o.label}
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ padding: '12px', fontSize: '12px', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center' }}>No options found</div>
+          )}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const { organisation, user } = useAuth();
@@ -75,6 +204,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     batch_no: '',
     approval_status: 'draft',
     revision: 'A',
+    specification: '',
     product_code: '',
     bom_type: 'assembly',
     product_category: 'standard',
@@ -93,9 +223,11 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState('');
   const [activeActionMenuRowId, setActiveActionMenuRowId] = useState<string | null>(null);
+  const [actionMenuPos, setActionMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   const [materialSearchText, setMaterialSearchText] = useState<Record<number, string>>({});
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
+  const [materialDropdownPos, setMaterialDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [productSearchText, setProductSearchText] = useState('');
   const [openProductDropdown, setOpenProductDropdown] = useState(false);
   const [productDropdownPos, setProductDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -107,10 +239,10 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.material-dropdown-container')) {
+      if (!target.closest('.material-dropdown-container') && !target.closest('.material-dropdown-portal')) {
         setOpenDropdownIndex(-1);
       }
-      if (!target.closest('.action-menu-container')) {
+      if (!target.closest('.action-menu-container') && !target.closest('.action-menu-portal')) {
         setActiveActionMenuRowId(null);
       }
     };
@@ -139,7 +271,10 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         setOpenProductDropdown(false);
       }
     };
-    const handleScrollOrResize = () => setOpenProductDropdown(false);
+    const handleScrollOrResize = (e?: Event) => {
+      if (e && e.target instanceof Element && e.target.closest('.product-dropdown-portal')) return;
+      setOpenProductDropdown(false);
+    };
     document.addEventListener('mousedown', handleClickOutsideProduct);
     window.addEventListener('scroll', handleScrollOrResize, true);
     window.addEventListener('resize', handleScrollOrResize);
@@ -171,6 +306,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         batch_no: bomDetail.header.batch_no || '',
         approval_status: bomDetail.header.approval_status || 'draft',
         revision: bomDetail.header.revision || 'A',
+        specification: bomDetail.header.specification || '',
         product_code: bomDetail.header.product_code || '',
         bom_type: bomDetail.header.bom_type || 'assembly',
         product_category: bomDetail.header.product_category || 'standard',
@@ -225,6 +361,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       toast.error('Not authenticated');
       return;
     }
+    if (!formData.product_id) {
+      toast.error('Product is required');
+      return;
+    }
+    if (!formData.output_qty || formData.output_qty <= 0) {
+      toast.error('Output quantity is required');
+      return;
+    }
     const headerData = {
       id: bomId || undefined,
       bom_code: formData.bom_code,
@@ -238,6 +382,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       approval_status: formData.approval_status || 'draft',
       organisation_id: organisation.id,
       revision: formData.revision,
+      specification: formData.specification?.trim() || null,
       product_code: formData.product_code || '',
       bom_type: formData.bom_type,
       product_category: formData.product_category,
@@ -479,12 +624,6 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
 
   const materialCount = items.filter(i => i.material_id).length;
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', height: '40px', padding: '0 12px',
-    fontSize: '13px', borderRadius: '5px',
-    border: '1px solid #cbd5e1', outline: 'none', background: '#ffffff',
-  };
-
   return (
     <div className="bom-editor-page-container p-6 max-w-[1000px] mx-auto font-['Inter'] space-y-6">
       {/* Ignore Global Button CSS - Use Component Button Styles */}
@@ -498,12 +637,12 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         .bom-editor-page-container .content-body-left-pad-12px {
           padding-left: 12px !important;
         }
-        .bom-editor-page-container label {
+        .bom-editor-page-container .entry-field-container-5px label {
           margin-bottom: 8px !important;
         }
-        .bom-editor-page-container input,
-        .bom-editor-page-container select,
-        .bom-editor-page-container textarea {
+        .bom-editor-page-container input:not(.form-input):not(.form-select),
+        .bom-editor-page-container select:not(.form-input):not(.form-select),
+        .bom-editor-page-container textarea:not(.form-input):not(.form-select) {
           border-radius: 5px !important;
         }
       `}</style>
@@ -539,110 +678,138 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       </div>
 
       {/* Card 1: BOM Details */}
-      <div
-        className="inner-container-20px content-body-left-pad-12px bg-white border border-slate-200 p-6 shadow-2xs space-y-4"
-        style={{ borderRadius: '20px', paddingLeft: '12px' }}
-      >
-        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-indigo-600 border-b border-slate-100 pb-2">
+      <div className="form-card">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 pt-4 px-5">
           1. BOM Details
         </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <EntryContainer label="Product *" className="entry-field-container-5px">
-            <div className="product-dropdown-container" style={{ position: 'relative', width: '100%' }}>
-              <input type="text" style={inputStyle} value={openProductDropdown ? productSearchText : formData.product_name}
-                onChange={(e) => {
-                  setProductSearchText(e.target.value);
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setProductDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-                  setOpenProductDropdown(true);
-                }}
-                onFocus={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setProductDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-                  setOpenProductDropdown(true);
-                }}
-                placeholder="Search finished good..." />
+        <div className="p-4 pt-5">
+          <div className="form-row">
+            <div className="form-group md:col-span-6">
+              <label className="form-label">Product <span style={{ color: '#DC2626' }}>*</span></label>
+              <div className="product-dropdown-container" style={{ position: 'relative', width: '100%' }}>
+                <input type="text" className="form-input" style={{ cursor: 'pointer' }} value={openProductDropdown ? productSearchText : formData.product_name}
+                  onChange={(e) => {
+                    setProductSearchText(e.target.value);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setProductDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                    setOpenProductDropdown(true);
+                  }}
+                  onFocus={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setProductDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                    setOpenProductDropdown(true);
+                  }}
+                  placeholder="Search finished good..." />
+              </div>
             </div>
-          </EntryContainer>
 
-          <EntryContainer label="BOM Code" className="entry-field-container-5px">
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input type="text" style={{ ...inputStyle, flex: 1 }} value={formData.bom_code} onChange={(e) => setFormData({ ...formData, bom_code: e.target.value })} placeholder="Auto-generated if empty" />
-              {bomId && formData.revision && (
-                <span style={{
-                  padding: '4px 10px',
-                  borderRadius: '999px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  background: '#EEF2FF',
-                  color: '#6366F1',
-                  border: '1px solid #C7D2FE',
-                  whiteSpace: 'nowrap',
-                }}>
-                  Rev {formData.revision}
-                </span>
-              )}
+            <div className="form-group md:col-span-6">
+              <label className="form-label">BOM Code</label>
+              <div className="flex items-center gap-2">
+                <input type="text" className="form-input flex-1 min-w-0" value={formData.bom_code} onChange={(e) => setFormData({ ...formData, bom_code: e.target.value })} placeholder="Auto-generated if empty" />
+                {bomId && formData.revision && (
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: '#EEF2FF',
+                    color: '#6366F1',
+                    border: '1px solid #C7D2FE',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    Rev {formData.revision}
+                  </span>
+                )}
+              </div>
             </div>
-          </EntryContainer>
 
-          <EntryContainer label="Revision" className="entry-field-container-5px">
-            <input type="text" style={inputStyle} value={formData.revision} onChange={(e) => setFormData({ ...formData, revision: e.target.value })} placeholder="A" />
-          </EntryContainer>
-
-          <EntryContainer label="Product Code / SKU" className="entry-field-container-5px">
-            <input type="text" style={inputStyle} value={formData.product_code} onChange={(e) => setFormData({ ...formData, product_code: e.target.value })} placeholder="Optional part number" />
-          </EntryContainer>
-
-          <EntryContainer label="Output" className="entry-field-container-5px">
-            <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
-              <input type="number" style={{ ...inputStyle, width: '90px' }} value={formData.output_qty} onChange={(e) => setFormData({ ...formData, output_qty: Number(e.target.value) })} />
-              <select style={{ ...inputStyle, flex: 1 }} value={formData.output_unit} onChange={(e) => setFormData({ ...formData, output_unit: e.target.value })}>
-                {unitOptions.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
-              </select>
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Revision</label>
+              <input type="text" className="form-input" value={formData.revision} onChange={(e) => setFormData({ ...formData, revision: e.target.value })} placeholder="A" />
             </div>
-          </EntryContainer>
 
-          <EntryContainer label="Batch No" className="entry-field-container-5px">
-            <input type="text" style={inputStyle} value={formData.batch_no} onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })} placeholder="Optional batch/lot identifier" />
-          </EntryContainer>
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Product Code / SKU</label>
+              <input type="text" className="form-input" value={formData.product_code} onChange={(e) => setFormData({ ...formData, product_code: e.target.value })} placeholder="Optional part number" />
+            </div>
 
-          <EntryContainer label="BOM Type" className="entry-field-container-5px">
-            <select style={inputStyle} value={formData.bom_type} onChange={(e) => setFormData({ ...formData, bom_type: e.target.value })}>
-              <option value="assembly">Assembly (MBOM)</option>
-              <option value="repetitive">Repetitive</option>
-              <option value="formula">Formula / Process</option>
-            </select>
-          </EntryContainer>
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Specification</label>
+              <input type="text" className="form-input" value={formData.specification} onChange={(e) => setFormData({ ...formData, specification: e.target.value })} placeholder="e.g. Heavy-duty, Food-grade" />
+            </div>
 
-          <EntryContainer label="Product Category" className="entry-field-container-5px">
-            <select style={inputStyle} value={formData.product_category} onChange={(e) => setFormData({ ...formData, product_category: e.target.value })}>
-              <option value="standard">Standard</option>
-              <option value="custom">Custom Order</option>
-              <option value="prototype">Prototype</option>
-            </select>
-          </EntryContainer>
+            <div className="form-group md:col-span-6">
+              <label className="form-label">Output <span style={{ color: '#DC2626' }}>*</span></label>
+              <div className="form-split-fields">
+                <input type="number" className="form-input" value={formData.output_qty} onChange={(e) => setFormData({ ...formData, output_qty: Number(e.target.value) })} />
+                <FormSelect
+                  value={formData.output_unit}
+                  onChange={(v) => setFormData({ ...formData, output_unit: v })}
+                  options={unitOptions}
+                  placeholder="Unit..."
+                />
+              </div>
+            </div>
 
-          <EntryContainer label="Priority" className="entry-field-container-5px">
-            <select style={inputStyle} value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-          </EntryContainer>
+            <div className="form-group md:col-span-4">
+              <label className="form-label">Batch No</label>
+              <input type="text" className="form-input" value={formData.batch_no} onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })} placeholder="Optional batch/lot identifier" />
+            </div>
 
-          <EntryContainer label="" className="entry-field-container-5px">
-            <span style={{ fontSize: '12px', color: '#94A3B8', paddingTop: '8px', display: 'block' }}>&nbsp;</span>
-          </EntryContainer>
+            <div className="form-group md:col-span-4">
+              <label className="form-label">BOM Type <span style={{ color: '#DC2626' }}>*</span></label>
+              <FormSelect
+                value={formData.bom_type}
+                onChange={(v) => setFormData({ ...formData, bom_type: v })}
+                options={[
+                  { value: 'assembly', label: 'Assembly (MBOM)' },
+                  { value: 'repetitive', label: 'Repetitive' },
+                  { value: 'formula', label: 'Formula / Process' },
+                ]}
+                placeholder="Select type..."
+              />
+            </div>
 
-          <EntryContainer label="Effective Date" className="entry-field-container-5px">
-            <input type="date" style={inputStyle} value={formData.effective_date} onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })} />
-          </EntryContainer>
+            <div className="form-group md:col-span-4">
+              <label className="form-label">Product Category <span style={{ color: '#DC2626' }}>*</span></label>
+              <FormSelect
+                value={formData.product_category}
+                onChange={(v) => setFormData({ ...formData, product_category: v })}
+                options={[
+                  { value: 'standard', label: 'Standard' },
+                  { value: 'custom', label: 'Custom Order' },
+                  { value: 'prototype', label: 'Prototype' },
+                ]}
+                placeholder="Select category..."
+              />
+            </div>
 
-          <EntryContainer label="Valid To" className="entry-field-container-5px">
-            <input type="date" style={inputStyle} value={formData.valid_to} onChange={(e) => setFormData({ ...formData, valid_to: e.target.value })} />
-          </EntryContainer>
+            <div className="form-group md:col-span-4">
+              <label className="form-label">Priority <span style={{ color: '#DC2626' }}>*</span></label>
+              <FormSelect
+                value={formData.priority}
+                onChange={(v) => setFormData({ ...formData, priority: v })}
+                options={[
+                  { value: 'low', label: 'Low' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'high', label: 'High' },
+                  { value: 'critical', label: 'Critical' },
+                ]}
+                placeholder="Select priority..."
+              />
+            </div>
+
+            <div className="form-group md:col-span-4">
+              <label className="form-label">Effective Date</label>
+              <input type="date" className="form-input" value={formData.effective_date} onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })} />
+            </div>
+
+            <div className="form-group md:col-span-4">
+              <label className="form-label">Valid To</label>
+              <input type="date" className="form-input" value={formData.valid_to} onChange={(e) => setFormData({ ...formData, valid_to: e.target.value })} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -688,39 +855,46 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       )}
 
       {/* Card 2: Options */}
-      <div
-        className="inner-container-20px content-body-left-pad-12px bg-white border border-slate-200 p-6 shadow-2xs space-y-4"
-        style={{ borderRadius: '20px', paddingLeft: '12px' }}
-      >
-        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-indigo-600 border-b border-slate-100 pb-2">
+      <div className="form-card">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-slate-600 border-b border-slate-100 pb-2 pt-4 px-5">
           2. Options
         </h3>
+        <div className="p-4 pt-5">
+          <div className="form-row">
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Status</label>
+              <Button onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
+                variant="ghost" size="sm"
+                className={`rounded-full px-3.5 text-xs font-semibold ${formData.is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}>
+                {formData.is_active ? 'Active' : 'Inactive'}
+              </Button>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <EntryContainer label="Status" className="entry-field-container-5px">
-            <Button onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
-              variant="ghost" size="sm"
-              className={`rounded-full px-3.5 text-xs font-semibold ${formData.is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}>
-              {formData.is_active ? 'Active' : 'Inactive'}
-            </Button>
-          </EntryContainer>
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Approval <span style={{ color: '#DC2626' }}>*</span></label>
+              <FormSelect
+                value={formData.approval_status}
+                onChange={(v) => setFormData({ ...formData, approval_status: v })}
+                options={[
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'pending_approval', label: 'Pending Approval' },
+                  { value: 'approved', label: 'Approved' },
+                  { value: 'obsolete', label: 'Obsolete' },
+                ]}
+                placeholder="Select status..."
+              />
+            </div>
 
-          <EntryContainer label="Approval" className="entry-field-container-5px">
-            <select style={inputStyle} value={formData.approval_status} onChange={(e) => setFormData({ ...formData, approval_status: e.target.value })}>
-              <option value="draft">Draft</option>
-              <option value="pending_approval">Pending Approval</option>
-              <option value="approved">Approved</option>
-              <option value="obsolete">Obsolete</option>
-            </select>
-          </EntryContainer>
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Created By</label>
+              <input type="text" className="form-input form-input-muted" value={formData.created_by_name} readOnly />
+            </div>
 
-          <EntryContainer label="Created By" className="entry-field-container-5px">
-            <input type="text" style={{ ...inputStyle, background: '#F8FAFC', color: '#64748B' }} value={formData.created_by_name} readOnly />
-          </EntryContainer>
-
-          <EntryContainer label="Approved By" className="entry-field-container-5px">
-            <input type="text" style={{ ...inputStyle, background: '#F8FAFC', color: '#64748B' }} value={formData.approved_by_name} readOnly />
-          </EntryContainer>
+            <div className="form-group md:col-span-3">
+              <label className="form-label">Approved By</label>
+              <input type="text" className="form-input form-input-muted" value={formData.approved_by_name} readOnly />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -792,13 +966,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 borderCollapse: 'collapse',
                 tableLayout: 'fixed',
                 minWidth: '620px',
-              }}>
+              }}> 
                 <thead>
                   <tr style={{ background: '#FAFBFC', borderBottom: '1px solid #F1F5F9' }}>
                     <th style={{ width: '36px', padding: '0 8px', height: '40px', textAlign: 'center' }}></th>
                     <th style={{ padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Item</th>
-                    <th style={{ width: '120px', padding: '0 16px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
-                    <th style={{ width: '80px', padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Unit</th>
+                    <th style={{ width: '100px', padding: '0 12px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Material</th>
+                    <th style={{ width: '70px', padding: '0 8px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
+                    <th style={{ width: '80px', padding: '0 12px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Unit</th>
                     <th style={{ width: '64px', padding: '0 8px', height: '40px' }}></th>
                   </tr>
                 </thead>
@@ -826,7 +1001,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                       
 
                       {/* Material Cell */}
-                      <td style={{ padding: '0 16px', verticalAlign: 'middle' }}>
+                      <td colSpan={3} style={{ padding: '0 8px', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           {/* Collapse/Expand Chevron */}
                           {hasChildren ? (
@@ -852,9 +1027,15 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                 onChange={(e) => {
                                   const idx = items.findIndex(i => i.id === item.id);
                                   setMaterialSearchText(prev => ({ ...prev, [idx]: e.target.value }));
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setMaterialDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 260) });
                                   setOpenDropdownIndex(idx);
                                 }}
-                                onFocus={() => setOpenDropdownIndex(items.findIndex(i => i.id === item.id))}                                  placeholder="Search material..."
+                                onFocus={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setMaterialDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 260) });
+                                  setOpenDropdownIndex(items.findIndex(i => i.id === item.id));
+                                }}                                  placeholder="Search material..."
                                 style={{
                                   width: '100%',
                                   height: '34px',
@@ -880,11 +1061,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                 }}
                               />
 
-                              {/* Dropdown */}
-                              {openDropdownIndex === items.findIndex(i => i.id === item.id) && materials && (
-                                <div style={{
-                                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-                                  zIndex: 50, background: '#fff',
+                              {/* Dropdown — portal overlay so it escapes the table's overflow clipping */}
+                              {openDropdownIndex === items.findIndex(i => i.id === item.id) && materialDropdownPos && materials && createPortal(
+                                <div className="material-dropdown-portal" style={{
+                                  position: 'fixed',
+                                  top: materialDropdownPos.top,
+                                  left: materialDropdownPos.left,
+                                  width: materialDropdownPos.width,
+                                  zIndex: 9999, background: '#fff',
                                   border: '1px solid #E2E8F0',
                                   borderRadius: '12px',
                                   boxShadow: '0 12px 36px rgba(15,23,42,0.12)',
@@ -942,7 +1126,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                       No materials found
                                     </div>
                                   )}
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </div>
 
@@ -965,14 +1150,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                           </div>
                       </td>
                       {/* Quantity */}
-                      <td style={{ padding: '0 12px', verticalAlign: 'middle' }}>
+                      <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
                          <input
                            type="number"
                            value={item.required_qty || ''}
                            onChange={(e) => updateItemById(item.id!, 'required_qty', Number(e.target.value))}
                            placeholder="0"
                            style={{
-                             width: '100%', height: '34px', padding: '0 8px',
+                             width: '60px', height: '34px', padding: '0 6px',
                              fontSize: '13px', fontWeight: 500, color: '#0F172A',
                              background: '#F8FAFC', border: '1px solid #E2E8F0',
                              borderRadius: '6px', textAlign: 'right', outline: 'none',
@@ -981,19 +1166,13 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                          />
                        </td>
                       {/* Unit */}
-                      <td style={{ padding: '0 12px', verticalAlign: 'middle' }}>
-                         <select
+                      <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
+                         <FormSelect
                            value={item.unit}
-                           onChange={(e) => updateItemById(item.id!, 'unit', e.target.value)}
-                           style={{
-                             width: '100%', height: '34px', padding: '0 6px',
-                             fontSize: '12px', fontWeight: 500, color: '#475569',
-                             background: '#F8FAFC', border: '1px solid #E2E8F0',
-                             borderRadius: '6px', outline: 'none', cursor: 'pointer',
-                           }}
-                         >
-                           {unitOptions.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
-                         </select>
+                           onChange={(v) => updateItemById(item.id!, 'unit', v)}
+                           options={unitOptions}
+                           placeholder="Unit"
+                         />
                        </td>
 
 
@@ -1005,7 +1184,11 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                           <div className="action-menu-container" style={{ position: 'relative' }}>
                             <button
                               type="button"
-                              onClick={() => setActiveActionMenuRowId(activeActionMenuRowId === item.id ? null : item.id!)}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActionMenuPos({ top: rect.bottom + 4, left: rect.right });
+                                setActiveActionMenuRowId(activeActionMenuRowId === item.id ? null : item.id!);
+                              }}
                               style={{
                                 width: '28px', height: '28px', borderRadius: '6px',
                                 border: 'none', background: activeActionMenuRowId === item.id ? '#F1F5F9' : 'transparent',
@@ -1017,9 +1200,10 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                             >
                               <MoreHorizontal size={16} />
                             </button>
-                            {activeActionMenuRowId === item.id && (
-                              <div style={{
-                                position: 'absolute', right: 0, top: '100%', marginTop: '4px',
+                            {activeActionMenuRowId === item.id && actionMenuPos && createPortal(
+                              <div className="action-menu-portal" style={{
+                                position: 'fixed', top: actionMenuPos.top, left: actionMenuPos.left,
+                                transform: 'translateX(-100%)',
                                 zIndex: 999, background: '#fff', border: '1px solid #E2E8F0',
                                 borderRadius: '10px', boxShadow: '0 8px 24px rgba(15,23,42,0.12)',
                                 padding: '4px', minWidth: '180px', animation: 'scaleIn 150ms ease-out',
@@ -1050,8 +1234,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                                   onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
                                   onMouseLeave={e => e.currentTarget.style.background = 'none'}>
                                   <Trash2 size={13} /> Delete
-                                </button>
-                              </div>
+                                 </button>
+                              </div>,
+                              document.body
                             )}
                           </div>
                           {/* Delete X */}
@@ -1079,7 +1264,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{
+                    <td colSpan={6} style={{
                       padding: '60px 24px',
                       textAlign: 'center',
                     }}>
@@ -1191,13 +1376,12 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                         placeholder="0"
                         style={{ ...{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }, flex: 1 }}
                       />
-                      <select defaultValue="days"
-                        style={{ width: '72px', height: '36px', padding: '0 4px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '11px', fontWeight: 500, color: '#475569', outline: 'none', cursor: 'pointer' }}
-                      >
-                        <option value="hours">Hours</option>
-                        <option value="days">Days</option>
-                        <option value="weeks">Weeks</option>
-                      </select>
+                      <FormSelect
+                        value={item.lead_time_unit || 'days'}
+                        onChange={(v) => updateItemById(item.id!, 'lead_time_unit', v)}
+                        options={LEAD_TIME_UNITS}
+                        placeholder="—"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1206,16 +1390,12 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '160px', maxWidth: '200px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Work Center</label>
-                    <select
+                    <FormSelect
                       value={item.work_center_id || ''}
-                      onChange={(e) => updateItemById(item.id!, 'work_center_id', e.target.value || null)}
-                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
-                    >
-                      <option value="">—</option>
-                      {(workCenters || []).map(wc => (
-                        <option key={wc.id} value={wc.id}>{wc.name}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => updateItemById(item.id!, 'work_center_id', v || null)}
+                      options={[{ value: '', label: '—' }, ...(workCenters || []).map(wc => ({ value: wc.id, label: wc.name }))]}
+                      placeholder="—"
+                    />
                   </div>
                   <div style={{ minWidth: '100px', maxWidth: '120px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Critical?</label>
@@ -1235,29 +1415,21 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                   </div>
                   <div style={{ flex: 1, minWidth: '160px', maxWidth: '220px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Alternate Material</label>
-                    <select
+                    <FormSelect
                       value={item.alternate_material_id || ''}
-                      onChange={(e) => updateItemById(item.id!, 'alternate_material_id', e.target.value || null)}
-                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
-                    >
-                      <option value="">None</option>
-                      {(materials || []).filter(m => m.id !== item.material_id).map(m => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => updateItemById(item.id!, 'alternate_material_id', v || null)}
+                      options={[{ value: '', label: 'None' }, ...(materials || []).filter(m => m.id !== item.material_id).map(m => ({ value: m.id, label: m.name }))]}
+                      placeholder="None"
+                    />
                   </div>
                   <div style={{ flex: 1, minWidth: '160px', maxWidth: '200px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Warehouse</label>
-                    <select
+                    <FormSelect
                       value={item.warehouse_id || ''}
-                      onChange={(e) => updateItemById(item.id!, 'warehouse_id', e.target.value || null)}
-                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
-                    >
-                      <option value="">—</option>
-                      {(warehouses || []).map(w => (
-                        <option key={w.id} value={w.id}>{w.name}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => updateItemById(item.id!, 'warehouse_id', v || null)}
+                      options={[{ value: '', label: '—' }, ...(warehouses || []).map(w => ({ value: w.id, label: w.name }))]}
+                      placeholder="—"
+                    />
                   </div>
                 </div>
 
@@ -1300,36 +1472,27 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                         return <div style={{ fontSize: '12px', color: '#94A3B8', padding: '8px 0' }}>—</div>;
                       }
                       return (
-                        <select
+                        <FormSelect
                           value={item.company_variant_id || ''}
-                          onChange={(e) => {
-                            const vId = e.target.value;
-                            const vName = getVariantName(vId);
+                          onChange={(vId) => {
+                            const vName = vId ? getVariantName(vId) : '';
                             updateItemById(item.id!, 'company_variant_id', vId || '');
                             updateItemById(item.id!, 'variant_name', vName);
                           }}
-                          style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
-                        >
-                          <option value="">No Category</option>
-                          {variants.map(v => (
-                            <option key={v.company_variant_id} value={v.company_variant_id}>
-                              {getVariantName(v.company_variant_id)}
-                            </option>
-                          ))}
-                        </select>
+                          options={[{ value: '', label: 'No Category' }, ...variants.map(v => ({ value: v.company_variant_id, label: getVariantName(v.company_variant_id) }))]}
+                          placeholder="No Category"
+                        />
                       );
                     })()}
                   </div>
                   <div style={{ flex: 1, minWidth: '140px', maxWidth: '180px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Brand</label>
-                    <select
+                    <FormSelect
                       value={item.make || ''}
-                      onChange={(e) => updateItemById(item.id!, 'make', e.target.value)}
-                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s' }}
-                    >
-                      <option value="">—</option>
-                      {brandOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
+                      onChange={(v) => updateItemById(item.id!, 'make', v)}
+                      options={[{ value: '', label: '—' }, ...brandOptions.map(b => ({ value: b, label: b }))]}
+                      placeholder="—"
+                    />
                   </div>
                 </div>
               </div>
@@ -1441,27 +1604,25 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         </div>
 
       {/* ─── Action Footer ─── */}
-      <div className="flex justify-end gap-3 pt-2">
-        {bomId && (
-          <Button type="button" variant="destructive" size="default" leftIcon={<Trash2 size={14} />} onClick={() => setShowDeleteModal(true)}>
-            Delete
-          </Button>
-        )}
-        <Button type="button" variant="secondary" size="default" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          variant="default"
-          size="default"
-          leftIcon={<Save size={14} />}
-          disabled={!formData.product_name || saveBOM.isPending}
-          loading={saveBOM.isPending}
-          loadingText="Saving..."
-          onClick={handleSave}
-        >
-          Save BOM
-        </Button>
+      <div className="form-footer">
+        <div className="form-btn-group">
+          {bomId && (
+            <button type="button" className="form-btn form-btn-secondary" onClick={() => setShowDeleteModal(true)}>
+              Delete
+            </button>
+          )}
+          <button type="button" className="form-btn form-btn-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="form-btn form-btn-primary"
+            disabled={!formData.product_name || saveBOM.isPending}
+            onClick={handleSave}
+          >
+            {saveBOM.isPending ? 'Saving...' : 'Save BOM'}
+          </button>
+        </div>
       </div>
 
       {/* ─── Import BOQ Modal ─── */}

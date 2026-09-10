@@ -10,6 +10,27 @@ export async function saveBOMAggregate(
   let bomId: string;
   let bomCode = header.bom_code;
 
+  if (header.product_id) {
+    const specKey = (header.specification || '').trim().toLowerCase();
+    const revKey = (header.revision || 'A').trim();
+    const { data: siblings } = await supabase
+      .from('bom_headers')
+      .select('id, bom_code, revision, specification')
+      .eq('organisation_id', header.organisation_id!)
+      .eq('product_id', header.product_id)
+      .neq('id', header.id || '');
+    const clash = (siblings || []).find(
+      (d) =>
+        (d.specification || '').trim().toLowerCase() === specKey &&
+        (d.revision || 'A').trim() === revKey
+    );
+    if (clash) {
+      throw new Error(
+        `BOM ${clash.bom_code} (Rev ${clash.revision || 'A'}) already covers this specification for this product. Use a different specification, or create a new revision of the existing BOM.`
+      );
+    }
+  }
+
   if (!bomCode) {
     try {
       const { data, error } = await supabase.rpc('generate_bom_code', { org_id: header.organisation_id });
@@ -34,13 +55,22 @@ export async function saveBOMAggregate(
     bom_code: bomCode,
   };
 
-  if (isEditing && header.id) {
-    const updated = await P.updateBOMHeader(header.id, headerData);
-    bomId = updated.id!;
-    await P.deleteBOMItemsByHeaderId(bomId);
-  } else {
-    const inserted = await P.insertBOMHeader(headerData);
-    bomId = inserted.id!;
+  try {
+    if (isEditing && header.id) {
+      const updated = await P.updateBOMHeader(header.id, headerData);
+      bomId = updated.id!;
+      await P.deleteBOMItemsByHeaderId(bomId);
+    } else {
+      const inserted = await P.insertBOMHeader(headerData);
+      bomId = inserted.id!;
+    }
+  } catch (err: any) {
+    if (err?.code === '23505' || String(err?.message || '').includes('uq_bom_headers_org_product_spec_rev')) {
+      throw new Error(
+        'A BOM with this specification already exists for this product. Use a different specification, or create a new revision of the existing BOM.'
+      );
+    }
+    throw err;
   }
 
   const payload = items

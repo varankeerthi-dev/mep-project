@@ -9,6 +9,7 @@ import {
 } from '../../features/manufacturing';
 import { Table, ColumnDef, RowAction } from '../../components/table';
 import { BOMHeader } from '../../features/manufacturing/model/types';
+import BOMPreviewModal from './BOMPreview';
 
 type BOMListProps = {
   onNavigate: (path: string) => void;
@@ -28,6 +29,7 @@ export default function BOMList({ onNavigate }: BOMListProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; code: string; name: string } | null>(null);
+  const [previewBomId, setPreviewBomId] = useState<string | null>(null);
 
   const deleteBOM = useDeleteBOMMutation(() => {
     setDeleteTarget(null);
@@ -48,7 +50,7 @@ export default function BOMList({ onNavigate }: BOMListProps) {
       id: 'bom_code',
       align: 'left',
       cell: ({ row }) => (
-        <span className="text-sm font-semibold text-zinc-900 tracking-tight font-['Geist']">
+        <span className="text-sm font-semibold text-zinc-900 tracking-tight">
           {row.bom_code}
         </span>
       ),
@@ -69,6 +71,17 @@ export default function BOMList({ onNavigate }: BOMListProps) {
       accessorKey: 'product_name',
       id: 'product_name',
       align: 'left',
+    },
+    {
+      header: 'Specification',
+      accessorKey: 'specification',
+      id: 'specification',
+      align: 'left',
+      cell: ({ row }) => (
+        <span className="text-sm text-zinc-600">
+          {row.specification || '—'}
+        </span>
+      ),
     },
     {
       header: 'Type',
@@ -122,6 +135,10 @@ export default function BOMList({ onNavigate }: BOMListProps) {
 
   const getRowActions = (row: BOMHeader): RowAction[] => [
     {
+      label: 'View BOM',
+      onClick: () => setPreviewBomId(row.id!),
+    },
+    {
       label: 'Edit BOM',
       onClick: () => onNavigate(`/manufacturing/boms/edit?id=${row.id}`),
     },
@@ -150,7 +167,7 @@ export default function BOMList({ onNavigate }: BOMListProps) {
               <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400">
                 Manufacturing
               </span>
-              <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 mt-0.5 font-['Geist']">
+              <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 mt-0.5">
                 Bills of Materials
               </h1>
               <p className="text-[13px] text-zinc-400 mt-0.5">
@@ -184,11 +201,19 @@ export default function BOMList({ onNavigate }: BOMListProps) {
           selectedFilterId={statusFilter}
           onFilterSelect={(id) => { setStatusFilter(id as any); setPage(1); }}
           rowActions={getRowActions}
-          onRowClick={(row) => onNavigate(`/manufacturing/boms/edit?id=${row.id}`)}
+          onRowClick={(row) => setPreviewBomId(row.id!)}
           emptyTitle="No BOMs yet"
           emptySubtitle="Create your first BOM to get started."
         />
       </div>
+
+      {previewBomId && (
+        <BOMPreviewModal
+          bomId={previewBomId}
+          onClose={() => setPreviewBomId(null)}
+          onEdit={(id) => { setPreviewBomId(null); onNavigate(`/manufacturing/boms/edit?id=${id}`); }}
+        />
+      )}
 
       {deleteTarget && (
         <DeleteBOMModal

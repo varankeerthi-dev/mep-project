@@ -24,6 +24,8 @@ export interface BOMHeader {
   product_category?: string;
   created_by_name?: string;
   approved_by_name?: string;
+  parent_bom_id?: string;
+  specification?: string;
 }
 
 export interface BOMItem {
