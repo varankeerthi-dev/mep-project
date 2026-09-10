@@ -128,6 +128,30 @@ interface ReviewItem {
   original_product_name: string; // Keep baseline to compute corrections count
 }
 
+// Keyword-based classification helper (Section 5.17)
+const classifyPage = (text: string): PageMeta['classification'] => {
+  const clean = text.toLowerCase();
+
+  // Drawings Keywords
+  if (/\b(dwg|drawing|tolerances|dimensions|scale|isometric|dimensions)\b/.test(clean)) {
+    return 'DRAWING';
+  }
+  // Terms Keywords
+  if (/\b(terms and conditions|terms & conditions|force majeure|jurisdiction|arbitration)\b/.test(clean)) {
+    return 'TERMS';
+  }
+  // Technical datasheet Keywords
+  if (/\b(datasheet|annexure|specifications|spec sheet|technical data)\b/.test(clean)) {
+    return 'TECHNICAL';
+  }
+  // Commercial Keywords
+  if (/\b(invoice|quotation|purchase order|qty|rate|gstin|amount|hsn|total|subtotal|bill to|ship to)\b/.test(clean)) {
+    return 'COMMERCIAL';
+  }
+
+  return 'OTHER';
+};
+
 export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
   isOpen,
   onClose,
@@ -197,30 +221,6 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  // Keyword-based classification helper (Section 5.17)
-  const classifyPage = (text: string): PageMeta['classification'] => {
-    const clean = text.toLowerCase();
-    
-    // Drawings Keywords
-    if (/\b(dwg|drawing|tolerances|dimensions|scale|isometric|dimensions)\b/.test(clean)) {
-      return 'DRAWING';
-    }
-    // Terms Keywords
-    if (/\b(terms and conditions|terms & conditions|force majeure|jurisdiction|arbitration)\b/.test(clean)) {
-      return 'TERMS';
-    }
-    // Technical datasheet Keywords
-    if (/\b(datasheet|annexure|specifications|spec sheet|technical data)\b/.test(clean)) {
-      return 'TECHNICAL';
-    }
-    // Commercial Keywords
-    if (/\b(invoice|quotation|purchase order|qty|rate|gstin|amount|hsn|total|subtotal|bill to|ship to)\b/.test(clean)) {
-      return 'COMMERCIAL';
-    }
-    
-    return 'OTHER';
-  };
 
   const handleFileDrop = async (e: React.DragEvent | React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();

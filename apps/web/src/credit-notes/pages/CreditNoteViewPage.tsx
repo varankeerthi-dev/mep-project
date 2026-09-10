@@ -28,6 +28,12 @@ export function CreditNoteViewPage() {
   const [search, setSearch] = useState('');
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    };
+  }, [previewPdfUrl]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -158,10 +164,14 @@ export function CreditNoteViewPage() {
       iframe.style.display = 'none';
       iframe.src = url;
       document.body.appendChild(iframe);
-      iframe.onload = () => {
-        try { iframe.contentWindow?.print(); } catch { window.print(); }
-        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
-      };
+      await new Promise<void>((resolve, reject) => {
+        iframe.onload = () => {
+          try { iframe.contentWindow?.print(); } catch { window.print(); }
+          resolve();
+        };
+        iframe.onerror = () => reject(new Error('Failed to load Credit Note PDF for printing'));
+      });
+      setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
     } else if (template?.column_settings?.print?.style === 'sakthi' || template?.template_code === 'CN_SAKTHI') {
       const pdfData = buildPdfData(selectedCN);
       const pdfDoc = await generateSakthiPdf(pdfData, organisation || {}, 'Credit Note', template);
@@ -171,10 +181,14 @@ export function CreditNoteViewPage() {
       iframe.style.display = 'none';
       iframe.src = url;
       document.body.appendChild(iframe);
-      iframe.onload = () => {
-        try { iframe.contentWindow?.print(); } catch { window.print(); }
-        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
-      };
+      await new Promise<void>((resolve, reject) => {
+        iframe.onload = () => {
+          try { iframe.contentWindow?.print(); } catch { window.print(); }
+          resolve();
+        };
+        iframe.onerror = () => reject(new Error('Failed to load Credit Note PDF for printing'));
+      });
+      setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
     } else {
       const pdfData = buildPdfData(selectedCN);
       const pdfDoc = generateProGridAdjustmentNotePdf(pdfData);
@@ -184,10 +198,14 @@ export function CreditNoteViewPage() {
       iframe.style.display = 'none';
       iframe.src = url;
       document.body.appendChild(iframe);
-      iframe.onload = () => {
-        try { iframe.contentWindow?.print(); } catch { window.print(); }
-        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
-      };
+      await new Promise<void>((resolve, reject) => {
+        iframe.onload = () => {
+          try { iframe.contentWindow?.print(); } catch { window.print(); }
+          resolve();
+        };
+        iframe.onerror = () => reject(new Error('Failed to load Credit Note PDF for printing'));
+      });
+      setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
     }
   }, [selectedCN, buildPdfData, getSelectedTemplate, organisation]);
 

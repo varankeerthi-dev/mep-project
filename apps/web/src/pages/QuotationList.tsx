@@ -110,6 +110,12 @@ export default function QuotationList() {
 
   // PDF Preview modal state
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+    };
+  }, [pdfPreviewUrl]);
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
   const [previewQuotationNo, setPreviewQuotationNo] = useState('');
   const [previewQuotationId, setPreviewQuotationId] = useState('');
@@ -368,6 +374,7 @@ export default function QuotationList() {
     if (pdfBytes) {
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
       setPdfPreviewUrl(url);
       setShowPdfPreviewModal(true);
     } else {

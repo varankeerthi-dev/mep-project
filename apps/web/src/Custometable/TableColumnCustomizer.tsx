@@ -34,9 +34,10 @@ export const TableColumnCustomizer: React.FC<TableColumnCustomizerProps> = ({
     const col = columns.find((c) => c.id === id);
     if (!col || col.mandatory) return;
 
-    const newVisible = columns
-      .filter((c) => (c.id === id ? !c.visible : c.visible))
-      .map((c) => c.id);
+    const newVisible: string[] = [];
+    for (const c of columns) {
+      if (c.id === id ? !c.visible : c.visible) newVisible.push(c.id);
+    }
     onChange(newVisible);
   };
 

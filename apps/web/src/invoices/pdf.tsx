@@ -418,6 +418,8 @@ export async function previewInvoicePDF(
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+
   return url;
 }
 

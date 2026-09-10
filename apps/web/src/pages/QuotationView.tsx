@@ -31,7 +31,32 @@ import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
 import DocumentSettingsDrawer from '../components/document-settings/DocumentSettingsDrawer';
 
-
+const getStatusBadge = (status) => {
+  const colors = {
+    'Draft': { bg: '#f3f4f6', color: '#6b7280' },
+    'Sent': { bg: '#dbeafe', color: '#1e40af' },
+    'Under Negotiation': { bg: '#fef3c7', color: '#b45309' },
+    'Approved': { bg: '#d1fae5', color: '#047857' },
+    'PENDING_APPROVAL': { bg: '#fef3c7', color: '#d97706' },
+    'Rejected': { bg: '#fee2e2', color: '#dc2626' },
+    'Converted': { bg: '#dbeafe', color: '#1e40af' },
+    'Cancelled': { bg: '#fee2e2', color: '#991b1b' },
+    'Expired': { bg: '#f3f4f6', color: '#9ca3af' }
+  };
+  const style = colors[status] || colors['Draft'];
+  return (
+    <span style={{
+      background: style.bg,
+      color: style.color,
+      padding: '4px 12px',
+      borderRadius: '12px',
+      fontSize: '13px',
+      fontWeight: 600
+    }}>
+      {status}
+    </span>
+  );
+};
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -83,6 +108,12 @@ export default function QuotationView() {
 
   // PDF Preview modal state
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+    };
+  }, [pdfPreviewUrl]);
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
   
   const quotationQuery = useQuery({
@@ -780,6 +811,7 @@ export default function QuotationView() {
       const handleOutput = (blob) => {
         const url = URL.createObjectURL(blob);
         if (action === 'preview') {
+          if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
           setPdfPreviewUrl(url);
           setShowPdfPreviewModal(true);
         } else if (action === 'print') {
@@ -789,6 +821,7 @@ export default function QuotationView() {
               printWindow.print();
             };
           }
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
         } else {
           const a = document.createElement('a');
           a.href = url;
@@ -1517,33 +1550,6 @@ export default function QuotationView() {
       </body>
       </html>
     `;
-  };
-
-  const getStatusBadge = (status) => {
-    const colors = {
-      'Draft': { bg: '#f3f4f6', color: '#6b7280' },
-      'Sent': { bg: '#dbeafe', color: '#1e40af' },
-      'Under Negotiation': { bg: '#fef3c7', color: '#b45309' },
-      'Approved': { bg: '#d1fae5', color: '#047857' },
-      'PENDING_APPROVAL': { bg: '#fef3c7', color: '#d97706' },
-      'Rejected': { bg: '#fee2e2', color: '#dc2626' },
-      'Converted': { bg: '#dbeafe', color: '#1e40af' },
-      'Cancelled': { bg: '#fee2e2', color: '#991b1b' },
-      'Expired': { bg: '#f3f4f6', color: '#9ca3af' }
-    };
-    const style = colors[status] || colors['Draft'];
-    return (
-      <span style={{ 
-        background: style.bg, 
-        color: style.color, 
-        padding: '4px 12px', 
-        borderRadius: '12px',
-        fontSize: '13px',
-        fontWeight: 600
-      }}>
-        {status}
-      </span>
-    );
   };
 
   const getSelectedTemplateName = () => {

@@ -15,6 +15,28 @@ interface TableBulkActionsProps<T> {
   onClearSelection: () => void;
 }
 
+const getButtonStyle = (variant: BulkAction<any>['variant']): React.CSSProperties => {
+  if (variant === 'danger') {
+    return {
+      backgroundColor: '#FEF2F2',
+      color: '#DC2626',
+      border: '1px solid #FECACA',
+    };
+  }
+  if (variant === 'primary') {
+    return {
+      backgroundColor: '#111827',
+      color: '#FFFFFF',
+      border: '1px solid transparent',
+    };
+  }
+  return {
+    backgroundColor: '#FFFFFF',
+    color: '#374151',
+    border: '1px solid #E5E7EB',
+  };
+};
+
 export function TableBulkActions<T>({
   selectedCount,
   actions,
@@ -22,28 +44,6 @@ export function TableBulkActions<T>({
   onClearSelection,
 }: TableBulkActionsProps<T>) {
   if (selectedCount === 0) return null;
-
-  const getButtonStyle = (variant: BulkAction<T>['variant']): React.CSSProperties => {
-    if (variant === 'danger') {
-      return {
-        backgroundColor: '#FEF2F2',
-        color: '#DC2626',
-        border: '1px solid #FECACA',
-      };
-    }
-    if (variant === 'primary') {
-      return {
-        backgroundColor: '#111827',
-        color: '#FFFFFF',
-        border: '1px solid transparent',
-      };
-    }
-    return {
-      backgroundColor: '#FFFFFF',
-      color: '#374151',
-      border: '1px solid #E5E7EB',
-    };
-  };
 
   return (
     <div

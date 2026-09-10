@@ -24,6 +24,25 @@ interface ApprovalTableProps {
   loading?: boolean;
 }
 
+const getApprovalTypeConfig = (type: string) => {
+  return APPROVAL_TYPES.find(t => t.type === type) || APPROVAL_TYPES[0];
+};
+
+const formatAmount = (amount?: number) => {
+  if (!amount) return '-';
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(amount);
+};
+
+const getReferenceNumber = (approval: Approval) => {
+  // This would need to be implemented based on reference_type
+  // For now, return a generic reference
+  return `${approval.reference_type.replace('_', '-')}-${approval.reference_id.slice(0, 8)}`;
+};
+
 const ApprovalTable: React.FC<ApprovalTableProps> = ({
   approvals,
   onAction,
@@ -56,25 +75,6 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     });
     // Clear comments after action
     setActionComments({ ...actionComments, [approvalId]: '' });
-  };
-
-  const getApprovalTypeConfig = (type: string) => {
-    return APPROVAL_TYPES.find(t => t.type === type) || APPROVAL_TYPES[0];
-  };
-
-  const formatAmount = (amount?: number) => {
-    if (!amount) return '-';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const getReferenceNumber = (approval: Approval) => {
-    // This would need to be implemented based on reference_type
-    // For now, return a generic reference
-    return `${approval.reference_type.replace('_', '-')}-${approval.reference_id.slice(0, 8)}`;
   };
 
   if (loading) {

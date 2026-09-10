@@ -169,10 +169,14 @@ export const DebitNoteView: React.FC = () => {
     iframe.style.display = 'none';
     iframe.src = url;
     document.body.appendChild(iframe);
-    iframe.onload = () => {
-      try { iframe.contentWindow?.print(); } catch { window.print(); }
-      setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
-    };
+    await new Promise<void>((resolve, reject) => {
+      iframe.onload = () => {
+        try { iframe.contentWindow?.print(); } catch { window.print(); }
+        resolve();
+      };
+      iframe.onerror = () => reject(new Error('Failed to load Debit Note PDF for printing'));
+    });
+    setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(url); }, 1000);
   }, [selectedDN, buildPdfData, organisation]);
 
   const handleDelete = useCallback(async () => {

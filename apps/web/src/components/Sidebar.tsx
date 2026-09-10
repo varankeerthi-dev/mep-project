@@ -496,13 +496,15 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   const { data: hasLookupPermission = true } = useHasPermission('quick_lookup.read');
 
   const filteredMenuData = useMemo(() => {
-    return menuData.map(section => ({
-      ...section,
-      items: section.items.filter(item => {
+    const out: typeof menuData = [];
+    for (const section of menuData) {
+      const items = section.items.filter(item => {
         if (item.id === 'client-lookup' && !hasLookupPermission) return false;
         return isModuleEnabled(item.id);
-      })
-    })).filter(section => section.items.length > 0);
+      });
+      if (items.length > 0) out.push({ ...section, items });
+    }
+    return out;
   }, [isModuleEnabled, hasLookupPermission]);
 
   // Extract Settings section

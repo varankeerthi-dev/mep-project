@@ -108,6 +108,12 @@ export default function InvoiceListPage() {
   // PDF Preview state
   const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    };
+  }, [previewPdfUrl]);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Payment state
@@ -297,6 +303,7 @@ export default function InvoiceListPage() {
     try {
       const { getInvoicePdfBlobUrl } = await import('../pdf');
       const url = await getInvoicePdfBlobUrl(invoice);
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
       setPreviewPdfUrl(url);
     } finally {
       setPreviewLoading(false);

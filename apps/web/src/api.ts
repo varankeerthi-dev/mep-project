@@ -928,11 +928,12 @@ export async function updateBOQItems(
     .delete()
     .eq('boq_sheet_id', boqSheetId);
 
-  const itemsWithSheetId = items.map((item, index) => {
+  const itemsWithSheetId: Partial<BOQItem>[] = [];
+  items.forEach((item, index) => {
     const description = item.description || '';
     const material = item.material || description || null;
     const specification = item.specification || '';
-    return {
+    const row = {
       boq_sheet_id: boqSheetId,
       row_order: index + 1,
       is_header_row: !!item.is_header_row,
@@ -951,7 +952,8 @@ export async function updateBOQItems(
       material,
       updated_at: new Date().toISOString()
     };
-  }).filter(item => !item.is_header_row || item.header_text);
+    if (!row.is_header_row || row.header_text) itemsWithSheetId.push(row);
+  });
 
   if (itemsWithSheetId.length > 0) {
     const { data, error } = await supabase
