@@ -402,6 +402,21 @@ export const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
 
   const { data: vendors = [], isLoading: vendorsLoading } = useVendors(organisation?.id);
+
+  // Base UI Select label maps — Select.Value renders the item label instead of the raw value (e.g. UUID)
+  const vendorItems = useMemo(
+    () => vendors.map((v: any) => ({ value: v.id, label: v.company_name })),
+    [vendors]
+  );
+  const materialItems = useMemo(
+    () => materials.map((m: any) => ({ value: m.id, label: m.display_name || m.name })),
+    [materials]
+  );
+  const signatureItems = useMemo(
+    () => (((organisation as any)?.signatures || []) as any[]).map((sig) => ({ value: String(sig.id), label: sig.name })),
+    [organisation]
+  );
+  const gstItems = useMemo(() => GST_RATES.map((r) => ({ value: String(r), label: `${r}%` })), []);
   const createPO = useCreatePurchaseOrder();
   const updatePO = useUpdatePurchaseOrder();
   const deletePO = useDeletePO();
@@ -1091,7 +1106,7 @@ export const PurchaseOrders: React.FC = () => {
                     <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
                       Vendor <span className="text-rose-500 normal-case tracking-normal">*</span>
                     </Label>
-                    <Select value={vendorId} onValueChange={(val) => { setVendorId(val); markDirty(); setFormErrors(prev => { const next = { ...prev }; delete next.vendor_id; return next; }); }}>
+                    <Select value={vendorId || null} items={vendorItems} onValueChange={(val) => { setVendorId(val); markDirty(); setFormErrors(prev => { const next = { ...prev }; delete next.vendor_id; return next; }); }}>
                       <SelectTrigger className={cn("border-zinc-200 hover:border-zinc-400 transition-colors focus:ring-2 focus:ring-indigo-400", formErrors.vendor_id && "border-rose-400 focus:ring-rose-300")}>
                         <SelectValue placeholder="Select vendor" />
                       </SelectTrigger>
@@ -1194,7 +1209,7 @@ export const PurchaseOrders: React.FC = () => {
                   {/* Authorized Signatory */}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">Authorized Signatory</Label>
-                    <Select value={authorizedSignatoryId} onValueChange={(val) => { setAuthorizedSignatoryId(val); markDirty(); }}>
+                    <Select value={authorizedSignatoryId || null} items={signatureItems} onValueChange={(val) => { setAuthorizedSignatoryId(val); markDirty(); }}>
                       <SelectTrigger className="border-zinc-200 hover:border-zinc-400 transition-colors">
                         <SelectValue placeholder="Select signatory..." />
                       </SelectTrigger>
@@ -1339,7 +1354,7 @@ export const PurchaseOrders: React.FC = () => {
                       )}
                       {itemCols.has('item_name') && (
                         <td style={{ padding: '6px 12px', minWidth: 200 }}>
-                          <Select value={item.item_id || ""} onValueChange={async (val) => {
+                          <Select value={item.item_id || null} items={materialItems} onValueChange={async (val) => {
                             const material = materials.find((m: any) => m.id === val);
                             if (material) {
                               updateItem(index, 'item_name', material.display_name || material.name);
@@ -1432,7 +1447,7 @@ export const PurchaseOrders: React.FC = () => {
                       )}
                       {itemCols.has('gst') && (
                         <td style={{ padding: '6px 12px' }}>
-                          <Select value={String(item.cgst_percent + item.sgst_percent)} onValueChange={(val) => {
+                          <Select value={item.cgst_percent + item.sgst_percent ? String(item.cgst_percent + item.sgst_percent) : null} items={gstItems} onValueChange={(val) => {
                             const gst = Number(val);
                             updateItem(index, 'cgst_percent', gst / 2);
                             updateItem(index, 'sgst_percent', gst / 2);

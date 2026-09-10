@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { 
+import React, { useState, useEffect, useMemo, useRef } from 'react';import {
   Plus, 
   Search,
   Upload,
   FileText,
-  X
+  X,
+  X as XIcon,
+  MoreHorizontal as MoreHorizontalIcon,
+  Eye as EyeIcon
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
 import { supabase } from '../../../supabase';
@@ -15,12 +19,12 @@ import { Party360 } from '../../../components/Party360';
 // Import local UI components
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/input';
-import { AppTable } from '../../../components/ui/AppTable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../lib/utils';
 
 import { vendorValidationSchema, formatZodErrors } from '../utils/validation';
+import { formatCurrency } from '../../../utils/formatters';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
@@ -119,6 +123,7 @@ const isDirty = (data: VendorFormData): boolean =>
 
 export const Vendors: React.FC = () => {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
   const [openLedgerDialog, setOpenLedgerDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -134,6 +139,11 @@ export const Vendors: React.FC = () => {
   const [draftRestored, setDraftRestored] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const { data: vendors = [], isLoading } = useVendors(organisation?.id);
   const createVendor = useCreateVendor();
@@ -171,6 +181,30 @@ export const Vendors: React.FC = () => {
         });
     }
   }, [organisation?.id]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Close row action menu on outside click / Escape
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openMenuId]);
 
   const handleAdd = () => {
     setEditMode(false);
@@ -391,86 +425,65 @@ export const Vendors: React.FC = () => {
   };
 
   const filteredVendors = useMemo(() => {
+    const q = searchTerm.toLowerCase();
     return vendors.filter((vendor: any) =>
-      vendor.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.gstin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.remarks?.toLowerCase().includes(searchTerm.toLowerCase())
+      vendor.company_name?.toLowerCase().includes(q) ||
+      vendor.vendor_code?.toLowerCase().includes(q) ||
+      vendor.gstin?.toLowerCase().includes(q) ||
+      vendor.contact_person?.toLowerCase().includes(q) ||
+      vendor.remarks?.toLowerCase().includes(q)
     );
   }, [vendors, searchTerm]);
 
-  const columns = [
-    {
-      accessorKey: 'vendor_code',
-      header: 'Code',
-      cell: ({ row }: any) => (
-        <span className="inline-flex items-center h-5 px-2 rounded-[26px] border-[0.8px] border-solid border-[#E5E5E5] text-[12px] leading-[133.333%] font-medium text-[#0A0A0A] font-mono">
-          {row.original.vendor_code}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'company_name',
-      header: 'Vendor Name',
-      cell: ({ row }: any) => (
-        <div className="flex flex-col">
-          <span className="text-[14px] leading-[142.857%] text-[#0A0A0A] line-clamp-1">{row.original.company_name}</span>
-          {row.original.contact_person && (
-            <span className="text-[12px] text-zinc-400">{row.original.contact_person}</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'remarks',
-      header: 'Material Type',
-      cell: ({ row }: any) => (
-        <span className="text-[14px] leading-[142.857%] text-[#0A0A0A] line-clamp-1 max-w-[150px]" title={row.original.remarks}>
-          {row.original.remarks || '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'gstin',
-      header: 'GSTIN',
-      cell: ({ getValue }: any) => (
-        <span className="text-[12px] font-mono text-[#0A0A0A]">
-          {getValue() || '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'default_currency',
-      header: 'Currency',
-      cell: ({ getValue }: any) => (
-        <span className="inline-flex items-center h-5 px-2 rounded-[26px] border-[0.8px] border-solid border-[#E5E5E5] text-[12px] leading-[133.333%] font-medium text-[#0A0A0A]">
-          {getValue()}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'credit_limit',
-      header: 'Credit Limit',
-      cell: ({ getValue }: any) => (
-        <span className="text-[14px] leading-[142.857%] text-[#0A0A0A] tabular-nums block text-right">
-          ₹{Number(getValue() || 0).toLocaleString('en-IN')}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ getValue }: any) => (
-        <span className={cn(
-          'inline-flex items-center h-5 px-2 rounded-[26px] text-[12px] leading-[133.333%] font-medium',
-          getValue() === 'Active'
-            ? 'bg-[#DCFCE7] text-[oklch(52.7%_0.154_150.1)]'
-            : 'bg-[oklab(57.7%_0.218_0.112/10%)] text-[oklch(57.7%_0.245_27.3)]'
-        )}>
-          {getValue()}
-        </span>
-      ),
-    },
-  ];
+  // Pagination (QuotationList pattern)
+  const paginationData = useMemo(() => {
+    const totalItems = filteredVendors.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredVendors.slice(startIndex, endIndex);
+    return {
+      totalItems,
+      totalPages,
+      startIndex,
+      endIndex,
+      currentItems,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1,
+    };
+  }, [filteredVendors, currentPage, itemsPerPage]);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginationData.currentItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginationData.currentItems.map((v: any) => v.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to mark ${selectedIds.size} vendor(s) as ${status}?`)) return;
+    try {
+      const { error } = await supabase
+        .from('purchase_vendors')
+        .update({ status })
+        .in('id', Array.from(selectedIds))
+        .eq('organisation_id', organisation?.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendors'] });
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      alert('Failed to update status: ' + err.message);
+    }
+  };
 
   // DESIGN.md — Form Field Row tokens
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
@@ -489,7 +502,48 @@ export const Vendors: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white relative">
+      {/* Sticky Bulk Action Header (Activates for 2+ items) */}
+      <AnimatePresence>
+        {selectedIds.size >= 2 && (
+          <motion.div 
+            initial={{ y: -64, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -64, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl"
+          >
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => setSelectedIds(new Set())}
+                className="p-1 hover:bg-zinc-800 rounded-full transition-colors"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">{selectedIds.size} items selected</span>
+                <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold leading-none">Bulk Operations Active</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleBulkStatus('Active')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-zinc-100 transition-all active:scale-[0.98]"
+              >
+                Mark Active
+              </button>
+              <button
+                onClick={() => handleBulkStatus('Inactive')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-red-700 transition-all active:scale-[0.98]"
+              >
+                Mark Inactive
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div className="flex items-center gap-3">
           <h1 className="text-base font-medium text-zinc-900">Vendors</h1>
@@ -518,24 +572,282 @@ export const Vendors: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-3.5">
-        <AppTable
-          columns={columns}
-          data={filteredVendors}
-          loading={isLoading}
-          emptyMessage="No vendors found"
-          enableRowSelection
-          enableActions
-          actions={[
-            { label: 'View Ledger', onClick: (row: any) => handleOpenLedger(row) },
-            { label: 'Edit Vendor', onClick: (row: any) => handleEdit(row) },
-            { label: 'Add as Client', onClick: (row: any) => handleAddAsClient(row) },
-            { label: 'Party 360\u00B0', onClick: (row: any) => handleViewParty360(row) },
-          ]}
-          enablePagination
-          defaultPageSize={25}
-          enableSorting
-        />
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-full">
+          <table className="w-full border-separate border-spacing-0">
+            <thead className="z-10">
+              <tr>
+                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-left bg-white border-b border-zinc-200 w-[120px]">Code</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-left bg-white border-b border-zinc-200">Vendor Name</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-left bg-white border-b border-zinc-200">Material Type</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-left bg-white border-b border-zinc-200">GSTIN</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-left bg-white border-b border-zinc-200 w-[110px]">Currency</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-right bg-white border-b border-zinc-200 w-[130px]">Credit Limit</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight text-left bg-white border-b border-zinc-200 w-[110px]">Status</th>
+                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">Action</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={10} className="px-5 py-16 text-center text-sm text-zinc-500">
+                    Loading vendors...
+                  </td>
+                </tr>
+              ) : paginationData.currentItems.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-5 py-16 text-center text-sm text-zinc-500">
+                    No vendors found
+                  </td>
+                </tr>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {paginationData.currentItems.map((vendor: any, index) => (
+                    <motion.tr
+                      key={vendor.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 30,
+                        opacity: { duration: 0.2 }
+                      }}
+                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
+                        openMenuId === vendor.id ? 'z-50' : 'z-0'
+                      } ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
+                      } ${selectedIds.has(vendor.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
+                      onClick={() => {
+                        if (selectedIds.size === 0) {
+                          handleEdit(vendor);
+                        } else {
+                          toggleSelect(vendor.id);
+                        }
+                      }}
+                    >
+                      <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(vendor.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleSelect(vendor.id);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                        <span className="inline-flex items-center h-5 px-2 rounded-[26px] border-[0.8px] border-solid border-[#E5E5E5] text-[12px] leading-[133.333%] font-medium text-[#0A0A0A] font-mono">
+                          {vendor.vendor_code}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                        <div className="max-w-[280px] truncate" title={vendor.company_name || '-'}>
+                          {vendor.company_name || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
+                        <div className="max-w-[180px] truncate" title={vendor.remarks || '-'}>
+                          {vendor.remarks || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle text-[12px] font-mono text-zinc-800 whitespace-nowrap border-t border-zinc-200/70">
+                        {vendor.gstin || '-'}
+                      </td>
+                      <td className="px-6 py-[26px] align-middle whitespace-nowrap border-t border-zinc-200/70">
+                        <span className="inline-flex items-center h-5 px-2 rounded-[26px] border-[0.8px] border-solid border-[#E5E5E5] text-[12px] leading-[133.333%] font-medium text-[#0A0A0A]">
+                          {vendor.default_currency || '-'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
+                        <div className="text-right">
+                          {formatCurrency(vendor.credit_limit || 0)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-[26px] align-middle whitespace-nowrap border-t border-zinc-200/70">
+                        <span className={cn(
+                          'inline-flex items-center h-5 px-2 rounded-[26px] text-[12px] leading-[133.333%] font-medium',
+                          vendor.status === 'Active'
+                            ? 'bg-[#DCFCE7] text-[oklch(52.7%_0.154_150.1)]'
+                            : 'bg-[oklab(57.7%_0.218_0.112/10%)] text-[oklch(57.7%_0.245_27.3)]'
+                        )}>
+                          {vendor.status || '-'}
+                        </span>
+                      </td>
+                      <td className="px-0 py-[26px] align-middle border-t border-zinc-200/70">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenLedger(vendor);
+                          }}
+                          style={{
+                            padding: '14px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#9ca3af',
+                            borderRadius: '0',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.color = '#185FA5'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; }}
+                          title="View Ledger"
+                        >
+                          <EyeIcon className="w-[18px] h-[18px]" />
+                        </button>
+                      </td>
+                      <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <div className="relative inline-block" ref={openMenuId === vendor.id ? menuRef : null}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === vendor.id ? null : vendor.id);
+                            }}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
+                          >
+                            <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
+                          </button>
+                          {openMenuId === vendor.id && (
+                            <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
+                              index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
+                            }`}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  handleOpenLedger(vendor);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                <EyeIcon className="w-3.5 h-3.5" />
+                                View Ledger
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  handleEdit(vendor);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                Edit Vendor
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  handleAddAsClient(vendor);
+                                }}
+                                disabled={addingAsClient === vendor.id}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] disabled:opacity-50"
+                                style={{ padding: '6px' }}
+                              >
+                                Add as Client
+                              </button>
+                              <div className="my-1 border-t border-zinc-100" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  handleViewParty360(vendor);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                Party 360°
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+        <div className="text-sm font-medium text-zinc-600">
+          Showing {paginationData.totalItems === 0 ? 0 : paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} vendors
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Previous Button */}
+          <button
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={!paginationData.hasPrevPage}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+              paginationData.hasPrevPage
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Previous
+          </button>
+
+          {/* Page Numbers */}
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: Math.max(1, Math.min(5, paginationData.totalPages)) }, (_, i) => {
+              let pageNum;
+              if (paginationData.totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= paginationData.totalPages - 2) {
+                pageNum = paginationData.totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
+                    currentPage === pageNum
+                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
+                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Next Button */}
+          <button
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={!paginationData.hasNextPage}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+              paginationData.hasNextPage
+                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+            }`}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Add/Edit Modal */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, ChangeEvent, ComponentProps } from 'react';
+import { z } from 'zod';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +49,25 @@ const COUNTRIES = [
   'Singapore', 'Australia', 'Germany', 'France', 'Canada', 'Qatar', 'Oman', 'Kuwait',
   'Bahrain', 'Malaysia', 'Japan', 'South Korea', 'South Africa', 'New Zealand', 'Other'
 ];
+
+// ─── GSTIN validation (zod) ───
+// Standard GSTIN structure: 2-digit state code + 10-char PAN + entity code + 'Z' + checksum
+const GSTIN_SCHEMA = z.string()
+  .length(15, 'GSTIN must be exactly 15 characters')
+  .regex(
+    /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+    'Invalid GSTIN format (e.g. 27AABCU9603R1ZM)'
+  )
+  .refine(
+    (v) => v.substring(0, 2) in GST_STATE_CODES,
+    'First 2 digits must be a valid state code'
+  );
+
+const validateGstin = (value: string): string => {
+  if (!value) return ''; // GSTIN is optional
+  const result = GSTIN_SCHEMA.safeParse(value);
+  return result.success ? '' : result.error.errors[0].message;
+};
 
 export function CreateClientDrawer({ isOpen, onClose, onSuccess }: CreateClientDrawerProps) {
   const { organisation, user, organisations } = useAuth();
@@ -190,22 +210,18 @@ export function CreateClientDrawer({ isOpen, onClose, onSuccess }: CreateClientD
   };
 
   const handleGstChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.toUpperCase().trim();
-    if (value.length <= 15) {
-      setField('gstin', value);
-      if (value.length >= 2) {
-        const stateCode = value.substring(0, 2);
-        const detectedState = GST_STATE_CODES[stateCode];
-        if (detectedState && !formData.state) {
-          setField('state', detectedState);
-        }
-      }
-      if (value.length > 0 && value.length < 15) {
-        setGstError('GSTIN must be exactly 15 characters');
-      } else {
-        setGstError('');
+    // Strip characters that can never appear in a GSTIN (keeps digits, letters, no spaces/symbols)
+    const value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 15);
+    setField('gstin', value);
+    if (value.length >= 2) {
+      const stateCode = value.substring(0, 2);
+      const detectedState = GST_STATE_CODES[stateCode];
+      if (detectedState && !formData.state) {
+        setField('state', detectedState);
       }
     }
+    // Live zod validation: only enforce once user has typed a complete-length value or is clearing
+    setGstError(value.length === 0 || value.length < 15 ? '' : validateGstin(value));
   };
 
   const copyBillingToShipping = () => {
@@ -243,6 +259,12 @@ export function CreateClientDrawer({ isOpen, onClose, onSuccess }: CreateClientD
     }
     if (!organisation?.id) {
       setErrorMessage('Active organisation session not found.');
+      return;
+    }
+    const gstinValidationError = validateGstin(formData.gstin?.trim() || '');
+    if (gstinValidationError) {
+      setGstError(gstinValidationError);
+      setErrorMessage(`Invalid GSTIN: ${gstinValidationError}`);
       return;
     }
 
@@ -333,9 +355,10 @@ export function CreateClientDrawer({ isOpen, onClose, onSuccess }: CreateClientD
 
       // Sync additional CFT contacts
       if (newId && additionalContacts.length > 0) {
-        const validContacts = additionalContacts
-          .filter(c => (c.name || '').trim())
-          .map(c => ({
+        const validContacts: any[] = [];
+        for (const c of additionalContacts) {
+          if (!(c.name || '').trim()) continue;
+          validContacts.push({
             client_id: newId,
             organisation_id: organisation.id,
             name: c.name.trim(),
@@ -344,7 +367,8 @@ export function CreateClientDrawer({ isOpen, onClose, onSuccess }: CreateClientD
             phone: c.phone?.trim() || null,
             email: c.email?.trim() || null,
             is_primary: !!c.is_primary
-          }));
+          });
+        }
         if (validContacts.length > 0) {
           await supabase.from('client_contacts').insert(validContacts);
         }

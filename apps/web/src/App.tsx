@@ -266,6 +266,14 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const getDaysRemaining = (createdAt?: string) => {
+  if (!createdAt) return 7;
+  const createdDate = new Date(createdAt).getTime();
+  const now = Date.now();
+  const diffDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+  return Math.max(0, 7 - diffDays);
+};
+
 export default function App() {
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -296,14 +304,6 @@ export default function App() {
       setResendMessage('Verification email sent! Check your inbox.');
     }
     setResendLoading(false);
-  };
-
-  const getDaysRemaining = (createdAt?: string) => {
-    if (!createdAt) return 7;
-    const createdDate = new Date(createdAt).getTime();
-    const now = Date.now();
-    const diffDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
-    return Math.max(0, 7 - diffDays);
   };
 
   const navigate = useCallback((path?: string) => {
@@ -609,6 +609,7 @@ export default function App() {
       case '/purchase':
       case '/purchase/dashboard':
       case '/purchase/vendors':
+        return <PurchaseModule />;
       case '/purchase/debit-notes-v2':
         return <DebitNoteViewV2 />;
       case '/purchase/orders-v2':
