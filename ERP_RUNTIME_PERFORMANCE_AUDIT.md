@@ -7,6 +7,22 @@
 
 ---
 
+## Addendum A — Create Quotation runtime log (2026-09-11, prod build :4173, SAKTHI org)
+
+Cold/warm revisits via CDP resource timing. SPA transitions (no document reload), so times are fetch-complete per visit.
+
+| Visit | Supabase reqs | Fetch-complete | Notes |
+|---|---|---|---|
+| V1 `/quotation/create` cold | **41** | ~2.9s | entire 17-table master set fired **twice** (+1500ms, +2355ms waves) |
+| V2 `/quotation/create-v2` cold | **23** | ~2.7s | masters fired once; shell dupes remain |
+| V2 warm revisit | **27** | ~2.2s | cache did NOT hold — full re-fetch on remount |
+
+Landing: shell/auth wave first (`org_members` +118ms, 1044ms cold-TLS), masters second wave ~1s later (enabled-gated waterfall). Warm latencies drop to ~200ms/req but count rises — `refetchOnMount: true` wipes the 5m-stale benefit on tab revisit (confirms F8).
+Duplicates: `org_members`×3–4, `organisations`×2–4, `projects`×2–3 per visit (shell + page double-fetch — shared-master candidate, Root Cause 1). V1 additionally duplicates all 17 masters (legacy page mounts hooks twice — fix on sight in Phase 1).
+Cache verdict: TanStack holds data (no errors) but remount refetch makes warm ≈ cold. No `keepPreviousData` on these routes.
+
+---
+
 ## 1. Executive Summary
 
 The app is a large multi-module ERP (~150 lazy routes, 579 `useQuery` + 392 `useMutation` across 210 files) with sane global query defaults (5m stale, no focus refetch) and genuine per-tab code splitting. The production login page loads in ~1s (316KB over 12 chunks). The systemic risks are all in the data layer, not the bundle:
