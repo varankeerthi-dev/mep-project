@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { Button } from '../components/ui/button';
+import { SettingToggle } from '../features/settings-v2/components/SettingToggle';
+
 
 // Doc types with a live consumer that reads configs.<id> when generating numbers.
 // Types without a consumer (credit_note, debit_note, so, self_invoice, branch,
@@ -93,15 +95,15 @@ export default function TransactionNumberSeries() {
       <div className="page-header">
         <h1 className="page-title">Transaction Number Series</h1>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-            <input 
-              type="checkbox" 
-              checked={preventDuplicate} 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SettingToggle
+              checked={preventDuplicate}
               onChange={togglePreventDuplicate}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
             />
-            <span style={{ fontWeight: 500 }}>Prevent Duplicate Numbers</span>
-          </label>
+            <span style={{ fontWeight: 500, fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>
+              Prevent Duplicate Numbers
+            </span>
+          </div>
           <Button onClick={() => { setEditingSeries(null); setShowModal(true); }}>
             + New Series
           </Button>

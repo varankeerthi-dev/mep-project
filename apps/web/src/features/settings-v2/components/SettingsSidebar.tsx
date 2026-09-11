@@ -59,8 +59,8 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
   return (
     <aside
-      className="bg-white border-r border-zinc-200/90 flex flex-col shrink-0 min-h-screen py-3 px-1.5 overflow-y-auto"
-      style={{ width: '160px', borderColor: '#e5e5e5' }}
+      className="bg-white border-r border-zinc-200/90 flex flex-col shrink-0 min-h-screen overflow-y-auto"
+      style={{ width: '160px', borderColor: '#e5e5e5', padding: '10px' }}
     >
       {CATEGORY_ORDER.map((cat, catIdx) => {
         const catTabs = groupedTabs[cat] || [];

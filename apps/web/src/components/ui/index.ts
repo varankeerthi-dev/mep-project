@@ -19,4 +19,5 @@ export { RangeCalendar } from './RangeCalendar';
 export { AppTable } from './AppTable';
 export { DynamicTable, StatusBadge as DynamicTableStatusBadge, type Column as DynamicTableColumn } from './DynamicTable';
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './resizable';
-
+export { NestedSubTabs, NestedSubTab, type NestedSubTabItem, type NestedSubTabsProps } from './NestedSubTabs';
+export { SubTabsNav, type SubTabItem, type SubTabsNavProps } from './SubTabsNav';

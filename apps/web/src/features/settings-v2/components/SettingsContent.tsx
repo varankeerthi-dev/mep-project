@@ -12,8 +12,13 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
   description,
 }) => {
   return (
-    <main className="flex-1 bg-zinc-50/50 min-h-screen overflow-y-auto pb-24 sv-content">
-      <div className="max-w-4xl" style={{ maxWidth: '1000px', padding: '16px 5px' }}>
+    <main
+      className="flex-1 bg-zinc-50/50 min-h-screen overflow-y-auto pb-24 sv-content"
+      style={{
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      <div className="max-w-5xl" style={{ maxWidth: '1000px', padding: '10px' }}>
         {(title || description) && (
           <div className="mb-4 border-b border-zinc-200/80 pb-2">
             {title && (

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { SettingsTabContract } from '../types';
 
 export interface UseUnsavedChangesOptions<T> {
   initialData: T;
@@ -131,6 +132,14 @@ export function useUnsavedChanges<T extends Record<string, any>>({
     setDraftAvailable(false);
   }, [storageKey]);
 
+  const getContract = useCallback((): SettingsTabContract<T> => ({
+    snapshot: () => savedSnapshot,
+    hasChanges: () => hasChanges,
+    save,
+    discard,
+    reset,
+  }), [savedSnapshot, hasChanges, save, discard, reset]);
+
   return {
     liveData,
     savedSnapshot,
@@ -144,5 +153,7 @@ export function useUnsavedChanges<T extends Record<string, any>>({
     reset,
     restoreDraft,
     dismissDraft,
+    getContract,
   };
 }
+

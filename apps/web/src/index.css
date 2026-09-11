@@ -48,17 +48,18 @@ html, body {
      this element every frame during sidebar collapse. Snap instantly instead. */
   min-height: 16px;
   z-index: 1000;
-  background: linear-gradient(180deg, #fafbfc 0%, #f8f9fa 100%);
-  border-bottom: 1px solid #e0e4e9;
+  background: #3980ea;
+  border-bottom: 1px solid #2868c7;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
   font-family: 'Caliber', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-weight: 300;
+  font-weight: 400;
   font-size: 12px;
   letter-spacing: 0.01em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  color: #ffffff;
 }
 
 .quick-access-left,
@@ -79,7 +80,7 @@ html, body {
   font-family: inherit;
   font-weight: 500;
   font-size: 11px;
-  color: #6b7280;
+  color: #ffffff;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
@@ -91,8 +92,8 @@ html, body {
 }
 
 .quick-tool-btn:hover {
-  background: #eef0f3;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .quick-tool-btn.menu-btn {
@@ -102,9 +103,17 @@ html, body {
 .quick-bar-divider {
   width: 1px;
   height: 18px;
-  background: #d5dbe3;
+  background: rgba(255, 255, 255, 0.25);
   margin: 0 6px;
   flex-shrink: 0;
+}
+
+.quick-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.quick-search-input:focus::placeholder {
+  color: #9ca3af;
 }
 
 .user-menu {
@@ -555,14 +564,6 @@ html, body {
   box-sizing: border-box;
 }
 
-/* settings-v2 content area: 5px vertical baseline, 0 horizontal — horizontal
-   spacing is owned by the container (3px), so padding-less elements don't add a
-   hidden 5px gap between the module sidebar and content. Scoped to .sv-content
-   and wrapped in :where() so specificity stays 0 — components with their own
-   padding (cards, inputs, rows) keep their values. Sidebar/other pages untouched. */
-:where(.sv-content *) {
-  padding: 5px 0;
-}
 
 /* settings-v2 card: 10px corner radius. Class-level !important (specificity
    0,1,0) overrides the global `border-radius: 0 !important` reset on `*`. */

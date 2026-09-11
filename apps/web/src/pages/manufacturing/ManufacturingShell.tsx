@@ -1,8 +1,24 @@
 import { useMemo, useCallback, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { SubTabsNav } from '../../components/ui/SubTabsNav';
+import { NestedSubTabs, type NestedSubTabItem } from '../../components/ui/NestedSubTabs';
 import { PageSkeleton } from '../../components/ui/skeleton';
+import {
+  LayoutDashboard,
+  Boxes,
+  Cpu,
+  Layers,
+  FileSpreadsheet,
+  Calendar,
+  ClipboardList,
+  Factory,
+  GitBranch,
+  Truck,
+  Warehouse,
+  ShieldCheck,
+  History,
+  Settings,
+} from 'lucide-react';
 
 // ── Phase 3: Code-split all sub-page components via React.lazy ──────────────
 const ManufacturingDashboard = lazy(() => import('./ManufacturingDashboard'));
@@ -41,29 +57,27 @@ const WIPValuationReport     = lazy(() => import('./inventory/WIPValuationReport
 const MachineBoardPage       = lazy(() => import('./machine-board/MachineBoardPage'));
 const MouldList              = lazy(() => import('./MouldList'));
 
-type Tab = {
-  id: string;
-  label: string;
-  path: string;
+type Tab = NestedSubTabItem & {
   matchPrefix: string;
 };
 
 const TABS: Tab[] = [
-  { id: 'dashboard', label: 'Dashboard', path: '/manufacturing', matchPrefix: '/manufacturing/dashboard' },
-  { id: 'inventory', label: 'Inventory', path: '/manufacturing/inventory', matchPrefix: '/manufacturing/inventory' },
-  { id: 'machines', label: 'Machine Board', path: '/manufacturing/machines', matchPrefix: '/manufacturing/machines' },
-  { id: 'moulds', label: 'Moulds', path: '/manufacturing/moulds', matchPrefix: '/manufacturing/moulds' },
-  { id: 'boms', label: 'BOMs', path: '/manufacturing/boms', matchPrefix: '/manufacturing/boms' },
-  { id: 'schedules', label: 'Schedules', path: '/manufacturing/schedules', matchPrefix: '/manufacturing/schedules' },
-  { id: 'job-cards', label: 'Job Cards', path: '/manufacturing/job-cards', matchPrefix: '/manufacturing/job-cards' },
-  { id: 'production', label: 'Production', path: '/manufacturing/production', matchPrefix: '/manufacturing/production' },
-  { id: 'plans', label: 'Planning (MRP)', path: '/manufacturing/plans', matchPrefix: '/manufacturing/plans' },
-  { id: 'dispatch', label: 'Dispatch', path: '/manufacturing/dispatch', matchPrefix: '/manufacturing/dispatch' },
-  { id: 'stores', label: 'Stores Console', path: '/manufacturing/stores', matchPrefix: '/manufacturing/stores' },
-  { id: 'qc', label: 'QC Inspections', path: '/manufacturing/qc', matchPrefix: '/manufacturing/qc' },
-  { id: 'activity', label: 'Activity Log', path: '/manufacturing/activity-log', matchPrefix: '/manufacturing/activity-log' },
-  { id: 'settings', label: 'Settings', path: '/manufacturing/custom-units', matchPrefix: '/manufacturing/custom-units' },
+  { id: 'dashboard', label: 'Dashboard', path: '/manufacturing', matchPrefix: '/manufacturing/dashboard', icon: <LayoutDashboard size={15} /> },
+  { id: 'inventory', label: 'Inventory', path: '/manufacturing/inventory', matchPrefix: '/manufacturing/inventory', icon: <Boxes size={15} /> },
+  { id: 'machines', label: 'Machine Board', path: '/manufacturing/machines', matchPrefix: '/manufacturing/machines', icon: <Cpu size={15} /> },
+  { id: 'moulds', label: 'Moulds', path: '/manufacturing/moulds', matchPrefix: '/manufacturing/moulds', icon: <Layers size={15} /> },
+  { id: 'boms', label: 'BOMs', path: '/manufacturing/boms', matchPrefix: '/manufacturing/boms', icon: <FileSpreadsheet size={15} /> },
+  { id: 'schedules', label: 'Schedules', path: '/manufacturing/schedules', matchPrefix: '/manufacturing/schedules', icon: <Calendar size={15} /> },
+  { id: 'job-cards', label: 'Job Cards', path: '/manufacturing/job-cards', matchPrefix: '/manufacturing/job-cards', icon: <ClipboardList size={15} /> },
+  { id: 'production', label: 'Production', path: '/manufacturing/production', matchPrefix: '/manufacturing/production', icon: <Factory size={15} /> },
+  { id: 'plans', label: 'Planning (MRP)', path: '/manufacturing/plans', matchPrefix: '/manufacturing/plans', icon: <GitBranch size={15} /> },
+  { id: 'dispatch', label: 'Dispatch', path: '/manufacturing/dispatch', matchPrefix: '/manufacturing/dispatch', icon: <Truck size={15} /> },
+  { id: 'stores', label: 'Stores Console', path: '/manufacturing/stores', matchPrefix: '/manufacturing/stores', icon: <Warehouse size={15} /> },
+  { id: 'qc', label: 'QC Inspections', path: '/manufacturing/qc', matchPrefix: '/manufacturing/qc', icon: <ShieldCheck size={15} /> },
+  { id: 'activity', label: 'Activity Log', path: '/manufacturing/activity-log', matchPrefix: '/manufacturing/activity-log', icon: <History size={15} /> },
+  { id: 'settings', label: 'Settings', path: '/manufacturing/custom-units', matchPrefix: '/manufacturing/custom-units', icon: <Settings size={15} /> },
 ];
+
 
 export const MANUFACTURING_QUERY_KEYS = [
   'manufacturing-dashboard',
@@ -114,7 +128,7 @@ export default function ManufacturingShell() {
   return (
     <div className="min-h-screen bg-[#f8f9fb] font-['Inter']">
       <div className="w-full px-4 pt-3">
-        <SubTabsNav tabs={TABS} activeTabId={activeTab.id} />
+        <NestedSubTabs tabs={TABS} activeTabId={activeTab.id} twoRows={true} className="mb-4 rounded-[8px] border border-[#E0E0E0] overflow-hidden shadow-xs" />
 
       {activeTab.id === 'dashboard' && (
         <Suspense fallback={<PageSkeleton variant="page" />}>

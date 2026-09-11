@@ -49,6 +49,26 @@ export interface DocumentNumberSeries {
   prevent_duplicate: boolean;
 }
 
+export interface ToolsConfigData {
+  default_location: string;
+  stock_alerts_enabled: boolean;
+  min_stock_level: number;
+  default_pdf_template: string;
+  show_make_column: boolean;
+  show_hsn_column: boolean;
+}
+
+export interface SettingsTabContract<T = any> {
+  load?: () => Promise<void>;
+  snapshot?: () => T;
+  hasChanges: () => boolean;
+  save: () => Promise<void>;
+  discard: () => void;
+  reset?: (initialData?: T) => void;
+  validate?: () => Promise<{ isValid: boolean; errors?: Record<string, string> } | boolean>;
+}
+
+
 import {
   Building2,
   Sliders,

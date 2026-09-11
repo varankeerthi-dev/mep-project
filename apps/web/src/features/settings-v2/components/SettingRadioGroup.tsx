@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 
 export interface RadioOption<T = any> {
   label: string;
@@ -29,20 +28,24 @@ export function SettingRadioGroup<T = any>({
 
   if (variant === 'segmented') {
     return (
-      <div className="inline-flex items-center p-1 bg-zinc-100/90 rounded-lg border border-zinc-200/80">
+      <div className="inline-flex items-center p-0.5 bg-zinc-100/90 rounded-lg border border-zinc-200/80">
         {options.map((opt, idx) => {
           const isSelected = opt.value === value;
           return (
-            <Button variant="ghost" size="default" key={idx} type="button" disabled={disabled} onClick={() => !disabled && onChange(opt.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+            <button
+              key={idx}
+              type="button"
+              disabled={disabled}
+              onClick={() => !disabled && onChange(opt.value)}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all border outline-none cursor-pointer ${
                 isSelected
-                  ? 'bg-white text-zinc-900 shadow-2xs border border-zinc-200/60'
-                  : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/40'
+                  ? 'bg-white text-zinc-900 shadow-2xs border-zinc-200/60'
+                  : 'bg-transparent text-zinc-500 border-transparent hover:text-zinc-800 hover:bg-zinc-200/40'
               } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               style={{ fontSize: '12px' }}
             >
               {opt.label}
-            </Button>
+            </button>
           );
         })}
       </div>

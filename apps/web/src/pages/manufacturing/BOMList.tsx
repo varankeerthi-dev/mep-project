@@ -158,34 +158,31 @@ export default function BOMList({ onNavigate }: BOMListProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] font-['Inter']">
-      {/* ─── Page header ─── */}
-      <div className="border-b border-zinc-200/80 bg-white">
-        <div className="max-w-[1320px] mx-auto px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400">
-                Manufacturing
-              </span>
-              <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 mt-0.5">
-                Bills of Materials
-              </h1>
-              <p className="text-[13px] text-zinc-400 mt-0.5">
-                Define product-to-material mappings
-              </p>
-            </div>
-            <Button
-              onClick={() => onNavigate('/manufacturing/boms/create')}
-              leftIcon={<Plus className="w-3.5 h-3.5" />}
-              className="h-9 px-4 bg-zinc-900 text-white text-[13px] font-medium hover:bg-zinc-800 border-zinc-950 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-            >
-              Create BOM
-            </Button>
-          </div>
+    <div className="w-full pb-8 font-['Inter']">
+      {/* ─── Compact Header Toolbar ─── */}
+      <div className="flex items-center justify-between pb-3 pt-1 px-0.5">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-[16px] font-semibold tracking-tight text-zinc-900">
+            Bills of Materials
+          </h1>
+          {boms && boms.length > 0 && (
+            <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 text-slate-600 border border-slate-200/80">
+              {boms.length}
+            </span>
+          )}
         </div>
+        <Button
+          onClick={() => onNavigate('/manufacturing/boms/create')}
+          leftIcon={<Plus className="w-3.5 h-3.5" />}
+          size="sm"
+          className="h-8 px-3.5 bg-zinc-900 text-white text-[12px] font-medium hover:bg-zinc-800 shadow-xs rounded-[6px]"
+        >
+          Create BOM
+        </Button>
       </div>
 
-      <div className="max-w-[1320px] mx-auto px-8 py-6">
+      <div className="w-full">
+
         <Table<BOMHeader>
           data={pagedData}
           columns={columns}

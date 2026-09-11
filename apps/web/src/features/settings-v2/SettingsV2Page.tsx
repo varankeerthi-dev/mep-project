@@ -14,8 +14,9 @@ import {
   ApprovalsTab,
   PlaceholderTab,
   TemplatesTab,
+  ToolsTab,
 } from './tabs';
-import { SETTINGS_TABS } from './types';
+import { SETTINGS_TABS, SettingsTabContract } from './types';
 import { PageSkeleton } from '@/components/ui/skeleton';
 import { PermissionGuard } from '../../rbac';
 
@@ -31,7 +32,6 @@ const UnitTab = lazy(() => import('../materials/settings/UnitTab').then(m => ({ 
 const VariantsTab = lazy(() => import('../materials/settings/VariantsTab').then(m => ({ default: m.VariantsTab })));
 const WarehouseTab = lazy(() => import('../materials/settings/WarehouseTab').then(m => ({ default: m.WarehousesTab })));
 const TermsConditionsSettings = lazy(() => import('../../pages/TermsConditionsSettingsRefactored').then(m => ({ default: m.TermsConditionsSettings })));
-const ToolsSettings = lazy(() => import('../../pages/ToolsSettings'));
 const TransactionNumberSeries = lazy(() => import('../../pages/TransactionNumberSeries'));
 
 export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }) => {
@@ -85,9 +85,10 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
 
   // Dirty state tracking per tab
   const [dirtyTabIds, setDirtyTabIds] = useState<Set<string>>(new Set());
-  const saveRegistryRef = React.useRef<
-    Record<string, { save: () => Promise<void>; discard: () => void }>
-  >({});
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
+  // Tab contracts registry
+  const contractsRegistryRef = React.useRef<Record<string, SettingsTabContract>>({});
 
   // Tab switch guard dialog state
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
@@ -111,11 +112,22 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
     });
   }, []);
 
-  const handleRegisterSave = useCallback(
-    (tabId: string, saveFn: () => Promise<void>, discardFn: () => void) => {
-      saveRegistryRef.current[tabId] = { save: saveFn, discard: discardFn };
+  const handleRegisterContract = useCallback(
+    (tabId: string, contract: SettingsTabContract) => {
+      contractsRegistryRef.current[tabId] = contract;
     },
     []
+  );
+
+  const handleRegisterSave = useCallback(
+    (tabId: string, saveFn: () => Promise<void>, discardFn: () => void) => {
+      contractsRegistryRef.current[tabId] = {
+        save: saveFn,
+        discard: discardFn,
+        hasChanges: () => dirtyTabIds.has(tabId),
+      };
+    },
+    [dirtyTabIds]
   );
 
   // Tab switch request
@@ -135,11 +147,13 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
   // Guard Dialog Actions
   const handleGuardSaveAndProceed = async () => {
     if (!pendingTabId) return;
-    const currentSaveObj = saveRegistryRef.current[activeTabId];
+    const currentContract = contractsRegistryRef.current[activeTabId];
     setIsDialogSaving(true);
     try {
-      if (currentSaveObj) {
-        await currentSaveObj.save();
+      if (currentContract) {
+        await currentContract.save();
+        setLastSavedAt(new Date());
+        handleDirtyChange(activeTabId, false);
       }
       setShowGuardDialog(false);
       setActiveTabId(pendingTabId);
@@ -154,9 +168,10 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
 
   const handleGuardDiscardAndProceed = () => {
     if (!pendingTabId) return;
-    const currentSaveObj = saveRegistryRef.current[activeTabId];
-    if (currentSaveObj) {
-      currentSaveObj.discard();
+    const currentContract = contractsRegistryRef.current[activeTabId];
+    if (currentContract) {
+      currentContract.discard();
+      handleDirtyChange(activeTabId, false);
     }
     setShowGuardDialog(false);
     setActiveTabId(pendingTabId);
@@ -171,16 +186,26 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
 
   // Global Save Bar Handlers
   const handleGlobalSave = async () => {
-    const currentSaveObj = saveRegistryRef.current[activeTabId];
-    if (currentSaveObj) {
-      await currentSaveObj.save();
+    const currentContract = contractsRegistryRef.current[activeTabId];
+    if (currentContract) {
+      setIsDialogSaving(true);
+      try {
+        await currentContract.save();
+        setLastSavedAt(new Date());
+        handleDirtyChange(activeTabId, false);
+      } catch (e) {
+        console.error('Failed to save settings:', e);
+      } finally {
+        setIsDialogSaving(false);
+      }
     }
   };
 
   const handleGlobalDiscard = () => {
-    const currentSaveObj = saveRegistryRef.current[activeTabId];
-    if (currentSaveObj) {
-      currentSaveObj.discard();
+    const currentContract = contractsRegistryRef.current[activeTabId];
+    if (currentContract) {
+      currentContract.discard();
+      handleDirtyChange(activeTabId, false);
     }
   };
 
@@ -289,9 +314,15 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
         );
       case 'tools':
         return (
-          <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
-            <ToolsSettings />
-          </Suspense>
+          <ToolsTab
+            onDirtyChange={(isDirty) => handleDirtyChange('tools', isDirty)}
+            onRegisterSave={(saveFn, discardFn) =>
+              handleRegisterSave('tools', saveFn, discardFn)
+            }
+            onRegisterContract={(contract) =>
+              handleRegisterContract('tools', contract)
+            }
+          />
         );
       default:
         return <PlaceholderTab tab={activeTab} />;
@@ -308,40 +339,42 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
         </div>
       }
     >
-    <SettingsShell
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      hasUnsavedChanges={dirtyTabIds.size > 0}
-    >
-      <SettingsSidebar
-        tabs={SETTINGS_TABS}
-        activeTabId={activeTabId}
-        onSelectTab={handleSelectTab}
+      <SettingsShell
         searchQuery={searchQuery}
-        dirtyTabIds={dirtyTabIds}
-      />
+        onSearchChange={setSearchQuery}
+        hasUnsavedChanges={dirtyTabIds.size > 0}
+        lastSavedAt={lastSavedAt}
+      >
+        <SettingsSidebar
+          tabs={SETTINGS_TABS}
+          activeTabId={activeTabId}
+          onSelectTab={handleSelectTab}
+          searchQuery={searchQuery}
+          dirtyTabIds={dirtyTabIds}
+        />
 
-      <SettingsContent title={activeTab.label} description={activeTab.description}>
-        {renderActiveTabContent()}
-      </SettingsContent>
+        <SettingsContent title={activeTab.label} description={activeTab.description}>
+          {renderActiveTabContent()}
+        </SettingsContent>
 
-      <SettingsGlobalSaveBar
-        hasChanges={isCurrentTabDirty}
-        isSaving={isDialogSaving}
-        onSave={handleGlobalSave}
-        onDiscard={handleGlobalDiscard}
-        tabLabel={activeTab.label}
-      />
+        <SettingsGlobalSaveBar
+          hasChanges={isCurrentTabDirty}
+          isSaving={isDialogSaving}
+          onSave={handleGlobalSave}
+          onDiscard={handleGlobalDiscard}
+          tabLabel={activeTab.label}
+          lastSavedAt={lastSavedAt}
+        />
 
-      <UnsavedChangesDialog
-        isOpen={showGuardDialog}
-        tabLabel={activeTab.label}
-        onSaveAndProceed={handleGuardSaveAndProceed}
-        onDiscardAndProceed={handleGuardDiscardAndProceed}
-        onCancel={handleGuardCancel}
-        isSaving={isDialogSaving}
-      />
-    </SettingsShell>
+        <UnsavedChangesDialog
+          isOpen={showGuardDialog}
+          tabLabel={activeTab.label}
+          onSaveAndProceed={handleGuardSaveAndProceed}
+          onDiscardAndProceed={handleGuardDiscardAndProceed}
+          onCancel={handleGuardCancel}
+          isSaving={isDialogSaving}
+        />
+      </SettingsShell>
     </PermissionGuard>
   );
 };
