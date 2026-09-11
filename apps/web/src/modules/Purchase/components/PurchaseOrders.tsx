@@ -970,8 +970,13 @@ export const PurchaseOrders: React.FC = () => {
       }
 
       toast.success(editingPOId ? 'PO updated successfully' : 'PO created successfully');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save purchase order');
+    } catch (err: any) {
+      // Unique index (organisation_id, po_number) rejection — surface a friendly message.
+      if (err?.code === '23505' || String(err?.message || '').includes('duplicate key')) {
+        toast.error(`PO number "${poNumber}" already exists. Save again to draw the next number.`);
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Failed to save purchase order');
+      }
       throw err;
     }
   };
