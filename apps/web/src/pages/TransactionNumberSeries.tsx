@@ -4,19 +4,15 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { Button } from '../components/ui/button';
 
+// Doc types with a live consumer that reads configs.<id> when generating numbers.
+// Types without a consumer (credit_note, debit_note, so, self_invoice, branch,
+// site_visit, material_indent, client_request) are hidden until their generators
+// are wired — configuring them today would have no effect.
 const DOCUMENT_TYPES = [
   { id: 'invoice', label: 'Invoice' },
   { id: 'dc', label: 'DC' },
   { id: 'quote', label: 'Quote' },
   { id: 'po', label: 'PO' },
-  { id: 'credit_note', label: 'Credit Note' },
-  { id: 'debit_note', label: 'Debit Note' },
-  { id: 'so', label: 'SO' },
-  { id: 'self_invoice', label: 'Self Invoice' },
-  { id: 'branch', label: 'Branch' },
-  { id: 'site_visit', label: 'Site Visit' },
-  { id: 'material_indent', label: 'Material Indent' },
-  { id: 'client_request', label: 'Client Request' },
   { id: 'proforma', label: 'Proforma Invoice' }
 ];
 
@@ -125,45 +121,29 @@ export default function TransactionNumberSeries() {
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ margin: 0, minWidth: '1400px' }}>
+          <table className="table" style={{ margin: 0, minWidth: '900px' }}>
             <thead>
               <tr>
                 <th style={{ minWidth: '150px' }}>Series Name</th>
-                <th style={{ minWidth: '120px' }}>Invoice</th>
-                <th style={{ minWidth: '100px' }}>DC</th>
-                <th style={{ minWidth: '100px' }}>Quote</th>
-                <th style={{ minWidth: '80px' }}>PO</th>
-                <th style={{ minWidth: '120px' }}>Credit Note</th>
-                <th style={{ minWidth: '120px' }}>Debit Note</th>
-                <th style={{ minWidth: '80px' }}>SO</th>
-                <th style={{ minWidth: '120px' }}>Self Invoice</th>
-                <th style={{ minWidth: '100px' }}>Site Visit</th>
-                <th style={{ minWidth: '130px' }}>Material Indent</th>
-                <th style={{ minWidth: '130px' }}>Client Request</th>
+                {DOCUMENT_TYPES.map(dt => (
+                  <th key={dt.id} style={{ minWidth: '110px' }}>{dt.label}</th>
+                ))}
                 <th style={{ minWidth: '80px' }}>Default</th>
                 <th style={{ minWidth: '100px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td></tr>
+                <tr><td colSpan={DOCUMENT_TYPES.length + 3} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td></tr>
               ) : filteredSeries.length === 0 ? (
-                <tr><td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#666' }}>No series found. Create your first series.</td></tr>
+                <tr><td colSpan={DOCUMENT_TYPES.length + 3} style={{ textAlign: 'center', padding: '40px', color: '#666' }}>No series found. Create your first series.</td></tr>
               ) : (
                 filteredSeries.map(s => (
                   <tr key={s.id}>
                     <td style={{ fontWeight: 600 }}>{s.series_name}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'invoice')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'dc')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'quote')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'po')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'credit_note')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'debit_note')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'so')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'self_invoice')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'site_visit')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'material_indent')}</td>
-                    <td style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, 'client_request')}</td>
+                    {DOCUMENT_TYPES.map(dt => (
+                      <td key={dt.id} style={{ fontSize: '12px', color: '#666' }}>{getPreviewForDocType(s, dt.id)}</td>
+                    ))}
                     <td>
                       {s.is_default && (
                         <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>Default</span>

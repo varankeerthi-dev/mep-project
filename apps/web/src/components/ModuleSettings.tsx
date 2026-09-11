@@ -290,7 +290,7 @@ export default function ModuleSettings() {
   return (
     <div style={{ minHeight: '100%' }} data-tour-anchor="module-settings">
       {/* Header Section */}
-      <div style={{ padding: '24px 40px 16px' }}>
+      <div style={{ padding: '12px 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
@@ -421,7 +421,7 @@ export default function ModuleSettings() {
       </div>
 
       {/* Module Grid */}
-      <div style={{ padding: '0 40px 24px' }}>
+      <div style={{ padding: '0 16px 16px' }}>
         <AnimatePresence mode="wait">
           {filteredModules.length === 0 ? (
             <motion.div
@@ -531,7 +531,7 @@ export default function ModuleSettings() {
 
       {/* RBAC Note */}
       <div style={{
-        margin: '0 40px 24px', padding: '14px 18px', borderRadius: '10px',
+        margin: '0 16px 16px', padding: '10px 14px', borderRadius: '10px',
         background: '#f0f9ff', border: '1px solid #bae6fd',
         display: 'flex', alignItems: 'flex-start', gap: '10px',
       }}>
