@@ -482,9 +482,22 @@ export class ApprovalWorkflowEngine {
         case 'SITE_REPORT_REQUEST':
           await this.triggerSiteReportWorkflows(approval);
           break;
+
+        case 'SITE_EXPENSE_REQUEST':
+        case 'SITE_EXPENSE_POST_PURCHASE':
+          await this.triggerSiteExpenseWorkflows(approval);
+          break;
       }
     } catch (error) {
       console.error('Error triggering post-approval workflows:', error);
+    }
+  }
+
+  private static async triggerSiteExpenseWorkflows(approval: Approval): Promise<void> {
+    try {
+      console.log('Site expense approved, updating expense entry status:', approval.id);
+    } catch (error) {
+      console.error('Error triggering site expense workflows:', error);
     }
   }
 

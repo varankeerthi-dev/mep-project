@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
 import CreateProjectInvoiceModal from '../components/CreateProjectInvoiceModal';
+import SiteExpenses from './SiteExpenses';
 import {
   useProjectTransactions,
   buildProjectTransactionSummary,
@@ -294,6 +295,7 @@ export default function ProjectList() {
       { id: 'transactions', label: 'Transactions' },
       { id: 'tasks', label: 'Tasks' },
       { id: 'expenses', label: 'Expenses' },
+      { id: 'site-expenses', label: 'Site Expenses' },
     ];
 
     const transactionSubTabs: Array<{ id: 'po-utilization' | 'pos' | 'invoices' | 'payments'; label: string; count: number }> = [
@@ -952,6 +954,15 @@ export default function ProjectList() {
                 userId={user.id}
               />
             )
+          )}
+
+          {activeTab === 'site-expenses' && selectedProject && (
+            <div className="pl-card">
+              <SiteExpenses
+                projectId={selectedProject.id}
+                clientId={selectedProject.client_id}
+              />
+            </div>
           )}
 
           {invoiceModal.open && selectedProject && (

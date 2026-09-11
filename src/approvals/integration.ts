@@ -664,6 +664,16 @@ export class ApprovalIntegration {
             await this.triggerPostApprovalActions('MATERIAL_DISPATCH', approval.reference_id);
           }
           break;
+
+        case 'expense_entries':
+          await this.updateDocumentStatus('expense_entries', approval.reference_id, newStatus);
+          if (status === 'APPROVED') {
+            const expType = approval.approval_type === 'SITE_EXPENSE_REQUEST'
+              ? 'SITE_EXPENSE_REQUEST'
+              : 'SITE_EXPENSE_POST_PURCHASE';
+            await this.triggerPostApprovalActions(expType, approval.reference_id);
+          }
+          break;
       }
     } catch (error) {
       console.error('Error handling approval completion:', error);
@@ -778,6 +788,11 @@ export class ApprovalIntegration {
 
         case 'SITE_REPORT_REQUEST':
           console.log('Site report approved:', documentId);
+          break;
+
+        case 'SITE_EXPENSE_REQUEST':
+        case 'SITE_EXPENSE_POST_PURCHASE':
+          console.log('Site expense approved:', documentId);
           break;
       }
     } catch (error) {

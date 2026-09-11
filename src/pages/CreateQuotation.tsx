@@ -247,7 +247,7 @@ export default function CreateQuotation() {
         
         // Preserve any previously applied discount for this row
         const discountToApply = existingErection.discount_percent || headerDiscounts['erection'] || 0;
-        const finalRate = baseRate - (baseRate * discountToApply / 100);
+        const finalRate = calculateVariantDiscountedRate(baseRate, discountToApply);
 
         // Update existing erection
         const updatedErection = {
@@ -268,7 +268,7 @@ export default function CreateQuotation() {
         // Create new erection item
         const baseRate = serviceRate.default_erection_rate;
         const discountToApply = headerDiscounts['erection'] || 0;
-        const finalRate = baseRate - (baseRate * discountToApply / 100);
+        const finalRate = calculateVariantDiscountedRate(baseRate, discountToApply);
 
         const newErection = {
           id: Date.now() + Math.random(), // Temporary ID
@@ -854,11 +854,16 @@ const loadQuoteNoPreview = useCallback(async () => {
     setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   }, []);
 
+  const roundRate = useCallback((rate: number): number => {
+    return organisation?.round_off_enabled !== false ? Math.round(rate) : rate;
+  }, [organisation?.round_off_enabled]);
+
   const calculateVariantDiscountedRate = useCallback((baseRate, discountPercent) => {
     const base = parseFloat(baseRate) || 0;
     const discount = parseFloat(discountPercent) || 0;
-    return base - (base * discount / 100);
-  }, []);
+    const raw = base - (base * discount / 100);
+    return organisation?.round_off_enabled !== false ? Math.round(raw) : raw;
+  }, [organisation?.round_off_enabled]);
 
   const loadClientDiscountPortfolio = useCallback(async (clientId) => {
     if (!clientId) return { discounts: {}, settings: {} };
@@ -2790,7 +2795,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
         </div>
 
         <div className="grid-table-container">
-          <table className={`grid-table ${activeSection === 'erection' ? 'erection-section' : ''}`}>
+          <table className={`grid-table cq-editable ${activeSection === 'erection' ? 'erection-section' : ''}`}>
             <thead>
               <tr>
                 <th className="col-shrink">#</th>
@@ -2818,7 +2823,7 @@ if (e.target.checked && editId && !formData.negotiation_mode) {
                 <th className="col-unit">UNIT</th>
                 <th className="col-rate">RATE</th>
                 <th className="col-disc">DISC %</th>
-                <th className="col-rate">RATE AFTER DISC</th>
+                <th className="col-rate-after-disc">RATE AFTER DISC</th>
                 <th className="col-gst">GST %</th>
                 {templateSettings?.column_settings?.optional?.custom1 && (
                   <th className="col-shrink">{templateSettings.column_settings.labels?.custom1 || 'Custom 1'}</th>
@@ -3108,7 +3113,7 @@ className="text-center cell-static col-shrink row-drag-handle"
                           onChange={(e) => {
                             const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
                             const disc = item.discount_percent || 0;
-                            const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                            const finalRate = calculateVariantDiscountedRate(newBaseRate, disc);
                             updateItem(item.id, 'base_rate_snapshot', newBaseRate);
                             updateItem(item.id, 'rate', finalRate);
                             updateItem(item.id, 'is_override', true);

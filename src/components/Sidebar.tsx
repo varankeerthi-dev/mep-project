@@ -94,6 +94,11 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'site-expenses',
+        label: 'Site Expenses',
+        path: '/site-expenses'
+      },
+      {
         id: 'subcontractor',
         label: 'Sub-Contractor',
         submenu: [
@@ -281,6 +286,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'site-report': 'ClipboardDocumentCheckIcon',
   'client-communication': 'ChatBubbleLeftRightIcon',
   subcontractor: 'UserGroupIcon',
+  'site-expenses': 'CurrencyDollarIcon',
   'client-requests': 'InboxIcon',
   quotation: 'DocumentDuplicateIcon',
   invoice: 'DocumentTextIcon',

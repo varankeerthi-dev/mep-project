@@ -169,6 +169,7 @@ const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
 const ApprovalSettings = lazyAny(() => import('./components/ApprovalSettings'));
 const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/PaymentsHub'));
+const SiteExpenses = lazyAny(() => import('./pages/SiteExpenses'));
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
 const EmployeeCheckIn = lazyAny(() => import('./pages/EmployeeCheckIn'));
@@ -358,6 +359,7 @@ export default function App() {
       case '/settings/access-control': return <AccessControlPage />;
       case '/approval-settings': return <ApprovalSettings />;
       case '/finance/payments': return <PaymentsHub />;
+      case '/site-expenses': return <SiteExpenses />;
       default:
         if (pathKey.startsWith('/issue/')) {
           // Match /issue/<id> but not /issue/new

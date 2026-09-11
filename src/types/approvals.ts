@@ -10,7 +10,9 @@ export type ApprovalType =
   | 'MATERIAL_DISPATCH'
   | 'SITE_VISIT'
   | 'EXPENSE_CLAIM'
-  | 'SITE_REPORT_REQUEST';
+  | 'SITE_REPORT_REQUEST'
+  | 'SITE_EXPENSE_REQUEST'
+  | 'SITE_EXPENSE_POST_PURCHASE';
 
 export type ApprovalStatus = 
   | 'PENDING'
@@ -256,6 +258,20 @@ export const APPROVAL_TYPES: ApprovalTypeConfig[] = [
     color: '#0EA5E9',
     icon: 'ClipboardDocumentCheckIcon',
     description: 'Engineer-submitted site report for PM/MD/Manager approval'
+  },
+  {
+    type: 'SITE_EXPENSE_REQUEST',
+    label: 'Site Expense Request',
+    color: '#F97316',
+    icon: 'CurrencyDollarIcon',
+    description: 'Pre-approved site expense request'
+  },
+  {
+    type: 'SITE_EXPENSE_POST_PURCHASE',
+    label: 'Site Expense (Post Purchase)',
+    color: '#D946EF',
+    icon: 'ReceiptRefundIcon',
+    description: 'Post-purchase site expense reimbursement'
   }
 ];
 

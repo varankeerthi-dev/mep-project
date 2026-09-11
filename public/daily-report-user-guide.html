@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Reports & Tasks — User Guide</title>
+<meta name="description" content="How daily reports and tasks work, together. A field guide for engineers, project managers, and quantity surveyors." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #FAFAF7;
+    --pure: #FFFFFF;
+    --ink: #0F1115;
+    --steel: #5A6371;
+    --whisper: #EDEEF0;
+    --executive: #1E40AF;
+    --executive-soft: #EFF6FF;
+    --success: #047857;
+    --success-soft: #D1FAE5;
+    --warning: #B45309;
+    --warning-soft: #FEF3C7;
+    --critical: #B91C1C;
+    --critical-soft: #FEE2E2;
+    --neutral-soft: #F1F2F4;
+    --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-body);
+    background: var(--canvas);
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .page { max-width: 760px; margin: 0 auto; padding: 80px 32px 120px; }
+
+  /* Hero */
+  .hero { margin-bottom: 88px; }
+  .hero-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--steel);
+    margin-bottom: 28px;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 64px;
+    line-height: 1.04;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    margin-bottom: 28px;
+  }
+  .hero-lede {
+    font-size: 21px;
+    line-height: 1.5;
+    color: var(--steel);
+    max-width: 620px;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--pure);
+    border: 1px solid var(--whisper);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 88px;
+  }
+  .toc-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--steel);
+    margin-bottom: 18px;
+  }
+  .toc ol { list-style: none; counter-reset: section; }
+  .toc li {
+    counter-increment: section;
+    display: flex;
+    gap: 14px;
+    padding: 6px 0;
+    align-items: baseline;
+  }
+  .toc li::before {
+    content: counter(section, decimal-leading-zero);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--steel);
+    font-weight: 500;
+    min-width: 22px;
+  }
+  .toc a {
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 15px;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--executive); }
+
+  /* Sections */
+  section { margin-bottom: 88px; scroll-margin-top: 24px; }
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--executive);
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 18px;
+  }
+  section h2 {
+    font-family: var(--font-display);
+    font-size: 38px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+  .section-lede {
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--steel);
+    margin-bottom: 32px;
+    max-width: 620px;
+  }
+  section h3 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 40px 0 14px;
+  }
+  section p { margin-bottom: 16px; max-width: 640px; }
+  section ul, section ol { margin: 0 0 20px 24px; max-width: 640px; }
+  section li { margin-bottom: 10px; }
+  section li::marker { color: var(--steel); }
+  em { font-style: italic; color: var(--ink); }
+  strong { font-weight: 600; }
+
+  /* Callout */
+  .callout {
+    background: var(--pure);
+    border-left: 3px solid var(--executive);
+    padding: 22px 26px;
+    margin: 28px 0;
+    border-radius: 0 6px 6px 0;
+    max-width: 640px;
+  }
+  .callout-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--executive);
+    margin-bottom: 10px;
+  }
+  .callout p { margin: 0; color: var(--ink); font-size: 15.5px; }
+
+  /* Code & keys */
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--pure);
+    border: 1px solid var(--whisper);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 2px 8px;
+    display: inline-block;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    background: var(--whisper);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+
+  /* Pills */
+  .pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .pill-success { background: var(--success-soft); color: var(--success); }
+  .pill-warning { background: var(--warning-soft); color: var(--warning); }
+  .pill-critical { background: var(--critical-soft); color: var(--critical); }
+  .pill-neutral { background: var(--neutral-soft); color: var(--steel); }
+  .pill-executive { background: var(--executive-soft); color: var(--executive); }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+    margin: 32px 0;
+    flex-wrap: wrap;
+  }
+  .flow-node {
+    background: var(--pure);
+    border: 1px solid var(--whisper);
+    border-radius: 10px;
+    padding: 18px 22px;
+    flex: 1 1 180px;
+    min-width: 160px;
+  }
+  .flow-node.is-active {
+    border-color: var(--executive);
+    background: var(--executive-soft);
+  }
+  .flow-node-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .flow-node-sub {
+    font-size: 12.5px;
+    color: var(--steel);
+    line-height: 1.4;
+  }
+  .flow-arrow {
+    align-self: center;
+    color: var(--steel);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Card grid */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 24px 0 32px;
+    max-width: 720px;
+  }
+  .card {
+    background: var(--pure);
+    border: 1px solid var(--whisper);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card-label {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .card-desc {
+    font-size: 13.5px;
+    color: var(--steel);
+    line-height: 1.45;
+  }
+
+  /* Keyboard grid */
+  .kbd-list {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px 32px;
+    margin: 20px 0 28px;
+    max-width: 720px;
+  }
+  .kbd-list dt {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .kbd-list dd {
+    color: var(--steel);
+    font-size: 14.5px;
+    line-height: 1.5;
+    padding-top: 1px;
+  }
+
+  /* Definition list (for two-column facts) */
+  .facts {
+    margin: 24px 0 28px;
+    max-width: 640px;
+  }
+  .facts > div {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px 24px;
+    padding: 10px 0;
+    border-top: 1px solid var(--whisper);
+  }
+  .facts > div:last-child { border-bottom: 1px solid var(--whisper); }
+  .facts dt {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--steel);
+    padding-top: 2px;
+  }
+  .facts dd { font-size: 15px; color: var(--ink); }
+
+  /* Footer */
+  footer {
+    margin-top: 120px;
+    padding-top: 32px;
+    border-top: 1px solid var(--whisper);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--steel);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Print */
+  @media print {
+    body { background: white; }
+    .page { padding: 0; max-width: none; }
+    .toc { page-break-after: always; }
+    section { page-break-inside: avoid; }
+    .callout, .card { box-shadow: none; }
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .page { padding: 48px 20px 80px; }
+    .hero h1 { font-size: 40px; }
+    .hero-lede { font-size: 18px; }
+    section h2 { font-size: 28px; }
+    .section-lede { font-size: 17px; }
+    .toc { padding: 20px 22px; }
+    .kbd-list { grid-template-columns: 1fr; gap: 4px 0; }
+    .kbd-list dt { padding-bottom: 2px; }
+    .facts > div { grid-template-columns: 1fr; gap: 2px; padding: 12px 0; }
+    .flow { flex-direction: column; align-items: stretch; }
+    .flow-arrow { transform: rotate(90deg); align-self: center; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="hero">
+  <div class="hero-meta">Daily Reports &amp; Tasks &middot; User Guide &middot; v1.0</div>
+  <h1>How daily reports<br>and tasks work, together.</h1>
+  <p class="hero-lede">A field engineer logs work every day. A project manager rolls it up every week. This guide shows how the two halves connect &mdash; and where to click.</p>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <div class="toc-label">Contents</div>
+  <ol>
+    <li><a href="#concepts">The two modules</a></li>
+    <li><a href="#daily">Your daily workflow</a></li>
+    <li><a href="#tasks">Tasks</a></li>
+    <li><a href="#work-items">Work items</a></li>
+    <li><a href="#photos">Photos</a></li>
+    <li><a href="#offline">Offline &amp; drafts</a></li>
+    <li><a href="#rollup">Weekly rollup</a></li>
+    <li><a href="#keyboard">Keyboard navigation</a></li>
+    <li><a href="#roles">Roles &amp; permissions</a></li>
+  </ol>
+</nav>
+
+<section id="concepts">
+  <span class="section-num">01</span>
+  <h2>The two modules</h2>
+  <p class="section-lede">Tasks are the source of truth for what needs to get done. Daily reports are the source of truth for what actually got done. The two are linked through <em>work items</em>.</p>
+
+  <div class="flow" role="img" aria-label="Tasks flow into work items, which flow into daily reports">
+    <div class="flow-node">
+      <div class="flow-node-title">Tasks</div>
+      <div class="flow-node-sub">planned work, lives in the project</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node is-active">
+      <div class="flow-node-title">Work items</div>
+      <div class="flow-node-sub">the bridge &mdash; one per row</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">
+      <div class="flow-node-title">Daily reports</div>
+      <div class="flow-node-sub">one per project, per day</div>
+    </div>
+  </div>
+
+  <h3>Tasks</h3>
+  <p>The list of work units for a project. Each task has a status, a progress percentage, a discipline, and an assignee. Tasks are planned ahead and live in the project for the duration of the work.</p>
+
+  <h3>Daily reports</h3>
+  <p>One per project, per day. Each report has rows of <strong>work items</strong> describing what happened. A report is the daily log the project manager and the client will read.</p>
+
+  <h3>Work items</h3>
+  <p>Each row in a daily report. A work item either <em>references a task</em> (planned work touched today) or is <em>ad&#8209;hoc</em> (a snag, a delivery, a discovery). Progress, status, photos, notes, and blockers all live on the work item.</p>
+
+  <div class="callout">
+    <div class="callout-title">The rule of thumb</div>
+    <p>If you knew about it yesterday, it&rsquo;s a task. If it surprised you this morning, it&rsquo;s an ad&#8209;hoc work item.</p>
+  </div>
+</section>
+
+<section id="daily">
+  <span class="section-num">02</span>
+  <h2>Your daily workflow</h2>
+  <p class="section-lede">Most engineers spend five minutes at the start of the day and another five at the end. Here&rsquo;s the rhythm.</p>
+
+  <h3>Morning &mdash; plan the day</h3>
+  <ol>
+    <li>Open today&rsquo;s daily report for your project.</li>
+    <li>Glance at any open work items still on the list.</li>
+    <li>Add new work items for today. For each, decide: <em>linked to a task</em>, or <em>ad&#8209;hoc</em>?</li>
+    <li>If linked, pick the task from the typeahead. If ad&#8209;hoc, type a short title and pick a discipline.</li>
+  </ol>
+
+  <h3>During the day &mdash; log as you go</h3>
+  <ol>
+    <li>Tap a work item&rsquo;s status cell when the work starts.</li>
+    <li>Drag photos in as you take them. They auto&#8209;attach to the work item you&rsquo;re focused on.</li>
+    <li>Update progress (0% &rarr; 100%) as work advances. The cell is inline &mdash; no modal.</li>
+    <li>Flag a blocker the moment you hit one. Don&rsquo;t sit on it.</li>
+  </ol>
+
+  <h3>End of day &mdash; close the loop</h3>
+  <ol>
+    <li>For each work item, set <code>progress_after</code> to where you actually ended up.</li>
+    <li>Add a one&#8209;line note on anything that needs explaining.</li>
+    <li>Submit the report. A confirmation toast appears &mdash; that&rsquo;s it.</li>
+  </ol>
+
+  <div class="callout">
+    <div class="callout-title">Auto&#8209;save is on</div>
+    <p>Your report saves to your browser every 1.5 seconds. Close the tab, lose signal, spill coffee on your laptop &mdash; your draft is safe for 24 hours. When you come back, a <em>Restore draft?</em> banner offers to put everything back.</p>
+  </div>
+</section>
+
+<section id="tasks">
+  <span class="section-num">03</span>
+  <h2>Tasks</h2>
+  <p class="section-lede">Tasks live in the project. They have a status, a progress, a discipline, and a quantity. They are referenced &mdash; never duplicated &mdash; in daily reports.</p>
+
+  <h3>Status lifecycle</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label"><span class="pill pill-neutral">not_started</span></div>
+      <div class="card-desc">Created, not yet started.</div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="pill pill-executive">in_progress</span></div>
+      <div class="card-desc">Active work happening today.</div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="pill pill-warning">blocked</span></div>
+      <div class="card-desc">Cannot proceed. Reason required.</div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="pill pill-success">done</span></div>
+      <div class="card-desc">Complete. Progress at 100%.</div>
+    </div>
+  </div>
+
+  <h3>Progress</h3>
+  <p>0% to 100%. A work item records the progress <em>before</em> and <em>after</em> it was touched. The task&rsquo;s progress is the latest <code>progress_after</code> from any work item on it.</p>
+
+  <h3>Discipline</h3>
+  <p>Each task belongs to a discipline (electrical, mechanical, plumbing, and so on). A work item&rsquo;s discipline is inherited from the task &mdash; unless the item is ad&#8209;hoc, in which case you pick it yourself.</p>
+</section>
+
+<section id="work-items">
+  <span class="section-num">04</span>
+  <h2>Work items</h2>
+  <p class="section-lede">A work item is a row in a daily report. Each one carries the day&rsquo;s work for a specific task &mdash; or for an unplanned piece of work.</p>
+
+  <h3>What a work item holds</h3>
+  <ul>
+    <li><strong>Task reference</strong> &mdash; null for ad&#8209;hoc items, otherwise the task id.</li>
+    <li><strong>Title</strong> &mdash; task title for linked items, free text for ad&#8209;hoc.</li>
+    <li><strong>Status</strong> &mdash; before and after, captured as a delta.</li>
+    <li><strong>Progress</strong> &mdash; before and after, captured as a delta.</li>
+    <li><strong>Quantity</strong> &mdash; a number and a unit (e.g. <code>50 m</code> of conduit).</li>
+    <li><strong>Photos</strong> &mdash; drag, drop, or paste. Multi&#8209;file.</li>
+    <li><strong>Blocker</strong> &mdash; a flag and a one&#8209;line reason.</li>
+    <li><strong>Note</strong> &mdash; anything else worth saying.</li>
+  </ul>
+
+  <h3>Linked vs. ad&#8209;hoc</h3>
+  <p>Linked items roll up to a task automatically. Ad&#8209;hoc items exist only in the report they were created in &mdash; they don&rsquo;t get pulled into the project&rsquo;s task list. Use ad&#8209;hoc for snags, deliveries, and discoveries.</p>
+
+  <div class="callout">
+    <div class="callout-title">Duplicate detection</div>
+    <p>If you try to add a work item that matches a recent ad&#8209;hoc item (same title, same discipline), you&rsquo;ll get a warning. Most of the time, the right move is to link the original &mdash; not create a new ad&#8209;hoc.</p>
+  </div>
+</section>
+
+<section id="photos">
+  <span class="section-num">05</span>
+  <h2>Photos</h2>
+  <p class="section-lede">Photos attach to work items. The drop zone accepts drag&#8209;and&#8209;drop, paste from clipboard, and click&#8209;to&#8209;browse.</p>
+
+  <h3>Upload flow</h3>
+  <ol>
+    <li>Drop or paste. A thumbnail appears immediately &mdash; it&rsquo;s local&#8209;first.</li>
+    <li>The upload runs in the background through the photo RPC.</li>
+    <li>If you lose connection mid&#8209;upload, the queue persists in localStorage. It replays on reconnect.</li>
+    <li>Once uploaded, the photo gets a server&#8209;side id and is locked in.</li>
+  </ol>
+
+  <h3>Photo states</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label"><span class="pill pill-neutral">queued</span></div>
+      <div class="card-desc">On your device, waiting for upload.</div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="pill pill-executive">uploading</span></div>
+      <div class="card-desc">In flight to the server.</div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="pill pill-success">uploaded</span></div>
+      <div class="card-desc">Persisted with a server id.</div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span class="pill pill-critical">failed</span></div>
+      <div class="card-desc">Will retry on next reconnect.</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Heads&#8209;up on size</div>
+    <p>Each photo is compressed before upload. If you need full&#8209;resolution originals, take them on your phone&rsquo;s camera &mdash; the daily&#8209;report photos are for evidence, not marketing.</p>
+  </div>
+</section>
+
+<section id="offline">
+  <span class="section-num">06</span>
+  <h2>Offline &amp; drafts</h2>
+  <p class="section-lede">The work doesn&rsquo;t stop when the wifi does. The daily&#8209;report form has a local&#8209;first auto&#8209;save that runs in the background.</p>
+
+  <h3>How auto&#8209;save works</h3>
+  <ul>
+    <li>Every 1.5 seconds of inactivity, the current draft is written to localStorage.</li>
+    <li>The draft expires after 24 hours.</li>
+    <li>On your next visit, if a draft is found, you get a <em>Restore draft?</em> banner.</li>
+  </ul>
+
+  <h3>Conflicts</h3>
+  <p>If the server has newer data than your local draft (someone else edited, or you edited from another device), you&rsquo;ll see a <em>Conflict</em> warning in the banner. The default is to keep the server&rsquo;s version. Open the draft to copy&#8209;paste any work you want to preserve.</p>
+
+  <h3>Draft metadata</h3>
+  <dl class="facts">
+    <div>
+      <dt>Storage key</dt>
+      <dd><code>site-report-draft:{projectId}:{date}:{userId}</code></dd>
+    </div>
+    <div>
+      <dt>Debounce</dt>
+      <dd>1.5 seconds</dd>
+    </div>
+    <div>
+      <dt>TTL</dt>
+      <dd>24 hours</dd>
+    </div>
+    <div>
+      <dt>Storage</dt>
+      <dd>localStorage (per browser, per device)</dd>
+    </div>
+  </dl>
+</section>
+
+<section id="rollup">
+  <span class="section-num">07</span>
+  <h2>Weekly rollup</h2>
+  <p class="section-lede">Once a week, the project manager opens the rollup. It aggregates the last seven daily reports into a single page with totals, blockers, and a PDF export.</p>
+
+  <h3>What&rsquo;s in the rollup</h3>
+  <ul>
+    <li>Tasks touched this week, grouped by discipline.</li>
+    <li>Progress deltas &mdash; what was 0% on Monday, what&rsquo;s 100% on Sunday.</li>
+    <li>Blockers raised, with reasons.</li>
+    <li>Photos of the week, in order.</li>
+    <li>Quantity totals (e.g. <em>320 m of conduit installed</em>).</li>
+  </ul>
+
+  <h3>Where to find it</h3>
+  <p>The rollup lives at <code>/projects/&lt;projectId&gt;/reports/rollup</code>. The project overview page has a link to it under the <em>Reports</em> section.</p>
+
+  <div class="callout">
+    <div class="callout-title">PDF export</div>
+    <p>The rollup has a <em>Download PDF</em> button. It uses the same template the client sees, so what you see is what they get. Send it without reformatting.</p>
+  </div>
+</section>
+
+<section id="keyboard">
+  <span class="section-num">08</span>
+  <h2>Keyboard navigation</h2>
+  <p class="section-lede">The work&#8209;items grid is fully keyboard&#8209;navigable. If you live in spreadsheets, you&rsquo;ll be at home here.</p>
+
+  <dl class="kbd-list">
+    <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd></dt>
+    <dd>Move the active cell left, right, up, or down.</dd>
+
+    <dt><kbd>Home</kbd> <kbd>End</kbd></dt>
+    <dd>Jump to the first or last cell in the current row.</dd>
+
+    <dt><kbd>Enter</kbd> <kbd>Space</kbd></dt>
+    <dd>Activate the cell &mdash; opens the inline editor or the typeahead.</dd>
+
+    <dt><kbd>Esc</kbd></dt>
+    <dd>Cancel the current edit. Value reverts to before the edit.</dd>
+
+    <dt><kbd>Tab</kbd></dt>
+    <dd>Leave the grid. Continues to the next focusable element on the page (e.g. the Add row button).</dd>
+  </dl>
+
+  <p>Focus is shown with a 2&#8209;px Executive Blue ring. If you can&rsquo;t see it, check your browser&rsquo;s <em>focus indicators</em> setting &mdash; it should be on.</p>
+</section>
+
+<section id="roles">
+  <span class="section-num">09</span>
+  <h2>Roles &amp; permissions</h2>
+  <p class="section-lede">Not everyone sees the same thing. Permissions are enforced at the database level, not just the UI.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Field engineer</div>
+      <div class="card-desc">Creates and edits daily reports for projects they&rsquo;re assigned to. Cannot edit reports from other engineers.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Project manager</div>
+      <div class="card-desc">Reads all reports for their projects. Reads the rollup. Can lock a section of a report to prevent late edits.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Quantity surveyor</div>
+      <div class="card-desc">Reads all reports + rollups. PDF export is in the default toolbar.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Admin</div>
+      <div class="card-desc">All of the above, plus the ability to force&#8209;unlock, delete, and reassign.</div>
+    </div>
+  </div>
+
+  <h3>Section locks</h3>
+  <p>Once a project manager has reviewed a section of a report, they can lock it. A locked section shows a banner and prevents edits &mdash; even from the original author. The PM unlocks it explicitly when changes are needed.</p>
+
+  <div class="callout">
+    <div class="callout-title">The lock is a commitment</div>
+    <p>Locking a section signals &ldquo;this is final.&rdquo; Clients may have already been sent the report. If you need to change a locked section, talk to the PM first &mdash; they&rsquo;ll unlock, you&rsquo;ll edit, they&rsquo;ll re&#8209;lock and re&#8209;send.</p>
+  </div>
+</section>
+
+<footer>
+  <span>Daily Reports &amp; Tasks &middot; User Guide &middot; v1.0</span>
+  <span>Phases 1&ndash;6 complete &middot; build passing</span>
+</footer>
+
+</main>
+</body>
+</html>

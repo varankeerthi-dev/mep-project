@@ -20,7 +20,7 @@ import { toast } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION';
+type ModuleKey = 'PURCHASE_PAYMENT' | 'SUBCONTRACTOR_PAYMENT' | 'PAYMENT_REQUEST' | 'QUOTATION' | 'SITE_EXPENSE_REQUEST' | 'SITE_EXPENSE_POST_PURCHASE';
 
 type WorkflowLevel = {
   id: string;
@@ -50,6 +50,14 @@ const MODULE_META: Record<ModuleKey, { label: string; description: string }> = {
   QUOTATION: {
     label: 'Quotations',
     description: 'Client quotations requiring approval',
+  },
+  SITE_EXPENSE_REQUEST: {
+    label: 'Site Expense Requests',
+    description: 'Pre-approved site expense requests',
+  },
+  SITE_EXPENSE_POST_PURCHASE: {
+    label: 'Site Expenses (Post Purchase)',
+    description: 'Post-purchase site expense reimbursement requests',
   },
 };
 
@@ -211,6 +219,8 @@ export const ApprovalSettings: React.FC = () => {
     SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
     PAYMENT_REQUEST: { enabled: false, levels: [] },
     QUOTATION: { enabled: false, levels: [] },
+    SITE_EXPENSE_REQUEST: { enabled: false, levels: [] },
+    SITE_EXPENSE_POST_PURCHASE: { enabled: false, levels: [] },
   }));
 
   const [memberSearch, setMemberSearch] = useState<Record<string, string>>({});
@@ -256,6 +266,8 @@ export const ApprovalSettings: React.FC = () => {
       SUBCONTRACTOR_PAYMENT: { enabled: false, levels: [] },
       PAYMENT_REQUEST: { enabled: false, levels: [] },
       QUOTATION: { enabled: false, levels: [] },
+      SITE_EXPENSE_REQUEST: { enabled: false, levels: [] },
+      SITE_EXPENSE_POST_PURCHASE: { enabled: false, levels: [] },
     };
 
     // 1. Initialize enabled state from approval_settings
@@ -460,7 +472,7 @@ export const ApprovalSettings: React.FC = () => {
         .from('approval_workflows')
         .delete()
         .eq('organisation_id', orgId)
-        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION']);
+        .in('approval_type', ['PURCHASE_PAYMENT', 'SUBCONTRACTOR_PAYMENT', 'PAYMENT_REQUEST', 'QUOTATION', 'SITE_EXPENSE_REQUEST', 'SITE_EXPENSE_POST_PURCHASE']);
 
       if (error) throw error;
 
