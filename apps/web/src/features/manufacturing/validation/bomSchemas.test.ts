@@ -42,4 +42,28 @@ describe('SaveBOMPayloadSchema null/empty handling', () => {
       }),
     ).toThrow();
   });
+
+  it('accepts percent-authored BOMs', () => {
+    const result = SaveBOMPayloadSchema.parse({
+      header: { ...baseHeader, qty_basis: 'percent' },
+      items: [{ ...baseItem, percent: 60 }],
+    });
+    expect(result.header.qty_basis).toBe('percent');
+    expect(result.items[0].percent).toBe(60);
+  });
+
+  it('rejects invalid qty_basis and out-of-range percent', () => {
+    expect(() =>
+      SaveBOMPayloadSchema.parse({
+        header: { ...baseHeader, qty_basis: 'weird' },
+        items: [baseItem],
+      }),
+    ).toThrow();
+    expect(() =>
+      SaveBOMPayloadSchema.parse({
+        header: baseHeader,
+        items: [{ ...baseItem, percent: 150 }],
+      }),
+    ).toThrow();
+  });
 });

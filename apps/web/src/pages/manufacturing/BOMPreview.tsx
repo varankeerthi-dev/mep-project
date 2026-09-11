@@ -180,7 +180,11 @@ export default function BOMPreviewModal({ bomId, onClose, onEdit }: BOMPreviewMo
                                 )}
                               </div>
                             </td>
-                            <td className="px-3 py-2 text-[12px] text-zinc-700 tabular-nums text-right">{item.required_qty}</td>
+                            <td className="px-3 py-2 text-[12px] text-zinc-700 tabular-nums text-right">
+                              {item.qty_basis === 'percent' && item.percent != null
+                                ? `${item.percent}% · ${item.required_qty} ${item.unit || ''}`
+                                : item.required_qty}
+                            </td>
                             <td className="px-3 py-2 text-[11px] text-zinc-500">{item.unit || '—'}</td>
                             <td className="px-3 py-2 text-[11px] text-zinc-500 tabular-nums text-right">₹{inr(item.unit_cost || 0)}</td>
                             <td className="px-4 py-2 text-[12px] text-zinc-900 font-medium tabular-nums text-right">₹{inr(lineCost)}</td>

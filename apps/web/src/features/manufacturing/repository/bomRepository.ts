@@ -73,15 +73,21 @@ export async function saveBOMAggregate(
     throw err;
   }
 
+  const outputQty = header.output_qty || 0;
+
   const payload = items
-    .filter((item) => item.material_id && item.required_qty > 0)
+    .filter((item) => item.material_id && (item.required_qty > 0 || (item.percent ?? 0) > 0))
     .map((item) => ({
       id: item.id || crypto.randomUUID(),
       bom_id: bomId,
       material_id: item.material_id,
-      required_qty: item.required_qty,
+      required_qty: item.qty_basis === 'percent' && item.percent != null
+        ? Math.round((item.percent / 100) * outputQty * 10000) / 10000
+        : item.required_qty,
       unit: item.unit,
       wastage_pct: item.wastage_pct,
+      percent: item.percent ?? null,
+      qty_basis: item.qty_basis || 'absolute',
       company_variant_id: item.company_variant_id || null,
       make: item.make || null,
       notes: item.notes || null,

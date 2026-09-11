@@ -26,6 +26,7 @@ export interface BOMHeader {
   approved_by_name?: string;
   parent_bom_id?: string;
   specification?: string;
+  qty_basis?: string;
 }
 
 export interface BOMItem {
@@ -55,6 +56,8 @@ export interface BOMItem {
   warehouse_id?: string;
   scrap_factor?: number;
   yield_pct?: number;
+  percent?: number | null;
+  qty_basis?: string;
 }
 
 export interface BomWorkCenter {

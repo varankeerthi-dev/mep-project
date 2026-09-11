@@ -26,6 +26,7 @@ const BOMHeaderSchema = z.object({
   valid_to: z.string().nullable().optional(),
   product_code: z.string().nullable().optional(),
   bom_type: z.enum(['assembly', 'repetitive', 'formula']).default('assembly').optional(),
+  qty_basis: z.enum(['absolute', 'percent']).optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   product_category: z.enum(['standard', 'custom', 'prototype']).optional(),
   created_by_name: z.string().nullable().optional(),
@@ -59,6 +60,8 @@ const BOMItemSchema = z.object({
   warehouse_id: emptyToNull(z.string().uuid().nullable().optional()),
   scrap_factor: z.number().min(0).max(100).nullable().optional(),
   yield_pct: z.number().min(0).max(100).nullable().optional(),
+  percent: z.number().min(0).max(100).nullable().optional(),
+  qty_basis: z.enum(['absolute', 'percent']).optional(),
 });
 
 export const SaveBOMPayloadSchema = z.object({

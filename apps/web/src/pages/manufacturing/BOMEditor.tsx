@@ -50,6 +50,8 @@ type BOMItem = {
   yield_pct?: number | null;
   warehouse_id?: string | null;
   lead_time_unit?: string;
+  percent?: number | null;
+  qty_basis?: 'absolute' | 'percent';
 };
 
 const LEAD_TIME_UNITS = [
@@ -216,7 +218,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   });
 
   const [items, setItems] = useState<BOMItem[]>([
-    { id: crypto.randomUUID(), material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '', lead_time_days: 0, bom_level: 0, parent_material_id: null, custom_attributes: {}, unit_cost: 0, sequence_no: 0, is_critical: false, inspection_required: false, shelf_life_days: null, scrap_factor: null, yield_pct: null }
+    { id: crypto.randomUUID(), material_id: '', material_name: '', required_qty: 0, unit: 'kg', wastage_pct: 5, notes: '', lead_time_days: 0, bom_level: 0, parent_material_id: null, custom_attributes: {}, unit_cost: 0, sequence_no: 0, is_critical: false, inspection_required: false, shelf_life_days: null, scrap_factor: null, yield_pct: null, percent: null, qty_basis: 'absolute' }
   ]);
   const [expandedRowIds, setExpandedRowIds] = useState<Record<string, boolean>>({});
   const [activeDetailRowId, setActiveDetailRowId] = useState<string | null>(null);
@@ -332,6 +334,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           bom_level: 0,
           parent_material_id: item.parent_material_id || null,
           custom_attributes: item.custom_attributes || {},
+          percent: item.percent ?? null,
+          qty_basis: item.qty_basis || 'absolute',
           unit_cost: item.unit_cost || 0,
           sequence_no: item.sequence_no || 0,
           work_center_id: item.work_center_id || null,
@@ -420,7 +424,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       inspection_required: false,
       shelf_life_days: null,
       scrap_factor: null,
-      yield_pct: null
+      yield_pct: null,
+      percent: null,
+      qty_basis: 'absolute'
     }]);
     setTimeout(() => {
       materialSearchRefs.current[newId]?.focus();
@@ -467,7 +473,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
       inspection_required: false,
       shelf_life_days: null,
       scrap_factor: null,
-      yield_pct: null
+      yield_pct: null,
+      percent: null,
+      qty_basis: 'absolute'
     }]);
     setExpandedRowIds(prev => ({ ...prev, [parentId]: true }));
     setTimeout(() => {
@@ -499,7 +507,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         inspection_required: source.inspection_required || false,
         shelf_life_days: source.shelf_life_days || null,
         scrap_factor: source.scrap_factor || null,
-        yield_pct: source.yield_pct || null
+        yield_pct: source.yield_pct || null,
+        percent: source.percent ?? null
       };
       const next = [...prev];
       next.splice(idx + 1, 0, newItem);
@@ -523,7 +532,21 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     setItems(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)));
   };
 
+  const toggleRowBasis = (item: BOMItem) => {
+    if (item.qty_basis === 'percent') {
+      updateItemById(item.id!, 'qty_basis', 'absolute');
+    } else {
+      const oq = formData.output_qty || 0;
+      updateItemById(item.id!, 'qty_basis', 'percent');
+      updateItemById(item.id!, 'percent', oq > 0 ? Math.round(((item.required_qty || 0) / oq) * 10000) / 100 : 0);
+    }
+  };
+
   const handleMaterialSelect = (id: string, materialId: string) => {
+    if (items.some(i => i.id !== id && i.material_id === materialId)) {
+      toast.error('This material is already in the BOM. Edit its quantity on the existing row instead.');
+      return;
+    }
     const material = materials?.find(m => m.id === materialId);
     setItems(prev => prev.map(item => {
       if (item.id === id) {
@@ -607,13 +630,28 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     });
     
     if (importedItems.length > 0) {
-      setItems(prev => {
-        if (prev.length === 1 && !prev[0].material_id && prev[0].required_qty === 0) {
-          return importedItems;
-        }
-        return [...prev, ...importedItems];
+      const existingIds = new Set(items.map(i => i.material_id).filter(Boolean));
+      const seenIds = new Set<string>();
+      const uniqueItems = importedItems.filter(it => {
+        if (!it.material_id || existingIds.has(it.material_id) || seenIds.has(it.material_id)) return false;
+        seenIds.add(it.material_id);
+        return true;
       });
-      toast.success(`Successfully imported ${importedItems.length} materials.`);
+      const skipped = importedItems.length - uniqueItems.length;
+      const additions = uniqueItems.length;
+      if (additions > 0) {
+        setItems(prev => {
+          if (prev.length === 1 && !prev[0].material_id && prev[0].required_qty === 0) {
+            return uniqueItems;
+          }
+          return [...prev, ...uniqueItems];
+        });
+      }
+      if (skipped > 0) {
+        toast.warning(`${additions} material${additions !== 1 ? 's' : ''} imported, ${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped.`);
+      } else {
+        toast.success(`Successfully imported ${additions} material${additions !== 1 ? 's' : ''}.`);
+      }
     } else {
       toast.error('No valid materials parsed. Verify format: Name [tab] Qty');
     }
@@ -742,7 +780,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
             <div className="form-group md:col-span-6">
               <label className="form-label">Output <span style={{ color: '#DC2626' }}>*</span></label>
               <div className="form-split-fields">
-                <input type="number" className="form-input" value={formData.output_qty} onChange={(e) => setFormData({ ...formData, output_qty: Number(e.target.value) })} />
+                <input type="number" className="form-input" value={formData.output_qty} onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setFormData({ ...formData, output_qty: v });
+                  setItems(prev => prev.map(it => it.qty_basis === 'percent'
+                    ? { ...it, required_qty: Math.round(((it.percent || 0) / 100) * v * 10000) / 10000 }
+                    : it
+                  ));
+                }} />
                 <FormSelect
                   value={formData.output_unit}
                   onChange={(v) => setFormData({ ...formData, output_unit: v })}
@@ -972,7 +1017,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                     <th style={{ width: '36px', padding: '0 8px', height: '40px', textAlign: 'center' }}></th>
                     <th style={{ padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Item</th>
                     <th style={{ width: '100px', padding: '0 12px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Material</th>
-                    <th style={{ width: '70px', padding: '0 8px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
+                    <th style={{ width: '64px', padding: '0 6px', height: '40px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Basis</th>
+                    <th style={{ width: '90px', padding: '0 8px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
                     <th style={{ width: '80px', padding: '0 12px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Unit</th>
                     <th style={{ width: '64px', padding: '0 8px', height: '40px' }}></th>
                   </tr>
@@ -1149,31 +1195,82 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                             )}
                           </div>
                       </td>
+                      {/* Basis — Qty vs % of batch */}
+                      <td style={{ padding: '0 6px', verticalAlign: 'middle' }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleRowBasis(item)}
+                          title={item.qty_basis === 'percent' ? '% of batch — click to use fixed quantity' : 'Fixed quantity — click to use % of batch'}
+                          style={{
+                            width: '100%', padding: '7px 4px',
+                            fontSize: '11px', fontWeight: 600,
+                            borderRadius: '6px', cursor: 'pointer',
+                            border: item.qty_basis === 'percent' ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                            background: item.qty_basis === 'percent' ? '#EFF6FF' : '#F8FAFC',
+                            color: item.qty_basis === 'percent' ? '#2563EB' : '#475569',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {item.qty_basis === 'percent' ? '%' : 'Qty'}
+                        </button>
+                      </td>
                       {/* Quantity */}
                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
-                         <input
-                           type="number"
-                           value={item.required_qty || ''}
-                           onChange={(e) => updateItemById(item.id!, 'required_qty', Number(e.target.value))}
-                           placeholder="0"
-                           style={{
-                             width: '60px', height: '34px', padding: '0 6px',
-                             fontSize: '13px', fontWeight: 500, color: '#0F172A',
-                             background: '#F8FAFC', border: '1px solid #E2E8F0',
-                             borderRadius: '6px', textAlign: 'right', outline: 'none',
-                             fontVariantNumeric: 'tabular-nums',
-                           }}
-                         />
-                       </td>
+                        {item.qty_basis === 'percent' ? (
+                          <div>
+                            <input
+                              type="number"
+                              value={item.percent ?? ''}
+                              onChange={(e) => {
+                                const p = Number(e.target.value);
+                                updateItemById(item.id!, 'percent', p);
+                                updateItemById(item.id!, 'required_qty', Math.round((p / 100) * (formData.output_qty || 0) * 10000) / 10000);
+                              }}
+                              placeholder="0"
+                              style={{
+                                width: '60px', height: '34px', padding: '0 6px',
+                                fontSize: '13px', fontWeight: 500, color: '#0F172A',
+                                background: '#F8FAFC', border: '1px solid #E2E8F0',
+                                borderRadius: '6px', textAlign: 'right', outline: 'none',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            />
+                            <div style={{ fontSize: '9px', color: '#94A3B8', marginTop: '2px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              = {item.required_qty || 0} {item.unit}
+                            </div>
+                          </div>
+                        ) : (
+                          <input
+                            type="number"
+                            value={item.required_qty || ''}
+                            onChange={(e) => updateItemById(item.id!, 'required_qty', Number(e.target.value))}
+                            placeholder="0"
+                            style={{
+                              width: '60px', height: '34px', padding: '0 6px',
+                              fontSize: '13px', fontWeight: 500, color: '#0F172A',
+                              background: '#F8FAFC', border: '1px solid #E2E8F0',
+                              borderRadius: '6px', textAlign: 'right', outline: 'none',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          />
+                        )}
+                      </td>
                       {/* Unit */}
                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
-                         <FormSelect
-                           value={item.unit}
-                           onChange={(v) => updateItemById(item.id!, 'unit', v)}
-                           options={unitOptions}
-                           placeholder="Unit"
-                         />
-                       </td>
+                        <div>
+                          <FormSelect
+                            value={item.unit}
+                            onChange={(v) => updateItemById(item.id!, 'unit', v)}
+                            options={unitOptions}
+                            placeholder="Unit"
+                          />
+                          {item.qty_basis === 'percent' && item.unit !== formData.output_unit && (
+                            <div style={{ fontSize: '9px', color: '#D97706', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                              ≠ batch unit ({formData.output_unit})
+                            </div>
+                          )}
+                        </div>
+                      </td>
 
 
                        
@@ -1314,6 +1411,18 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                   ₹{formData.output_qty > 0 ? (items.filter(i => i.material_id).reduce((sum, i) => sum + (i.required_qty || 0) * (i.unit_cost || 0), 0) / formData.output_qty).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                 </span>
               </div>
+              {items.some(i => i.qty_basis === 'percent') && (() => {
+                const totalPct = items.filter(i => i.qty_basis === 'percent').reduce((s, i) => s + (i.percent || 0), 0);
+                const balanced = Math.abs(totalPct - 100) < 0.01;
+                return (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Σ Percent </span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: balanced ? '#059669' : '#D97706', fontVariantNumeric: 'tabular-nums', marginLeft: '6px' }}>
+                      {Math.round(totalPct * 100) / 100}%{balanced ? '' : ' · target 100%'}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
