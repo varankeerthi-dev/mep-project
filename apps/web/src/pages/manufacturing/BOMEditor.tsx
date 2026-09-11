@@ -60,6 +60,8 @@ const LEAD_TIME_UNITS = [
   { value: 'weeks', label: 'Weeks' },
 ];
 
+const clampNum = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
 /* ────────────────────────────────────────────────────────────────
    FormSelect — searchable portal dropdown, same UX as the Product
    dropdown (click to open, type to filter, portal overlay that
@@ -538,7 +540,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
     } else {
       const oq = formData.output_qty || 0;
       updateItemById(item.id!, 'qty_basis', 'percent');
-      updateItemById(item.id!, 'percent', oq > 0 ? Math.round(((item.required_qty || 0) / oq) * 10000) / 100 : 0);
+      updateItemById(item.id!, 'percent', oq > 0 ? clampNum(Math.round(((item.required_qty || 0) / oq) * 10000) / 100, 0, 100) : 0);
     }
   };
 
@@ -663,7 +665,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
   const materialCount = items.filter(i => i.material_id).length;
 
   return (
-    <div className="bom-editor-page-container p-6 max-w-[1000px] mx-auto font-['Inter'] space-y-6">
+    <div className="bom-editor-page-container p-6 max-w-[1000px] font-['Inter'] space-y-6">
       {/* Ignore Global Button CSS - Use Component Button Styles */}
       <style>{`
         .bom-editor-page-container .inner-container-20px {
@@ -1010,14 +1012,14 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 width: '100%',
                 borderCollapse: 'collapse',
                 tableLayout: 'fixed',
-                minWidth: '620px',
+                minWidth: '740px',
               }}> 
                 <thead>
                   <tr style={{ background: '#FAFBFC', borderBottom: '1px solid #F1F5F9' }}>
                     <th style={{ width: '36px', padding: '0 8px', height: '40px', textAlign: 'center' }}></th>
-                    <th style={{ padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Item</th>
+                    <th style={{ width: '280px', padding: '0 16px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Item</th>
                     <th style={{ width: '100px', padding: '0 12px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Material</th>
-                    <th style={{ width: '64px', padding: '0 6px', height: '40px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Basis</th>
+                    <th style={{ width: '84px', padding: '0 6px', height: '40px', textAlign: 'center', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Basis</th>
                     <th style={{ width: '90px', padding: '0 8px', height: '40px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
                     <th style={{ width: '80px', padding: '0 12px', height: '40px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Unit</th>
                     <th style={{ width: '64px', padding: '0 8px', height: '40px' }}></th>
@@ -1195,24 +1197,38 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                             )}
                           </div>
                       </td>
-                      {/* Basis — Qty vs % of batch */}
+                      {/* Basis — Qty vs % of batch (segmented left/right toggle) */}
                       <td style={{ padding: '0 6px', verticalAlign: 'middle' }}>
-                        <button
-                          type="button"
-                          onClick={() => toggleRowBasis(item)}
-                          title={item.qty_basis === 'percent' ? '% of batch — click to use fixed quantity' : 'Fixed quantity — click to use % of batch'}
-                          style={{
-                            width: '100%', padding: '7px 4px',
-                            fontSize: '11px', fontWeight: 600,
-                            borderRadius: '6px', cursor: 'pointer',
-                            border: item.qty_basis === 'percent' ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
-                            background: item.qty_basis === 'percent' ? '#EFF6FF' : '#F8FAFC',
-                            color: item.qty_basis === 'percent' ? '#2563EB' : '#475569',
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          {item.qty_basis === 'percent' ? '%' : 'Qty'}
-                        </button>
+                        <div style={{ display: 'flex', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <button
+                            type="button"
+                            onClick={() => { if (item.qty_basis === 'percent') toggleRowBasis(item); }}
+                            title="Fixed quantity"
+                            style={{
+                              flex: 1, padding: '6px 0',
+                              fontSize: '11px', fontWeight: item.qty_basis === 'absolute' ? 700 : 400,
+                              background: item.qty_basis === 'absolute' ? '#2563EB' : '#F8FAFC',
+                              color: item.qty_basis === 'absolute' ? '#fff' : '#94A3B8',
+                              border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                            }}
+                          >
+                            Qty
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { if (item.qty_basis !== 'percent') toggleRowBasis(item); }}
+                            title="% of batch"
+                            style={{
+                              flex: 1, padding: '6px 0',
+                              fontSize: '11px', fontWeight: item.qty_basis === 'percent' ? 700 : 400,
+                              background: item.qty_basis === 'percent' ? '#2563EB' : '#F8FAFC',
+                              color: item.qty_basis === 'percent' ? '#fff' : '#94A3B8',
+                              border: 'none', borderLeft: '1px solid #E2E8F0', cursor: 'pointer', transition: 'all 0.15s',
+                            }}
+                          >
+                            %
+                          </button>
+                        </div>
                       </td>
                       {/* Quantity */}
                       <td style={{ padding: '0 8px', verticalAlign: 'middle' }}>
@@ -1222,7 +1238,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                               type="number"
                               value={item.percent ?? ''}
                               onChange={(e) => {
-                                const p = Number(e.target.value);
+                                const p = clampNum(Number(e.target.value) || 0, 0, 100);
                                 updateItemById(item.id!, 'percent', p);
                                 updateItemById(item.id!, 'required_qty', Math.round((p / 100) * (formData.output_qty || 0) * 10000) / 10000);
                               }}
@@ -1243,7 +1259,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                           <input
                             type="number"
                             value={item.required_qty || ''}
-                            onChange={(e) => updateItemById(item.id!, 'required_qty', Number(e.target.value))}
+                            onChange={(e) => updateItemById(item.id!, 'required_qty', Math.max(0, Number(e.target.value) || 0))}
                             placeholder="0"
                             style={{
                               width: '60px', height: '34px', padding: '0 6px',
@@ -1400,9 +1416,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                 </span>
               </div>
               <div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Est. Production Time </span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Material Lines </span>
                 <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', fontVariantNumeric: 'tabular-nums', marginLeft: '6px' }}>
-                  {items.filter(i => i.material_id).reduce((sum, i) => sum + (i.sequence_no || 0), 0)} ops
+                  {items.filter(i => i.material_id).length}
                 </span>
               </div>
               <div>
@@ -1448,7 +1464,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Unit Cost (₹)</label>
                     <input type="number" min="0" step="0.01"
                       value={item.unit_cost ?? ''}
-                      onChange={(e) => updateItemById(item.id!, 'unit_cost', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => updateItemById(item.id!, 'unit_cost', clampNum(parseFloat(e.target.value) || 0, 0, Number.MAX_SAFE_INTEGER))}
                       placeholder="0.00"
                       style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
                     />
@@ -1458,7 +1474,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                     <input type="number" min="0" max="100"
                       value={item.wastage_pct || ''}
                       onChange={(e) => {
-                        const val = Number(e.target.value);
+                        const val = clampNum(Number(e.target.value) || 0, 0, 100);
                         updateItemById(item.id!, 'wastage_pct', val);
                         updateItemById(item.id!, 'scrap_factor', val);
                         updateItemById(item.id!, 'yield_pct', Math.max(0, 100 - val));
@@ -1468,12 +1484,11 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                     />
                   </div>
                   <div style={{ flex: 1, minWidth: '120px', maxWidth: '150px' }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Yield %</label>
-                    <input type="number" min="0" max="100"
-                      value={item.yield_pct ?? ''}
-                      onChange={(e) => updateItemById(item.id!, 'yield_pct', Number(e.target.value))}
-                      placeholder="95"
-                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', transition: 'border-color 0.15s', textAlign: 'center' }}
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Yield % <span style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(= 100 − Scrap)</span></label>
+                    <input type="number" tabIndex={-1}
+                      readOnly
+                      value={Math.max(0, 100 - (item.wastage_pct || 0))}
+                      style={{ width: '100%', height: '36px', padding: '0 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '12px', color: '#475569', outline: 'none', textAlign: 'center', fontVariantNumeric: 'tabular-nums', cursor: 'default' }}
                     />
                   </div>
                   <div style={{ flex: 1, minWidth: '160px', maxWidth: '220px' }}>
@@ -1637,9 +1652,9 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
         <div style={{
           background: '#F8FBFF',
           border: '1px solid #E2E8F0',
-          borderLeft: '4px solid #2563EB',
           borderRadius: '14px',
           padding: '24px 28px',
+          fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}>
           <h3 style={{
             fontSize: '16px',
@@ -1712,8 +1727,17 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
           </div>
         </div>
 
-      {/* ─── Action Footer ─── */}
-      <div className="form-footer">
+      {/* ─── Action Footer (sticky) ─── */}
+      <div className="form-footer" style={{
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 30,
+        background: '#fff',
+        borderTop: '1px solid #E2E8F0',
+        margin: '0 -24px',
+        padding: '14px 24px',
+        boxShadow: '0 -4px 12px rgba(15, 23, 42, 0.06)',
+      }}>
         <div className="form-btn-group">
           {bomId && (
             <button type="button" className="form-btn form-btn-secondary" onClick={() => setShowDeleteModal(true)}>
