@@ -210,18 +210,20 @@ export async function rejectAccessRequest(requestId: string, note?: string | nul
 }
 
 export async function listEmployees(organisationId: string): Promise<EmployeeRow[]> {
+  // NOTE: employees.name is the real DB column (renamed from full_name by the
+  // HR attendance migration); full_name exists only on this TS-facing row type.
   const { data, error } = await supabase
     .from('employees')
-    .select('id, organisation_id, full_name, email, phone, status, created_at, updated_at')
+    .select('id, organisation_id, name, email, phone, status, created_at, updated_at')
     .eq('organisation_id', organisationId)
-    .order('full_name', { ascending: true });
+    .order('name', { ascending: true });
 
   if (error) throw error;
 
   return (data ?? []).map((row: any) => ({
     id: String(row.id),
     organisation_id: String(row.organisation_id),
-    full_name: String(row.full_name),
+    full_name: String(row.name ?? ''),
     email: String(row.email),
     phone: row.phone ?? null,
     status: row.status,
@@ -235,8 +237,7 @@ export async function upsertEmployee(input: EmployeeInput): Promise<EmployeeRow>
   const payload = {
     id: parsed.id,
     organisation_id: parsed.organisation_id,
-    full_name: parsed.full_name,
-    name: parsed.full_name, // Sync the name column for HR module
+    name: parsed.full_name,
     email: parsed.email,
     phone: parsed.phone ?? null,
     status: parsed.status,
@@ -246,7 +247,7 @@ export async function upsertEmployee(input: EmployeeInput): Promise<EmployeeRow>
   const { data, error } = await supabase
     .from('employees')
     .upsert(payload, { onConflict: 'id' })
-    .select('id, organisation_id, full_name, email, phone, status, created_at, updated_at')
+    .select('id, organisation_id, name, email, phone, status, created_at, updated_at')
     .single();
 
   if (error) throw error;
@@ -255,7 +256,7 @@ export async function upsertEmployee(input: EmployeeInput): Promise<EmployeeRow>
   return {
     id: String(data.id),
     organisation_id: String(data.organisation_id),
-    full_name: String(data.full_name),
+    full_name: String(data.name ?? ''),
     email: String(data.email),
     phone: data.phone ?? null,
     status: data.status,
