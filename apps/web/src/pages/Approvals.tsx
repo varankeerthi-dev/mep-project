@@ -234,18 +234,13 @@ const Approvals: React.FC = () => {
     if (payApprovals.length > 0) setLastRefresh(new Date());
   }, [payApprovals.length]);
 
-  useEffect(() => {
+  const handleManualRefresh = useCallback(() => {
     if (!orgId) return;
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        queryClient.invalidateQueries({ queryKey: ['approvals', 'list', orgId] });
-        queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'approval', 'pending', orgId] });
-        queryClient.invalidateQueries({ queryKey: ['approval-workflows', orgId] });
-        queryClient.invalidateQueries({ queryKey: ['payment-requests', orgId] });
-        setLastRefresh(new Date());
-      }
-    }, 30000);
-    return () => clearInterval(interval);
+    queryClient.invalidateQueries({ queryKey: ['approvals', 'list', orgId] });
+    queryClient.invalidateQueries({ queryKey: ['purchase-payments', 'approval', 'pending', orgId] });
+    queryClient.invalidateQueries({ queryKey: ['approval-workflows', orgId] });
+    queryClient.invalidateQueries({ queryKey: ['payment-requests', orgId] });
+    setLastRefresh(new Date());
   }, [orgId, queryClient]);
 
   useEffect(() => {
@@ -1002,9 +997,10 @@ const Approvals: React.FC = () => {
           Updated {formatRelativeTime(lastRefresh)}
         </span>
         <button
-          onClick={() => window.location.reload()}
+          type="button"
+          onClick={handleManualRefresh}
           className="hover:text-zinc-700 transition-colors"
-          title="Refresh page"
+          title="Refresh approvals"
         >
           <RefreshCw className="w-3 h-3" />
         </button>
