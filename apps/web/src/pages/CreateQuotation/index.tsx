@@ -103,22 +103,14 @@ export default function CreateQuotation() {
   useEffect(() => {
     if (!user?.id) return;
     const fetchProfile = async () => {
-      const { data: attemptA } = await supabase
+      const { data } = await supabase
         .from('user_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .or(`user_id.eq.${user.id},id.eq.${user.id}`)
+        .limit(1)
         .maybeSingle();
-      if (attemptA?.id) {
-        setUserProfileId(attemptA.id);
-        return;
-      }
-      const { data: attemptB } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (attemptB?.id) {
-        setUserProfileId(attemptB.id);
+      if (data?.id) {
+        setUserProfileId(data.id);
       }
     };
     fetchProfile();
@@ -276,39 +268,32 @@ export default function CreateQuotation() {
     queryKey: ['quotationInit', organisation?.id],
     staleTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
+    refetchOnMount: false,
     queryFn: async () => {
-      const [pricing, settings, template, discountCatsRes, quickQuoteConfigRes, orgDetails] = await Promise.all([
+      const orgId = organisation?.id;
+      const [pricing, settings, template, discountCatsRes] = await Promise.all([
         timedSupabaseQuery(
-          supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
+          (orgId
+            ? supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make').eq('organisation_id', orgId)
+            : supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make')),
           'Quotation pricing',
         ),
         timedSupabaseQuery(
-          supabase
-            .from('discount_settings')
-            .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
-            .eq('is_active', true),
+          (orgId
+            ? supabase.from('discount_settings').select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent').eq('organisation_id', orgId).eq('is_active', true)
+            : supabase.from('discount_settings').select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent').eq('is_active', true)),
           'Quotation discount settings',
         ),
         timedSupabaseQuery(
-          supabase
-            .from('document_templates')
-            .select('id, column_settings')
-            .eq('document_type', 'Quotation')
-            .eq('is_default', true)
-            .limit(1)
-            .single(),
+          (orgId
+            ? supabase.from('document_templates').select('id, column_settings').eq('document_type', 'Quotation').eq('is_default', true).or(`organisation_id.eq.${orgId},organisation_id.is.null`).limit(1).maybeSingle()
+            : supabase.from('document_templates').select('id, column_settings').eq('document_type', 'Quotation').eq('is_default', true).limit(1).maybeSingle()),
           'Quotation template',
         ),
-        organisation?.id ? timedSupabaseQuery(
-          supabase.from('discount_categories').select('*').or(`organisation_id.eq.${organisation.id},organisation_id.is.null`).eq('is_active', true).order('name'),
+        orgId ? timedSupabaseQuery(
+          supabase.from('discount_categories').select('*').or(`organisation_id.eq.${orgId},organisation_id.is.null`).eq('is_active', true).order('name'),
           'Discount categories',
         ) : Promise.resolve([]),
-        organisation?.id ? loadQuickQuoteConfig(organisation.id) : Promise.resolve(null),
-        organisation?.id ? timedSupabaseQuery(
-          supabase.from('organisations').select('*').eq('id', organisation.id).single(),
-          'Organisation details'
-        ) : Promise.resolve(null),
       ]);
 
       return {
@@ -316,8 +301,8 @@ export default function CreateQuotation() {
         settings: settings || [],
         template: template || null,
         discountCategories: discountCatsRes || [],
-        quickQuoteConfig: quickQuoteConfigRes || null,
-        orgFullDetails: orgDetails || null
+        quickQuoteConfig: null,
+        orgFullDetails: null
       };
     },
   });
@@ -585,73 +570,36 @@ export default function CreateQuotation() {
   }, [getQuoteSeriesNumber, getFyPrefix]);
 
   async function fetchDefaultSeriesRow() {
-    const tryFetch = async (buildQuery: any, label: string) => {
-      try {
-        const { data } = await withTimeout(buildQuery(), label, 20000);
-        return data || null;
-      } catch (error) {
-        const missingIsDefault = isMissingColumnError(error, 'is_default');
-        const missingOrganisationId = isMissingColumnError(error, 'organisation_id');
-        if (
-          isTimeoutError(error, label) ||
-          missingIsDefault ||
-          missingOrganisationId
-        ) {
-          return null;
-        }
-        throw error;
-      }
-    };
-
     const organizationId = organisation?.id;
+    try {
+      let query = supabase
+        .from('document_series')
+        .select('id, configs, current_number, created_at, is_default, organisation_id');
 
-    const primary = await tryFetch(
-      () =>
-        supabase
-          .from('document_series')
-          .select('id, configs, current_number, created_at')
-          .eq('is_default', true)
-          .eq('organisation_id', organizationId)
-          .limit(1)
-          .maybeSingle(),
-      'loading document series'
-    );
-    if (primary) return primary;
+      if (organizationId) {
+        query = query.or(`organisation_id.eq.${organizationId},organisation_id.is.null`);
+      }
 
-    const byOrgLatestRows = await tryFetch(
-      () =>
-        supabase
-          .from('document_series')
-          .select('id, configs, current_number, created_at')
-          .eq('organisation_id', organizationId)
-          .order('created_at', { ascending: false })
-          .limit(1),
-      'loading fallback document series by organisation'
-    );
-    if (Array.isArray(byOrgLatestRows) && byOrgLatestRows[0]) return byOrgLatestRows[0];
+      const { data } = await withTimeout(
+        query.order('is_default', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+        'loading document series',
+        10000
+      );
 
-    const byDefaultLatestRows = await tryFetch(
-      () =>
-        supabase
-          .from('document_series')
-          .select('id, configs, current_number, created_at')
-          .eq('is_default', true)
-          .order('created_at', { ascending: false })
-          .limit(1),
-      'loading fallback default document series'
-    );
-    if (Array.isArray(byDefaultLatestRows) && byDefaultLatestRows[0]) return byDefaultLatestRows[0];
-
-    const globalLatestRows = await tryFetch(
-      () =>
-        supabase
-          .from('document_series')
-          .select('id, configs, current_number, created_at')
-          .order('created_at', { ascending: false })
-          .limit(1),
-      'loading fallback global document series'
-    );
-    return Array.isArray(globalLatestRows) ? globalLatestRows[0] || null : null;
+      if (Array.isArray(data) && data.length > 0) {
+        const orgDefault = data.find((r: any) => r.organisation_id === organizationId && r.is_default);
+        if (orgDefault) return orgDefault;
+        const orgAny = data.find((r: any) => r.organisation_id === organizationId);
+        if (orgAny) return orgAny;
+        const globalDefault = data.find((r: any) => r.is_default);
+        if (globalDefault) return globalDefault;
+        return data[0];
+      }
+      return null;
+    } catch (err) {
+      console.warn('Unable to load document series:', err);
+      return null;
+    }
   }
 
   const loadQuoteNoPreview = useCallback(async () => {
