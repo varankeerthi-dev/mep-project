@@ -39,6 +39,7 @@ import {
   bulkUpsertOpeningBalances,
   getOrAutoCreateOpeningBalance,
   getPreviousFinancialYear,
+  getFyDateRange,
   type LedgerClient,
   type LedgerReceipt,
   type OpeningBalance,
@@ -208,10 +209,21 @@ export default function LedgerDashboard() {
 
 
 
+  const dateRange = useMemo(() => {
+    if (selectedFy === 'all-time') {
+      return { startDate: '2000-01-01', endDate: '2099-12-31' };
+    }
+    return getFyDateRange(
+      selectedFy,
+      Number(organisation?.financial_year_start_month ?? 4)
+    );
+  }, [selectedFy, organisation]);
+
   const openingBalancesQuery = useQuery({
     queryKey: ['ledger', 'opening-balances', orgId, selectedFy],
-    queryFn: () => getOpeningBalances(orgId, selectedFy),
+    queryFn: () => selectedFy === 'all-time' ? Promise.resolve([]) : getOpeningBalances(orgId, selectedFy),
     enabled: Boolean(orgId) && Boolean(selectedFy) && showLedger,
+    staleTime: 5 * 60 * 1000,
   });
 
   const saveOpeningBalancesMutation = useMutation({
@@ -265,21 +277,24 @@ export default function LedgerDashboard() {
   }, [openingBalances]);
 
   const invoicesQuery = useQuery({
-    queryKey: ['ledger', 'invoices', orgId, 'all-time'],
-    queryFn: () => listLedgerInvoices(orgId, { startDate: '2000-01-01', endDate: '2099-12-31' }),
+    queryKey: ['ledger', 'invoices', orgId, selectedFy],
+    queryFn: () => listLedgerInvoices(orgId, dateRange),
     enabled: Boolean(orgId) && showLedger,
+    staleTime: 5 * 60 * 1000,
   });
 
   const receiptsQuery = useQuery({
-    queryKey: ['ledger', 'receipts', orgId, 'all-time'],
-    queryFn: () => listLedgerReceipts(orgId, { startDate: '2000-01-01', endDate: '2099-12-31' }),
+    queryKey: ['ledger', 'receipts', orgId, selectedFy],
+    queryFn: () => listLedgerReceipts(orgId, dateRange),
     enabled: Boolean(orgId) && showLedger,
+    staleTime: 5 * 60 * 1000,
   });
 
   const creditNotesQuery = useQuery({
-    queryKey: ['ledger', 'credit-notes', orgId, 'all-time'],
-    queryFn: () => listLedgerCreditNotes(orgId, { startDate: '2000-01-01', endDate: '2099-12-31' }),
+    queryKey: ['ledger', 'credit-notes', orgId, selectedFy],
+    queryFn: () => listLedgerCreditNotes(orgId, dateRange),
     enabled: Boolean(orgId) && showLedger,
+    staleTime: 5 * 60 * 1000,
   });
 
   const paymentForm = useForm<RecordPaymentValues>({
@@ -666,14 +681,15 @@ export default function LedgerDashboard() {
                 </div>
 
 
-                {activeTab === 'opening-balance' && (
+                {(activeTab === 'ledger' || activeTab === 'opening-balance') && (
                   <div className="flex items-center gap-2">
                     <select
                       value={selectedFy}
                       onChange={(e) => setSelectedFy(e.target.value)}
                       className="h-9 rounded border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-400"
                     >
-                      <option value="">Select FY</option>
+                      {activeTab === 'opening-balance' && <option value="">Select FY</option>}
+                      {activeTab === 'ledger' && <option value="all-time">All Time</option>}
                       {generateFyOptions(
                         String(organisation?.financial_year_format || 'FY24-25'),
                         Number(organisation?.financial_year_start_month ?? 4)
@@ -713,7 +729,12 @@ export default function LedgerDashboard() {
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => setActiveTab('opening-balance')}
+                      onClick={() => {
+                        setActiveTab('opening-balance');
+                        if (selectedFy === 'all-time') {
+                          setSelectedFy(generateFyOptions(String(organisation?.financial_year_format || 'FY24-25'), Number(organisation?.financial_year_start_month ?? 4))[2]);
+                        }
+                      }}
                       leftIcon={<Calculator size={14} />}
                     >
                       Opening Balance
