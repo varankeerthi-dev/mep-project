@@ -33,29 +33,109 @@ export function useNextActions() {
     const items: NextActionItem[] = [];
     const todayStr = new Date().toISOString().split('T')[0];
 
-    try {
-      // 1. Fetch Client Communications next actions
-      // Use explicit FK hint to avoid PostgREST ambiguity (table has 8+ FKs)
-      let commQuery = supabase
-        .from('client_communication')
-        .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
-        .eq('organisation_id', orgId)
-        .eq('is_resolved', false)
-        .in('status', ['Open', 'In Progress', 'open', 'in_progress', 'Awaiting Decision', 'awaiting_decision']);
+    // Build 8 independent queries
+    // 1. Client Communications
+    let commQuery = supabase
+      .from('client_communication')
+      .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
+      .eq('organisation_id', orgId)
+      .eq('is_resolved', false)
+      .in('status', ['Open', 'In Progress', 'open', 'in_progress', 'Awaiting Decision', 'awaiting_decision']);
 
-      if (!isPowerUser) {
-        commQuery = commQuery.or(`assigned_to.eq.${userId},call_entered_by.eq.${userId}`);
-      }
+    if (!isPowerUser) {
+      commQuery = commQuery.or(`assigned_to.eq.${userId},call_entered_by.eq.${userId}`);
+    }
 
-      const { data: comms, error: commErr } = await commQuery;
+    // 2. Active Site Visits
+    const visitsQuery = supabase
+      .from('site_visits')
+      .select('*, clients(client_name), projects(project_name)')
+      .eq('organisation_id', orgId)
+      .not('status', 'in', '("completed","cancelled")');
+
+    // 3. Submitted Site Reports
+    let reportsQuery = supabase
+      .from('site_reports')
+      .select('*, projects(project_name)')
+      .eq('organisation_id', orgId)
+      .neq('pm_status', 'Draft');
+
+    if (!isPowerUser) {
+      reportsQuery = reportsQuery.eq('created_by', userEmail);
+    }
+
+    // 4. Active Issues
+    let issuesQuery = supabase
+      .from('issues')
+      .select('*, clients(client_name), projects(project_name)')
+      .eq('organisation_id', orgId)
+      .not('status', 'in', '("closed","resolved")');
+
+    if (!isPowerUser) {
+      issuesQuery = issuesQuery.eq('assigned_to', userId);
+    }
+
+    // 5. Quotation Follow-ups
+    const qFollowUpQuery = supabase
+      .from('follow_up_quotation_tracking')
+      .select('*, quotation_header(quotation_no, clients(client_name))')
+      .eq('organisation_id', orgId)
+      .not('follow_up_status', 'in', '("lost_to_competitor")');
+
+    // 6. PO/DC Backlog Follow-ups
+    const podcQuery = supabase
+      .from('follow_up_podc_backlog')
+      .select('*')
+      .eq('organisation_id', orgId)
+      .eq('is_active', true);
+
+    // 7. Invoice Follow-ups
+    const invQuery = supabase
+      .from('follow_up_invoice_tracking')
+      .select('*, invoices(invoice_no, clients(client_name))')
+      .eq('organisation_id', orgId);
+
+    // 8. Active Leads
+    let leadsQuery = supabase
+      .from('leads')
+      .select('*')
+      .eq('organisation_id', orgId)
+      .not('status', 'in', '("converted","lost")');
+
+    if (!isPowerUser) {
+      leadsQuery = leadsQuery.eq('owner_user_id', userId);
+    }
+
+    // Execute all 8 independent queries in parallel
+    const [
+      commsRes,
+      visitsRes,
+      reportsRes,
+      issuesRes,
+      qFollowupsRes,
+      podcsRes,
+      invoicesRes,
+      leadsRes
+    ] = await Promise.allSettled([
+      commQuery,
+      visitsQuery,
+      reportsQuery,
+      issuesQuery,
+      qFollowUpQuery,
+      podcQuery,
+      invQuery,
+      leadsQuery
+    ]);
+
+    // 1. Process Client Communications
+    if (commsRes.status === 'fulfilled') {
+      const { data: comms, error: commErr } = commsRes.value;
       if (commErr) console.error('Comm query error:', commErr);
       if (comms) {
         comms.forEach(c => {
-          // Skip if user already acknowledged
           const ackList: string[] = c.next_action_acknowledged_by || [];
           if (ackList.includes(userEmail)) return;
 
-          // Use next_action, then subject, then call_brief as fallback for title
           const actionTitle = c.next_action || c.subject || c.call_brief || '';
           if (!actionTitle) return;
 
@@ -74,19 +154,13 @@ export function useNextActions() {
           });
         });
       }
-    } catch (e) {
-      console.error('Error fetching communications next actions:', e);
+    } else {
+      console.error('Error fetching communications next actions:', commsRes.reason);
     }
 
-    try {
-      // 2. Fetch Active Site Visits next steps
-      let visitsQuery = supabase
-        .from('site_visits')
-        .select('*, clients(client_name), projects(project_name)')
-        .eq('organisation_id', orgId)
-        .not('status', 'in', '("completed","cancelled")');
-
-      const { data: visits } = await visitsQuery;
+    // 2. Process Active Site Visits
+    if (visitsRes.status === 'fulfilled') {
+      const { data: visits } = visitsRes.value;
       if (visits) {
         visits.forEach(v => {
           const ackList: string[] = v.next_action_acknowledged_by || [];
@@ -114,23 +188,13 @@ export function useNextActions() {
           }
         });
       }
-    } catch (e) {
-      console.error('Error fetching site visits next actions:', e);
+    } else {
+      console.error('Error fetching site visits next actions:', visitsRes.reason);
     }
 
-    try {
-      // 3. Fetch Submitted Site Reports tomorrow's plans
-      let reportsQuery = supabase
-        .from('site_reports')
-        .select('*, projects(project_name)')
-        .eq('organisation_id', orgId)
-        .neq('pm_status', 'Draft');
-
-      if (!isPowerUser) {
-        reportsQuery = reportsQuery.eq('created_by', userEmail);
-      }
-
-      const { data: reports } = await reportsQuery;
+    // 3. Process Submitted Site Reports
+    if (reportsRes.status === 'fulfilled') {
+      const { data: reports } = reportsRes.value;
       if (reports) {
         reports.forEach(r => {
           const ackList: string[] = r.next_action_acknowledged_by || [];
@@ -153,23 +217,13 @@ export function useNextActions() {
           }
         });
       }
-    } catch (e) {
-      console.error('Error fetching site reports tomorrow plans:', e);
+    } else {
+      console.error('Error fetching site reports tomorrow plans:', reportsRes.reason);
     }
 
-    try {
-      // 4. Fetch Active Issues
-      let issuesQuery = supabase
-        .from('issues')
-        .select('*, clients(client_name), projects(project_name)')
-        .eq('organisation_id', orgId)
-        .not('status', 'in', '("closed","resolved")');
-
-      if (!isPowerUser) {
-        issuesQuery = issuesQuery.eq('assigned_to', userId);
-      }
-
-      const { data: activeIssues } = await issuesQuery;
+    // 4. Process Active Issues
+    if (issuesRes.status === 'fulfilled') {
+      const { data: activeIssues } = issuesRes.value;
       if (activeIssues) {
         activeIssues.forEach(i => {
           const ackList: string[] = i.next_action_acknowledged_by || [];
@@ -190,19 +244,13 @@ export function useNextActions() {
           });
         });
       }
-    } catch (e) {
-      console.error('Error fetching issues next actions:', e);
+    } else {
+      console.error('Error fetching issues next actions:', issuesRes.reason);
     }
 
-    try {
-      // 5. Fetch Quotation Follow-ups
-      let qFollowUpQuery = supabase
-        .from('follow_up_quotation_tracking')
-        .select('*, quotation_header(quotation_no, clients(client_name))')
-        .eq('organisation_id', orgId)
-        .not('follow_up_status', 'in', '("lost_to_competitor")');
-
-      const { data: qFollowups } = await qFollowUpQuery;
+    // 5. Process Quotation Follow-ups
+    if (qFollowupsRes.status === 'fulfilled') {
+      const { data: qFollowups } = qFollowupsRes.value;
       if (qFollowups) {
         qFollowups.forEach(q => {
           const ackList: string[] = q.next_action_acknowledged_by || [];
@@ -222,19 +270,13 @@ export function useNextActions() {
           });
         });
       }
-    } catch (e) {
-      console.error('Error fetching quotation follow-ups:', e);
+    } else {
+      console.error('Error fetching quotation follow-ups:', qFollowupsRes.reason);
     }
 
-    try {
-      // 6. Fetch PO/DC Backlog Follow-ups
-      let podcQuery = supabase
-        .from('follow_up_podc_backlog')
-        .select('*')
-        .eq('organisation_id', orgId)
-        .eq('is_active', true);
-
-      const { data: podcs } = await podcQuery;
+    // 6. Process PO/DC Backlog Follow-ups
+    if (podcsRes.status === 'fulfilled') {
+      const { data: podcs } = podcsRes.value;
       if (podcs) {
         podcs.forEach(p => {
           const ackList: string[] = p.next_action_acknowledged_by || [];
@@ -254,18 +296,13 @@ export function useNextActions() {
           });
         });
       }
-    } catch (e) {
-      console.error('Error fetching PO/DC backlogs:', e);
+    } else {
+      console.error('Error fetching PO/DC backlogs:', podcsRes.reason);
     }
 
-    try {
-      // 7. Fetch Invoice Follow-ups
-      let invQuery = supabase
-        .from('follow_up_invoice_tracking')
-        .select('*, invoices(invoice_no, clients(client_name))')
-        .eq('organisation_id', orgId);
-
-      const { data: invoices } = await invQuery;
+    // 7. Process Invoice Follow-ups
+    if (invoicesRes.status === 'fulfilled') {
+      const { data: invoices } = invoicesRes.value;
       if (invoices) {
         invoices.forEach(inv => {
           const ackList: string[] = inv.next_action_acknowledged_by || [];
@@ -285,23 +322,13 @@ export function useNextActions() {
           });
         });
       }
-    } catch (e) {
-      console.error('Error fetching invoice follow-ups:', e);
+    } else {
+      console.error('Error fetching invoice follow-ups:', invoicesRes.reason);
     }
 
-    try {
-      // 8. Fetch Active Leads next actions
-      let leadsQuery = supabase
-        .from('leads')
-        .select('*')
-        .eq('organisation_id', orgId)
-        .not('status', 'in', '("converted","lost")');
-
-      if (!isPowerUser) {
-        leadsQuery = leadsQuery.eq('owner_user_id', userId);
-      }
-
-      const { data: activeLeads } = await leadsQuery;
+    // 8. Process Active Leads
+    if (leadsRes.status === 'fulfilled') {
+      const { data: activeLeads } = leadsRes.value;
       if (activeLeads) {
         activeLeads.forEach(l => {
           const ackList: string[] = l.next_action_acknowledged_by || [];
@@ -324,8 +351,8 @@ export function useNextActions() {
           }
         });
       }
-    } catch (e) {
-      console.error('Error fetching leads next actions:', e);
+    } else {
+      console.error('Error fetching leads next actions:', leadsRes.reason);
     }
 
     // Sort items by creation date descending (recent one on the top)
@@ -447,7 +474,7 @@ export function useNextActions() {
     queryKey: ['next-actions', organisation?.id, user?.id, user?.email],
     queryFn: fetchNextActions,
     enabled: !!organisation?.id && !!user?.id,
-    staleTime: 0,
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -455,7 +482,7 @@ export function useNextActions() {
     queryKey: ['next-actions-history', organisation?.id, user?.id, user?.email],
     queryFn: fetchNextActionsHistory,
     enabled: !!organisation?.id && !!user?.id,
-    staleTime: 0,
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
