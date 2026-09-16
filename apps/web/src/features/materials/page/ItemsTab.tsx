@@ -6,7 +6,6 @@ import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Package, IndianRupee, Tag, Layers, Download } from 'lucide-react';
 import { useMaterialsPageData } from '../../../hooks/useMaterialsPageData';
-import { useUnits } from '../../../hooks/useUnits';
 import { useMaterialForm } from '../hooks/useMaterialForm';
 import { useItemTransactions } from '../hooks/useItemTransactions';
 import { useBulkPriceUpdate } from '../hooks/useBulkPriceUpdate';
@@ -44,31 +43,7 @@ export function ItemsTab() {
   const clients = pageData?.clients ?? [];
   const discountCategories = pageData?.discountCategories ?? [];
   const categoryOptions = categories.length > 0 ? categories.map((c: any) => c.category_name) : MAIN_CATEGORIES;
-  const { data: units = [] } = useUnits();
-
-  // Vendors (separate query)
-  const { data: vendors = [] } = useQuery({
-    queryKey: ['purchase-vendors', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase.from('purchase_vendors').select('id, company_name, organisation_id').eq('organisation_id', orgId).eq('status', 'Active');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
-
-  // Attribute definitions (for custom attributes dropdown)
-  const { data: attributeDefinitions = [] } = useQuery({
-    queryKey: ['attribute-definitions', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase.from('attribute_definitions').select('*').eq('organisation_id', orgId).order('label');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
+  const units = pageData?.units ?? [];
 
   const discountCategoryMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -117,6 +92,33 @@ export function ItemsTab() {
 
   // ─── Hooks ───────────────────────────────────────────────────
   const form = useMaterialForm();
+
+  // Vendors (deferred until item editor is opened)
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['purchase-vendors', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase.from('purchase_vendors').select('id, company_name, organisation_id').eq('organisation_id', orgId).eq('status', 'Active');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId && form.showForm,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Attribute definitions (deferred until item editor is opened)
+  const { data: attributeDefinitions = [] } = useQuery({
+    queryKey: ['attribute-definitions', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase.from('attribute_definitions').select('*').eq('organisation_id', orgId).order('label');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId && form.showForm,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const transactions = useItemTransactions();
   const bulk = useBulkPriceUpdate(materials);
   const actions = useMaterialActions(orgId, updateMaterialsCache);
