@@ -29,12 +29,26 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        // Larger chunks = fewer requests = faster subsequent navigation
-        manualChunks: {
-          // Group heavy vendor libs into single chunks
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@heroicons/react', 'sonner'],
-          'vendor-data': ['@tanstack/react-query', '@supabase/supabase-js'],
+        manualChunks(id) {
+          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/@heroicons')) {
+            return 'vendor-icons';
+          }
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router-dom/')
+          ) {
+            return 'vendor-react';
+          }
+          if (
+            id.includes('node_modules/@tanstack/react-query') ||
+            id.includes('node_modules/@supabase')
+          ) {
+            return 'vendor-data';
+          }
+          if (id.includes('node_modules/sonner')) {
+            return 'vendor-ui';
+          }
         }
       }
     }
