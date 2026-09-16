@@ -121,7 +121,8 @@ const ProjectScheduleBaselineControl = lazyAny(() => import('./pages/ProjectSche
 
 
 // Lazy load internally moved pages
-const Dashboard = lazyAny(() => import('./pages/Dashboard'));
+const _dashboardModule = memoLazyModule(() => import('./pages/Dashboard'));
+const Dashboard = lazyAny(() => _dashboardModule());
 const DashboardDemo = lazyAny(() => import('./pages/DashboardDemo'));
 const Operations = lazyAny(() => import('./pages/operations/Operations'));
 const OperationsV2 = lazyAny(() => import('./pages/operations/OperationsV2'));
@@ -282,7 +283,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [dbSetup, setDbSetup] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [tourRect, setTourRect] = useState<DOMRect | null>(null);
@@ -844,24 +844,10 @@ export default function App() {
     }
   }, [user, organisation]);
 
-  const checkDatabase = async () => {
-    try {
-      const { error } = await supabase.from('projects').select('id').limit(1);
-      if (error) {
-        const message = String(error.message || '');
-        const code = String(error.code || '');
-        const looksLikeMissingTable =
-          code === '42P01' ||
-          /does not exist/i.test(message) ||
-          /schema cache/i.test(message);
-        if (looksLikeMissingTable) setDbSetup(true);
-      }
-    } catch (e) {
-      console.warn('Database check failed (non-fatal):', e);
-    }
-  };
-
   const initAuth = async (): Promise<(() => void) | undefined> => {
+    if (typeof window !== 'undefined' && (location.pathname === '/' || location.pathname === '/dashboard')) {
+      _dashboardModule();
+    }
     let resolveInitialSession: (user: User | null) => void;
     const initialSession = new Promise<User | null>((resolve) => {
       resolveInitialSession = resolve;
@@ -961,7 +947,6 @@ export default function App() {
 
     const init = async () => {
       unsubscribeAuth = await initAuth();
-      await checkDatabase();
       initCompleteRef.current = true;
       await recoverAfterResume();
     };
