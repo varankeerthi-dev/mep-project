@@ -71,7 +71,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
       if (!organisation?.id) return [];
       const { data, error } = await supabase
         .from('warranty_claims')
-        .select('*, equipment:project_equipment(*, project:projects(*))')
+        .select('id, organisation_id, status, sla_due_date')
         .eq('organisation_id', organisation.id)
         .neq('status', 'Resolved')
         .order('sla_due_date', { ascending: true, nullsFirst: false });
@@ -128,7 +128,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
       if (!organisation?.id) return [];
       const { data, error } = await supabase
         .from('project_insights')
-        .select('*')
+        .select('id, organisation_id, visibility, root_cause, created_at')
         .eq('organisation_id', organisation.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
